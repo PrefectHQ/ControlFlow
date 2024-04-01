@@ -4,10 +4,11 @@ from typing import Generator, Generic, Optional, TypeVar
 
 import marvin
 import marvin.utilities.tools
-from marvin.utilities.context import ctx
 from marvin.utilities.logging import get_logger
 from marvin.utilities.tools import FunctionTool
 from pydantic import BaseModel, Field, field_validator
+
+from control_flow.context import ctx
 
 T = TypeVar("T")
 logger = get_logger(__name__)

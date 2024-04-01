@@ -10,12 +10,12 @@ from marvin.beta.assistants.handlers import PrintHandler
 from marvin.beta.assistants.runs import Run
 from marvin.tools.assistants import AssistantTool, CancelRun
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
-from marvin.utilities.context import ctx
 from marvin.utilities.jinja import Environment
 from prefect import task as prefect_task
 from pydantic import BaseModel, Field, field_validator
 
 from control_flow import settings
+from control_flow.context import ctx
 
 from .flow import Flow
 from .task import Task, TaskStatus

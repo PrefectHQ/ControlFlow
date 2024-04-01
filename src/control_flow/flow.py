@@ -3,10 +3,11 @@ from typing import Callable, List, Optional, Union
 
 from marvin.beta.assistants import Assistant, Thread
 from marvin.beta.assistants.assistants import AssistantTool
-from marvin.utilities.context import ctx
 from marvin.utilities.logging import get_logger
 from prefect import flow as prefect_flow
 from pydantic import BaseModel, Field, field_validator
+
+from control_flow.context import ctx
 
 from .task import Task
 

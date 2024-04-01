@@ -119,6 +119,8 @@ idna==3.6
     # via requests
 importlib-resources==6.1.3
     # via prefect
+iniconfig==2.0.0
+    # via pytest
 ipython==8.22.2
 itsdangerous==2.1.2
     # via prefect
@@ -165,6 +167,7 @@ orjson==3.10.0
 packaging==24.0
     # via docker
     # via prefect
+    # via pytest
 parso==0.8.3
     # via jedi
 partialjson==0.0.7
@@ -178,6 +181,8 @@ pexpect==4.9.0
     # via ipython
 platformdirs==4.2.0
     # via virtualenv
+pluggy==1.4.0
+    # via pytest
 pre-commit==3.7.0
 prefect==2.16.8
     # via control-flow
@@ -211,6 +216,7 @@ pygments==2.17.2
     # via rich
 pyrepl==0.9.0
     # via fancycompleter
+pytest==8.1.1
 python-dateutil==2.9.0.post0
     # via croniter
     # via dateparser
