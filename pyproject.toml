@@ -7,6 +7,7 @@ authors = [
 ]
 dependencies = [
     "marvin>=2.3.1",
+    "prefect>=2.16.8",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"

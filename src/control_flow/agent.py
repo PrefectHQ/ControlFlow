@@ -12,6 +12,7 @@ from marvin.tools.assistants import AssistantTool, CancelRun
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
 from marvin.utilities.context import ctx
 from marvin.utilities.jinja import Environment
+from prefect import task as prefect_task
 from pydantic import BaseModel, Field, field_validator
 
 from control_flow import settings
@@ -232,6 +233,7 @@ def task(fn=None, *, objective: str = None):
         else:
             objective = fn.__name__
 
+    @prefect_task
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         # first process callargs
@@ -241,7 +243,7 @@ def task(fn=None, *, objective: str = None):
         # load flow
         flow = ctx.get("flow", None)
         if flow is None:
-            raise ValueError("task() must be used within a flow context")
+            flow = Flow()
 
         # create task
         result_type = fn.__annotations__.get("return")

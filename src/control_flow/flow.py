@@ -5,6 +5,7 @@ from marvin.beta.assistants import Assistant, Thread
 from marvin.beta.assistants.assistants import AssistantTool
 from marvin.utilities.context import ctx
 from marvin.utilities.logging import get_logger
+from prefect import flow as prefect_flow
 from pydantic import BaseModel, Field, field_validator
 
 from .task import Task
@@ -17,7 +18,7 @@ class Flow(BaseModel):
     thread: Thread = Field(None, validate_default=True)
     assistant: Assistant = Field(None, validate_default=True)
     tools: list[Union[AssistantTool, Callable]] = Field(None, validate_default=True)
-    instructions: str = None
+    instructions: Optional[str] = None
 
     model_config: dict = dict(validate_assignment=True, extra="forbid")
 
@@ -98,6 +99,7 @@ def flow(
         _instructions: str = None,
         **kwargs,
     ):
+        p_fn = prefect_flow(fn)
         flow_assistant = _assistant or assistant
         if flow_assistant is None:
             flow_assistant = Assistant()
@@ -111,6 +113,6 @@ def flow(
             instructions=flow_instructions,
         )
         with ctx(flow=flow_obj):
-            return fn(*args, **kwargs)
+            return p_fn(*args, **kwargs)
 
     return wrapper
