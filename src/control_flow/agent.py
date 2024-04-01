@@ -191,11 +191,24 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
         return final_tools
 
     @expose_sync_method("run")
-    async def run_async(self, context: dict = None, **run_kwargs) -> T:
+    async def run_async(self, **run_kwargs) -> list[Task]:
+        # await self.flow.thread.add_async("SYSTEM MESSAGE: Proceed.")
+
+        run = self._get_run(**run_kwargs)
+        await run.run_async()
+
+        # if this is not an interactive run, continue to run the AI
+        # until all tasks are no longer pending
+        if not self.can_talk_to_system:
+            while any(t.status == TaskStatus.PENDING for t in self.tasks):
+                run = self._get_run(**run_kwargs)
+                await run.run_async()
+
+        return self.tasks
+
+    def _get_run(self, context: dict = None, **run_kwargs) -> list[Task]:
         if "model" not in run_kwargs:
             run_kwargs["model"] = settings.assistant_model
-
-        self.flow.thread.add("SYSTEM MESSAGE: Proceed.")
 
         run = Run(
             assistant=self.assistant or self.flow.assistant,
@@ -206,15 +219,7 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
             **run_kwargs,
         )
 
-        # run the AI
-        await run.run_async()
-
-        # if this is not an interactive run, continue to run the AI
-        # until all tasks are no longer pending
-        if not self.can_talk_to_system:
-            # continue to run the AI as long as
-            while any(t.status == TaskStatus.PENDING for t in self.tasks):
-                await run.run_async()
+        return run
 
 
 def task(fn=None, *, objective: str = None):
