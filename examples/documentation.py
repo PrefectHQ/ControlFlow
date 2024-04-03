@@ -3,7 +3,7 @@ from pathlib import Path
 
 import control_flow
 from control_flow import ai_flow, ai_task
-from marvin.beta.assistants import Assistant
+from marvin.beta.assistants import Assistant, Thread
 from marvin.tools.filesystem import ls, read, read_lines, write
 
 ROOT = Path(control_flow.__file__).parents[2]
@@ -27,7 +27,7 @@ assistant = Assistant(
 )
 
 
-@ai_task
+@ai_task(model="gpt-3.5-turbo")
 def examine_source_code(source_dir: Path, extensions: list[str]):
     """
     Load all matching files in the root dir and all subdirectories and
@@ -38,7 +38,7 @@ def examine_source_code(source_dir: Path, extensions: list[str]):
 @ai_task
 def read_docs(docs_dir: Path):
     """
-    Read all documentation in the docs dir and subdirectories.
+    Read all documentation in the docs dir and subdirectories, if any.
     """
 
 
@@ -50,11 +50,15 @@ def write_docs(docs_dir: Path, instructions: str = None):
 
 
 @ai_flow(assistant=assistant)
-def docs_flow():
+def docs_flow(instructions: str):
     examine_source_code(ROOT / "src", extensions=[".py"])
     read_docs(ROOT / "docs")
-    write_docs(ROOT / "docs", instructions="Fill out the concept documentation")
+    write_docs(ROOT / "docs", instructions=instructions)
 
 
 if __name__ == "__main__":
-    docs_flow()
+    thread = Thread()
+    docs_flow(
+        _thread=thread,
+        instructions="Write documentation for the AI Flow class and save it in docs/flow.md",
+    )
