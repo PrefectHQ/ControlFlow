@@ -30,7 +30,7 @@ class AITask(BaseModel, Generic[T]):
 
     id: int = Field(None, validate_default=True)
     objective: str
-    context: dict = {}
+    context: dict = Field(None, validate_default=True)
     status: TaskStatus = TaskStatus.PENDING
     result: T = None
     error: Optional[str] = None
@@ -39,11 +39,17 @@ class AITask(BaseModel, Generic[T]):
     model_config: dict = dict(validate_assignment=True, extra="forbid")
 
     @field_validator("id", mode="before")
-    def default_id(cls, v):
+    def _default_id(cls, v):
         if v is None:
             flow = ctx.get("flow")
             if flow is not None:
                 v = len(flow.tasks) + 1
+        return v
+
+    @field_validator("context", mode="before")
+    def _default_context(cls, v):
+        if v is None:
+            v = {}
         return v
 
     def _create_complete_tool(self) -> FunctionTool:
