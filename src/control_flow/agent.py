@@ -332,7 +332,7 @@ def ai_task(fn=None, *, objective: str = None):
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
 
-        return run_agent(
+        return run_ai(
             objective=objective,
             result_type=fn.__annotations__.get("return"),
             context=bound.arguments,
@@ -341,7 +341,7 @@ def ai_task(fn=None, *, objective: str = None):
     return wrapper
 
 
-def run_agent(task: str, result_type: T = str, context: dict = None) -> T:
+def run_ai(task: str, result_type: T = str, context: dict = None) -> T:
     """
     Run an agent to complete a task with the given objective and context. The
     response will be of the given result type.
