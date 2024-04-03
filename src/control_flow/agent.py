@@ -329,16 +329,18 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
         return result
 
 
-def ai_task(fn=None, *, objective: str = None, user_access: bool = None):
+def ai_task(
+    fn=None, *, objective: str = None, user_access: bool = None, **agent_kwargs: dict
+):
     """
     Decorator that uses a function to create an AI task. When the function is
     called, an agent is created to complete the task and return the result.
     """
-    if user_access is None:
-        user_access = False
 
     if fn is None:
-        return functools.partial(ai_task, objective=objective, user_access=user_access)
+        return functools.partial(
+            ai_task, objective=objective, user_access=user_access, **agent_kwargs
+        )
 
     sig = inspect.signature(fn)
 
@@ -359,12 +361,14 @@ def ai_task(fn=None, *, objective: str = None, user_access: bool = None):
             result_type=fn.__annotations__.get("return"),
             context=bound.arguments,
             user_access=user_access,
+            **agent_kwargs,
         )
 
     return wrapper
 
 
 def _name_from_objective():
+    """Helper function for naming task runs"""
     from prefect.runtime import task_run
 
     objective = task_run.parameters["task"]
@@ -375,14 +379,16 @@ def _name_from_objective():
 
 @prefect_task(task_run_name=_name_from_objective)
 def run_ai(
-    task: str, result_type: T = str, context: dict = None, user_access: bool = None
+    task: str,
+    result_type: T = str,
+    context: dict = None,
+    user_access: bool = None,
+    **agent_kwargs: dict,
 ) -> T:
     """
     Run an agent to complete a task with the given objective and context. The
     response will be of the given result type.
     """
-    if user_access is None:
-        user_access = False
 
     # load flow
     flow = ctx.get("flow", None)
@@ -394,7 +400,7 @@ def run_ai(
     flow.add_task(ai_task)
 
     # run agent
-    agent = Agent(tasks=[ai_task], user_access=user_access, flow=flow)
+    agent = Agent(tasks=[ai_task], user_access=user_access, flow=flow, **agent_kwargs)
     agent.run()
 
     # return
