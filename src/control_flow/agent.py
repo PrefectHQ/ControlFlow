@@ -325,14 +325,13 @@ def ai_task(fn=None, *, objective: str = None):
         else:
             objective = fn.__name__
 
-    @prefect_task
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         # first process callargs
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
 
-        return run_ai(
+        return run_ai.with_options(name=f"Task: {fn.__name__}")(
             task=objective,
             result_type=fn.__annotations__.get("return"),
             context=bound.arguments,
@@ -341,6 +340,16 @@ def ai_task(fn=None, *, objective: str = None):
     return wrapper
 
 
+def _name_from_objective():
+    from prefect.runtime import task_run
+
+    objective = task_run.parameters["task"]
+    if len(objective) > 32:
+        return f"Task: {objective[:32]}..."
+    return f"Task: {objective}"
+
+
+@prefect_task(task_run_name=_name_from_objective)
 def run_ai(task: str, result_type: T = str, context: dict = None) -> T:
     """
     Run an agent to complete a task with the given objective and context. The
