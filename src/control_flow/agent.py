@@ -257,10 +257,14 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
             final_tools.append(tool)
         return final_tools
 
-    @expose_sync_method("run")
-    async def run_async(self, **run_kwargs) -> list[AITask]:
+    def _get_openai_run_task(self):
+        """
+        Helper function for building the task that will execute the OpenAI assistant run.
+        This needs to be regenerated each time in case the instructions change.
+        """
+
         @prefect_task(name="Execute OpenAI assistant run")
-        async def run_openai_run(context: dict = None, run_kwargs: dict = None):
+        async def execute_openai_run(context: dict = None, run_kwargs: dict = None):
             run_kwargs = run_kwargs or {}
             if "model" not in run_kwargs:
                 run_kwargs["model"] = settings.assistant_model
@@ -308,24 +312,27 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
                 description="All steps taken during the run.",
             )
 
-        @prefect_task(name="Run agent")
-        async def run_agent():
-            run_openai_run(run_kwargs)
+        return execute_openai_run
 
-            # if this is not an interactive run, continue to run the AI
-            # until all tasks are no longer pending
-            if not self.system_access:
-                counter = 0
-                while (
-                    any(t.status == TaskStatus.PENDING for t in self.tasks)
-                    and counter < settings.max_agent_iterations
-                ):
-                    run_openai_run(run_kwargs)
-                    counter += 1
+    @expose_sync_method("run")
+    async def run_async(self, context: dict = None, **run_kwargs) -> list[AITask]:
+        openai_run = self._get_openai_run_task()
 
-            return [t.result for t in self.tasks if t.status == TaskStatus.COMPLETED]
+        openai_run(context=context, run_kwargs=run_kwargs)
 
-        result = run_agent()
+        # if this is not an interactive run, continue to run the AI
+        # until all tasks are no longer pending
+        if not self.system_access:
+            counter = 0
+            while (
+                any(t.status == TaskStatus.PENDING for t in self.tasks)
+                and counter < settings.max_agent_iterations
+            ):
+                openai_run(context=context, run_kwargs=run_kwargs)
+                counter += 1
+
+        result = [t.result for t in self.tasks if t.status == TaskStatus.COMPLETED]
+
         return result
 
 
@@ -383,6 +390,7 @@ def run_ai(
     result_type: T = str,
     context: dict = None,
     user_access: bool = None,
+    model: str = None,
     **agent_kwargs: dict,
 ) -> T:
     """
@@ -401,7 +409,7 @@ def run_ai(
 
     # run agent
     agent = Agent(tasks=[ai_task], user_access=user_access, flow=flow, **agent_kwargs)
-    agent.run()
+    agent.run(model=model)
 
     # return
     if ai_task.status == TaskStatus.COMPLETED:
