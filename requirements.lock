@@ -45,7 +45,7 @@ charset-normalizer==3.3.2
 click==8.1.7
     # via apprise
     # via prefect
-    # via typer
+    # via typer-slim
     # via uvicorn
 cloudpickle==3.0.0
     # via prefect
@@ -86,7 +86,7 @@ h2==4.1.0
     # via httpx
 hpack==4.0.0
     # via h2
-httpcore==1.0.4
+httpcore==1.0.5
     # via httpx
     # via prefect
 httpx==0.27.0
@@ -147,7 +147,7 @@ pathspec==0.12.1
     # via prefect
 pendulum==3.0.0
     # via prefect
-prefect==2.16.8
+prefect @ git+https://github.com/prefecthq/prefect@a7f93ae5e84a11d79c43bf5b9dfeff926c3a0eca
     # via control-flow
 prompt-toolkit==3.0.43
     # via marvin
@@ -166,6 +166,7 @@ pydantic==2.6.4
     # via prefect
     # via pydantic-settings
 pydantic-core==2.16.3
+    # via prefect
     # via pydantic
 pydantic-settings==2.2.1
     # via marvin
@@ -214,6 +215,7 @@ rfc3339-validator==0.1.4
 rich==13.7.1
     # via marvin
     # via prefect
+    # via typer-slim
 rpds-py==0.18.0
     # via jsonschema
     # via referencing
@@ -225,6 +227,8 @@ ruamel-yaml-clib==0.2.8
     # via ruamel-yaml
 setuptools==69.2.0
     # via readchar
+shellingham==1.5.4
+    # via typer-slim
 six==1.16.0
     # via kubernetes
     # via python-dateutil
@@ -250,9 +254,14 @@ toml==0.10.2
     # via prefect
 tqdm==4.66.2
     # via openai
-typer==0.11.0
+typer==0.12.0
     # via marvin
     # via prefect
+typer-cli==0.12.0
+    # via typer
+typer-slim==0.12.0
+    # via typer
+    # via typer-cli
 typing-extensions==4.10.0
     # via aiosqlite
     # via alembic
@@ -263,7 +272,7 @@ typing-extensions==4.10.0
     # via pydantic
     # via pydantic-core
     # via sqlalchemy
-    # via typer
+    # via typer-slim
 tzdata==2024.1
     # via marvin
     # via pendulum
