@@ -1,6 +1,5 @@
-from contextlib import contextmanager
 from enum import Enum
-from typing import Generator, Generic, Optional, TypeVar
+from typing import Generic, Optional, TypeVar
 
 import marvin
 import marvin.utilities.tools
@@ -20,9 +19,9 @@ class TaskStatus(Enum):
     FAILED = "failed"
 
 
-class Task(BaseModel, Generic[T]):
+class AITask(BaseModel, Generic[T]):
     """
-    A Task represents a single unit of work that an assistant must complete.
+    An AITask represents a single unit of work that an assistant must complete.
     Unlike instructions, which do not require a formal result and may last for
     zero or more agent iterations, tasks must be formally completed (or failed)
     by producing a result. Agents that are assigned tasks will continue to
@@ -46,9 +45,6 @@ class Task(BaseModel, Generic[T]):
             if flow is not None:
                 v = len(flow.tasks) + 1
         return v
-
-    def __init__(self, **data):
-        super().__init__(**data)
 
     def _create_complete_tool(self) -> FunctionTool:
         """
@@ -107,32 +103,3 @@ class Task(BaseModel, Generic[T]):
 
     def get_result_type(self) -> T:
         return self.model_fields["result"].annotation
-
-
-@contextmanager
-def tasks(objective, **kwargs) -> Generator[Task, None, None]:
-    raise NotImplementedError(
-        "add context manager for creating multiple tasks at once, or executing multiple tasks in one call"
-    )
-    # flow = ctx.get("flow", None)
-    # if flow is None:
-    #     raise ValueError("task() must be used within a flow context")
-
-    # parent_task = ctx.get("active_task", None)
-    # if parent_task:
-    #     kwargs["parent_task_id"] = parent_task.id
-
-    # task = Task(objective=objective, **kwargs)
-    # flow.add_task(task)
-
-    # with ctx(active_task=task):
-    #     try:
-    #         yield task
-    #         task.update(status=TaskStatus.COMPLETED)
-    #     except Exception as e:
-    #         task.update(status=TaskStatus.FAILED, result=str(e))
-    #         raise
-
-
-def task():
-    pass

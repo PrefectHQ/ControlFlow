@@ -9,13 +9,13 @@ from pydantic import BaseModel, Field, field_validator
 
 from control_flow.context import ctx
 
-from .task import Task
+from .task import AITask
 
 logger = get_logger(__name__)
 
 
-class Flow(BaseModel):
-    tasks: List[Task] = []
+class AIFlow(BaseModel):
+    tasks: List[AITask] = []
     thread: Thread = Field(None, validate_default=True)
     assistant: Assistant = Field(None, validate_default=True)
     tools: list[Union[AssistantTool, Callable]] = Field(None, validate_default=True)
@@ -48,14 +48,14 @@ class Flow(BaseModel):
             v = []
         return v
 
-    def add_task(self, task: Task):
+    def add_task(self, task: AITask):
         if task.id is None:
             task.id = len(self.tasks) + 1
         elif task.id in {t.id for t in self.tasks}:
             raise ValueError(f"Task with id {task.id} already exists.")
         self.tasks.append(task)
 
-    def get_task_by_id(self, task_id: int) -> Optional[Task]:
+    def get_task_by_id(self, task_id: int) -> Optional[AITask]:
         for task in self.tasks:
             if task.id == task_id:
                 return task
@@ -70,7 +70,7 @@ class Flow(BaseModel):
         self.thread.add(message)
 
 
-def flow(
+def ai_flow(
     fn=None,
     *,
     assistant: Assistant = None,
@@ -84,7 +84,7 @@ def flow(
 
     if fn is None:
         return functools.partial(
-            flow,
+            ai_flow,
             assistant=assistant,
             thread=thread,
             tools=tools,
@@ -107,13 +107,13 @@ def flow(
         flow_thread = _thread or thread or flow_assistant.default_thread
         flow_instructions = _instructions or instructions
         flow_tools = _tools or tools
-        flow_obj = Flow(
+        flow_obj = AIFlow(
             thread=flow_thread,
             assistant=flow_assistant,
             tools=flow_tools,
             instructions=flow_instructions,
         )
-        with ctx(flow=flow_obj):
+        with ctx(ai_flow=flow_obj):
             return p_fn(*args, **kwargs)
 
     return wrapper
