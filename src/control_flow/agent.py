@@ -333,7 +333,7 @@ def ai_task(fn=None, *, objective: str = None):
         bound.apply_defaults()
 
         return run_ai(
-            objective=objective,
+            task=objective,
             result_type=fn.__annotations__.get("return"),
             context=bound.arguments,
         )
