@@ -113,7 +113,7 @@ def ai_flow(
             tools=flow_tools,
             instructions=flow_instructions,
         )
-        with ctx(ai_flow=flow_obj):
+        with ctx(flow=flow_obj):
             return p_fn(*args, **kwargs)
 
     return wrapper
