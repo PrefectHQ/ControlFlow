@@ -1,6 +1,9 @@
-# Control Flow
+![image](https://github.com/jlowin/ControlFlow/assets/153965/2d779a8e-4400-4b04-ad30-60af56db7674)
 
-Control Flow is a framework for integrating AI agents into traditional software. It allows for agents that can be precisely controlled, observed, and debugged, while retaining the autonomy and flexibility that make LLM agents so powerful. Control Flow agents are designed to be invoked programmatically, though they are capable of interacting with humans and other agents as well.
+
+# ControlFlow
+
+ControlFlow is a framework for integrating AI agents into traditional software. It allows for agents that can be precisely controlled, observed, and debugged, while retaining the autonomy and flexibility that make LLM agents so powerful. Control Flow agents are designed to be invoked programmatically, though they are capable of interacting with humans and other agents as well.
 
 ## Example
 
