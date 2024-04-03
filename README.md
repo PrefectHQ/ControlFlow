@@ -18,7 +18,7 @@ class Name(BaseModel):
     last_name: str
 
 
-@ai_task
+@ai_task(user_access=True)
 def get_user_name() -> Name:
     pass
 
@@ -34,12 +34,12 @@ def demo():
 
     # set instructions that will be used for multiple tasks
     with instructions("talk like a pirate"):
-        
+
         # define an AI task as a function and have it execute it
         name = get_user_name()
 
         # define an AI task inline
-        interests = run_ai("ask user for three interests", result_type=list[str])
+        interests = run_ai("ask user for three interests", result_type=list[str], user_access=True)
 
         # set instructions for just the next task
         with instructions("no more than 8 lines"):
@@ -54,4 +54,3 @@ demo()
 ```
 
 <img width="1491" alt="image" src="https://github.com/jlowin/ControlFlow/assets/153965/d436de8d-f5c8-4ef2-a281-221b8abebd1f">
-

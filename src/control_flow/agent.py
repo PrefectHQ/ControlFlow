@@ -237,8 +237,6 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
 
     @expose_sync_method("run")
     async def run_async(self, **run_kwargs) -> list[AITask]:
-        # await self.flow.thread.add_async("SYSTEM MESSAGE: Proceed.")
-
         @prefect_task(name="Execute OpenAI assistant run")
         async def run_openai_run(context: dict = None, run_kwargs: dict = None):
             run_kwargs = run_kwargs or {}
@@ -309,13 +307,16 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
         return result
 
 
-def ai_task(fn=None, *, objective: str = None):
+def ai_task(fn=None, *, objective: str = None, user_access: bool = None):
     """
     Decorator that uses a function to create an AI task. When the function is
     called, an agent is created to complete the task and return the result.
     """
+    if user_access is None:
+        user_access = False
+
     if fn is None:
-        return functools.partial(ai_task, objective=objective)
+        return functools.partial(ai_task, objective=objective, user_access=user_access)
 
     sig = inspect.signature(fn)
 
@@ -335,6 +336,7 @@ def ai_task(fn=None, *, objective: str = None):
             task=objective,
             result_type=fn.__annotations__.get("return"),
             context=bound.arguments,
+            user_access=user_access,
         )
 
     return wrapper
@@ -350,11 +352,16 @@ def _name_from_objective():
 
 
 @prefect_task(task_run_name=_name_from_objective)
-def run_ai(task: str, result_type: T = str, context: dict = None) -> T:
+def run_ai(
+    task: str, result_type: T = str, context: dict = None, user_access: bool = None
+) -> T:
     """
     Run an agent to complete a task with the given objective and context. The
     response will be of the given result type.
     """
+    if user_access is None:
+        user_access = False
+
     # load flow
     flow = ctx.get("flow", None)
     if flow is None:
@@ -365,7 +372,7 @@ def run_ai(task: str, result_type: T = str, context: dict = None) -> T:
     flow.add_task(ai_task)
 
     # run agent
-    agent = Agent(tasks=[ai_task])
+    agent = Agent(tasks=[ai_task], can_talk_to_human=user_access, flow=flow)
     agent.run()
 
     # return
