@@ -1,7 +1,7 @@
 [project]
-name = "control-flow"
+name = "control_flow"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI Workflows"
 authors = [
     { name = "Jeremiah Lowin", email = "153965+jlowin@users.noreply.github.com" }
 ]
@@ -11,7 +11,11 @@ dependencies = [
     "pydantic>=2",
 ]
 readme = "README.md"
-requires-python = ">= 3.8"
+requires-python = ">= 3.9"
+keywords = ["ai", "chatbot", "llm", "NLP", "natural language processing", "prefect", "workflow", "orchestration", "python", "GPT", "openai", "assistant", "agent"]
+
+[project.urls]
+Code = "https://github.com/jlowin/ControlFlow"
 
 [build-system]
 requires = ["hatchling"]
