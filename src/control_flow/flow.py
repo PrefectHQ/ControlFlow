@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 class AIFlow(BaseModel):
     tasks: List[AITask] = []
     thread: Thread = Field(None, validate_default=True)
-    assistant: Assistant = Field(None, validate_default=True)
+    assistant: Optional[Assistant] = Field(None, validate_default=True)
     tools: list[Union[AssistantTool, Callable]] = Field(None, validate_default=True)
     instructions: Optional[str] = None
 
@@ -28,8 +28,6 @@ class AIFlow(BaseModel):
     def _load_assistant_from_ctx(cls, v):
         if v is None:
             v = ctx.get("assistant", None)
-            if v is None:
-                v = Assistant()
         return v
 
     @field_validator("thread", mode="before")
@@ -103,8 +101,6 @@ def ai_flow(
     ):
         p_fn = prefect_flow(fn)
         flow_assistant = _assistant or assistant
-        if flow_assistant is None:
-            flow_assistant = Assistant()
         flow_thread = _thread or thread or flow_assistant.default_thread
         flow_instructions = _instructions or instructions
         flow_tools = _tools or tools
