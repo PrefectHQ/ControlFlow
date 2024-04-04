@@ -1,10 +1,12 @@
 import functools
 import inspect
+import json
 import logging
 from typing import Callable, Generic, TypeVar, Union
 
 import marvin
 import marvin.utilities.tools
+import prefect
 from marvin.beta.assistants.assistants import Assistant
 from marvin.beta.assistants.handlers import PrintHandler
 from marvin.beta.assistants.runs import Run
@@ -12,8 +14,11 @@ from marvin.tools.assistants import AssistantTool, CancelRun
 from marvin.types import FunctionTool
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
 from marvin.utilities.jinja import Environment
+from openai.types.beta.threads.runs import ToolCall
+from prefect import get_client as get_prefect_client
 from prefect import task as prefect_task
-from prefect.artifacts import create_markdown_artifact
+from prefect.artifacts import ArtifactRequest, create_markdown_artifact
+from prefect.context import FlowRunContext
 from pydantic import BaseModel, Field, field_validator
 
 from control_flow import settings
@@ -24,6 +29,45 @@ from .task import AITask, TaskStatus
 
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
+
+
+TOOL_CALL_CODE_INTERPRETER_TEMPLATE = inspect.cleandoc(
+    """
+    # Tool call: code interpreter
+        
+    ## Code
+    
+    ```python
+    {code}
+    ```
+    
+    ## Result
+    
+    ```python
+    {result}
+    ```
+    """
+)
+
+TOOL_CALL_FUNCTION_TEMPLATE = inspect.cleandoc(
+    """
+    # Tool call: {name}
+    
+    **Description:** {description}
+    
+    ## Arguments
+    
+    ```json
+    {args}
+    ```
+    
+    ## Result
+    
+    ```json
+    {result}
+    ```
+    """
+)
 
 
 INSTRUCTIONS = """
@@ -124,26 +168,62 @@ The following context was provided:
 """
 
 
-RUN_ARTIFACT = """
-{% if messages %}
-## Messages
+class AgentHandler(PrintHandler):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.tool_calls = {}
 
-{% for message in messages %}
-Timestamp: {{ message.created_at }}
-Role: {{ message.role }}
-Message: {{ message.content[0].text.value }}
+    async def on_tool_call_created(self, tool_call: ToolCall) -> None:
+        """Callback that is fired when a tool call is created"""
 
-{% endfor %}
-{% endif %}
+        if tool_call.type == "function":
+            task_run_name = "Preparing arguments for tool call..."
+        else:
+            task_run_name = f"Tool call: {tool_call.type}"
 
-## Steps
-{% for step in steps %}
-```json
-{{ step.model_dump_json(indent=2) }}
-```
+        client = get_prefect_client()
+        engine_context = FlowRunContext.get()
+        if not engine_context:
+            return
 
-{% endfor %}
-"""
+        task_run = await client.create_task_run(
+            task=prefect.Task(fn=lambda: None),
+            name=task_run_name,
+            extra_tags=["tool-call"],
+            flow_run_id=engine_context.flow_run.id,
+            dynamic_key=tool_call.id,
+            state=prefect.states.Running(),
+        )
+
+        self.tool_calls[tool_call.id] = task_run
+
+    async def on_tool_call_done(self, tool_call: ToolCall) -> None:
+        """Callback that is fired when a tool call is done"""
+        client = get_prefect_client()
+        task_run = self.tool_calls.get(tool_call.id)
+        if not task_run:
+            return
+        await client.set_task_run_state(
+            task_run_id=task_run.id, state=prefect.states.Completed(), force=True
+        )
+
+        # code interpreter is run as a single call, so we can publish a result artifact
+        if tool_call.type == "code_interpreter":
+            markdown = TOOL_CALL_CODE_INTERPRETER_TEMPLATE.format(
+                code=tool_call.code_interpreter.input,
+                result=tool_call.code_interpreter.outputs,
+            )
+            # low level artifact call because we need to provide the task run ID manually
+            return await client.create_artifact(
+                artifact=ArtifactRequest(
+                    type="markdown",
+                    key="result",
+                    description="Code interpreter result",
+                    task_run_id=task_run.id,
+                    flow_run_id=task_run.flow_run_id,
+                    data=markdown,
+                )
+            )
 
 
 def talk_to_human(message: str, get_response: bool = True) -> str:
@@ -167,6 +247,8 @@ def end_run():
 class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
     tasks: list[AITask] = []
     flow: AIFlow = Field(None, validate_default=True)
+    assistant: Assistant = Field(None, validate_default=True)
+    tools: list[Union[AssistantTool, Callable]] = []
     context: dict = Field(None, validate_default=True)
     user_access: bool = Field(
         None,
@@ -180,8 +262,6 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
         "This is usually only used when the agent was spawned by another "
         "agent capable of understanding its responses.",
     )
-    assistant: Assistant = None
-    tools: list[Union[AssistantTool, Callable]] = []
     instructions: str = None
     model_config: dict = dict(arbitrary_types_allowed=True, extra="forbid")
 
@@ -197,6 +277,16 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
     def _default_context(cls, v):
         if v is None:
             v = {}
+        return v
+
+    @field_validator("assistant", mode="before")
+    def _default_assistant(cls, v):
+        if v is None:
+            flow = ctx.get("flow")
+            if flow:
+                v = flow.assistant
+            if v is None:
+                v = Assistant()
         return v
 
     @field_validator("user_access", mode="before")
@@ -216,7 +306,7 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
             INSTRUCTIONS,
             agent=self,
             flow=self.flow,
-            assistant=self.assistant or self.flow.assistant,
+            assistant=self.assistant,
             instructions=ctx.get("instructions", []),
             context={**self.context, **(context or {})},
         )
@@ -224,7 +314,7 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
         return instructions
 
     def _get_tools(self) -> list[AssistantTool]:
-        tools = self.flow.tools + self.tools
+        tools = self.flow.tools + self.tools + self.assistant.tools
 
         if not self.tasks:
             tools.append(end_run)
@@ -242,11 +332,30 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
             if isinstance(tool, FunctionTool):
 
                 async def modified_fn(
-                    original_fn=tool.function._python_fn, *args, **kwargs
+                    *args,
+                    # provide default args to avoid a late-binding issue
+                    original_fn: Callable = tool.function._python_fn,
+                    tool: FunctionTool = tool,
+                    **kwargs,
                 ):
+                    # call fn
                     result = original_fn(*args, **kwargs)
+
+                    passed_args = (
+                        inspect.signature(original_fn).bind(*args, **kwargs).arguments
+                    )
+                    try:
+                        passed_args = json.dumps(passed_args, indent=2)
+                    except Exception:
+                        pass
                     await create_markdown_artifact(
-                        markdown=f"```json\n{result}\n```", key="result"
+                        markdown=TOOL_CALL_FUNCTION_TEMPLATE.format(
+                            name=tool.function.name,
+                            description=tool.function.description or "(none provided)",
+                            args=passed_args,
+                            result=result,
+                        ),
+                        key="result",
                     )
                     return result
 
@@ -267,14 +376,14 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
         async def execute_openai_run(context: dict = None, run_kwargs: dict = None):
             run_kwargs = run_kwargs or {}
             if "model" not in run_kwargs:
-                run_kwargs["model"] = settings.assistant_model
+                run_kwargs["model"] = self.assistant.model or settings.assistant_model
 
             run = Run(
-                assistant=self.assistant or self.flow.assistant,
+                assistant=self.assistant,
                 thread=self.flow.thread,
                 instructions=self._get_instructions(context=context),
-                additional_tools=self._get_tools(),
-                event_handler_class=PrintHandler,
+                tools=self._get_tools(),
+                event_handler_class=AgentHandler,
                 **run_kwargs,
             )
             await run.run_async()
@@ -408,7 +517,7 @@ def run_ai(
     flow.add_task(ai_task)
 
     # run agent
-    agent = Agent(tasks=[ai_task], user_access=user_access, flow=flow, **agent_kwargs)
+    agent = Agent(tasks=[ai_task], flow=flow, user_access=user_access, **agent_kwargs)
     agent.run(model=model)
 
     # return
