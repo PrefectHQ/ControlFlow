@@ -43,13 +43,24 @@ TOOL_CALL_CODE_INTERPRETER_TEMPLATE = inspect.cleandoc(
     
     ## Result
     
-    ```python
+    ```json
     {result}
     ```
     """
 )
 
-TOOL_CALL_FUNCTION_TEMPLATE = inspect.cleandoc(
+TOOL_CALL_FUNCTION_ARGS_TEMPLATE = inspect.cleandoc(
+    """
+    # Tool call: {name}
+    
+    ## Arguments
+    
+    ```json
+    {args}
+    ```
+    """
+)
+TOOL_CALL_FUNCTION_RESULT_TEMPLATE = inspect.cleandoc(
     """
     # Tool call: {name}
     
@@ -209,21 +220,39 @@ class AgentHandler(PrintHandler):
 
         # code interpreter is run as a single call, so we can publish a result artifact
         if tool_call.type == "code_interpreter":
+            # images = []
+            # for output in tool_call.code_interpreter.outputs:
+            #     if output.type == "image":
+            #         image_path = download_temp_file(output.image.file_id)
+            #         images.append(image_path)
+
             markdown = TOOL_CALL_CODE_INTERPRETER_TEMPLATE.format(
                 code=tool_call.code_interpreter.input,
-                result=tool_call.code_interpreter.outputs,
+                result=json.dumps(
+                    [
+                        o.model_dump(mode="json")
+                        for o in tool_call.code_interpreter.outputs
+                    ],
+                    indent=2,
+                ),
             )
-            # low level artifact call because we need to provide the task run ID manually
-            return await client.create_artifact(
-                artifact=ArtifactRequest(
-                    type="markdown",
-                    key="result",
-                    description="Code interpreter result",
-                    task_run_id=task_run.id,
-                    flow_run_id=task_run.flow_run_id,
-                    data=markdown,
-                )
+        elif tool_call.type == "function":
+            markdown = TOOL_CALL_FUNCTION_ARGS_TEMPLATE.format(
+                name=tool_call.function.name,
+                args=tool_call.function.arguments,
             )
+
+        # low level artifact call because we need to provide the task run ID manually
+        return await client.create_artifact(
+            artifact=ArtifactRequest(
+                type="markdown",
+                key="result",
+                description="Code interpreter result",
+                task_run_id=task_run.id,
+                flow_run_id=task_run.flow_run_id,
+                data=markdown,
+            )
+        )
 
 
 def talk_to_human(message: str, get_response: bool = True) -> str:
@@ -349,7 +378,7 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
                     except Exception:
                         pass
                     await create_markdown_artifact(
-                        markdown=TOOL_CALL_FUNCTION_TEMPLATE.format(
+                        markdown=TOOL_CALL_FUNCTION_RESULT_TEMPLATE.format(
                             name=tool.function.name,
                             description=tool.function.description or "(none provided)",
                             args=passed_args,
