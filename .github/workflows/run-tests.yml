@@ -1,4 +1,4 @@
-name: Run Tests
+name: Run tests
 
 env:
   # enable colored output
@@ -48,13 +48,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
+          
+      - name: download uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
       - name: Install ControlFlow
-        run: pip install ".[tests]"
+        run: uv pip install --system ".[tests]"
 
       - name: Run tests
         run: pytest -n auto -vv
