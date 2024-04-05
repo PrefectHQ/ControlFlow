@@ -30,6 +30,7 @@ class AITask(BaseModel, Generic[T]):
 
     id: int = Field(None, validate_default=True)
     objective: str
+    instructions: Optional[str] = None
     context: dict = Field(None, validate_default=True)
     status: TaskStatus = TaskStatus.PENDING
     result: T = None
@@ -108,4 +109,7 @@ class AITask(BaseModel, Generic[T]):
         self.status = TaskStatus.FAILED
 
     def get_result_type(self) -> T:
+        """
+        Returns the `type` of the task's result field.
+        """
         return self.model_fields["result"].annotation

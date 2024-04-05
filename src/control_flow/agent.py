@@ -127,6 +127,9 @@ especially when working with a human user.
 ### Task {{ task.id }}
 - Status: {{ task.status.value }}
 - Objective: {{ task.objective }}
+{% if task.instructions %}
+- Additional instructions: {{ task.instructions }}
+{% endif %}
 {% if task.status.value == "completed" %}
 - Result: {{ task.result }}
 {% elif task.status.value == "failed" %}
@@ -503,7 +506,7 @@ def ai_task(
 
         return run_ai.with_options(name=f"Task: {fn.__name__}")(
             task=objective,
-            result_type=fn.__annotations__.get("return"),
+            cast=fn.__annotations__.get("return"),
             context=bound.arguments,
             user_access=user_access,
             **agent_kwargs,
@@ -517,15 +520,15 @@ def _name_from_objective():
     from prefect.runtime import task_run
 
     objective = task_run.parameters["task"]
-    if len(objective) > 32:
-        return f"Task: {objective[:32]}..."
+    if len(objective) > 50:
+        return f"Task: {objective[:50]}..."
     return f"Task: {objective}"
 
 
 @prefect_task(task_run_name=_name_from_objective)
 def run_ai(
     task: str,
-    result_type: T = str,
+    cast: T = str,
     context: dict = None,
     user_access: bool = None,
     model: str = None,
@@ -533,7 +536,7 @@ def run_ai(
 ) -> T:
     """
     Run an agent to complete a task with the given objective and context. The
-    response will be of the given result type.
+    response will be cast to the given result type.
     """
 
     # load flow
@@ -542,7 +545,7 @@ def run_ai(
         flow = AIFlow()
 
     # create task
-    ai_task = AITask[result_type](objective=task, context=context)
+    ai_task = AITask[cast](objective=task, context=context)
     flow.add_task(ai_task)
 
     # run agent
