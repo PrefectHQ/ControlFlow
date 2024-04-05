@@ -40,7 +40,7 @@ def demo():
         name = get_user_name()
 
         # define an AI task inline
-        interests = run_ai("ask user for three interests", result_type=list[str], user_access=True)
+        interests = run_ai("ask user for three interests", cast=list[str], user_access=True)
 
         # set instructions for just the next task
         with instructions("no more than 8 lines"):

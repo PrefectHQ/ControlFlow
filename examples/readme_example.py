@@ -28,7 +28,7 @@ def demo():
         # define an AI task inline
         interests = run_ai(
             "ask user for three interests",
-            result_type=list[str],
+            cast=list[str],
             user_access=True,
         )
 
