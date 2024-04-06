@@ -10,7 +10,7 @@ ControlFlow is built with [Marvin](https://github.com/prefecthq/marvin) and [Pre
 ## Example
 
 ```python
-from control_flow import ai_flow, ai_task, run_ai, instructions
+from control_flow import ai_flow, ai_task, run_agent, instructions
 from pydantic import BaseModel
 
 
@@ -40,7 +40,7 @@ def demo():
         name = get_user_name()
 
         # define an AI task inline
-        interests = run_ai("ask user for three interests", cast=list[str], user_access=True)
+        interests = run_agent("ask user for three interests", cast=list[str], user_access=True)
 
         # set instructions for just the next task
         with instructions("no more than 8 lines"):
