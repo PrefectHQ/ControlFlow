@@ -7,10 +7,11 @@ from typing import Callable, Generic, TypeVar, Union
 import marvin
 import marvin.utilities.tools
 import prefect
+from marvin.beta.assistants import Thread
 from marvin.beta.assistants.assistants import Assistant
 from marvin.beta.assistants.handlers import PrintHandler
 from marvin.beta.assistants.runs import Run
-from marvin.tools.assistants import AssistantTool, CancelRun
+from marvin.tools.assistants import AssistantTool, EndRun
 from marvin.types import FunctionTool
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
 from marvin.utilities.jinja import Environment
@@ -30,18 +31,19 @@ from .task import AITask, TaskStatus
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
+TEMP_THREADS = {}
 
 TOOL_CALL_CODE_INTERPRETER_TEMPLATE = inspect.cleandoc(
     """
-    # Tool call: code interpreter
+    ## Tool call: code interpreter
         
-    ## Code
+    ### Code
     
     ```python
     {code}
     ```
     
-    ## Result
+    ### Result
     
     ```json
     {result}
@@ -51,9 +53,9 @@ TOOL_CALL_CODE_INTERPRETER_TEMPLATE = inspect.cleandoc(
 
 TOOL_CALL_FUNCTION_ARGS_TEMPLATE = inspect.cleandoc(
     """
-    # Tool call: {name}
+    ## Tool call: {name}
     
-    ## Arguments
+    ### Arguments
     
     ```json
     {args}
@@ -62,7 +64,7 @@ TOOL_CALL_FUNCTION_ARGS_TEMPLATE = inspect.cleandoc(
 )
 TOOL_CALL_FUNCTION_RESULT_TEMPLATE = inspect.cleandoc(
     """
-    # Tool call: {name}
+    ## Tool call: {name}
     
     **Description:** {description}
     
@@ -72,7 +74,7 @@ TOOL_CALL_FUNCTION_RESULT_TEMPLATE = inspect.cleandoc(
     {args}
     ```
     
-    ## Result
+    ### Result
     
     ```json
     {result}
@@ -90,10 +92,7 @@ complete the task, including talking to a human user.
 
 ## Instructions
 
-In addition to completing your tasks, these are your current instructions. You
-must follow them at all times, even when using a tool to talk to a user. Note
-that instructions can change at any time and the thread history may reflect
-different instructions than these:
+Follow these instructions at all times:
 
 {% if assistant.instructions -%}
 - {{ assistant.instructions }}
@@ -123,8 +122,8 @@ need. Be very sure that a task is truly unsolvable before marking it as failed,
 especially when working with a human user.
 
 
-{% for task in agent.tasks %}
-### Task {{ task.id }}
+{% for task_id, task in agent.numbered_tasks() %}
+### Task {{ task_id }}
 - Status: {{ task.status.value }}
 - Objective: {{ task.objective }}
 {% if task.instructions %}
@@ -166,6 +165,7 @@ your tasks or this system. Do not mention your tasks or anything about how the
 system works to them. They can only see messages you send them via tool, not the
 rest of the thread. When dealing with humans, you may not always get a clear or
 correct response. You may need to ask multiple times or rephrase your questions.
+You should also interpret human responses broadly and not be too literal.
 {% else %}
 You can not communicate with a human user at this time.
 {% endif %}
@@ -273,14 +273,14 @@ def talk_to_human(message: str, get_response: bool = True) -> str:
 
 def end_run():
     """Use this tool to end the run."""
-    raise CancelRun()
+    return EndRun()
 
 
 class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
     tasks: list[AITask] = []
     flow: AIFlow = Field(None, validate_default=True)
     assistant: Assistant = Field(None, validate_default=True)
-    tools: list[Union[AssistantTool, Callable]] = []
+    tools: list[Union[AssistantTool, Assistant, Callable]] = []
     context: dict = Field(None, validate_default=True)
     user_access: bool = Field(
         None,
@@ -321,17 +321,14 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
                 v = Assistant()
         return v
 
-    @field_validator("user_access", mode="before")
-    def _default_user_access(cls, v):
+    @field_validator("user_access", "system_access", mode="before")
+    def _default_access(cls, v):
         if v is None:
             v = False
         return v
 
-    @field_validator("system_access", mode="before")
-    def _default_system_access(cls, v):
-        if v is None:
-            v = False
-        return v
+    def numbered_tasks(self) -> list[tuple[int, AITask]]:
+        return [(i + 1, task) for i, task in enumerate(self.tasks)]
 
     def _get_instructions(self, context: dict = None):
         instructions = Environment.render(
@@ -351,16 +348,31 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
         if not self.tasks:
             tools.append(end_run)
 
-        for task in self.tasks:
-            tools.extend([task._create_complete_tool(), task._create_fail_tool()])
+        # if there is only one task, and the agent can't send a response to the
+        # system, then we can quit as soon as it is marked finished
+        if not self.system_access and len(self.tasks) == 1:
+            end_run = True
+        else:
+            end_run = False
+
+        for i, task in self.numbered_tasks():
+            tools.extend(
+                [
+                    task._create_complete_tool(task_id=i, end_run=end_run),
+                    task._create_fail_tool(task_id=i, end_run=end_run),
+                ]
+            )
 
         if self.user_access:
             tools.append(talk_to_human)
 
         final_tools = []
         for tool in tools:
-            if not isinstance(tool, AssistantTool):
+            if isinstance(tool, marvin.beta.assistants.Assistant):
+                tool = self.model_copy(update={"assistant": tool}).as_tool()
+            elif not isinstance(tool, AssistantTool):
                 tool = marvin.utilities.tools.tool_from_function(tool)
+
             if isinstance(tool, FunctionTool):
 
                 async def modified_fn(
@@ -405,17 +417,22 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
         """
 
         @prefect_task(name="Execute OpenAI assistant run")
-        async def execute_openai_run(context: dict = None, run_kwargs: dict = None):
+        async def execute_openai_run(
+            context: dict = None, run_kwargs: dict = None
+        ) -> Run:
             run_kwargs = run_kwargs or {}
-            if "model" not in run_kwargs:
-                run_kwargs["model"] = self.assistant.model or settings.assistant_model
+            model = run_kwargs.pop(
+                "model", self.assistant.model or settings.assistant_model
+            )
+            thread = run_kwargs.pop("thread", self.flow.thread)
 
             run = Run(
                 assistant=self.assistant,
-                thread=self.flow.thread,
+                thread=thread,
                 instructions=self._get_instructions(context=context),
                 tools=self._get_tools(),
                 event_handler_class=AgentHandler,
+                model=model,
                 **run_kwargs,
             )
             await run.run_async()
@@ -452,6 +469,7 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
                 key="steps",
                 description="All steps taken during the run.",
             )
+            return run
 
         return execute_openai_run
 
@@ -469,12 +487,42 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
                 any(t.status == TaskStatus.PENDING for t in self.tasks)
                 and counter < settings.max_agent_iterations
             ):
+                breakpoint()
                 openai_run(context=context, run_kwargs=run_kwargs)
                 counter += 1
 
         result = [t.result for t in self.tasks if t.status == TaskStatus.COMPLETED]
 
         return result
+
+    def as_tool(self):
+        thread = TEMP_THREADS.setdefault(self.assistant.model_dump_json(), Thread())
+
+        def _run(message: str, context: dict = None) -> list[str]:
+            task = self._get_openai_run_task()
+            run: Run = task(context=context, run_kwargs=dict(thread=thread))
+            return [m.model_dump_json() for m in run.messages]
+
+        return marvin.utilities.tools.tool_from_function(
+            _run,
+            name=f"call_ai_{self.assistant.name}",
+            description=inspect.cleandoc("""
+            Use this tool to talk to a sub-AI that can operate independently of
+            you. The sub-AI may have a different skillset or be able to access
+            different tools than you. The sub-AI will run one iteration and
+            respond to you. You may continue to invoke it multiple times in sequence, as
+            needed. 
+            
+            Note: you can only talk to one sub-AI at a time. Do not call in parallel or you will get an error about thread conflicts.
+            
+            ## Sub-AI Details
+            
+            - Name: {name}
+            - Instructions: {instructions}
+            """).format(
+                name=self.assistant.name, instructions=self.assistant.instructions
+            ),
+        )
 
 
 def ai_task(
@@ -541,12 +589,9 @@ def run_ai(
 
     # load flow
     flow = ctx.get("flow", None)
-    if flow is None:
-        flow = AIFlow()
 
     # create task
     ai_task = AITask[cast](objective=task, context=context)
-    flow.add_task(ai_task)
 
     # run agent
     agent = Agent(tasks=[ai_task], flow=flow, user_access=user_access, **agent_kwargs)
