@@ -1,4 +1,4 @@
-from control_flow import ai_flow, ai_task, instructions, run_ai
+from control_flow import ai_flow, ai_task, instructions, run_agent
 from pydantic import BaseModel
 
 
@@ -26,7 +26,7 @@ def demo():
         name = get_user_name()
 
         # define an AI task inline
-        interests = run_ai(
+        interests = run_agent(
             "ask user for three interests",
             cast=list[str],
             user_access=True,
