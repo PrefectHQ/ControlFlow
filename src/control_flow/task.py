@@ -3,11 +3,10 @@ from typing import Generic, Optional, TypeVar
 
 import marvin
 import marvin.utilities.tools
+from marvin.beta.assistants.runs import EndRun
 from marvin.utilities.logging import get_logger
 from marvin.utilities.tools import FunctionTool
 from pydantic import BaseModel, Field, field_validator
-
-from control_flow.context import ctx
 
 T = TypeVar("T")
 logger = get_logger(__name__)
@@ -28,7 +27,6 @@ class AITask(BaseModel, Generic[T]):
     iterate until all tasks are completed.
     """
 
-    id: int = Field(None, validate_default=True)
     objective: str
     instructions: Optional[str] = None
     context: dict = Field(None, validate_default=True)
@@ -39,21 +37,15 @@ class AITask(BaseModel, Generic[T]):
     # internal
     model_config: dict = dict(validate_assignment=True, extra="forbid")
 
-    @field_validator("id", mode="before")
-    def _default_id(cls, v):
-        if v is None:
-            flow = ctx.get("flow")
-            if flow is not None:
-                v = len(flow.tasks) + 1
-        return v
-
     @field_validator("context", mode="before")
     def _default_context(cls, v):
         if v is None:
             v = {}
         return v
 
-    def _create_complete_tool(self) -> FunctionTool:
+    def _create_complete_tool(
+        self, task_id: int, end_run: bool = False
+    ) -> FunctionTool:
         """
         Create an agent-compatible tool for completing this task.
         """
@@ -65,26 +57,30 @@ class AITask(BaseModel, Generic[T]):
             def complete(result: result_type):
                 self.result = result
                 self.status = TaskStatus.COMPLETED
+                if end_run:
+                    return EndRun()
 
             tool = marvin.utilities.tools.tool_from_function(
                 complete,
-                name=f"complete_task_{self.id}",
-                description=f"Mark task {self.id} completed",
+                name=f"complete_task_{task_id}",
+                description=f"Mark task {task_id} completed",
             )
         else:
 
             def complete():
                 self.status = TaskStatus.COMPLETED
+                if end_run:
+                    return EndRun()
 
             tool = marvin.utilities.tools.tool_from_function(
                 complete,
-                name=f"complete_task_{self.id}",
-                description=f"Mark task {self.id} completed",
+                name=f"complete_task_{task_id}",
+                description=f"Mark task {task_id} completed",
             )
 
         return tool
 
-    def _create_fail_tool(self) -> FunctionTool:
+    def _create_fail_tool(self, task_id: int, end_run: bool = False) -> FunctionTool:
         """
         Create an agent-compatible tool for failing this task.
         """
@@ -92,11 +88,13 @@ class AITask(BaseModel, Generic[T]):
         def fail(message: Optional[str] = None):
             self.error = message
             self.status = TaskStatus.FAILED
+            if end_run:
+                return EndRun()
 
         tool = marvin.utilities.tools.tool_from_function(
             fail,
-            name=f"fail_task_{self.id}",
-            description=f"Mark task {self.id} failed",
+            name=f"fail_task_{task_id}",
+            description=f"Mark task {task_id} failed",
         )
         return tool
 
