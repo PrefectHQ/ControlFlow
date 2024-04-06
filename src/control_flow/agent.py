@@ -552,7 +552,7 @@ def ai_task(
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
 
-        return run_ai.with_options(name=f"Task: {fn.__name__}")(
+        return run_agent.with_options(name=f"Task: {fn.__name__}")(
             task=objective,
             cast=fn.__annotations__.get("return"),
             context=bound.arguments,
@@ -574,7 +574,7 @@ def _name_from_objective():
 
 
 @prefect_task(task_run_name=_name_from_objective)
-def run_ai(
+def run_agent(
     task: str,
     cast: T = str,
     context: dict = None,
