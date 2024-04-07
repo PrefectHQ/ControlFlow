@@ -53,10 +53,7 @@ def create_json_artifact(
     Create a JSON artifact.
     """
 
-    if isinstance(data, str):
-        json_data = data
-    else:
-        json_data = TypeAdapter(type(data)).dump_json(data, indent=2).decode()
+    json_data = TypeAdapter(type(data)).dump_json(data, indent=2).decode()
 
     create_markdown_artifact(
         key=key,
