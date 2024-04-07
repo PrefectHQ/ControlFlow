@@ -3,9 +3,30 @@
 
 # ControlFlow
 
-ControlFlow is a framework for integrating AI agents into traditional workflows. It allows for agents that can be precisely controlled, observed, and debugged, while retaining the autonomy and flexibility that make LLMs so powerful. ControlFlow agents are designed to be invoked programmatically, though they are capable of interacting with humans and other agents as well.
+ControlFlow is a Python framework for orchestrating AI agents in workflows alongside traditional code. It allows you to seamlessly integrate AI into any workflow, coordinate multiple specialized AI agents, collect of human inputs when needed, and maintain full observability for debugging.
 
-ControlFlow is built with [Marvin](https://github.com/prefecthq/marvin) and [Prefect](https://github.com/prefecthq/prefect).
+ControlFlow is designed with the belief that AI works best when focused and iterated. It encourages breaking workflows into small, targeted steps, each handled by a dedicated AI agent. This keeps each AI as effective as possible, while maintaining context across the entire ensemble. ControlFlow recognizes that AI should augment traditional development, not replace it. It enables a declarative approach to AI, where the desired outcomes are specified and the framework handles the implementation details. This allows developers to mix AI and traditional code freely, leveraging AI where it's most useful while using standard programming everywhere else.
+
+🚨 ControlFlow requires bleeding-edge versions of [Prefect](https://github.com/prefecthq/prefect) and [Marvin](https://github.com/prefecthq/marvin). Caveat emptor!
+
+
+## Key Features
+
+- **Seamless integration:** Any step in a workflow can be delegated to one or more AI agents, which return structured data that can be used by other steps in the workflow.
+- **Multi-agent coordination:** ControlFlow can orchestrate multiple agents, allowing them to collaborate and leverage their unique strengths. Agents can interact with each other and humans in a well-defined way, enabling complex workflows to be built from simple, autonomous components.
+- **Human interaction:** Though code, not chat, is the primary interface, ControlFlow agents can interact with humans to provide information or collect inputs. Build workflows that combine AI ability with human-in-the-loop interactivity and oversight.
+- **Detailed observability:** ControlFlow provides detailed observability into the behavior of every agent, making it simple to identify, triage, and fix any issues.
+- **Intuitive APIs:** Clean, readable decorators and APIs for defining tasks and agents, built on top of the powerful Prefect and Marvin engines.
+
+## Get started
+
+ControlFlow is under active development.
+
+```bash
+git clone https://github.com/jlowin/control_flow.git
+cd control_flow
+pip install .
+```
 
 ## Example
 
