@@ -5,7 +5,7 @@
 
 ControlFlow is a framework for integrating AI agents into traditional workflows. It allows for agents that can be precisely controlled, observed, and debugged, while retaining the autonomy and flexibility that make LLMs so powerful. ControlFlow agents are designed to be invoked programmatically, though they are capable of interacting with humans and other agents as well.
 
-ControlFlow is built with [Marvin](https://github.com/prefecthq/marvin) and [Prefect](https://github.com/prefecthq/prefect).
+🚨 ControlFlow is built on top of bleeding-edge versions of [Marvin](https://github.com/prefecthq/marvin) and [Prefect](https://github.com/prefecthq/prefect). Caveat emptor!
 
 ## Example
 
