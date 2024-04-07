@@ -9,6 +9,7 @@ from prefect import task as prefect_task
 from pydantic import BaseModel, Field, field_validator
 
 from control_flow.context import ctx
+from control_flow.utilities.marvin import patch_marvin
 
 logger = get_logger(__name__)
 
@@ -99,7 +100,7 @@ def ai_flow(
             f'Executing AI flow "{fn.__name__}" on thread "{flow_obj.thread.id}"'
         )
 
-        with ctx(flow=flow_obj):
+        with ctx(flow=flow_obj), patch_marvin():
             return p_fn(*args, **kwargs)
 
     return wrapper
