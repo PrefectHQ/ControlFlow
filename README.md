@@ -7,7 +7,8 @@ ControlFlow is a Python framework for orchestrating AI agents in workflows along
 
 ControlFlow is designed with the belief that AI works best when focused and iterated. It encourages breaking workflows into small, targeted steps, each handled by a dedicated AI agent. This keeps each AI as effective as possible, while maintaining context across the entire ensemble. ControlFlow recognizes that AI should augment traditional development, not replace it. It enables a declarative approach to AI, where the desired outcomes are specified and the framework handles the implementation details. This allows developers to mix AI and traditional code freely, leveraging AI where it's most useful while using standard programming everywhere else.
 
-ControlFlow is built with [Marvin](https://github.com/prefecthq/marvin) and [Prefect](https://github.com/prefecthq/prefect).
+🚨 ControlFlow requires bleeding-edge versions of [Marvin](https://github.com/prefecthq/marvin) and [Prefect](https://github.com/prefecthq/prefect). Caveat emptor!
+
 
 ## Key Features
 
