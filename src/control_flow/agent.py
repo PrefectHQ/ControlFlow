@@ -18,12 +18,16 @@ from marvin.utilities.jinja import Environment
 from openai.types.beta.threads.runs import ToolCall
 from prefect import get_client as get_prefect_client
 from prefect import task as prefect_task
-from prefect.artifacts import ArtifactRequest, create_markdown_artifact
 from prefect.context import FlowRunContext
 from pydantic import BaseModel, Field, field_validator
 
 from control_flow import settings
 from control_flow.context import ctx
+from control_flow.utilities.prefect import (
+    create_json_artifact,
+    create_markdown_artifact,
+    create_python_artifact,
+)
 
 from .flow import AIFlow
 from .task import AITask, TaskStatus
@@ -33,35 +37,7 @@ logger = logging.getLogger(__name__)
 
 TEMP_THREADS = {}
 
-TOOL_CALL_CODE_INTERPRETER_TEMPLATE = inspect.cleandoc(
-    """
-    ## Tool call: code interpreter
-        
-    ### Code
-    
-    ```python
-    {code}
-    ```
-    
-    ### Result
-    
-    ```json
-    {result}
-    ```
-    """
-)
 
-TOOL_CALL_FUNCTION_ARGS_TEMPLATE = inspect.cleandoc(
-    """
-    ## Tool call: {name}
-    
-    ### Arguments
-    
-    ```json
-    {args}
-    ```
-    """
-)
 TOOL_CALL_FUNCTION_RESULT_TEMPLATE = inspect.cleandoc(
     """
     ## Tool call: {name}
@@ -191,7 +167,7 @@ class AgentHandler(PrintHandler):
         """Callback that is fired when a tool call is created"""
 
         if tool_call.type == "function":
-            task_run_name = "Preparing arguments for tool call..."
+            task_run_name = "Prepare arguments for tool call"
         else:
             task_run_name = f"Tool call: {tool_call.type}"
 
@@ -213,6 +189,7 @@ class AgentHandler(PrintHandler):
 
     async def on_tool_call_done(self, tool_call: ToolCall) -> None:
         """Callback that is fired when a tool call is done"""
+
         client = get_prefect_client()
         task_run = self.tool_calls.get(tool_call.id)
         if not task_run:
@@ -229,33 +206,26 @@ class AgentHandler(PrintHandler):
             #         image_path = download_temp_file(output.image.file_id)
             #         images.append(image_path)
 
-            markdown = TOOL_CALL_CODE_INTERPRETER_TEMPLATE.format(
+            create_python_artifact(
+                key="code",
                 code=tool_call.code_interpreter.input,
-                result=json.dumps(
-                    [
-                        o.model_dump(mode="json")
-                        for o in tool_call.code_interpreter.outputs
-                    ],
-                    indent=2,
-                ),
+                description="Code executed in the code interpreter",
+                task_run_id=task_run.id,
             )
-        elif tool_call.type == "function":
-            markdown = TOOL_CALL_FUNCTION_ARGS_TEMPLATE.format(
-                name=tool_call.function.name,
-                args=tool_call.function.arguments,
+            create_json_artifact(
+                key="output",
+                data=tool_call.code_interpreter.outputs,
+                description="Output from the code interpreter",
+                task_run_id=task_run.id,
             )
 
-        # low level artifact call because we need to provide the task run ID manually
-        return await client.create_artifact(
-            artifact=ArtifactRequest(
-                type="markdown",
-                key="result",
-                description="Code interpreter result",
+        elif tool_call.type == "function":
+            create_json_artifact(
+                key="arguments",
+                data=json.dumps(json.loads(tool_call.function.arguments), indent=2),
+                description=f"Arguments for the `{tool_call.function.name}` tool",
                 task_run_id=task_run.id,
-                flow_run_id=task_run.flow_run_id,
-                data=markdown,
             )
-        )
 
 
 def talk_to_human(message: str, get_response: bool = True) -> str:
@@ -392,7 +362,7 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
                         passed_args = json.dumps(passed_args, indent=2)
                     except Exception:
                         pass
-                    await create_markdown_artifact(
+                    create_markdown_artifact(
                         markdown=TOOL_CALL_FUNCTION_RESULT_TEMPLATE.format(
                             name=tool.function.name,
                             description=tool.function.description or "(none provided)",
@@ -405,7 +375,7 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
 
                 tool.function._python_fn = prefect_task(
                     modified_fn,
-                    name=f"Tool call: {tool.function.name}",
+                    task_run_name=f"Tool call: {tool.function.name}",
                 )
             final_tools.append(tool)
         return final_tools
@@ -416,7 +386,7 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
         This needs to be regenerated each time in case the instructions change.
         """
 
-        @prefect_task(name="Execute OpenAI assistant run")
+        @prefect_task(task_run_name="Run OpenAI assistant")
         async def execute_openai_run(
             context: dict = None, run_kwargs: dict = None
         ) -> Run:
@@ -436,38 +406,15 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
                 **run_kwargs,
             )
             await run.run_async()
-
-            await create_markdown_artifact(
-                markdown=Environment.render(
-                    inspect.cleandoc("""
-                        {% for message in run.messages %}
-                        ### Message {{ loop.index }}
-                        ```json
-                        {{message.model_dump_json(indent=2)}}
-                        ```
-                        
-                        {% endfor %}
-                        """),
-                    run=run,
-                ),
+            create_json_artifact(
                 key="messages",
+                data=run.messages,
                 description="All messages sent and received during the run.",
             )
-            await create_markdown_artifact(
-                markdown=Environment.render(
-                    inspect.cleandoc("""
-                        {% for step in run.steps %}
-                        ### Step {{ loop.index }}
-                        ```json
-                        {{step.model_dump_json(indent=2)}}
-                        ```
-                        
-                        {% endfor %}
-                        """),
-                    run=run,
-                ),
-                key="steps",
-                description="All steps taken during the run.",
+            create_json_artifact(
+                key="actions",
+                data=run.steps,
+                description="All actions taken by the assistant during the run.",
             )
             return run
 
@@ -487,7 +434,6 @@ class Agent(BaseModel, Generic[T], ExposeSyncMethodsMixin):
                 any(t.status == TaskStatus.PENDING for t in self.tasks)
                 and counter < settings.max_agent_iterations
             ):
-                breakpoint()
                 openai_run(context=context, run_kwargs=run_kwargs)
                 counter += 1
 
