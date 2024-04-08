@@ -7,7 +7,7 @@ from marvin.utilities.logging import get_logger
 from marvin.utilities.tools import FunctionTool
 from pydantic import Field
 
-from control_flow.types import AssistantTool, ControlFlowModel
+from control_flow.utilities.types import AssistantTool, ControlFlowModel
 
 T = TypeVar("T")
 logger = get_logger(__name__)

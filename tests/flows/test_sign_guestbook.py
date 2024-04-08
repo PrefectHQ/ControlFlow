@@ -1,5 +1,5 @@
 from control_flow import Assistant, run_ai_task
-from control_flow.flow import ai_flow
+from control_flow.core.flow import ai_flow
 
 # define assistants
 

@@ -4,12 +4,12 @@ from typing import TYPE_CHECKING, Any, Generator, Iterator
 import marvin
 from pydantic import BaseModel, PrivateAttr
 
-from control_flow.agent import Agent, AgentStatus
-from control_flow.flow import get_flow_messages
+from control_flow.core.agent import Agent, AgentStatus
+from control_flow.core.flow import get_flow_messages
 from control_flow.instructions import get_instructions
 
 if TYPE_CHECKING:
-    from control_flow.agent import Agent
+    from control_flow.core.agent import Agent
 
 
 class DelegationStrategy(BaseModel):

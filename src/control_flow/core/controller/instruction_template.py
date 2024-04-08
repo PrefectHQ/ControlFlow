@@ -2,9 +2,9 @@ import inspect
 
 from pydantic import BaseModel
 
-from control_flow.agent import Agent
-from control_flow.types import ControlFlowModel
+from control_flow.core.agent import Agent
 from control_flow.utilities.jinja import jinja_env
+from control_flow.utilities.types import ControlFlowModel
 
 from .controller import Controller
 
@@ -22,9 +22,28 @@ class Template(ControlFlowModel):
             return jinja_env.render(inspect.cleandoc(self.template), **render_kwargs)
 
 
-class HeaderTemplate(Template):
+class AgentTemplate(Template):
     template: str = """
     You are an AI agent. Your name is "{{ agent.assistant.name }}".
+    
+    You have been created by a Controller in the Python library ControlFlow in
+    order to complete various tasks or instructions. All messages in this thread
+    are either from the Controller or from other AI agents like you. Preface any
+    response with your name (e.g. "{{ agent.assistant.name }}: Hello!") in order
+    to distinguish your messages.
+    
+    {% if agent.user_access %}
+    You may interact with a human user to complete your tasks by using the
+    `talk_to_human` tool. The human is unaware of your tasks or the Controller.
+    Do not mention them or anything else about how this system works. The human
+    can only see messages you send via tool, not the rest of the thread. 
+    
+    Humans may give poor or incorrect responses. You may need to ask questions
+    multiple times and not be too literal in your interpretation of their
+    responses.
+    {% else %}
+    You can not interact with a human at this time.
+    {% endif %}
     """
 
     agent: Agent
@@ -145,7 +164,7 @@ class MainTemplate(BaseModel):
 
     def render(self):
         templates = [
-            HeaderTemplate(agent=self.agent),
+            AgentTemplate(agent=self.agent),
             InstructionsTemplate(
                 flow_instructions=self.controller.flow.instructions,
                 controller_instructions=self.controller.instructions,

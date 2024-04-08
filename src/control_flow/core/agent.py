@@ -5,10 +5,10 @@ from typing import Callable, TypeVar
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
 from pydantic import Field, field_validator
 
-from control_flow.context import ctx
-from control_flow.flow import Flow
-from control_flow.task import Task, TaskStatus
-from control_flow.types import Assistant, AssistantTool, ControlFlowModel
+from control_flow.core.flow import Flow
+from control_flow.core.task import Task, TaskStatus
+from control_flow.utilities.context import ctx
+from control_flow.utilities.types import Assistant, AssistantTool, ControlFlowModel
 
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
@@ -84,7 +84,7 @@ class Agent(ControlFlowModel, ExposeSyncMethodsMixin):
 
     @expose_sync_method("run")
     async def run_async(self, flow: Flow = None):
-        from control_flow.controller import SingleAgentController
+        from control_flow.core.controller import SingleAgentController
 
         controller = SingleAgentController(agents=[self], flow=flow)
         return await controller.run()
