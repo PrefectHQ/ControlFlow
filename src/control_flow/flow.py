@@ -17,18 +17,12 @@ logger = get_logger(__name__)
 
 class AIFlow(BaseModel):
     thread: Thread = Field(None, validate_default=True)
-    assistant: Optional[Assistant] = Field(None, validate_default=True)
+    assistants: Optional[list[Assistant]] = Field(None, validate_default=True)
     tools: list[Union[AssistantTool, Callable]] = Field(None, validate_default=True)
     instructions: Optional[str] = None
     model: Optional[str] = None
 
     model_config: dict = dict(validate_assignment=True, extra="forbid")
-
-    @field_validator("assistant", mode="before")
-    def _load_assistant_from_ctx(cls, v):
-        if v is None:
-            v = ctx.get("assistant", None)
-        return v
 
     @field_validator("thread", mode="before")
     def _load_thread_from_ctx(cls, v):
@@ -54,7 +48,7 @@ class AIFlow(BaseModel):
 def ai_flow(
     fn=None,
     *,
-    assistant: Assistant = None,
+    assistants: list[Assistant] = None,
     thread: Thread = None,
     tools: list[Union[AssistantTool, Callable]] = None,
     instructions: str = None,
@@ -67,7 +61,7 @@ def ai_flow(
     if fn is None:
         return functools.partial(
             ai_flow,
-            assistant=assistant,
+            assistants=assistants,
             thread=thread,
             tools=tools,
             instructions=instructions,
@@ -77,7 +71,7 @@ def ai_flow(
     @functools.wraps(fn)
     def wrapper(
         *args,
-        _assistant: Assistant = None,
+        _assistants: list[Assistant] = None,
         _thread: Thread = None,
         _tools: list[Union[AssistantTool, Callable]] = None,
         _instructions: str = None,
@@ -85,19 +79,14 @@ def ai_flow(
         **kwargs,
     ):
         p_fn = prefect_flow(fn)
-        flow_assistant = _assistant or assistant
-        flow_thread = (
-            _thread
-            or thread
-            or (flow_assistant.default_thread if flow_assistant else None)
-            or Thread()
-        )
+        flow_assistants = _assistants or assistants
+        flow_thread = _thread or thread or Thread()
         flow_instructions = _instructions or instructions
         flow_tools = _tools or tools
         flow_model = _model or model
         flow_obj = AIFlow(
             thread=flow_thread,
-            assistant=flow_assistant,
+            assistants=flow_assistants,
             tools=flow_tools,
             instructions=flow_instructions,
             model=flow_model,
@@ -113,13 +102,23 @@ def ai_flow(
     return wrapper
 
 
-def get_messages(limit: int = None) -> list[Message]:
+def get_flow() -> AIFlow:
     """
-    Loads messages from the flow's thread.
+    Loads the flow from the context.
 
     Will error if no flow is found in the context.
     """
     flow: Optional[AIFlow] = ctx.get("flow")
     if not flow:
         raise ValueError("No flow found in context")
+    return flow
+
+
+def get_flow_messages(limit: int = None) -> list[Message]:
+    """
+    Loads messages from the flow's thread.
+
+    Will error if no flow is found in the context.
+    """
+    flow = get_flow()
     return flow.thread.get_messages(limit=limit)
