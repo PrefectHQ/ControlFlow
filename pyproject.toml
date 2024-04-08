@@ -62,4 +62,5 @@ skip-magic-trailing-comma = false
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ['I', 'F401', 'E402']
 "conftest.py" = ["F401", "F403"]
-'tests/fixtures/*.py' = ['F403']
+'tests/fixtures/*.py' = ['F401', 'F403']
+"src/control_flow/types.py" = ['F401']

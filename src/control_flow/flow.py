@@ -1,28 +1,28 @@
 import functools
-from typing import Callable, Optional, Union
+from typing import Callable
 
-from marvin.beta.assistants import Assistant, Thread
-from marvin.beta.assistants.assistants import AssistantTool
+from marvin.beta.assistants import Thread
 from marvin.utilities.logging import get_logger
 from openai.types.beta.threads import Message
 from prefect import flow as prefect_flow
 from prefect import task as prefect_task
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 
 from control_flow.context import ctx
+from control_flow.types import AssistantTool, ControlFlowModel
 from control_flow.utilities.marvin import patch_marvin
 
 logger = get_logger(__name__)
 
 
-class AIFlow(BaseModel):
+class Flow(ControlFlowModel):
     thread: Thread = Field(None, validate_default=True)
-    assistants: Optional[list[Assistant]] = Field(None, validate_default=True)
-    tools: list[Union[AssistantTool, Callable]] = Field(None, validate_default=True)
-    instructions: Optional[str] = None
-    model: Optional[str] = None
-
-    model_config: dict = dict(validate_assignment=True, extra="forbid")
+    tools: list[AssistantTool | Callable] = Field(
+        [], description="Tools that will be available to every agent in the flow"
+    )
+    instructions: str | None = None
+    model: str | None = None
+    context: dict = {}
 
     @field_validator("thread", mode="before")
     def _load_thread_from_ctx(cls, v):
@@ -35,12 +35,6 @@ class AIFlow(BaseModel):
 
         return v
 
-    @field_validator("tools", mode="before")
-    def _default_tools(cls, v):
-        if v is None:
-            v = []
-        return v
-
     def add_message(self, message: str):
         prefect_task(self.thread.add)(message)
 
@@ -48,9 +42,8 @@ class AIFlow(BaseModel):
 def ai_flow(
     fn=None,
     *,
-    assistants: list[Assistant] = None,
     thread: Thread = None,
-    tools: list[Union[AssistantTool, Callable]] = None,
+    tools: list[AssistantTool | Callable] = None,
     instructions: str = None,
     model: str = None,
 ):
@@ -61,7 +54,6 @@ def ai_flow(
     if fn is None:
         return functools.partial(
             ai_flow,
-            assistants=assistants,
             thread=thread,
             tools=tools,
             instructions=instructions,
@@ -71,25 +63,19 @@ def ai_flow(
     @functools.wraps(fn)
     def wrapper(
         *args,
-        _assistants: list[Assistant] = None,
-        _thread: Thread = None,
-        _tools: list[Union[AssistantTool, Callable]] = None,
-        _instructions: str = None,
-        _model: str = None,
+        flow_kwargs: dict = None,
         **kwargs,
     ):
         p_fn = prefect_flow(fn)
-        flow_assistants = _assistants or assistants
-        flow_thread = _thread or thread or Thread()
-        flow_instructions = _instructions or instructions
-        flow_tools = _tools or tools
-        flow_model = _model or model
-        flow_obj = AIFlow(
-            thread=flow_thread,
-            assistants=flow_assistants,
-            tools=flow_tools,
-            instructions=flow_instructions,
-            model=flow_model,
+
+        flow_obj = Flow(
+            **{
+                "thread": thread,
+                "tools": tools or [],
+                "instructions": instructions,
+                "model": model,
+                **(flow_kwargs or {}),
+            }
         )
 
         logger.info(
@@ -102,13 +88,13 @@ def ai_flow(
     return wrapper
 
 
-def get_flow() -> AIFlow:
+def get_flow() -> Flow:
     """
     Loads the flow from the context.
 
     Will error if no flow is found in the context.
     """
-    flow: Optional[AIFlow] = ctx.get("flow")
+    flow: Flow | None = ctx.get("flow")
     if not flow:
         raise ValueError("No flow found in context")
     return flow
