@@ -8,9 +8,9 @@ from prefect import flow as prefect_flow
 from prefect import task as prefect_task
 from pydantic import Field, field_validator
 
-from control_flow.context import ctx
-from control_flow.types import AssistantTool, ControlFlowModel
+from control_flow.utilities.context import ctx
 from control_flow.utilities.marvin import patch_marvin
+from control_flow.utilities.types import AssistantTool, ControlFlowModel
 
 logger = get_logger(__name__)
 

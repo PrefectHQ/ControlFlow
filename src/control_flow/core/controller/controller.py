@@ -1,16 +1,20 @@
 import logging
 from typing import Any
 
-from marvin.beta.assistants import Run
+from marvin.beta.assistants import PrintHandler, Run
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from control_flow.agent import Agent, AgentStatus
-from control_flow.context import ctx
-from control_flow.controller.delegation import DelegationStrategy, RoundRobin, Single
-from control_flow.flow import Flow
+from control_flow.core.agent import Agent, AgentStatus
+from control_flow.core.controller.delegation import (
+    DelegationStrategy,
+    RoundRobin,
+    Single,
+)
+from control_flow.core.flow import Flow
 from control_flow.instructions import get_instructions
-from control_flow.types import Thread
+from control_flow.utilities.context import ctx
+from control_flow.utilities.types import Thread
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +61,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         """
         Run a single agent.
         """
-        from control_flow.controller.instruction_template import MainTemplate
+        from control_flow.core.controller.instruction_template import MainTemplate
 
         instructions_template = MainTemplate(
             agent=agent,
@@ -71,6 +75,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             thread=thread or self.flow.thread,
             instructions=instructions_template.render(),
             tools=agent.get_tools() + self.flow.tools,
+            event_handler_class=PrintHandler,
         )
 
         await run.run_async()

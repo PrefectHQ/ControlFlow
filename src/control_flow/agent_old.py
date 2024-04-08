@@ -20,9 +20,9 @@ from prefect.context import FlowRunContext
 from pydantic import BaseModel, Field, field_validator
 
 from control_flow import settings
-from control_flow.context import ctx
-from control_flow.flow import Flow
-from control_flow.task import Task, TaskStatus
+from control_flow.core.flow import Flow
+from control_flow.core.task import Task, TaskStatus
+from control_flow.utilities.context import ctx
 from control_flow.utilities.jinja import jinja_env
 from control_flow.utilities.prefect import (
     create_json_artifact,

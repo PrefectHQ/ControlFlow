@@ -63,4 +63,4 @@ skip-magic-trailing-comma = false
 "__init__.py" = ['I', 'F401', 'E402']
 "conftest.py" = ["F401", "F403"]
 'tests/fixtures/*.py' = ['F401', 'F403']
-"src/control_flow/types.py" = ['F401']
+"src/control_flow/utilities/types.py" = ['F401']
