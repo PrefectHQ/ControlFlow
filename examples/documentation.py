@@ -4,7 +4,7 @@ from pathlib import Path
 import control_flow
 from control_flow import ai_flow, ai_task
 from marvin.beta.assistants import Assistant, Thread
-from marvin.tools.filesystem import ls, read, read_lines, write
+from marvin.tools.filesystem import read, write
 
 ROOT = Path(control_flow.__file__).parents[2]
 
@@ -23,7 +23,7 @@ assistant = Assistant(
     You are an expert technical writer who writes wonderful documentation for 
     open-source tools and believes that documentation is a product unto itself.
     """,
-    tools=[read, read_lines, ls, write, glob],
+    tools=[read, write, glob],
 )
 
 
@@ -35,7 +35,7 @@ def examine_source_code(source_dir: Path, extensions: list[str]):
     """
 
 
-@ai_task
+@ai_task(model="gpt-3.5-turbo")
 def read_docs(docs_dir: Path):
     """
     Read all documentation in the docs dir and subdirectories, if any.
@@ -52,7 +52,7 @@ def write_docs(docs_dir: Path, instructions: str = None):
 @ai_flow(assistant=assistant)
 def docs_flow(instructions: str):
     examine_source_code(ROOT / "src", extensions=[".py"])
-    read_docs(ROOT / "docs")
+    # read_docs(ROOT / "docs")
     write_docs(ROOT / "docs", instructions=instructions)
 
 
