@@ -1,4 +1,4 @@
-from control_flow import ai_flow, ai_task, instructions, run_ai_task
+from control_flow import ai_flow, ai_task, instructions, run_ai
 from pydantic import BaseModel
 
 
@@ -12,7 +12,7 @@ def get_user_name() -> Name:
     pass
 
 
-@ai_task()
+@ai_task
 def write_poem_about_user(name: Name, interests: list[str]) -> str:
     """write a poem based on the provided `name` and `interests`"""
     pass
@@ -26,10 +26,8 @@ def demo():
         name = get_user_name()
 
         # define an AI task inline
-        interests = run_ai_task(
-            "ask user for three interests",
-            cast=list[str],
-            user_access=True,
+        interests = run_ai(
+            "ask user for three interests", cast=list[str], user_access=True
         )
 
         # set instructions for just the next task
@@ -39,5 +37,5 @@ def demo():
     return poem
 
 
-if __name__ == "main":
+if __name__ == "__main__":
     demo()

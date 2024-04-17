@@ -1,4 +1,4 @@
-from control_flow import Assistant, run_ai_task
+from control_flow import Assistant, run_ai
 from control_flow.core.flow import ai_flow
 
 # define assistants
@@ -28,7 +28,7 @@ def view_guestbook():
 
 @ai_flow
 def guestbook_flow():
-    run_ai_task(
+    run_ai(
         """
         Add your name to the list using the `sign` tool. All assistants must
         sign their names for the task to be complete. You can read the sign to

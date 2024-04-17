@@ -1,15 +1,13 @@
-import functools
 from typing import Callable
 
 from marvin.beta.assistants import Thread
-from marvin.utilities.logging import get_logger
 from openai.types.beta.threads import Message
-from prefect import flow as prefect_flow
 from prefect import task as prefect_task
 from pydantic import Field, field_validator
 
+from control_flow.core.task import Task, TaskStatus
 from control_flow.utilities.context import ctx
-from control_flow.utilities.marvin import patch_marvin
+from control_flow.utilities.logging import get_logger
 from control_flow.utilities.types import AssistantTool, ControlFlowModel
 
 logger = get_logger(__name__)
@@ -23,6 +21,7 @@ class Flow(ControlFlowModel):
     instructions: str | None = None
     model: str | None = None
     context: dict = {}
+    tasks: dict[Task, int] = Field(repr=False, default_factory=dict)
 
     @field_validator("thread", mode="before")
     def _load_thread_from_ctx(cls, v):
@@ -38,54 +37,32 @@ class Flow(ControlFlowModel):
     def add_message(self, message: str):
         prefect_task(self.thread.add)(message)
 
+    def add_task(self, task: Task):
+        if task not in self.tasks:
+            task_id = len(self.tasks) + 1
+            self.tasks[task] = task_id
+            # this message is important for contexualizing activity
+            # self.add_message(f'Task #{task_id} added to flow: "{task.objective}"')
 
-def ai_flow(
-    fn=None,
-    *,
-    thread: Thread = None,
-    tools: list[AssistantTool | Callable] = None,
-    instructions: str = None,
-    model: str = None,
-):
-    """
-    Prepare a function to be executed as a Control Flow flow.
-    """
+    def get_task_id(self, task: Task):
+        return self.tasks[task]
 
-    if fn is None:
-        return functools.partial(
-            ai_flow,
-            thread=thread,
-            tools=tools,
-            instructions=instructions,
-            model=model,
+    def pending_tasks(self):
+        return sorted(
+            (t for t in self.tasks if t.status == TaskStatus.PENDING),
+            key=lambda t: t.created_at,
         )
 
-    @functools.wraps(fn)
-    def wrapper(
-        *args,
-        flow_kwargs: dict = None,
-        **kwargs,
-    ):
-        p_fn = prefect_flow(fn)
-
-        flow_obj = Flow(
-            **{
-                "thread": thread,
-                "tools": tools or [],
-                "instructions": instructions,
-                "model": model,
-                **(flow_kwargs or {}),
-            }
+    def completed_tasks(self, reverse=False, limit=None):
+        result = sorted(
+            (t for t in self.tasks if t.status != TaskStatus.PENDING),
+            key=lambda t: t.completed_at,
+            reverse=reverse,
         )
 
-        logger.info(
-            f'Executing AI flow "{fn.__name__}" on thread "{flow_obj.thread.id}"'
-        )
-
-        with ctx(flow=flow_obj), patch_marvin():
-            return p_fn(*args, **kwargs)
-
-    return wrapper
+        if limit:
+            result = result[:limit]
+        return result
 
 
 def get_flow() -> Flow:
