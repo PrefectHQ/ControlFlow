@@ -1,12 +1,9 @@
 import itertools
 from typing import TYPE_CHECKING, Any, Generator, Iterator
 
-import marvin
 from pydantic import BaseModel, PrivateAttr
 
-from control_flow.core.agent import Agent, AgentStatus
-from control_flow.core.flow import get_flow_messages
-from control_flow.instructions import get_instructions
+from control_flow.core.agent import Agent
 
 if TYPE_CHECKING:
     from control_flow.core.agent import Agent
@@ -23,7 +20,7 @@ class DelegationStrategy(BaseModel):
         """
         return self._next_agent(agents)
 
-    def _next_agent(self, agents: list["Agent"]) -> "Agent":
+    def _next_agent(self, agents: list["Agent"], **kwargs) -> "Agent":
         """
         Select an agent from a list of agents.
         """
@@ -37,7 +34,7 @@ class Single(DelegationStrategy):
 
     agent: Agent
 
-    def _next_agent(self, agents: list[Agent]) -> Generator[Any, Any, Agent]:
+    def _next_agent(self, agents: list[Agent], **kwargs) -> Generator[Any, Any, Agent]:
         """
         Given a list of potential agents, choose the single agent.
         """
@@ -52,54 +49,43 @@ class RoundRobin(DelegationStrategy):
 
     _cycle: Iterator[Agent] = PrivateAttr(None)
 
-    def _next_agent(self, agents: list["Agent"]) -> "Agent":
+    def _next_agent(self, agents: list["Agent"], **kwargs) -> "Agent":
         """
         Given a list of potential agents, delegate the tasks in a round-robin fashion.
         """
         # the first time this is called, create a cycle iterator
         if self._cycle is None:
             self._cycle = itertools.cycle(agents)
-
-        # cycle once through all agents, returning the first one that is in the list
-        # if no agent is found after cycling through all agents, return None
-        first_agent_seen = None
-        for agent in self._cycle:
-            if agent in agents:
-                return agent
-            elif agent == first_agent_seen:
-                break
-
-            # remember the first agent seen so we can avoid an infinite loop
-            if first_agent_seen is None:
-                first_agent_seen = agent
+        return next(self._cycle)
 
 
-class Moderator(DelegationStrategy):
-    """
-    A Moderator delegation strategy delegates tasks to the most qualified AI assistant, using a Marvin classifier
-    """
+# class Moderator(DelegationStrategy):
+#     """
+#     A Moderator delegation strategy delegates tasks to the most qualified AI assistant, using a Marvin classifier
+#     """
 
-    model: str = None
+#     model: str = None
 
-    def _next_agent(self, agents: list["Agent"]) -> "Agent":
-        """
-        Given a list of potential agents, choose the most qualified assistant to complete the tasks.
-        """
+#     def _next_agent(
+#         self, agents: list["Agent"], tasks: list[Task], history: list[Message]
+#     ) -> "Agent":
+#         """
+#         Given a list of potential agents, choose the most qualified assistant to complete the tasks.
+#         """
 
-        instructions = get_instructions()
-        history = get_flow_messages()
+#         instructions = get_instructions()
 
-        context = dict(messages=history, global_instructions=instructions)
-        agent = marvin.classify(
-            context,
-            [a for a in agents if a.status == AgentStatus.INCOMPLETE],
-            instructions="""
-            Given the conversation context, choose the AI agent most
-            qualified to take the next turn at completing the tasks. Take into
-            account the instructions, each agent's own instructions, and the
-            tools they have available.
-            """,
-            model_kwargs=dict(model=self.model),
-        )
+#         context = dict(tasks=tasks, messages=history, global_instructions=instructions)
+#         agent = marvin.classify(
+#             context,
+#             [a for a in agents if a.status == AgentStatus.INCOMPLETE],
+#             instructions="""
+#             Given the conversation context, choose the AI agent most
+#             qualified to take the next turn at completing the tasks. Take into
+#             account the instructions, each agent's own instructions, and the
+#             tools they have available.
+#             """,
+#             model_kwargs=dict(model=self.model),
+#         )
 
-        return agent
+#         return agent

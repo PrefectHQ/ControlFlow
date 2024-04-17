@@ -12,10 +12,7 @@ At its core, ControlFlow is built on the idea of agent orchestration. It provide
 
 - **Flow**: A container for an AI-enhanced workflow that maintains consistent context and history. Flows are defined with the `@ai_flow` decorator.
 - **Task**: A discrete objective for AI agents to solve. Tasks can be defined with the `@ai_task` decorator or declared inline.
-- **Agent**: Agents encapsulate the logic for applying an AI assistant to one or more tasks.
-- **Controller**: Controllers are responsible for coordinating agents, delegating tasks, and managing the overall execution of the workflow.
-
-Users typically don't interact directly with agents or controllers. Instead, they define tasks and flows, which are then executed by the controller. The controller is responsible for managing the agents and ensuring that the workflow is executed correctly.
+- **Agent**: an AI agent that can be assigned tasks
 
 ## Key Features
 
@@ -38,39 +35,44 @@ pip install .
 ## Example
 
 ```python
-from control_flow import ai_flow, ai_task, run_ai_task, instructions
+from control_flow import ai_flow, ai_task, run_ai, instructions
 from pydantic import BaseModel
+
 
 class Name(BaseModel):
     first_name: str
     last_name: str
 
+
 @ai_task(user_access=True)
 def get_user_name() -> Name:
     pass
+
 
 @ai_task
 def write_poem_about_user(name: Name, interests: list[str]) -> str:
     """write a poem based on the provided `name` and `interests`"""
     pass
 
+
 @ai_flow()
 def demo():
-
     # set instructions that will be used for multiple tasks
     with instructions("talk like a pirate"):
-
         # define an AI task as a function and have it execute it
         name = get_user_name()
 
         # define an AI task inline
-        interests = run_ai_task("ask user for three interests", cast=list[str], user_access=True)
+        interests = run_ai(
+            "ask user for three interests", cast=list[str], user_access=True
+        )
 
         # set instructions for just the next task
         with instructions("no more than 8 lines"):
             poem = write_poem_about_user(name, interests)
 
     return poem
+
 
 if __name__ == "__main__":
     demo()

@@ -2,10 +2,9 @@ import inspect
 from contextlib import contextmanager
 from typing import Generator, List
 
-from marvin.utilities.logging import get_logger
-
 from control_flow.core.flow import Flow
 from control_flow.utilities.context import ctx
+from control_flow.utilities.logging import get_logger
 
 logger = get_logger(__name__)
 

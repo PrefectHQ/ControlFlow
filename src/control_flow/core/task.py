@@ -1,12 +1,13 @@
+import datetime
 from enum import Enum
 from typing import Callable, Generic, TypeVar
 
 import marvin
 import marvin.utilities.tools
-from marvin.utilities.logging import get_logger
 from marvin.utilities.tools import FunctionTool
 from pydantic import Field
 
+from control_flow.utilities.logging import get_logger
 from control_flow.utilities.types import AssistantTool, ControlFlowModel
 
 T = TypeVar("T")
@@ -27,6 +28,8 @@ class Task(ControlFlowModel, Generic[T]):
     result: T = None
     error: str | None = None
     tools: list[AssistantTool | Callable] = []
+    created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    completed_at: datetime.datetime | None = None
 
     def __hash__(self):
         return id(self)
@@ -37,9 +40,9 @@ class Task(ControlFlowModel, Generic[T]):
         """
         result_type = self.get_result_type()
 
+        # wrap the method call to get the correct result type signature
         def complete(result: result_type):
-            self.result = result
-            self.status = TaskStatus.COMPLETED
+            self.complete(result=result)
 
         tool = marvin.utilities.tools.tool_from_function(
             complete,
@@ -69,10 +72,12 @@ class Task(ControlFlowModel, Generic[T]):
     def complete(self, result: T):
         self.result = result
         self.status = TaskStatus.COMPLETED
+        self.completed_at = datetime.datetime.now()
 
     def fail(self, message: str | None = None):
         self.error = message
         self.status = TaskStatus.FAILED
+        self.completed_at = datetime.datetime.now()
 
     def get_result_type(self) -> T:
         """

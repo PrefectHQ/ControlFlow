@@ -1,27 +1,30 @@
 import logging
-from typing import Any
+from typing import Self
 
 from marvin.beta.assistants import PrintHandler, Run
-from marvin.utilities.asyncio import ExposeSyncMethodsMixin
+from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from control_flow.core.agent import Agent, AgentStatus
+from control_flow.core.agent import Agent
 from control_flow.core.controller.delegation import (
     DelegationStrategy,
     RoundRobin,
-    Single,
 )
 from control_flow.core.flow import Flow
-from control_flow.instructions import get_instructions
-from control_flow.utilities.context import ctx
+from control_flow.core.task import Task, TaskStatus
+from control_flow.instructions import get_instructions as get_context_instructions
 from control_flow.utilities.types import Thread
 
 logger = logging.getLogger(__name__)
 
 
 class Controller(BaseModel, ExposeSyncMethodsMixin):
+    flow: Flow
     agents: list[Agent]
-    flow: Flow = Field(None, validate_default=True)
+    tasks: list[Task] = Field(
+        description="Tasks that the controller will complete.",
+        default_factory=list,
+    )
     delegation_strategy: DelegationStrategy = Field(
         validate_default=True,
         description="The strategy for delegating work to assistants.",
@@ -30,13 +33,12 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
     # termination_strategy: TerminationStrategy
     context: dict = {}
     instructions: str = None
+    user_access: bool | None = Field(
+        None,
+        description="If True or False, overrides the user_access of the "
+        "agents. If None, the user_access setting of each agents is used.",
+    )
     model_config: dict = dict(extra="forbid")
-
-    @field_validator("flow", mode="before")
-    def _default_flow(cls, v):
-        if v is None:
-            v = ctx.get("flow", None)
-        return v
 
     @field_validator("agents", mode="before")
     def _validate_agents(cls, v):
@@ -44,15 +46,26 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             raise ValueError("At least one agent is required.")
         return v
 
-    async def run(self):
+    @model_validator(mode="after")
+    def _add_tasks_to_flow(self) -> Self:
+        for task in self.tasks:
+            self.flow.add_task(task)
+        return self
+
+    @expose_sync_method("run")
+    async def run_async(self):
         """
         Run the control flow.
         """
 
-        while incomplete_agents := [
-            a for a in self.agents if a.status == AgentStatus.INCOMPLETE
-        ]:
-            agent = self.delegation_strategy(incomplete_agents)
+        while True:
+            incomplete = any([t for t in self.tasks if t.status == TaskStatus.PENDING])
+            if not incomplete:
+                break
+            if len(self.agents) > 1:
+                agent = self.delegation_strategy(self.agents)
+            else:
+                agent = self.agents[0]
             if not agent:
                 return
             await self.run_agent(agent=agent)
@@ -67,14 +80,22 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             agent=agent,
             controller=self,
             context=self.context,
-            instructions=get_instructions(),
+            instructions=get_context_instructions(),
         )
 
+        instructions = instructions_template.render()
+
+        tools = self.flow.tools + agent.get_tools(user_access=self.user_access)
+
+        for task in self.tasks:
+            task_id = self.flow.get_task_id(task)
+            tools = tools + task.get_tools(task_id=task_id)
+
         run = Run(
-            assistant=agent.assistant,
+            assistant=agent,
             thread=thread or self.flow.thread,
-            instructions=instructions_template.render(),
-            tools=agent.get_tools() + self.flow.tools,
+            instructions=instructions,
+            tools=tools,
             event_handler_class=PrintHandler,
         )
 
@@ -82,25 +103,5 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
         return run
 
-
-class SingleAgentController(Controller):
-    """
-    A SingleAgentController is a controller that runs a single agent.
-    """
-
-    delegation_strategy: Single = Field(None, validate_default=True)
-
-    @field_validator("agents", mode="before")
-    def _validate_agents(cls, v):
-        if len(v) != 1:
-            raise ValueError("A SingleAgentController must have exactly one agent.")
-        return v
-
-    @model_validator(mode="before")
-    @classmethod
-    def _create_single_strategy(cls, data: Any) -> Any:
-        """
-        Create a Single delegation strategy with the agent.
-        """
-        data["delegation_strategy"] = Single(agent=data["agents"][0])
-        return data
+    def task_ids(self) -> dict[Task, int]:
+        return {task: self.flow.get_task_id(task) for task in self.tasks}

@@ -1,2 +1,2 @@
-from .controller import Controller, SingleAgentController
+from .controller import Controller
 from .delegation import RoundRobin
