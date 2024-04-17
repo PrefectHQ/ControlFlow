@@ -43,11 +43,6 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
     # termination_strategy: TerminationStrategy
     context: dict = {}
     instructions: str = None
-    user_access: bool | None = Field(
-        None,
-        description="If True or False, overrides the user_access of the "
-        "agents. If None, the user_access setting of each agents is used.",
-    )
     model_config: dict = dict(extra="forbid")
 
     @field_validator("agents", mode="before")
@@ -67,6 +62,13 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         """
         Run the control flow.
         """
+
+        # check if any tasks require user access but no agents have user access
+        if any([task.requires_user_access for task in self.tasks]):
+            if not any([agent.user_access for agent in self.agents]):
+                raise ValueError(
+                    "At least one task requires user access, but no agents with user access were provided."
+                )
 
         # continue as long as there are incomplete tasks
         while any([t for t in self.tasks if t.status == TaskStatus.PENDING]):
@@ -118,7 +120,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
         instructions = instructions_template.render()
 
-        tools = self.flow.tools + agent.get_tools(user_access=self.user_access)
+        tools = self.flow.tools + agent.get_tools()
 
         for task in self.tasks:
             task_id = self.flow.get_task_id(task)

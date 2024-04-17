@@ -75,7 +75,8 @@ class CommunicationTemplate(Template):
     make up answers (or put empty answers) for the others. Ask again and only
     fail the task if you truly can not make progress. 
     {% else %}
-    You can not interact with a human at this time.
+    You can not interact with a human at this time. If your task requires human
+    contact and no agent has user access, you should fail the task.
     {% endif %}
     
     """
@@ -95,10 +96,14 @@ class CollaborationTemplate(Template):
     
     ### Agents
     {% for agent in other_agents %}
-    {{loop.index}}. "{{agent.name}}": {{agent.description}}
+    
+    #### "{{agent.name}}"
+    Can talk to humans: {{agent.user_access}}
+    Description: {% if agent.description %}{{agent.description}}{% endif %}
+    
     {% endfor %}
     {% if not other_agents %}
-    (There are no other agents currently participating in this workflow)
+    (No other agents are currently participating in this workflow)
     {% endif %}
     """
     other_agents: list[Agent]
@@ -108,7 +113,7 @@ class InstructionsTemplate(Template):
     template: str = """
         ## Instructions
         
-        {% if flow_instructions %}
+        {% if flow_instructions -%}
         ### Workflow instructions
         
         These instructions apply to the entire workflow:
@@ -116,7 +121,7 @@ class InstructionsTemplate(Template):
         {{ flow_instructions }}
         {% endif %}
         
-        {% if controller_instructions %}
+        {% if controller_instructions -%}
         ### Controller instructions
         
         These instructions apply to these tasks:
@@ -124,7 +129,7 @@ class InstructionsTemplate(Template):
         {{ controller_instructions }}
         {% endif %}
         
-        {% if agent_instructions %}
+        {% if agent_instructions -%}
         ### Agent instructions
         
         These instructions apply only to you:
@@ -132,7 +137,7 @@ class InstructionsTemplate(Template):
         {{ agent_instructions }}
         {% endif %}
         
-        {% if additional_instructions %}
+        {% if additional_instructions -%}
         ### Additional instructions
         
         These instructions were additionally provided for this part of the workflow:
@@ -191,6 +196,7 @@ class TasksTemplate(Template):
         {% endif %}
         {% endfor %}
         
+        {% if controller.flow.completed_tasks(reverse=True, limit=20) %}
         ### Completed tasks
         The following tasks were recently completed:
 
@@ -208,6 +214,7 @@ class TasksTemplate(Template):
         {% endif %}
         
         {% endfor %}
+        {% endif %}
         """
     controller: Controller
 
