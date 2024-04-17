@@ -8,7 +8,9 @@ from marvin.utilities.tools import FunctionTool
 from pydantic import Field
 
 from control_flow.utilities.logging import get_logger
+from control_flow.utilities.prefect import wrap_prefect_tool
 from control_flow.utilities.types import AssistantTool, ControlFlowModel
+from control_flow.utilities.user_access import talk_to_human
 
 T = TypeVar("T")
 logger = get_logger(__name__)
@@ -30,6 +32,7 @@ class Task(ControlFlowModel, Generic[T]):
     tools: list[AssistantTool | Callable] = []
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     completed_at: datetime.datetime | None = None
+    user_access: bool = False
 
     def __hash__(self):
         return id(self)
@@ -64,10 +67,13 @@ class Task(ControlFlowModel, Generic[T]):
         return tool
 
     def get_tools(self, task_id: int) -> list[AssistantTool | Callable]:
-        return [
+        tools = self.tools + [
             self._create_complete_tool(task_id),
             self._create_fail_tool(task_id),
-        ] + self.tools
+        ]
+        if self.user_access:
+            tools.append(marvin.utilities.tools.tool_from_function(talk_to_human))
+        return [wrap_prefect_tool(t) for t in tools]
 
     def complete(self, result: T):
         self.result = result
