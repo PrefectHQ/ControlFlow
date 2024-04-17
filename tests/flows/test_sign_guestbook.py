@@ -1,5 +1,4 @@
-from control_flow import Agent, run_ai
-from control_flow.core.flow import ai_flow
+from control_flow import Agent, ai_flow, run_ai
 
 # define assistants
 
@@ -34,7 +33,7 @@ def guestbook_flow():
         sign their names for the task to be complete. You can read the sign to
         see if that has happened yet. You can not sign for another assistant.
         """,
-        assistants=[a, b, c],
+        agents=[a, b, c],
         tools=[sign, view_guestbook],
     )
 
