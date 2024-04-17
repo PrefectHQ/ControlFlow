@@ -8,7 +8,9 @@ from marvin.settings import temporary_settings as temporary_marvin_settings
 from openai.types.chat import ChatCompletion
 from prefect import task as prefect_task
 
-from control_flow.utilities.prefect import create_json_artifact
+from control_flow.utilities.prefect import (
+    create_json_artifact,
+)
 
 original_classify_async = marvin.classify_async
 original_cast_async = marvin.cast_async

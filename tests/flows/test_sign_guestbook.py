@@ -1,11 +1,11 @@
-from control_flow import Assistant, run_ai
+from control_flow import Agent, run_ai
 from control_flow.core.flow import ai_flow
 
 # define assistants
 
-a = Assistant(name="a")
-b = Assistant(name="b")
-c = Assistant(name="c")
+a = Agent(name="a")
+b = Agent(name="b")
+c = Agent(name="c")
 
 
 # define tools
