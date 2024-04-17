@@ -2,10 +2,9 @@ import inspect
 from contextlib import contextmanager
 from typing import Generator, List
 
-from marvin.utilities.logging import get_logger
-
-from control_flow.context import ctx
-from control_flow.flow import AIFlow
+from control_flow.core.flow import Flow
+from control_flow.utilities.context import ctx
+from control_flow.utilities.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -31,7 +30,7 @@ def instructions(
     """
 
     if post_add_message or post_remove_message:
-        flow: AIFlow = ctx.get("flow")
+        flow: Flow = ctx.get("flow")
         if flow is None:
             raise ValueError(
                 "instructions() with message posting must be used within a flow context"
