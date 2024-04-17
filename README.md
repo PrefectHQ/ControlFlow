@@ -1,4 +1,5 @@
-![image](https://github.com/jlowin/ControlFlow/assets/153965/9465c321-6b3f-4a6f-af88-f7e3c250fb31)
+![image](https://github.com/jlowin/control_flow/assets/153965/c2a8a2f0-8777-49a6-a79b-a0e101bd4a04)
+
 
 # ControlFlow
 
@@ -78,4 +79,4 @@ if __name__ == "__main__":
     demo()
 ```
 
-<img width="1491" alt="image" src="https://github.com/jlowin/ControlFlow/assets/153965/d436de8d-f5c8-4ef2-a281-221b8abebd1f">
+<img width="1491" alt="image" src="https://github.com/jlowin/control_flow/assets/153965/43b7278b-7bcf-4d65-b219-c3a20f62a179">
