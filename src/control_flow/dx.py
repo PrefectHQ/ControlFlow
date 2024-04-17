@@ -46,7 +46,6 @@ def ai_flow(
         **kwargs,
     ):
         p_fn = prefect_flow(fn)
-        p_fn = fn
 
         flow_obj = Flow(
             **{
