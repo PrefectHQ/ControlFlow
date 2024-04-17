@@ -169,7 +169,7 @@ def run_ai(
             Task[cast](
                 objective=t,
                 context=context or {},
-                user_access=user_access,
+                user_access=user_access or False,
                 tools=tools or [],
             )
             for t in tasks
@@ -179,7 +179,7 @@ def run_ai(
 
     # create agent
     if agents is None:
-        agents = [Agent(user_access=user_access)]
+        agents = [Agent(user_access=user_access or False)]
 
     # create Controller
     from control_flow.core.controller.controller import Controller

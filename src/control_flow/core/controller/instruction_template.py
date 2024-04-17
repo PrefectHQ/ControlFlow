@@ -171,7 +171,9 @@ class TasksTemplate(Template):
         
         The following tasks are pending. You and any other agents are responsible
         for completing them and will continue to be invoked until you mark each
-        task as either "completed" or "failed" with the appropriate tool. 
+        task as either "completed" or "failed" with the appropriate tool. The
+        result of a complete task should be an artifact that fully represents
+        the completed objective.
                 
         Note: Task IDs are assigned for identification purposes only and will be
         resused after tasks complete.
