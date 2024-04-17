@@ -1,15 +1,19 @@
 ![image](https://github.com/jlowin/control_flow/assets/153965/c2a8a2f0-8777-49a6-a79b-a0e101bd4a04)
 
 
-
 # ControlFlow
 
-ControlFlow is a Python framework for orchestrating AI agents in workflows alongside traditional code. It allows you to seamlessly integrate AI into any workflow, coordinate multiple specialized AI agents, collect of human inputs when needed, and maintain full observability for debugging.
+ControlFlow is a Python framework for orchestrating AI agents in workflows alongside traditional code. It allows you to declaratively define AI tasks, assign them to agents, and seamlessly integrate them into larger workflows. By providing a structured way to coordinate multiple AI agents, ControlFlow enables you to build sophisticated applications that leverage the power of AI while maintaining the control and flexibility of traditional programming.
 
-ControlFlow is designed with the belief that AI works best when focused and iterated. It encourages breaking workflows into small, targeted steps, each handled by a dedicated AI agent. This keeps each AI as effective as possible, while maintaining context across the entire ensemble. ControlFlow recognizes that AI should augment traditional development, not replace it. It enables a declarative approach to AI, where the desired outcomes are specified and the framework handles the implementation details. This allows developers to mix AI and traditional code freely, leveraging AI where it's most useful while using standard programming everywhere else.
+At its core, ControlFlow is built on the idea of agent orchestration. It provides a way to break down complex workflows into smaller, focused tasks that can be assigned to specialized AI agents. These agents can work autonomously on their assigned tasks, while the framework ensures smooth coordination and information sharing between them. This approach allows each agent to excel at its specific role, while the overall workflow benefits from their combined capabilities.
 
 🚨 ControlFlow requires bleeding-edge versions of [Prefect](https://github.com/prefecthq/prefect) and [Marvin](https://github.com/prefecthq/marvin). Caveat emptor!
 
+## Key Concepts
+
+- **Flow**: A container for an AI-enhanced workflow that maintains consistent context and history. Flows are defined with the `@ai_flow` decorator.
+- **Task**: A discrete objective for AI agents to solve. Tasks can be defined with the `@ai_task` decorator or declared inline.
+- **Agent**: an AI agent that can be assigned tasks
 
 ## Key Features
 
@@ -32,7 +36,7 @@ pip install .
 ## Example
 
 ```python
-from control_flow import ai_flow, ai_task, run_ai_task, instructions
+from control_flow import ai_flow, ai_task, run_ai, instructions
 from pydantic import BaseModel
 
 
@@ -54,15 +58,15 @@ def write_poem_about_user(name: Name, interests: list[str]) -> str:
 
 @ai_flow()
 def demo():
-
     # set instructions that will be used for multiple tasks
     with instructions("talk like a pirate"):
-
         # define an AI task as a function and have it execute it
         name = get_user_name()
 
         # define an AI task inline
-        interests = run_ai_task("ask user for three interests", cast=list[str], user_access=True)
+        interests = run_ai(
+            "ask user for three interests", cast=list[str], user_access=True
+        )
 
         # set instructions for just the next task
         with instructions("no more than 8 lines"):
