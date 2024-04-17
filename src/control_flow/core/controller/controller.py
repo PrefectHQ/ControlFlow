@@ -22,8 +22,9 @@ from control_flow.instructions import get_instructions as get_context_instructio
 from control_flow.utilities.prefect import (
     create_json_artifact,
     create_python_artifact,
+    wrap_prefect_tool,
 )
-from control_flow.utilities.types import Thread
+from control_flow.utilities.types import FunctionTool, Thread
 
 logger = logging.getLogger(__name__)
 
@@ -43,11 +44,6 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
     # termination_strategy: TerminationStrategy
     context: dict = {}
     instructions: str = None
-    user_access: bool | None = Field(
-        None,
-        description="If True or False, overrides the user_access of the "
-        "agents. If None, the user_access setting of each agents is used.",
-    )
     model_config: dict = dict(extra="forbid")
 
     @field_validator("agents", mode="before")
@@ -118,17 +114,27 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
         instructions = instructions_template.render()
 
-        tools = self.flow.tools + agent.get_tools(user_access=self.user_access)
+        tools = self.flow.tools + agent.get_tools()
 
         for task in self.tasks:
             task_id = self.flow.get_task_id(task)
             tools = tools + task.get_tools(task_id=task_id)
 
+        # filter tools because duplicate names are not allowed
+        final_tools = []
+        final_tool_names = set()
+        for tool in tools:
+            if isinstance(tool, FunctionTool):
+                if tool.function.name in final_tool_names:
+                    continue
+            final_tool_names.add(tool.function.name)
+            final_tools.append(wrap_prefect_tool(tool))
+
         run = Run(
             assistant=agent,
             thread=thread or self.flow.thread,
             instructions=instructions,
-            tools=tools,
+            tools=final_tools,
             event_handler_class=AgentHandler,
         )
 
