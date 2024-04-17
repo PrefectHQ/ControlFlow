@@ -22,8 +22,9 @@ from control_flow.instructions import get_instructions as get_context_instructio
 from control_flow.utilities.prefect import (
     create_json_artifact,
     create_python_artifact,
+    wrap_prefect_tool,
 )
-from control_flow.utilities.types import Thread
+from control_flow.utilities.types import FunctionTool, Thread
 
 logger = logging.getLogger(__name__)
 
@@ -62,13 +63,6 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         """
         Run the control flow.
         """
-
-        # check if any tasks require user access but no agents have user access
-        if any([task.requires_user_access for task in self.tasks]):
-            if not any([agent.user_access for agent in self.agents]):
-                raise ValueError(
-                    "At least one task requires user access, but no agents with user access were provided."
-                )
 
         # continue as long as there are incomplete tasks
         while any([t for t in self.tasks if t.status == TaskStatus.PENDING]):
@@ -126,11 +120,21 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             task_id = self.flow.get_task_id(task)
             tools = tools + task.get_tools(task_id=task_id)
 
+        # filter tools because duplicate names are not allowed
+        final_tools = []
+        final_tool_names = set()
+        for tool in tools:
+            if isinstance(tool, FunctionTool):
+                if tool.function.name in final_tool_names:
+                    continue
+            final_tool_names.add(tool.function.name)
+            final_tools.append(wrap_prefect_tool(tool))
+
         run = Run(
             assistant=agent,
             thread=thread or self.flow.thread,
             instructions=instructions,
-            tools=tools,
+            tools=final_tools,
             event_handler_class=AgentHandler,
         )
 

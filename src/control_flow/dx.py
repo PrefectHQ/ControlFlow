@@ -169,8 +169,8 @@ def run_ai(
             Task[cast](
                 objective=t,
                 context=context or {},
-                requires_user_access=user_access,
-                tools=tools,
+                user_access=user_access,
+                tools=tools or [],
             )
             for t in tasks
         ]

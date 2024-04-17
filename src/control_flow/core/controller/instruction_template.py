@@ -181,6 +181,7 @@ class TasksTemplate(Template):
         #### Task {{ controller.flow.get_task_id(task) }}
         - Status: {{ task.status.value }}
         - Objective: {{ task.objective }}
+        - User access: {{ task.user_access }}
         {% if task.instructions %}
         - Instructions: {{ task.instructions }}
         {% endif %}
