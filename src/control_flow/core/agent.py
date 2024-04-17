@@ -65,11 +65,9 @@ class Agent(Assistant, ControlFlowModel):
         description="If True, the agent will communicate with the controller via messages.",
     )
 
-    def get_tools(self, user_access: bool = None) -> list[AssistantTool | Callable]:
-        if user_access is None:
-            user_access = self.user_access
+    def get_tools(self) -> list[AssistantTool | Callable]:
         tools = super().get_tools()
-        if user_access:
+        if self.user_access:
             tools.append(tool_from_function(talk_to_human))
 
         wrapped_tools = []

@@ -30,6 +30,7 @@ class Task(ControlFlowModel, Generic[T]):
     tools: list[AssistantTool | Callable] = []
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     completed_at: datetime.datetime | None = None
+    requires_user_access: bool = False
 
     def __hash__(self):
         return id(self)

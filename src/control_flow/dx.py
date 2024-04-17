@@ -68,7 +68,12 @@ def ai_flow(
 
 
 def ai_task(
-    fn=None, *, objective: str = None, user_access: bool = None, **agent_kwargs: dict
+    fn=None,
+    *,
+    objective: str = None,
+    agents: list[Agent] = None,
+    tools: list[AssistantTool | Callable] = None,
+    user_access: bool = None,
 ):
     """
     Use a Python function to create an AI task. When the function is called, an
@@ -77,7 +82,11 @@ def ai_task(
 
     if fn is None:
         return functools.partial(
-            ai_task, objective=objective, user_access=user_access, **agent_kwargs
+            ai_task,
+            objective=objective,
+            agents=agents,
+            tools=tools,
+            user_access=user_access,
         )
 
     sig = inspect.signature(fn)
@@ -89,18 +98,18 @@ def ai_task(
             objective = fn.__name__
 
     @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, _agents: list[Agent] = None, **kwargs):
         # first process callargs
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
 
-        # return run_ai.with_options(name=f"Task: {fn.__name__}")(
-        return run_ai(
+        return run_ai.with_options(name=f"Task: {fn.__name__}")(
             tasks=objective,
+            agents=_agents or agents,
             cast=fn.__annotations__.get("return"),
             context=bound.arguments,
+            tools=tools,
             user_access=user_access,
-            **agent_kwargs,
         )
 
     return wrapper
@@ -125,6 +134,7 @@ def run_ai(
     agents: list[Agent] = None,
     cast: T = NOT_PROVIDED,
     context: dict = None,
+    tools: list[AssistantTool | Callable] = None,
     user_access: bool = False,
 ) -> T | list[T]:
     """
@@ -155,20 +165,26 @@ def run_ai(
 
     # create tasks
     if tasks:
-        ai_tasks = [Task[cast](objective=t, context=context or {}) for t in tasks]
+        ai_tasks = [
+            Task[cast](
+                objective=t,
+                context=context or {},
+                requires_user_access=user_access,
+                tools=tools,
+            )
+            for t in tasks
+        ]
     else:
         ai_tasks = []
 
     # create agent
     if agents is None:
-        agents = [Agent()]
+        agents = [Agent(user_access=user_access)]
 
     # create Controller
     from control_flow.core.controller.controller import Controller
 
-    controller = Controller(
-        tasks=ai_tasks, agents=agents, flow=flow, user_access=user_access
-    )
+    controller = Controller(tasks=ai_tasks, agents=agents, flow=flow)
     controller.run()
 
     if ai_tasks:
