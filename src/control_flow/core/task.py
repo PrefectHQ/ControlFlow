@@ -1,32 +1,35 @@
 import datetime
 from enum import Enum
-from typing import Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Callable, Generic, TypeVar
 
 import marvin
 import marvin.utilities.tools
 from marvin.utilities.tools import FunctionTool
-from pydantic import Field
+from pydantic import Field, TypeAdapter
 
 from control_flow.utilities.logging import get_logger
 from control_flow.utilities.prefect import wrap_prefect_tool
 from control_flow.utilities.types import AssistantTool, ControlFlowModel
 from control_flow.utilities.user_access import talk_to_human
 
+if TYPE_CHECKING:
+    from control_flow.core.agent import Agent
 T = TypeVar("T")
 logger = get_logger(__name__)
 
 
 class TaskStatus(Enum):
-    PENDING = "pending"
-    COMPLETED = "completed"
+    INCOMPLETE = "incomplete"
+    SUCCESSFUL = "successful"
     FAILED = "failed"
 
 
 class Task(ControlFlowModel, Generic[T]):
     objective: str
     instructions: str | None = None
-    context: dict = Field({})
-    status: TaskStatus = TaskStatus.PENDING
+    agents: list["Agent"] = []
+    context: dict = {}
+    status: TaskStatus = TaskStatus.INCOMPLETE
     result: T = None
     error: str | None = None
     tools: list[AssistantTool | Callable] = []
@@ -34,23 +37,40 @@ class Task(ControlFlowModel, Generic[T]):
     completed_at: datetime.datetime | None = None
     user_access: bool = False
 
+    def __init__(self, objective, **kwargs):
+        # allow objective as a positional arg
+        super().__init__(objective=objective, **kwargs)
+
+    def is_incomplete(self) -> bool:
+        return self.status == TaskStatus.INCOMPLETE
+
+    def is_complete(self) -> bool:
+        return self.status != TaskStatus.INCOMPLETE
+
+    def is_successful(self) -> bool:
+        return self.status == TaskStatus.SUCCESSFUL
+
+    def is_failed(self) -> bool:
+        return self.status == TaskStatus.FAILED
+
     def __hash__(self):
         return id(self)
 
-    def _create_complete_tool(self, task_id: int) -> FunctionTool:
+    def _create_success_tool(self, task_id: int) -> FunctionTool:
         """
-        Create an agent-compatible tool for completing this task.
+        Create an agent-compatible tool for marking this task as successful.
         """
         result_type = self.get_result_type()
 
         # wrap the method call to get the correct result type signature
-        def complete(result: result_type):
-            self.complete(result=result)
+        def succeed(result: result_type):
+            # validate the result
+            self.mark_successful(result=result)
 
         tool = marvin.utilities.tools.tool_from_function(
-            complete,
-            name=f"complete_task_{task_id}",
-            description=f"Mark task {task_id} completed",
+            succeed,
+            name=f"succeed_task_{task_id}",
+            description=f"Mark task {task_id} as successful",
         )
 
         return tool
@@ -60,27 +80,28 @@ class Task(ControlFlowModel, Generic[T]):
         Create an agent-compatible tool for failing this task.
         """
         tool = marvin.utilities.tools.tool_from_function(
-            self.fail,
+            self.mark_failed,
             name=f"fail_task_{task_id}",
-            description=f"Mark task {task_id} failed",
+            description=f"Mark task {task_id} as failed",
         )
         return tool
 
     def get_tools(self, task_id: int) -> list[AssistantTool | Callable]:
         tools = self.tools + [
-            self._create_complete_tool(task_id),
+            self._create_success_tool(task_id),
             self._create_fail_tool(task_id),
         ]
         if self.user_access:
             tools.append(marvin.utilities.tools.tool_from_function(talk_to_human))
         return [wrap_prefect_tool(t) for t in tools]
 
-    def complete(self, result: T):
-        self.result = result
-        self.status = TaskStatus.COMPLETED
+    def mark_successful(self, result: T):
+        validated_result = TypeAdapter(self.get_result_type()).validate_python(result)
+        self.result = validated_result
+        self.status = TaskStatus.SUCCESSFUL
         self.completed_at = datetime.datetime.now()
 
-    def fail(self, message: str | None = None):
+    def mark_failed(self, message: str | None = None):
         self.error = message
         self.status = TaskStatus.FAILED
         self.completed_at = datetime.datetime.now()
@@ -90,3 +111,23 @@ class Task(ControlFlowModel, Generic[T]):
         Returns the `type` of the task's result field.
         """
         return self.model_fields["result"].annotation
+
+
+def any_incomplete(tasks: list[Task]) -> bool:
+    return any(t.status == TaskStatus.INCOMPLETE for t in tasks)
+
+
+def all_complete(tasks: list[Task]) -> bool:
+    return all(t.status != TaskStatus.INCOMPLETE for t in tasks)
+
+
+def all_successful(tasks: list[Task]) -> bool:
+    return all(t.status == TaskStatus.SUCCESSFUL for t in tasks)
+
+
+def any_failed(tasks: list[Task]) -> bool:
+    return any(t.status == TaskStatus.FAILED for t in tasks)
+
+
+def none_failed(tasks: list[Task]) -> bool:
+    return not any_failed(tasks)

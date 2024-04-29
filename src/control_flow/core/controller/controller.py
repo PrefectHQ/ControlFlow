@@ -12,12 +12,8 @@ from prefect.context import FlowRunContext
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from control_flow.core.agent import Agent
-from control_flow.core.controller.delegation import (
-    DelegationStrategy,
-    RoundRobin,
-)
 from control_flow.core.flow import Flow
-from control_flow.core.task import Task, TaskStatus
+from control_flow.core.task import Task
 from control_flow.instructions import get_instructions as get_context_instructions
 from control_flow.utilities.prefect import (
     create_json_artifact,
@@ -30,18 +26,25 @@ logger = logging.getLogger(__name__)
 
 
 class Controller(BaseModel, ExposeSyncMethodsMixin):
+    """
+    A controller contains logic for executing agents with context about the
+    larger workflow, including the flow itself, any tasks, and any other agents
+    they are collaborating with. The controller is responsible for orchestrating
+    agent behavior by generating instructions and tools for each agent. Note
+    that while the controller accepts details about (potentially multiple)
+    agents and tasks, it's responsiblity is to invoke one agent one time. Other
+    mechanisms should be used to orchestrate multiple agents invocations. This
+    is done by the controller to avoid tying e.g. agents to tasks or even a
+    specific flow.
+
+    """
+
     flow: Flow
     agents: list[Agent]
     tasks: list[Task] = Field(
         description="Tasks that the controller will complete.",
         default_factory=list,
     )
-    delegation_strategy: DelegationStrategy = Field(
-        validate_default=True,
-        description="The strategy for delegating work to assistants.",
-        default_factory=RoundRobin,
-    )
-    # termination_strategy: TerminationStrategy
     context: dict = {}
     instructions: str = None
     model_config: dict = dict(extra="forbid")
@@ -58,48 +61,18 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             self.flow.add_task(task)
         return self
 
-    @expose_sync_method("run")
-    async def run_async(self):
+    @expose_sync_method("run_agent")
+    async def run_agent_async(self, agent: Agent):
         """
         Run the control flow.
         """
+        if agent not in self.agents:
+            raise ValueError("Agent not found in controller agents.")
 
-        # continue as long as there are incomplete tasks
-        while any([t for t in self.tasks if t.status == TaskStatus.PENDING]):
-            # select the next agent
-            if len(self.agents) > 1:
-                agent = self.delegation_strategy(self.agents)
-            else:
-                agent = self.agents[0]
-            if not agent:
-                return
+        task = await self._get_prefect_run_agent_task(agent)
+        await task(agent=agent)
 
-            # run the agent
-            task = await self._get_prefect_run_agent_task(agent)
-            task(agent=agent)
-
-    async def _get_prefect_run_agent_task(
-        self, agent: Agent, thread: Thread = None
-    ) -> Callable:
-        @prefect_task(task_run_name=f'Run Agent: "{agent.name}"')
-        async def _run_agent(agent: Agent, thread: Thread = None):
-            run = await self.run_agent(agent=agent, thread=thread)
-
-            create_json_artifact(
-                key="messages",
-                data=[m.model_dump() for m in run.messages],
-                description="All messages sent and received during the run.",
-            )
-            create_json_artifact(
-                key="actions",
-                data=[s.model_dump() for s in run.steps],
-                description="All actions taken by the assistant during the run.",
-            )
-            return run
-
-        return _run_agent
-
-    async def run_agent(self, agent: Agent, thread: Thread = None) -> Run:
+    async def _run_agent(self, agent: Agent, thread: Thread = None) -> Run:
         """
         Run a single agent.
         """
@@ -141,6 +114,27 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         await run.run_async()
 
         return run
+
+    async def _get_prefect_run_agent_task(
+        self, agent: Agent, thread: Thread = None
+    ) -> Callable:
+        @prefect_task(task_run_name=f'Run Agent: "{agent.name}"')
+        async def _run_agent(agent: Agent, thread: Thread = None):
+            run = await self._run_agent(agent=agent, thread=thread)
+
+            create_json_artifact(
+                key="messages",
+                data=[m.model_dump() for m in run.messages],
+                description="All messages sent and received during the run.",
+            )
+            create_json_artifact(
+                key="actions",
+                data=[s.model_dump() for s in run.steps],
+                description="All actions taken by the assistant during the run.",
+            )
+            return run
+
+        return _run_agent
 
     def task_ids(self) -> dict[Task, int]:
         return {task: self.flow.get_task_id(task) for task in self.tasks}

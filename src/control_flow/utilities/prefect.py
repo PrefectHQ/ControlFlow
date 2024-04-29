@@ -127,18 +127,17 @@ def wrap_prefect_tool(tool: AssistantTool | Callable) -> AssistantTool:
         if isinstance(tool.function._python_fn, prefect.tasks.Task):
             return tool
 
-        async def modified_fn(
-            *args,
+        def modified_fn(
             # provide default args to avoid a late-binding issue
             original_fn: Callable = tool.function._python_fn,
             tool: FunctionTool = tool,
             **kwargs,
         ):
             # call fn
-            result = original_fn(*args, **kwargs)
+            result = original_fn(**kwargs)
 
             # prepare artifact
-            passed_args = inspect.signature(original_fn).bind(*args, **kwargs).arguments
+            passed_args = inspect.signature(original_fn).bind(**kwargs).arguments
             try:
                 passed_args = json.dumps(passed_args, indent=2)
             except Exception:
