@@ -1,4 +1,4 @@
-from marvin.beta.assistants import Thread
+from marvin.beta.assistants.threads import Message, Thread
 
 THREAD_REGISTRY = {}
 
@@ -18,3 +18,10 @@ def load_thread(name: str):
         thread = Thread()
         save_thread(name, thread)
     return THREAD_REGISTRY[name]
+
+
+def get_history(thread_id: str, limit: int = None) -> list[Message]:
+    """
+    Get the history of a thread
+    """
+    return Thread(id=thread_id).get_messages(limit=limit)

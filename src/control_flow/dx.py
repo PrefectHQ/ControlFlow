@@ -188,7 +188,7 @@ def run_ai(
     controller.run()
 
     if ai_tasks:
-        if all(task.status == TaskStatus.COMPLETED for task in ai_tasks):
+        if all(task.status == TaskStatus.SUCCESSFUL for task in ai_tasks):
             result = [task.result for task in ai_tasks]
             if single_result:
                 result = result[0]
