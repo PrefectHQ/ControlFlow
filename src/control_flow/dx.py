@@ -100,14 +100,17 @@ def ai_task(
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
 
-        return run_ai.with_options(name=f"Task: {fn.__name__}")(
-            tasks=objective,
+        task = Task(
+            objective=objective,
             agents=_agents or agents,
-            cast=fn.__annotations__.get("return"),
             context=bound.arguments,
-            tools=tools,
-            user_access=user_access,
+            result_type=fn.__annotations__.get("return"),
+            user_access=user_access or False,
+            tools=tools or [],
         )
+
+        task.run_until_complete()
+        return task.result
 
     return wrapper
 
@@ -163,7 +166,7 @@ def run_ai(
     # create tasks
     if tasks:
         ai_tasks = [
-            Task[cast](
+            Task(
                 objective=t,
                 context=context or {},
                 user_access=user_access or False,
