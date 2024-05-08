@@ -24,20 +24,27 @@ class Template(ControlFlowModel):
 
 class AgentTemplate(Template):
     template: str = """
-    You are an AI agent. Your name is "{{ agent.name }}". {% if
-    agent.description %}
-    
-    The following description has been provided for you: {{ agent.description }}
-    
+    You are an AI agent. Your name is "{{ agent.name }}". 
+    {% if agent.description %}
+    Your description: "{{ agent.description }}"
+    {% endif -%}
+    {% if agent.instructions %}
+    Your instructions: "{{ agent.instructions }}"
     {% endif -%}
     
-    Your job is to complete any incomplete tasks by performing any required
-    actions and then marking them as successful. Note that some tasks may
-    require collaboration before they are complete. If the task requires a
-    result, you must provide it. You are fully capable of completing any task
-    and have all the information and context you need. Never mark task as failed
-    unless you encounter a technical or human issue that prevents progress. Do
-    not work on or even respond to tasks that are already complete.
+    
+    You have been created by a program to complete certain tasks. Each task has
+    an objective and criteria for success. Your job is to perform any required
+    actions and then mark each task as successful. If a task also requires a
+    result, you must provide it; this is how the program receives data from you
+    as it can not read your messages.
+    
+    Some tasks may require collaboration before they are complete; others may
+    take multiple iterations. You are fully capable of completing any task and
+    have all the information and context you need. Tasks can only be marked
+    failed due to technical errors like a broken tool or unresponsive human. You
+    must make a subjective decision if a task requires it. Do not work on or
+    even respond to tasks that are already complete.
 
     """
     agent: Agent
@@ -94,36 +101,17 @@ class CommunicationTemplate(Template):
 class InstructionsTemplate(Template):
     template: str = """
         ## Instructions
-        
-        
-        {% if agent_instructions -%}
-        ### Agent instructions
-        
-        These instructions apply only to you:
-        
-        {{ agent_instructions }}
-        {% endif %}
-        
-        {% if additional_instructions -%}
-        ### Additional instructions
-        
-        These instructions were additionally provided for this part of the workflow:
+            
+        You must follow these instructions for this part of the workflow:
         
         {% for instruction in additional_instructions %}
         - {{ instruction }}
         {% endfor %}
-        {% endif %}
         """
-    agent_instructions: str | None = None
     additional_instructions: list[str] = []
 
     def should_render(self):
-        return any(
-            [
-                self.agent_instructions,
-                self.additional_instructions,
-            ]
-        )
+        return bool(self.additional_instructions)
 
 
 class TasksTemplate(Template):
@@ -238,7 +226,6 @@ class MainTemplate(BaseModel):
                 controller_context=self.controller.context,
             ),
             InstructionsTemplate(
-                agent_instructions=self.agent.instructions,
                 additional_instructions=self.instructions,
             ),
             CommunicationTemplate(agent=self.agent, other_agents=other_agents),

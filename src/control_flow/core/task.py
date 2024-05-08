@@ -1,4 +1,5 @@
 import datetime
+import itertools
 from enum import Enum
 from typing import TYPE_CHECKING, Callable, TypeVar
 
@@ -32,7 +33,7 @@ class Task(ControlFlowModel):
     context: dict = {}
     status: TaskStatus = TaskStatus.INCOMPLETE
     result: T = None
-    result_type: type[T] | None = str
+    result_type: type[T] | None = None
     error: str | None = None
     tools: list[AssistantTool | Callable] = []
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
@@ -42,6 +43,29 @@ class Task(ControlFlowModel):
     def __init__(self, objective, **kwargs):
         # allow objective as a positional arg
         super().__init__(objective=objective, **kwargs)
+
+    def run(self, agents: list["Agent"] = None):
+        """
+        Runs the task with provided agents for up to one cycle through the agents.
+        """
+        if not agents and not self.agents:
+            raise ValueError("No agents provided to run task.")
+
+        for agent in agents or self.agents:
+            if self.is_complete():
+                break
+            agent.run(tasks=[self])
+
+    def run_until_complete(self, agents: list["Agent"] = None):
+        """
+        Runs the task with provided agents until it is complete.
+        """
+        if not agents and not self.agents:
+            raise ValueError("No agents provided to run task.")
+        agents = itertools.cycle(agents or self.agents)
+        while self.is_incomplete():
+            agent = next(agents)
+            agent.run(tasks=[self])
 
     def is_incomplete(self) -> bool:
         return self.status == TaskStatus.INCOMPLETE
