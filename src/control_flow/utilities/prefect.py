@@ -61,11 +61,15 @@ def create_json_artifact(
     Create a JSON artifact.
     """
 
-    json_data = TypeAdapter(type(data)).dump_json(data, indent=2).decode()
+    try:
+        markdown = TypeAdapter(type(data)).dump_json(data, indent=2).decode()
+        markdown = f"```json\n{markdown}\n```"
+    except Exception:
+        markdown = str(data)
 
     create_markdown_artifact(
         key=key,
-        markdown=f"```json\n{json_data}\n```",
+        markdown=markdown,
         description=description,
         task_run_id=task_run_id,
         flow_run_id=flow_run_id,
@@ -127,18 +131,17 @@ def wrap_prefect_tool(tool: AssistantTool | Callable) -> AssistantTool:
         if isinstance(tool.function._python_fn, prefect.tasks.Task):
             return tool
 
-        async def modified_fn(
-            *args,
+        def modified_fn(
             # provide default args to avoid a late-binding issue
             original_fn: Callable = tool.function._python_fn,
             tool: FunctionTool = tool,
             **kwargs,
         ):
             # call fn
-            result = original_fn(*args, **kwargs)
+            result = original_fn(**kwargs)
 
             # prepare artifact
-            passed_args = inspect.signature(original_fn).bind(*args, **kwargs).arguments
+            passed_args = inspect.signature(original_fn).bind(**kwargs).arguments
             try:
                 passed_args = json.dumps(passed_args, indent=2)
             except Exception:

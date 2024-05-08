@@ -1,4 +1,4 @@
-import functools
+import inspect
 from contextlib import contextmanager
 from typing import Any, Callable
 
@@ -33,21 +33,26 @@ class AsyncControlFlowClient(AsyncMarvinClient):
             create_json_artifact(key="response", data=response)
             return response
 
-        return _generate_chat(**kwargs)
+        return await _generate_chat(**kwargs)
 
 
 def generate_task(name: str, original_fn: Callable):
-    @functools.wraps(marvin.classify_async)
-    async def wrapper(*args, **kwargs):
+    if inspect.iscoroutinefunction(original_fn):
+
         @prefect_task(name=name)
-        async def inner(*args, **kwargs):
+        async def wrapper(*args, **kwargs):
             create_json_artifact(key="args", data=[args, kwargs])
             result = await original_fn(*args, **kwargs)
             create_json_artifact(key="result", data=result)
             return result
+    else:
 
-        # do this to avoid weirdness with async/sync behavior
-        return inner(*args, **kwargs)
+        @prefect_task(name=name)
+        def wrapper(*args, **kwargs):
+            create_json_artifact(key="args", data=[args, kwargs])
+            result = original_fn(*args, **kwargs)
+            create_json_artifact(key="result", data=result)
+            return result
 
     return wrapper
 
