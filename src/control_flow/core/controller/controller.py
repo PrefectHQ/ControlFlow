@@ -46,7 +46,6 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         default_factory=list,
     )
     context: dict = {}
-    instructions: str = None
     model_config: dict = dict(extra="forbid")
 
     @field_validator("agents", mode="before")

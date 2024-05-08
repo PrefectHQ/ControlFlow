@@ -33,7 +33,7 @@ class AsyncControlFlowClient(AsyncMarvinClient):
             create_json_artifact(key="response", data=response)
             return response
 
-        return _generate_chat(**kwargs)
+        return await _generate_chat(**kwargs)
 
 
 def generate_task(name: str, original_fn: Callable):

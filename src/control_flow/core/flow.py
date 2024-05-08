@@ -18,7 +18,6 @@ class Flow(ControlFlowModel):
     tools: list[AssistantTool | Callable] = Field(
         [], description="Tools that will be available to every agent in the flow"
     )
-    instructions: str | None = None
     model: str | None = None
     context: dict = {}
     tasks: dict[Task, int] = Field(repr=False, default_factory=dict)

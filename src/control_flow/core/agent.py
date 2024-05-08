@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class Agent(Assistant, ControlFlowModel, ExposeSyncMethodsMixin):
+    name: str = "Agent"
     user_access: bool = Field(
         False,
         description="If True, the agent is given tools for interacting with a human user.",
