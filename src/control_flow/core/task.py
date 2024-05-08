@@ -1,6 +1,6 @@
 import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Callable, TypeVar
 
 import marvin
 import marvin.utilities.tools
@@ -24,13 +24,15 @@ class TaskStatus(Enum):
     FAILED = "failed"
 
 
-class Task(ControlFlowModel, Generic[T]):
+class Task(ControlFlowModel):
+    model_config = dict(extra="forbid", allow_arbitrary_types=True)
     objective: str
     instructions: str | None = None
     agents: list["Agent"] = []
     context: dict = {}
     status: TaskStatus = TaskStatus.INCOMPLETE
     result: T = None
+    result_type: type[T] | None = str
     error: str | None = None
     tools: list[AssistantTool | Callable] = []
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
@@ -60,10 +62,9 @@ class Task(ControlFlowModel, Generic[T]):
         """
         Create an agent-compatible tool for marking this task as successful.
         """
-        result_type = self.get_result_type()
 
         # wrap the method call to get the correct result type signature
-        def succeed(result: result_type):
+        def succeed(result: self.result_type):
             # validate the result
             self.mark_successful(result=result)
 
@@ -95,9 +96,15 @@ class Task(ControlFlowModel, Generic[T]):
             tools.append(marvin.utilities.tools.tool_from_function(talk_to_human))
         return [wrap_prefect_tool(t) for t in tools]
 
-    def mark_successful(self, result: T):
-        validated_result = TypeAdapter(self.get_result_type()).validate_python(result)
-        self.result = validated_result
+    def mark_successful(self, result: T = None):
+        if self.result_type is None and result is not None:
+            raise ValueError(
+                f"Task {self.objective} specifies no result type, but a result was provided."
+            )
+        elif self.result_type is not None:
+            result = TypeAdapter(self.result_type).validate_python(result)
+
+        self.result = result
         self.status = TaskStatus.SUCCESSFUL
         self.completed_at = datetime.datetime.now()
 
@@ -105,12 +112,6 @@ class Task(ControlFlowModel, Generic[T]):
         self.error = message
         self.status = TaskStatus.FAILED
         self.completed_at = datetime.datetime.now()
-
-    def get_result_type(self) -> T:
-        """
-        Returns the `type` of the task's result field.
-        """
-        return self.model_fields["result"].annotation
 
 
 def any_incomplete(tasks: list[Task]) -> bool:

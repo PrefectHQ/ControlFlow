@@ -61,11 +61,15 @@ def create_json_artifact(
     Create a JSON artifact.
     """
 
-    json_data = TypeAdapter(type(data)).dump_json(data, indent=2).decode()
+    try:
+        markdown = TypeAdapter(type(data)).dump_json(data, indent=2).decode()
+        markdown = f"```json\n{markdown}\n```"
+    except Exception:
+        markdown = str(data)
 
     create_markdown_artifact(
         key=key,
-        markdown=f"```json\n{json_data}\n```",
+        markdown=markdown,
         description=description,
         task_run_id=task_run_id,
         flow_run_id=flow_run_id,

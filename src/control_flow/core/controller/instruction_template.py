@@ -24,25 +24,21 @@ class Template(ControlFlowModel):
 
 class AgentTemplate(Template):
     template: str = """
-    You are an AI agent. Your name is "{{ agent.name }}".
-    {% if agent.description %}
+    You are an AI agent. Your name is "{{ agent.name }}". {% if
+    agent.description %}
     
-    The following description has been provided for you:
-    {{ agent.description }}
+    The following description has been provided for you: {{ agent.description }}
     
     {% endif -%}
     
-    Your job is to work on any incomplete tasks in order to complete them. Your
-    goal is to mark every one of your tasks as successful, but if that becomes
-    impossible, you may mark it as failed. You should only do this if it is not
-    possible to succeed. It is ok to leave a task as incomplete until you are
-    ready to complete it. The following instructions will provide you with all
-    the context you need to complete your tasks. Note that using a tool to
-    complete or fail a task is your ultimate objective.
-    
-    You may be asked to perform tasks that you feel have insufficient context, criteria, or without access to
-    a human user. You must do your best to complete them anyway. You will not be given
-    impossible tasks intentionally. You must use your best judgement to complete your tasks.
+    Your job is to complete any incomplete tasks by performing any required
+    actions and then marking them as successful. Note that some tasks may
+    require collaboration before they are complete. If the task requires a
+    result, you must provide it. You are fully capable of completing any task
+    and have all the information and context you need. Never mark task as failed
+    unless you encounter a technical or human issue that prevents progress. Do
+    not work on or even respond to tasks that are already complete.
+
     """
     agent: Agent
 
@@ -51,21 +47,15 @@ class CommunicationTemplate(Template):
     template: str = """
     ## Communciation
     
-    There may be other AI agents working on the same tasks. They may
-    join or leave the workflow at any time, and may or may not be assigned to
-    specific tasks. Only one agent needs to mark a task as successful or failed,
-    though it may take cooperation to reach that point. In general, agents
-    should seek to complete tasks as quickly as possible and collaborate only
-    when necessary or beneficial.
+    You should only post messages to the thread if you must send information to
+    other agents or if a task requires it. The human user can not see
+    these messages. Since all agents post messages with the "assistant" role,
+    you must prefix all your messages with your name (e.g. "{{ agent.name }}:
+    (message)") in order to distinguish your messages from others. Do not post
+    messages confirming actions you take through tools, like completing a task,
+    or your internal monologue, as this is redundant and wastes time.
     
-    You should only post messages to the thread to communicate with other
-    agents. The human user can not see these messages. Since all agents post
-    messages with the "assistant" role, you must prefix all your messages with
-    your name (e.g. "{{ agent.name }}: (message)") in order to distinguish
-    your messages from others. Do not post messages confirming actions you take
-    through tools, like completing a task, as this is redundant and wastes time.
-    
-    ### Other agents
+    ### Other agents assigned to your tasks
     
     {% for agent in other_agents %}
     
@@ -101,51 +91,10 @@ class CommunicationTemplate(Template):
     other_agents: list[Agent]
 
 
-# class CollaborationTemplate(Template):
-#     template: str = """
-#     ## Other agents
-
-#     Your task may require you to collaborate with other AI agents. They are
-#     listed below, along with a brief description and whether they have access to
-#     a tool for collecting information from human users. Note that all agents
-#     post messages to the same thread with the `Assistant` role, so pay attention
-#     to the name of the agent that is speaking. Only one agent needs to indicate
-#     that a task is complete.
-
-#     {% for agent in other_agents %}
-
-#     - Name: {{agent.name}}
-#     - Description: {% if agent.description %}{{agent.description}}{% endif %}
-#     - Can talk to human users: {{agent.user_access}}
-
-#     {% endfor %}
-#     {% if not other_agents %}
-#     (No other agents are currently assigned to tasks in this workflow, though they
-#     may still participate at any time.)
-#     {% endif %}
-#     """
-#     other_agents: list[Agent]
-
-
 class InstructionsTemplate(Template):
     template: str = """
         ## Instructions
         
-        {% if flow_instructions -%}
-        ### Workflow instructions
-        
-        These instructions apply to the entire workflow:
-        
-        {{ flow_instructions }}
-        {% endif %}
-        
-        {% if controller_instructions -%}
-        ### Controller instructions
-        
-        These instructions apply to these tasks:
-        
-        {{ controller_instructions }}
-        {% endif %}
         
         {% if agent_instructions -%}
         ### Agent instructions
@@ -165,16 +114,12 @@ class InstructionsTemplate(Template):
         {% endfor %}
         {% endif %}
         """
-    flow_instructions: str | None = None
-    controller_instructions: str | None = None
     agent_instructions: str | None = None
     additional_instructions: list[str] = []
 
     def should_render(self):
         return any(
             [
-                self.flow_instructions,
-                self.controller_instructions,
                 self.agent_instructions,
                 self.additional_instructions,
             ]
@@ -187,11 +132,10 @@ class TasksTemplate(Template):
         
         ### Active tasks
         
-        The following tasks are incomplete. You and any other assigned agents
-        are responsible for completing them and will continue to be invoked
-        until you mark each task as either "successful" or "failed" with the
-        appropriate tool. The result of a successful task should be an artifact
-        that fully represents the completed objective.
+        The following tasks are incomplete. Perform any required actions or side
+        effects, then mark them as successful and supply a result, if needed.
+        Never mark a task successful until its objective is complete. A task
+        that doesn't require a result may still require action.
                 
         Note: Task IDs are assigned for identification purposes only and will be
         resused after tasks complete.
@@ -294,8 +238,6 @@ class MainTemplate(BaseModel):
                 controller_context=self.controller.context,
             ),
             InstructionsTemplate(
-                flow_instructions=self.controller.flow.instructions,
-                controller_instructions=self.controller.instructions,
                 agent_instructions=self.agent.instructions,
                 additional_instructions=self.instructions,
             ),
