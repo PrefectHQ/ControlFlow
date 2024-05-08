@@ -72,7 +72,7 @@ def get_flow() -> Flow:
     """
     flow: Flow | None = ctx.get("flow")
     if not flow:
-        raise ValueError("No flow found in context")
+        return Flow()
     return flow
 
 
