@@ -23,16 +23,16 @@ def demo():
     with instructions("one sentence max"):
         task = Task(
             "All agents must give an argument based on the user message",
-            result_type=None,
             agents=[a1, a2],
             context={"user_message": user_message},
         )
-        while task.is_incomplete():
-            a1.run(task)
-            a2.run(task)
-    task2 = Task("Which argument is more compelling?")
+        task.run_until_complete()
+
+    task2 = Task(
+        "Post a message saying which argument about the user message is more compelling?"
+    )
     while task2.is_incomplete():
-        Agent(instructions="you always pick a side").run(task2)
+        task2.run(agents=[Agent(instructions="you always pick a side")])
 
 
 demo()
