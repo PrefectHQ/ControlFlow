@@ -1,12 +1,12 @@
 import datetime
 import itertools
 from enum import Enum
-from typing import TYPE_CHECKING, Callable, TypeVar
+from typing import TYPE_CHECKING, Callable, GenericAlias, TypeVar
 
 import marvin
 import marvin.utilities.tools
 from marvin.utilities.tools import FunctionTool
-from pydantic import Field, TypeAdapter
+from pydantic import Field, TypeAdapter, field_validator
 
 from control_flow.utilities.logging import get_logger
 from control_flow.utilities.prefect import wrap_prefect_tool
@@ -26,19 +26,23 @@ class TaskStatus(Enum):
 
 
 class Task(ControlFlowModel):
-    model_config = dict(extra="forbid", allow_arbitrary_types=True)
+    model_config = dict(extra="forbid", arbitrary_types_allowed=True)
     objective: str
     instructions: str | None = None
     agents: list["Agent"] = []
     context: dict = {}
     status: TaskStatus = TaskStatus.INCOMPLETE
     result: T = None
-    result_type: type[T] | None = None
+    result_type: type[T] | GenericAlias | None = None
     error: str | None = None
     tools: list[AssistantTool | Callable] = []
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     completed_at: datetime.datetime | None = None
     user_access: bool = False
+
+    @field_validator("agents", mode="before")
+    def _turn_none_into_empty_list(cls, v):
+        return v or []
 
     def __init__(self, objective, **kwargs):
         # allow objective as a positional arg
@@ -48,8 +52,10 @@ class Task(ControlFlowModel):
         """
         Runs the task with provided agents for up to one cycle through the agents.
         """
+        from control_flow.core.agent import Agent
+
         if not agents and not self.agents:
-            raise ValueError("No agents provided to run task.")
+            agents = [Agent()]
 
         for agent in agents or self.agents:
             if self.is_complete():
@@ -60,8 +66,10 @@ class Task(ControlFlowModel):
         """
         Runs the task with provided agents until it is complete.
         """
+        from control_flow.core.agent import Agent
+
         if not agents and not self.agents:
-            raise ValueError("No agents provided to run task.")
+            agents = [Agent()]
         agents = itertools.cycle(agents or self.agents)
         while self.is_incomplete():
             agent = next(agents)
