@@ -23,7 +23,6 @@ def ai_flow(
     *,
     thread: Thread = None,
     tools: list[AssistantTool | Callable] = None,
-    instructions: str = None,
     model: str = None,
 ):
     """
@@ -35,7 +34,6 @@ def ai_flow(
             ai_flow,
             thread=thread,
             tools=tools,
-            instructions=instructions,
             model=model,
         )
 
@@ -51,7 +49,6 @@ def ai_flow(
             **{
                 "thread": thread,
                 "tools": tools or [],
-                "instructions": instructions,
                 "model": model,
                 **(flow_kwargs or {}),
             }
@@ -188,7 +185,7 @@ def run_ai(
     controller.run()
 
     if ai_tasks:
-        if all(task.status == TaskStatus.COMPLETED for task in ai_tasks):
+        if all(task.status == TaskStatus.SUCCESSFUL for task in ai_tasks):
             result = [task.result for task in ai_tasks]
             if single_result:
                 result = result[0]

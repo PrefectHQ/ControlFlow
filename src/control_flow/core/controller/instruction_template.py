@@ -24,20 +24,28 @@ class Template(ControlFlowModel):
 
 class AgentTemplate(Template):
     template: str = """
-    You are an AI agent. Your name is "{{ agent.name }}".
-    
+    You are an AI agent. Your name is "{{ agent.name }}". 
     {% if agent.description %}
-    
-    The following description has been provided for you:
-    {{ agent.description }}
-    
+    Your description: "{{ agent.description }}"
+    {% endif -%}
+    {% if agent.instructions %}
+    Your instructions: "{{ agent.instructions }}"
     {% endif -%}
     
-    Your job is to work on any pending tasks until you can mark them as either
-    `complete` or `failed`. The following instructions will provide you with all
-    the context you need to complete your tasks. Note that using a tool to
-    complete or fail a task is your ultimate objective, and you should not post
-    any messages to the thread unless you have a specific reason to do so.
+    
+    You have been created by a program to complete certain tasks. Each task has
+    an objective and criteria for success. Your job is to perform any required
+    actions and then mark each task as successful. If a task also requires a
+    result, you must provide it; this is how the program receives data from you
+    as it can not read your messages.
+    
+    Some tasks may require collaboration before they are complete; others may
+    take multiple iterations. You are fully capable of completing any task and
+    have all the information and context you need. Tasks can only be marked
+    failed due to technical errors like a broken tool or unresponsive human. You
+    must make a subjective decision if a task requires it. Do not work on or
+    even respond to tasks that are already complete.
+
     """
     agent: Agent
 
@@ -46,21 +54,25 @@ class CommunicationTemplate(Template):
     template: str = """
     ## Communciation
     
-    ### Posting messages to the thread
+    You should only post messages to the thread if you must send information to
+    other agents or if a task requires it. The human user can not see
+    these messages. Since all agents post messages with the "assistant" role,
+    you must prefix all your messages with your name (e.g. "{{ agent.name }}:
+    (message)") in order to distinguish your messages from others. Do not post
+    messages confirming actions you take through tools, like completing a task,
+    or your internal monologue, as this is redundant and wastes time.
     
-    You have been created by a Controller in the Python library ControlFlow in
-    order to complete various tasks or instructions. All messages in this thread
-    are either from the controller or from AI agents like you. Note that all
-    agents post to the thread with the `Assistant` role, so if you do need to
-    post a message, preface with your name (e.g. "{{ agent.name }}: Hello!") in
-    order to distinguish your messages. 
+    ### Other agents assigned to your tasks
     
-    The controller CAN NOT and WILL NOT read your messages, so DO NOT post
-    messages unless you need to send information to another agent. DO NOT post
-    messages about information already captured by your tool calls, such as the
-    tool call itself, its result, human responses, or task completion. 
+    {% for agent in other_agents %}
     
-    ### Talking to humans
+    - Name: {{agent.name}}
+    - Description: {{ agent.description if agent.description is not none else "No description provided." }}
+    - Can talk to human users: {{agent.user_access}}
+
+    {% endfor %}
+    
+    ## Talking to human users
     
     {% if agent.user_access %}
     You may interact with a human user to complete your tasks by using the
@@ -76,91 +88,30 @@ class CommunicationTemplate(Template):
     fail the task if you truly can not make progress. 
     {% else %}
     You can not interact with a human at this time. If your task requires human
-    contact and no agent has user access, you should fail the task.
+    contact and no agent has user access, you should fail the task. Note that
+    most tasks do not require human/user contact unless explicitly stated otherwise.
     {% endif %}
     
     """
 
     agent: Agent
-
-
-class CollaborationTemplate(Template):
-    template: str = """
-    ## Collaboration
-    
-    You are collaborating with other AI agents. They are listed below by name,
-    along with a brief description. Note that all agents post messages to the
-    same thread with the `Assistant` role, so pay attention to the name of the
-    agent that is speaking. Only one agent needs to indicate that a task is
-    complete.
-    
-    ### Agents
-    {% for agent in other_agents %}
-    
-    #### "{{agent.name}}"
-    Can talk to humans: {{agent.user_access}}
-    Description: {% if agent.description %}{{agent.description}}{% endif %}
-    
-    {% endfor %}
-    {% if not other_agents %}
-    (No other agents are currently participating in this workflow)
-    {% endif %}
-    """
     other_agents: list[Agent]
 
 
 class InstructionsTemplate(Template):
     template: str = """
         ## Instructions
-        
-        {% if flow_instructions -%}
-        ### Workflow instructions
-        
-        These instructions apply to the entire workflow:
-        
-        {{ flow_instructions }}
-        {% endif %}
-        
-        {% if controller_instructions -%}
-        ### Controller instructions
-        
-        These instructions apply to these tasks:
-        
-        {{ controller_instructions }}
-        {% endif %}
-        
-        {% if agent_instructions -%}
-        ### Agent instructions
-        
-        These instructions apply only to you:
-        
-        {{ agent_instructions }}
-        {% endif %}
-        
-        {% if additional_instructions -%}
-        ### Additional instructions
-        
-        These instructions were additionally provided for this part of the workflow:
+            
+        You must follow these instructions for this part of the workflow:
         
         {% for instruction in additional_instructions %}
         - {{ instruction }}
         {% endfor %}
-        {% endif %}
         """
-    flow_instructions: str | None = None
-    controller_instructions: str | None = None
-    agent_instructions: str | None = None
     additional_instructions: list[str] = []
 
     def should_render(self):
-        return any(
-            [
-                self.flow_instructions,
-                self.controller_instructions,
-                self.agent_instructions,
-                self.additional_instructions,
-            ]
-        )
+        return bool(self.additional_instructions)
 
 
 class TasksTemplate(Template):
@@ -169,17 +120,16 @@ class TasksTemplate(Template):
         
         ### Active tasks
         
-        The following tasks are pending. You and any other agents are responsible
-        for completing them and will continue to be invoked until you mark each
-        task as either "completed" or "failed" with the appropriate tool. The
-        result of a complete task should be an artifact that fully represents
-        the completed objective.
+        The following tasks are incomplete. Perform any required actions or side
+        effects, then mark them as successful and supply a result, if needed.
+        Never mark a task successful until its objective is complete. A task
+        that doesn't require a result may still require action.
                 
         Note: Task IDs are assigned for identification purposes only and will be
         resused after tasks complete.
         
         {% for task in controller.tasks %}
-        {% if task.status.value == "pending" %}
+        {% if task.status.value == "incomplete" %}
         #### Task {{ controller.flow.get_task_id(task) }}
         - Status: {{ task.status.value }}
         - Objective: {{ task.objective }}
@@ -187,7 +137,7 @@ class TasksTemplate(Template):
         {% if task.instructions %}
         - Instructions: {{ task.instructions }}
         {% endif %}
-        {% if task.status.value == "completed" %}
+        {% if task.status.value == "successful" %}
         - Result: {{ task.result }}
         {% elif task.status.value == "failed" %}
         - Error: {{ task.error }}
@@ -195,7 +145,12 @@ class TasksTemplate(Template):
         {% if task.context %}
         - Context: {{ task.context }}
         {% endif %}
-        
+        {% if task.agents %}
+        - Assigned agents:
+        {% for agent in task.agents %}
+            - "{{ agent.name }}"
+        {% endfor %}
+        {% endif %}
         {% endif %}
         {% endfor %}
         
@@ -207,7 +162,7 @@ class TasksTemplate(Template):
         #### Task {{ controller.flow.get_task_id(task) }}
         - Status: {{ task.status.value }}
         - Objective: {{ task.objective }}
-        {% if task.status.value == "completed" %}
+        {% if task.status.value == "successful" %}
         - Result: {{ task.result }}
         {% elif task.status.value == "failed" %}
         - Error: {{ task.error }}
@@ -227,20 +182,22 @@ class TasksTemplate(Template):
 
 class ContextTemplate(Template):
     template: str = """
-        ## Context
+        ## Additional context
         
-        {% if flow_context %}
         ### Flow context
         {% for key, value in flow_context.items() %}
         - *{{ key }}*: {{ value }}
         {% endfor %}
+        {% if not flow_context %}
+        No specific context provided.
         {% endif %}
         
-        {% if controller_context %}
         ### Controller context
         {% for key, value in controller_context.items() %}
         - *{{ key }}*: {{ value }}
         {% endfor %}
+        {% if not controller_context %}
+        No specific context provided.
         {% endif %}
         """
     flow_context: dict
@@ -257,6 +214,10 @@ class MainTemplate(BaseModel):
     instructions: list[str]
 
     def render(self):
+        all_agents = [self.agent] + self.controller.agents
+        for task in self.controller.tasks:
+            all_agents += task.agents
+        other_agents = [agent for agent in all_agents if agent != self.agent]
         templates = [
             AgentTemplate(agent=self.agent),
             TasksTemplate(controller=self.controller),
@@ -265,15 +226,10 @@ class MainTemplate(BaseModel):
                 controller_context=self.controller.context,
             ),
             InstructionsTemplate(
-                flow_instructions=self.controller.flow.instructions,
-                controller_instructions=self.controller.instructions,
-                agent_instructions=self.agent.instructions,
                 additional_instructions=self.instructions,
             ),
-            CommunicationTemplate(agent=self.agent),
-            CollaborationTemplate(
-                other_agents=[a for a in self.controller.agents if a != self.agent]
-            ),
+            CommunicationTemplate(agent=self.agent, other_agents=other_agents),
+            # CollaborationTemplate(other_agents=other_agents),
         ]
 
         rendered = [

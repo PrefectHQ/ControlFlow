@@ -1,4 +1,6 @@
 import os
+import sys
+import warnings
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,12 +23,19 @@ class ControlFlowSettings(BaseSettings):
 class PrefectSettings(ControlFlowSettings):
     """
     All settings here are used as defaults for Prefect, unless overridden by env vars.
+    Note that `apply()` must be called before Prefect is imported.
     """
 
     PREFECT_LOGGING_LEVEL: str = "WARNING"
+    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: str = "true"
 
     def apply(self):
         import os
+
+        if "prefect" in sys.modules:
+            warnings.warn(
+                "Prefect has already been imported; ControlFlow defaults will not be applied."
+            )
 
         for k, v in self.model_dump().items():
             if k not in os.environ:
