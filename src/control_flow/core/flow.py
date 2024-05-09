@@ -5,7 +5,6 @@ from openai.types.beta.threads import Message
 from prefect import task as prefect_task
 from pydantic import Field, field_validator
 
-from control_flow.core.task import Task, TaskStatus
 from control_flow.utilities.context import ctx
 from control_flow.utilities.logging import get_logger
 from control_flow.utilities.types import AssistantTool, ControlFlowModel
@@ -20,7 +19,6 @@ class Flow(ControlFlowModel):
     )
     model: str | None = None
     context: dict = {}
-    tasks: dict[Task, int] = Field(repr=False, default_factory=dict)
 
     @field_validator("thread", mode="before")
     def _load_thread_from_ctx(cls, v):
@@ -35,33 +33,6 @@ class Flow(ControlFlowModel):
 
     def add_message(self, message: str, role: Literal["user", "assistant"] = None):
         prefect_task(self.thread.add)(message, role=role)
-
-    def add_task(self, task: Task):
-        if task not in self.tasks:
-            task_id = len(self.tasks) + 1
-            self.tasks[task] = task_id
-            # this message is important for contexualizing activity
-            # self.add_message(f'Task #{task_id} added to flow: "{task.objective}"')
-
-    def get_task_id(self, task: Task):
-        return self.tasks[task]
-
-    def incomplete_tasks(self):
-        return sorted(
-            (t for t in self.tasks if t.status == TaskStatus.INCOMPLETE),
-            key=lambda t: t.created_at,
-        )
-
-    def completed_tasks(self, reverse=False, limit=None):
-        result = sorted(
-            (t for t in self.tasks if t.status != TaskStatus.INCOMPLETE),
-            key=lambda t: t.completed_at,
-            reverse=reverse,
-        )
-
-        if limit:
-            result = result[:limit]
-        return result
 
 
 def get_flow() -> Flow:
