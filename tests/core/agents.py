@@ -1,6 +1,7 @@
+from unittest.mock import patch
+
 from control_flow.core.agent import Agent
 from control_flow.core.task import Task
-from pytest import patch
 
 
 class TestAgent:

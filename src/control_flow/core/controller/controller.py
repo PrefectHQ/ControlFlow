@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Callable, Self
+from typing import Callable
 
 import prefect
 from marvin.beta.assistants import PrintHandler, Run
@@ -9,7 +9,7 @@ from openai.types.beta.threads.runs import ToolCall
 from prefect import get_client as get_prefect_client
 from prefect import task as prefect_task
 from prefect.context import FlowRunContext
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 
 from control_flow.core.agent import Agent
 from control_flow.core.flow import Flow
@@ -42,8 +42,15 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
     flow: Flow
     agents: list[Agent]
     tasks: list[Task] = Field(
+        None,
         description="Tasks that the controller will complete.",
-        default_factory=list,
+        validate_default=True,
+    )
+    task_assignments: dict[Task, Agent] = Field(
+        default_factory=dict,
+        description="Tasks are typically assigned to agents. To "
+        "temporarily assign agent to a task without changing "
+        r"the task definition, use this field as {task: [agent]}",
     )
     context: dict = {}
     model_config: dict = dict(extra="forbid")
@@ -54,11 +61,32 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             raise ValueError("At least one agent is required.")
         return v
 
-    @model_validator(mode="after")
-    def _add_tasks_to_flow(self) -> Self:
+    @field_validator("tasks", mode="before")
+    def _validate_tasks(cls, v):
+        if not v:
+            raise ValueError("At least one task is required.")
+        return v
+
+    @field_validator("tasks", mode="before")
+    def _load_tasks_from_ctx(cls, v):
+        if v is None:
+            v = cls.context.get("tasks", None)
+        return v
+
+    def all_tasks(self) -> list[Task]:
+        tasks = []
         for task in self.tasks:
-            self.flow.add_task(task)
-        return self
+            tasks.extend(task.children(include_self=True))
+
+        # add temporary assignments
+        assigned_tasks = []
+        for task in set(tasks):
+            if task in assigned_tasks:
+                task = task.model_copy(
+                    update={"agents": task.agents + self.task_assignments.get(task, [])}
+                )
+            assigned_tasks.append(task)
+        return assigned_tasks
 
     @expose_sync_method("run_agent")
     async def run_agent_async(self, agent: Agent):
@@ -68,8 +96,8 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         if agent not in self.agents:
             raise ValueError("Agent not found in controller agents.")
 
-        task = await self._get_prefect_run_agent_task(agent)
-        await task(agent=agent)
+        prefect_task = await self._get_prefect_run_agent_task(agent)
+        await prefect_task(agent=agent)
 
     async def _run_agent(self, agent: Agent, thread: Thread = None) -> Run:
         """
@@ -89,8 +117,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         tools = self.flow.tools + agent.get_tools()
 
         for task in self.tasks:
-            task_id = self.flow.get_task_id(task)
-            tools = tools + task.get_tools(task_id=task_id)
+            tools = tools + task.get_tools()
 
         # filter tools because duplicate names are not allowed
         final_tools = []
@@ -134,9 +161,6 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             return run
 
         return _run_agent
-
-    def task_ids(self) -> dict[Task, int]:
-        return {task: self.flow.get_task_id(task) for task in self.tasks}
 
 
 class AgentHandler(PrintHandler):
