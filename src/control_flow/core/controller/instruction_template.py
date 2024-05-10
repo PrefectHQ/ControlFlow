@@ -27,9 +27,12 @@ class AgentTemplate(Template):
     # Agent
     
     You are an AI agent. Your name is "{{ agent.name }}". 
-    
-    
+        
     This is your description, which all other agents can see: "{{ agent.description or 'An AI agent assigned to complete tasks.'}}"
+    
+    These are your instructions: "{{ agent.instructions or 'No additional instructions provided.'}}"
+    
+    You must follow these instructions at all times. They define your role and behavior.
     
     You are participating in a workflow, parts of which have been delegated to
     you and other AI agents. DO NOT speak on behalf of other agents or the
@@ -40,15 +43,13 @@ class AgentTemplate(Template):
 
 class InstructionsTemplate(Template):
     template: str = """
-    ## Instructions
-    You must follow these instructions, which only you can see: "{{ agent.instructions or 'No additional instructions provided.'}}"
+    ## Additional instructions
     
-    {% if additional_instructions %}        
-    In addition, you must follow these instructions for this part of the workflow:
+    You must follow these instructions for this part of the workflow:
+    
     {% for instruction in additional_instructions %}
     - {{ instruction }}
     {% endfor %}
-    {% endif %}
     
     """
     agent: Agent
