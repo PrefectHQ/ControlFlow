@@ -1,54 +1,54 @@
 import itertools
 from typing import TYPE_CHECKING, Any, Generator
 
+import marvin
+from pydantic import BaseModel
+
 from control_flow.core.agent import Agent
+from control_flow.core.flow import get_flow_messages
+from control_flow.core.task import Task
+from control_flow.instructions import get_instructions
 
 if TYPE_CHECKING:
     from control_flow.core.agent import Agent
 
 
-def round_robin(
-    agents: list[Agent], max_iterations: int = None
-) -> Generator[Any, Any, Agent]:
+def round_robin(agents: list[Agent], tasks: list[Task]) -> Generator[Any, Any, Agent]:
     """
     Given a list of potential agents, delegate the tasks in a round-robin fashion.
     """
     cycle = itertools.cycle(agents)
-    iteration = 0
     while True:
         yield next(cycle)
-        iteration += 1
-        if max_iterations and iteration >= max_iterations:
-            break
 
 
-# class Moderator(DelegationStrategy):
-#     """
-#     A Moderator delegation strategy delegates tasks to the most qualified AI assistant, using a Marvin classifier
-#     """
+class BaseModerator(BaseModel):
+    def __call__(
+        self, agents: list[Agent], tasks: list[Task]
+    ) -> Generator[Any, Any, Agent]:
+        yield from self.run(agents=agents, tasks=tasks)
 
-#     model: str = None
 
-#     def _next_agent(
-#         self, agents: list["Agent"], tasks: list[Task], history: list[Message]
-#     ) -> "Agent":
-#         """
-#         Given a list of potential agents, choose the most qualified assistant to complete the tasks.
-#         """
+class Moderator(BaseModerator):
+    model: str = None
 
-#         instructions = get_instructions()
+    def run(self, agents: list[Agent], tasks: list[Task]) -> Generator[Any, Any, Agent]:
+        while True:
+            instructions = get_instructions()
+            history = get_flow_messages()
 
-#         context = dict(tasks=tasks, messages=history, global_instructions=instructions)
-#         agent = marvin.classify(
-#             context,
-#             [a for a in agents if a.status == AgentStatus.INCOMPLETE],
-#             instructions="""
-#             Given the conversation context, choose the AI agent most
-#             qualified to take the next turn at completing the tasks. Take into
-#             account the instructions, each agent's own instructions, and the
-#             tools they have available.
-#             """,
-#             model_kwargs=dict(model=self.model),
-#         )
+            context = dict(
+                tasks=tasks, messages=history, global_instructions=instructions
+            )
+            agent = marvin.classify(
+                context,
+                agents,
+                instructions="""
+                Given the conversation context, choose the AI agent most
+                qualified to take the next turn at completing the tasks. Take into
+                account any tasks, instructions, and tools.
+                """,
+                model_kwargs=dict(model=self.model) if self.model else None,
+            )
 
-#         return agent
+            yield agent
