@@ -39,3 +39,6 @@ class Agent(Assistant, ControlFlowModel, ExposeSyncMethodsMixin):
 
         controller = Controller(agents=[self], tasks=tasks or [], flow=get_flow())
         return await controller.run_agent_async(agent=self)
+
+    def __hash__(self):
+        return id(self)

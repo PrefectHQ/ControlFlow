@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from typing import Callable, Literal
 
 from marvin.beta.assistants import Thread
@@ -33,6 +34,18 @@ class Flow(ControlFlowModel):
 
     def add_message(self, message: str, role: Literal["user", "assistant"] = None):
         prefect_task(self.thread.add)(message, role=role)
+
+    @contextmanager
+    def _context(self):
+        with ctx(flow=self, tasks=[]):
+            yield self
+
+    def __enter__(self):
+        self.__cm = self._context()
+        return self.__cm.__enter__()
+
+    def __exit__(self, *exc_info):
+        return self.__cm.__exit__(*exc_info)
 
 
 def get_flow() -> Flow:

@@ -113,12 +113,13 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         )
 
         instructions = instructions_template.render()
-        breakpoint()
 
         tools = self.flow.tools + agent.get_tools()
 
-        for task in self.tasks:
-            tools = tools + task.get_tools()
+        # add tools for any inactive tasks that the agent is assigned to
+        for task in self.all_tasks():
+            if task.is_incomplete() and agent in task.agents:
+                tools = tools + task.get_tools()
 
         # filter tools because duplicate names are not allowed
         final_tools = []
