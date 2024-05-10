@@ -9,11 +9,8 @@ a2 = Agent(
 
 @ai_flow
 def demo():
-    task = Task("Choose a number between 1 and 100", agents=[a1, a2], result_type=int)
-
-    while task.is_incomplete():
-        a1.run(task)
-        a2.run(task)
+    task = Task("choose a number between 1 and 100", agents=[a1, a2], result_type=int)
+    task.run_until_complete()
 
     return task
 
