@@ -67,7 +67,8 @@ class TasksTemplate(Template):
         You must complete the objective even if the task doesn't require a
         result. For example, a task that asks you to choose, discuss, or perform
         an action must be completed by posting messages before the task is
-        marked complete.
+        marked complete. The objective may require participation from multiple
+        agents. Do not mark a task as complete until the objective is fully met.
                 
         A "parent" is a task that spawned another task as a subtask. Generally,
         the subtasks will need to be completed BEFORE the parent task. If you

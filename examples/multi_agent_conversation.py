@@ -1,5 +1,5 @@
 from control_flow import Agent, Task, ai_flow
-from control_flow.core.controller.collaboration import Moderator
+from control_flow.core.controller.moderators import Moderator
 
 jerry = Agent(
     name="Jerry",
@@ -50,15 +50,27 @@ kramer = Agent(
     """,
 )
 
+newman = Agent(
+    name="Newman",
+    description="The antagonist and foil to Jerry.",
+    instructions="""
+    You are Newman from the show Seinfeld. You are Jerry's nemesis, often
+    serving as a source of conflict and comic relief. Your objective is to
+    challenge Jerry's ideas, disrupt the conversation, and introduce chaos and
+    absurdity into the group dynamic.
+    """,
+)
+
 
 @ai_flow
 def demo():
-    with Task("Discuss a topic", agents=[jerry, george, elaine, kramer]):
-        finish = Task(
-            "Finish the conversation after everyone speaks at least once",
-            agents=[jerry],
-        )
-        finish.run_until_complete(moderator=Moderator())
+    topic = "milk and cereal"
+    task = Task(
+        "Discuss a topic; everyone should speak at least once",
+        agents=[jerry, george, elaine, kramer, newman],
+        context=dict(topic=topic),
+    )
+    task.run_until_complete(moderator=Moderator())
 
 
 demo()

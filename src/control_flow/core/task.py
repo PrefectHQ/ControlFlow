@@ -41,6 +41,9 @@ class TaskStatus(Enum):
     SKIPPED = "skipped"
 
 
+NOTSET = "__notset__"
+
+
 class Task(ControlFlowModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4().hex[:4]))
     objective: str
@@ -48,7 +51,7 @@ class Task(ControlFlowModel):
     agents: list["Agent"] = []
     context: dict = {}
     parent: "Task | None" = Field(
-        None,
+        NOTSET,
         description="The task that spawned this task.",
         validate_default=True,
     )
@@ -83,7 +86,7 @@ class Task(ControlFlowModel):
 
     @field_validator("parent", mode="before")
     def _load_parent_task_from_ctx(cls, v):
-        if v is None:
+        if v is NOTSET:
             v = ctx.get("tasks", None)
             if v:
                 # get the most recently-added task
@@ -156,33 +159,6 @@ class Task(ControlFlowModel):
             agents.extend(task.agents)
         return agents
 
-    def run_iter(
-        self,
-        agents: list["Agent"] = None,
-        moderator: Callable[[list["Agent"]], Generator[None, None, "Agent"]] = None,
-    ):
-        from control_flow.core.controller.collaboration import round_robin
-
-        if moderator is None:
-            moderator = round_robin
-
-        if agents is None:
-            agents = self.dependency_agents()
-
-        if not agents:
-            raise ValueError(
-                f"Task {self.id} has no agents assigned to it or its children."
-                "Please specify agents to run the task, or assign agents to the task."
-            )
-
-        all_tasks = self.trace_dependencies()
-
-        for agent in moderator(agents, tasks=all_tasks):
-            if self.is_complete():
-                break
-            agent.run(tasks=all_tasks)
-            yield True
-
     def run(self, agent: "Agent" = None):
         """
         Runs the task with provided agent. If no agent is provided, a default agent is used.
@@ -198,11 +174,10 @@ class Task(ControlFlowModel):
             else:
                 raise ValueError(
                     f"Task {self.id} has multiple agents assigned to it or its "
-                    "children. Please specify one to run the task, or call task.run_iter() "
-                    "or task.run_until_complete() to use all agents."
+                    "children. Please specify one to run the task or call run_until_complete()."
                 )
 
-        run_gen = self.run_iter(agents=[agent])
+        run_gen = run_iter(tasks=[self], agents=[agent])
         return next(run_gen)
 
     def run_until_complete(
@@ -214,13 +189,10 @@ class Task(ControlFlowModel):
         Runs the task with provided agents until it is complete.
         """
 
-        for _ in self.run_iter(agents=agents, moderator=moderator):
-            continue
-
-        if self.is_successful():
-            return self.result
-        elif self.is_failed():
+        run_until_complete(tasks=[self], agents=agents, moderator=moderator)
+        if self.is_failed():
             raise ValueError(f"Task {self.id} failed: {self.error}")
+        return self.result
 
     @contextmanager
     def _context(self):
@@ -345,3 +317,49 @@ def any_failed(tasks: list[Task]) -> bool:
 
 def none_failed(tasks: list[Task]) -> bool:
     return not any_failed(tasks)
+
+
+def run_iter(
+    tasks: list["Task"],
+    agents: list["Agent"] = None,
+    moderator: Callable[[list["Agent"]], Generator[None, None, "Agent"]] = None,
+):
+    from control_flow.core.controller.moderators import round_robin
+
+    if moderator is None:
+        moderator = round_robin
+
+    if agents is None:
+        agents = list(set([a for t in tasks for a in t.dependency_agents()]))
+
+    if not agents:
+        raise ValueError("Tasks have no agents assigned. Please specify agents.")
+
+    all_tasks = list(set([a for t in tasks for a in t.trace_dependencies()]))
+
+    for agent in moderator(agents, tasks=all_tasks):
+        if any(t.is_failed() for t in tasks):
+            break
+        elif all(t.is_complete() for t in tasks):
+            break
+        agent.run(tasks=all_tasks)
+        yield True
+
+
+def run_until_complete(
+    tasks: list["Task"],
+    agents: list["Agent"] = None,
+    moderator: Callable[[list["Agent"]], Generator[None, None, "Agent"]] = None,
+    raise_on_error: bool = True,
+) -> T:
+    """
+    Runs the task with provided agents until it is complete.
+    """
+
+    for _ in run_iter(tasks=tasks, agents=agents, moderator=moderator):
+        continue
+
+    if raise_on_error and any(t.is_failed() for t in tasks):
+        raise ValueError(
+            f"At least one task failed: {', '.join(t.id for t in tasks if t.is_failed())}"
+        )
