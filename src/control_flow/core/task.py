@@ -1,8 +1,15 @@
-import itertools
 import uuid
 from contextlib import contextmanager
 from enum import Enum
-from typing import TYPE_CHECKING, Callable, Generator, GenericAlias, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Generator,
+    GenericAlias,
+    Literal,
+    TypeVar,
+    _LiteralGenericAlias,
+)
 
 import marvin
 import marvin.utilities.tools
@@ -36,31 +43,45 @@ class TaskStatus(Enum):
 
 class Task(ControlFlowModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4().hex[:4]))
-    model_config = dict(extra="forbid", arbitrary_types_allowed=True)
     objective: str
     instructions: str | None = None
     agents: list["Agent"] = []
     context: dict = {}
-    parent_task: "Task | None" = Field(
+    parent: "Task | None" = Field(
         None,
         description="The task that spawned this task.",
         validate_default=True,
     )
-    upstream_tasks: list["Task"] = []
+    depends_on: list["Task"] = []
     status: TaskStatus = TaskStatus.INCOMPLETE
     result: T = None
-    result_type: type[T] | GenericAlias | None = None
+    result_type: type[T] | GenericAlias | _LiteralGenericAlias | None = None
     error: str | None = None
     tools: list[AssistantTool | Callable] = []
     user_access: bool = False
-    _children_tasks: list["Task"] = []
-    _downstream_tasks: list["Task"] = []
+    _children: list["Task"] = []
+    _downstream: list["Task"] = []
+    model_config = dict(extra="forbid", arbitrary_types_allowed=True)
+
+    def __init__(self, objective=None, result_type=None, **kwargs):
+        if result_type is not None:
+            kwargs["result_type"] = result_type
+        if objective is not None:
+            kwargs["objective"] = objective
+        # allow certain args to be provided as a positional args
+        super().__init__(**kwargs)
 
     @field_validator("agents", mode="before")
     def _turn_none_into_empty_list(cls, v):
         return v or []
 
-    @field_validator("parent_task", mode="before")
+    @field_validator("result_type", mode="before")
+    def _turn_list_into_literal_result_type(cls, v):
+        if isinstance(v, (list, tuple, set)):
+            return Literal[tuple(v)]  # type: ignore
+        return v
+
+    @field_validator("parent", mode="before")
     def _load_parent_task_from_ctx(cls, v):
         if v is None:
             v = ctx.get("tasks", None)
@@ -71,20 +92,20 @@ class Task(ControlFlowModel):
 
     @model_validator(mode="after")
     def _update_relationships(self):
-        if self.parent_task is not None:
-            self.parent_task._children_tasks.append(self)
-        for task in self.upstream_tasks:
-            task._downstream_tasks.append(self)
+        if self.parent is not None:
+            self.parent._children.append(self)
+        for task in self.depends_on:
+            task._downstream.append(self)
         return self
 
-    @field_serializer("parent_task")
-    def _serialize_parent_task(parent_task: "Task | None"):
-        if parent_task is not None:
-            return parent_task.id
+    @field_serializer("parent")
+    def _serialize_parent_task(parent: "Task | None"):
+        if parent is not None:
+            return parent.id
 
-    @field_serializer("upstream_tasks")
-    def _serialize_upstream_tasks(upstream_tasks: list["Task"]):
-        return [t.id for t in upstream_tasks]
+    @field_serializer("depends_on")
+    def _serialize_depends_on(depends_on: list["Task"]):
+        return [t.id for t in depends_on]
 
     @field_serializer("result_type")
     def _serialize_result_type(result_type: list["Task"]):
@@ -97,45 +118,56 @@ class Task(ControlFlowModel):
             for a in agents
         ]
 
-    def __init__(self, objective, **kwargs):
-        # allow objective as a positional arg
-        super().__init__(objective=objective, **kwargs)
+    def trace_dependencies(self) -> list["Task"]:
+        """
+        Returns a list of all tasks related to this task, including upstream and downstream tasks, parents, and children.
+        """
 
-    def children(self, include_self: bool = True):
-        """
-        Returns a list of all children of this task, including recursively
-        nested children. Includes this task by default (disable with
-        `include_self=False`)
-        """
-        visited = set()
-        children = []
+        # first get all children of this task
+        tasks = set()
         stack = [self]
         while stack:
             current = stack.pop()
-            if current not in visited:
-                visited.add(current)
-                if include_self or current != self:
-                    children.append(current)
-                stack.extend(current._children_tasks)
-        return list(set(children))
+            if current not in tasks:
+                tasks.add(current)
+                stack.extend(current._children)
 
-    def children_agents(self, include_self: bool = True) -> list["Agent"]:
-        children = self.children(include_self=include_self)
+        # get all the parents
+        current = self
+        while current.parent is not None:
+            tasks.add(current.parent)
+            current = current.parent
+
+        # get all upstream tasks of any we've already found
+        stack: list[Task] = list(tasks)
+        while stack:
+            current = stack.pop()
+            if current not in tasks:
+                tasks.add(current)
+                if current.is_incomplete():
+                    stack.extend(current.depends_on)
+
+        return list(tasks)
+
+    def dependency_agents(self) -> list["Agent"]:
+        deps = self.trace_dependencies()
         agents = []
-        for child in children:
-            agents.extend(child.agents)
+        for task in deps:
+            agents.extend(task.agents)
         return agents
 
     def run_iter(
         self,
         agents: list["Agent"] = None,
-        collab_fn: Callable[[list["Agent"]], Generator[None, None, "Agent"]] = None,
+        moderator: Callable[[list["Agent"]], Generator[None, None, "Agent"]] = None,
     ):
-        if collab_fn is None:
-            collab_fn = itertools.cycle
+        from control_flow.core.controller.collaboration import round_robin
+
+        if moderator is None:
+            moderator = round_robin
 
         if agents is None:
-            agents = self.children_agents(include_self=True)
+            agents = self.dependency_agents()
 
         if not agents:
             raise ValueError(
@@ -143,10 +175,12 @@ class Task(ControlFlowModel):
                 "Please specify agents to run the task, or assign agents to the task."
             )
 
-        for agent in collab_fn(agents):
+        all_tasks = self.trace_dependencies()
+
+        for agent in moderator(agents, tasks=all_tasks):
             if self.is_complete():
                 break
-            agent.run(tasks=self.children(include_self=True))
+            agent.run(tasks=all_tasks)
             yield True
 
     def run(self, agent: "Agent" = None):
@@ -156,7 +190,7 @@ class Task(ControlFlowModel):
         from control_flow.core.agent import Agent
 
         if agent is None:
-            all_agents = self.children_agents()
+            all_agents = self.dependency_agents()
             if not all_agents:
                 agent = Agent()
             elif len(all_agents) == 1:
@@ -174,14 +208,14 @@ class Task(ControlFlowModel):
     def run_until_complete(
         self,
         agents: list["Agent"] = None,
-        collab_fn: Callable[[list["Agent"]], Generator[None, None, "Agent"]] = None,
+        moderator: Callable[[list["Agent"]], Generator[None, None, "Agent"]] = None,
     ) -> T:
         """
         Runs the task with provided agents until it is complete.
         """
 
-        for run in self.run_iter(agents=agents, collab_fn=collab_fn):
-            pass
+        for _ in self.run_iter(agents=agents, moderator=moderator):
+            continue
 
         if self.is_successful():
             return self.result
@@ -263,13 +297,13 @@ class Task(ControlFlowModel):
     def get_tools(self) -> list[AssistantTool | Callable]:
         tools = self.tools.copy()
         if self.is_incomplete():
-            tools.extend(
-                [
-                    self._create_success_tool(),
-                    self._create_fail_tool(),
-                    self._create_skip_tool(),
-                ]
-            )
+            tools.append(self._create_fail_tool())
+            # add skip tool if this task has a parent task
+            if self.parent is not None:
+                tools.append(self._create_skip_tool())
+            # add success tools if this task has no upstream tasks or all upstream tasks are complete
+            if all(t.is_complete() for t in self.depends_on):
+                tools.append(self._create_success_tool())
         if self.user_access:
             tools.append(marvin.utilities.tools.tool_from_function(talk_to_human))
         return [wrap_prefect_tool(t) for t in tools]

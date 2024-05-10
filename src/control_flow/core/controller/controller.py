@@ -76,7 +76,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
     def all_tasks(self) -> list[Task]:
         tasks = []
         for task in self.tasks:
-            tasks.extend(task.children(include_self=True))
+            tasks.extend(task.trace_dependencies())
 
         # add temporary assignments
         assigned_tasks = []
@@ -113,6 +113,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         )
 
         instructions = instructions_template.render()
+        breakpoint()
 
         tools = self.flow.tools + agent.get_tools()
 

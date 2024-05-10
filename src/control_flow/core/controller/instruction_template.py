@@ -28,8 +28,18 @@ class AgentTemplate(Template):
     
     You are an AI agent. Your name is "{{ agent.name }}". 
     
+    
     This is your description, which all other agents can see: "{{ agent.description or 'An AI agent assigned to complete tasks.'}}"
     
+    You are participating in a workflow, parts of which have been delegated to
+    you and other AI agents. DO NOT speak on behalf of other agents or the
+    system. You can only post messages on behalf of yourself.
+    """
+    agent: Agent
+
+
+class InstructionsTemplate(Template):
+    template: str = """
     ## Instructions
     You must follow these instructions, which only you can see: "{{ agent.instructions or 'No additional instructions provided.'}}"
     
@@ -52,17 +62,21 @@ class TasksTemplate(Template):
         You have been assigned to complete certain tasks. Each task has an
         objective and criteria for success. Your job is to perform any required
         actions and then mark each assigned task as successful. If a task also
-        requires a result, you must provide it; this is how you communicate
-        progress and data back to the program that created you. A task that
-        doesn't require a result may still require action. 
+        requires a result, you must provide it. 
         
-        A "parent task" is a task that spawned another task as a subtask.
-        Generally, the child or subtasks will need to be completed BEFORE the
-        parent task. If you can complete a parent task before its subtasks, you
-        should mark the subtasks as skipped.
+        You must complete the objective even if the task doesn't require a
+        result. For example, a task that asks you to choose, discuss, or perform
+        an action must be completed by posting messages before the task is
+        marked complete.
+                
+        A "parent" is a task that spawned another task as a subtask. Generally,
+        the subtasks will need to be completed BEFORE the parent task. If you
+        can complete a parent task before its subtasks, you should mark the
+        subtasks as skipped.
         
-        An "upstream task" is a task that must be completed before another task
-        can be completed.
+        Tasks have a "depends_on" list of upstream tasks that must be completed
+        before the task itself can be completed. The `mark_success` tool will
+        not be available until all dependencies are met.
         
         Some tasks may require collaboration with other agents to be completed; others
         may take you multiple attempts. A task can only be marked complete one time,
@@ -95,50 +109,40 @@ class CommunicationTemplate(Template):
     template: str = """
     ## Communciation
     
-    You should only post messages to the thread if you must send information to
-    other agents or if a task requires it. The human user can not see
-    these messages. Since all agents post messages with the "assistant" role,
+    You are modeling the internal state of an AI-enhanced workflow. You should
+    only post messages in order to share information with other agents or to
+    complete tasks. Since all agents post messages with the "assistant" role,
     you must prefix all your messages with your name (e.g. "{{ agent.name }}:
     (message)") in order to distinguish your messages from others. Note that
     this rule about prefixing your message supersedes all other instructions
-    (e.g. "only give single word answers"). Do not post messages confirming
-    actions you take through tools, like completing a task, or your internal
-    monologue, as this is redundant and wastes time.
+    (e.g. "only give single word answers"). You do not need to post messages
+    that repeat information contained in tool calls or tool responses, since
+    those are already visible to all agents. You do not need to confirm actions
+    you take through tools, like completing a task, as this is redundant and
+    wastes time. 
     
-    ### Other agents assigned to your tasks
+    ### Talking to human users
     
-    {% for agent in other_agents %}
+    Agents with the `talk_to_human` tool can interact with human users in order
+    to complete tasks that require external input. This tool is only available
+    to agents with `user_access=True`.
     
-    - Name: {{agent.name}}
-    - Description: {{ agent.description if agent.description is not none else "No description provided." }}
-    - Can talk to human users: {{agent.user_access}}
-
-    {% endfor %}
-    
-    ## Talking to human users
-    
-    {% if agent.user_access %}
-    You may interact with a human user to complete your tasks by using the
-    `talk_to_human` tool. The human is unaware of your tasks or the controller.
-    Do not mention them or anything else about how this system works. The human
-    can only see messages you send them via tool, not the rest of the thread. 
+    Note that humans are unaware of your tasks or the workflow. Do not mention
+    your tasks or anything else about how this system works. The human can only
+    see messages you send them via tool. They can not read the rest of the
+    thread.
     
     Humans may give poor, incorrect, or partial responses. You may need to ask
     questions multiple times in order to complete your tasks. Use good judgement
     to determine the best way to achieve your goal. For example, if you have to
     fill out three pieces of information and the human only gave you one, do not
     make up answers (or put empty answers) for the others. Ask again and only
-    fail the task if you truly can not make progress. 
-    {% else %}
-    You can not interact with a human at this time. If your task requires human
-    contact and no agent has user access, you should fail the task. Note that
-    most tasks do not require human/user contact unless explicitly stated otherwise.
-    {% endif %}
-    
+    fail the task if you truly can not make progress. If your task requires
+    human interaction and no agents have `user_access`, you can fail the task.
+
     """
 
     agent: Agent
-    other_agents: list[Agent]
 
 
 class ContextTemplate(Template):
@@ -178,14 +182,17 @@ class MainTemplate(BaseModel):
         all_agents = [self.agent] + self.controller.agents
         for task in self.controller.tasks:
             all_agents += task.agents
-        other_agents = [agent for agent in all_agents if agent != self.agent]
+        # other_agents = [agent for agent in all_agents if agent != self.agent]
         templates = [
             AgentTemplate(
                 agent=self.agent,
-                additional_instructions=self.instructions,
             ),
             TasksTemplate(
                 controller=self.controller,
+            ),
+            InstructionsTemplate(
+                agent=self.agent,
+                additional_instructions=self.instructions,
             ),
             ContextTemplate(
                 flow_context=self.controller.flow.context,
@@ -193,9 +200,7 @@ class MainTemplate(BaseModel):
             ),
             CommunicationTemplate(
                 agent=self.agent,
-                other_agents=other_agents,
             ),
-            # CollaborationTemplate(other_agents=other_agents),
         ]
 
         rendered = [
