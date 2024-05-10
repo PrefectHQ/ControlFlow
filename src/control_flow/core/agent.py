@@ -22,10 +22,6 @@ class Agent(Assistant, ControlFlowModel, ExposeSyncMethodsMixin):
         False,
         description="If True, the agent is given tools for interacting with a human user.",
     )
-    controller_access: bool = Field(
-        False,
-        description="If True, the agent will communicate with the controller via messages.",
-    )
 
     def get_tools(self) -> list[AssistantTool | Callable]:
         tools = super().get_tools()
@@ -43,3 +39,6 @@ class Agent(Assistant, ControlFlowModel, ExposeSyncMethodsMixin):
 
         controller = Controller(agents=[self], tasks=tasks or [], flow=get_flow())
         return await controller.run_agent_async(agent=self)
+
+    def __hash__(self):
+        return id(self)
