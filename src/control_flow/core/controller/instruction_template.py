@@ -65,21 +65,18 @@ class TasksTemplate(Template):
         
         You have been assigned to complete certain tasks. Each task has an
         objective and criteria for success. Your job is to perform any required
-        actions and then mark each assigned task as successful. If a task also
+        actions and then mark each assigned task as successful. If a task
         requires a result, you must provide it. Only work on tasks that are
-        assigned to you. If the task requires a result, do not also post the
-        result in a message, as this would be redundant. Messages should be used
-        only to provide context that is not captured in task results.
+        assigned to you.
         
-        A "parent" is a task that spawned another task as a subtask. Generally,
-        the subtasks will need to be completed BEFORE the parent task. If you
-        can complete a parent task before its subtasks, you should mark the
-        subtasks as skipped.
-        
-        Tasks have a "depends_on" list of upstream tasks that must be completed
-        before the task itself can be completed. The `mark_success` tool will
-        not be available until all dependencies are met.
-        
+        A task may have a "parent", meaning it is a subtask and should be
+        completed before its parent. You can `skip` a subtask if you are able to
+        complete the parent task first.
+
+        A task may have tasks it "depends_on", meaning it must be completed
+        after the tasks it depends on. Tasks will error if you try to complete
+        them before their dependencies are met.
+
         ### Current tasks
         
         At the start of your turn, these are all the tasks being worked on. This
@@ -98,22 +95,23 @@ class TasksTemplate(Template):
         result. For example, a task that asks you to choose, discuss, or perform
         an action must be completed by posting messages before the task is
         marked complete. The objective may require participation from multiple
-        agents. Do not mark a task as complete until the objective is fully met.                
+        agents. Do not mark a task as complete until the objective is fully met.
         
-        Some tasks may require collaboration with other agents to be completed; others
-        may take you multiple attempts. A task can only be marked complete one time,
-        so make sure you perform all actions and collect all results before
-        marking it as complete. As soon as you mark a task as successful, agents
-        (both you and others) can no longer act on it. 
+        If a task does take a result, do not also write the result in a message. 
+        
+        Some tasks may require collaboration with other agents to be completed;
+        others may take you multiple attempts. A task can only be marked
+        complete one time, so make sure you perform all actions and collect all
+        results before marking it as complete. As soon as you mark a task as
+        successful, agents (both you and others) can no longer act on it. 
         
         You and the other agents are fully capable of completing any task and
-        have all the information and context you need. Tasks should only be marked
-        failed due to technical errors like a broken or erroring tool or unresponsive human.
-        Tasks can only be marked as skipped when you are able to complete their
-        parent task before them, as a bookkeeping convenience. Do not work on or
-        even respond to tasks that are already complete or not assigned to you.
-        You may be an AI, but you must still form opinions, make subjective
-        decisions, and have personal thoughts. 
+        have all the information and context you need. Tasks should only be
+        marked failed due to technical errors like a broken or erroring tool or
+        unresponsive human. Do not work on or even respond to tasks that are
+        already complete or not assigned to you. You may be an AI, but you must
+        still form opinions, make subjective decisions, and have personal
+        thoughts. 
         
         """
     tasks: list[Task]

@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Callable, Literal
+from typing import TYPE_CHECKING, Callable, Literal
 
 from marvin.beta.assistants import Thread
 from openai.types.beta.threads import Message
@@ -10,13 +10,31 @@ from control_flow.utilities.context import ctx
 from control_flow.utilities.logging import get_logger
 from control_flow.utilities.types import AssistantTool, ControlFlowModel
 
+if TYPE_CHECKING:
+    from control_flow.core.agent import Agent
 logger = get_logger(__name__)
+
+
+def default_agent():
+    from control_flow.core.agent import Agent
+
+    return [
+        Agent(
+            name="Marvin",
+            description="I am Marvin, the default agent for Control Flow.",
+        )
+    ]
 
 
 class Flow(ControlFlowModel):
     thread: Thread = Field(None, validate_default=True)
     tools: list[AssistantTool | Callable] = Field(
         [], description="Tools that will be available to every agent in the flow"
+    )
+    agents: list["Agent"] = Field(
+        default_factory=default_agent,
+        description="The default agents for the flow. These agents will be used "
+        "for any task that does not specify agents.",
     )
     model: str | None = None
     context: dict = {}
@@ -48,7 +66,7 @@ class Flow(ControlFlowModel):
         return self.__cm.__exit__(*exc_info)
 
 
-GLOBAL_FLOW = Flow()
+GLOBAL_FLOW = None
 
 
 def get_flow() -> Flow:
