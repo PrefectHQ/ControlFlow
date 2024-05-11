@@ -22,6 +22,7 @@ from pydantic import (
     model_validator,
 )
 
+from control_flow.core.flow import get_flow
 from control_flow.utilities.context import ctx
 from control_flow.utilities.logging import get_logger
 from control_flow.utilities.prefect import wrap_prefect_tool
@@ -86,9 +87,7 @@ class Task(ControlFlowModel):
     @field_validator("agents", mode="before")
     def _default_agent(cls, v):
         if v is None:
-            from control_flow.core.agent import DEFAULT_AGENT
-
-            return [DEFAULT_AGENT]
+            v = get_flow().agents
         return v
 
     @field_validator("result_type", mode="before")
