@@ -63,11 +63,13 @@ class AgentModerator(BaseModerator):
 def marvin_moderator(
     agents: list[Agent],
     tasks: list[Task],
+    history: list = None,
+    instructions: list[str] = None,
     context: dict = None,
     model: str = None,
 ) -> Agent:
     context = context or {}
-    context.update(tasks=tasks)
+    context.update(tasks=tasks, history=history, instructions=instructions)
     agent = marvin.classify(
         context,
         agents,

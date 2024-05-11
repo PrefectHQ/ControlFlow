@@ -19,14 +19,14 @@ class EdgeType(Enum):
         ## write draft based on outline
 
     Edges:
-    outline -> paper # child_of (outline is a child of paper)
-    draft -> paper # child_of (draft is a child of paper)
-    outline -> draft # dependency_of (outline is a dependency of draft)
+    outline -> paper # SUBTASK (outline is a subtask of paper)
+    draft -> paper # SUBTASK (draft is a subtask of paper)
+    outline -> draft # DEPENDENCY (outline is a dependency of draft)
 
     """
 
-    DEPENDENCY_OF = "dependency_of"
-    CHILD_OF = "child_of"
+    DEPENDENCY = "dependency"
+    SUBTASK = "subtask"
 
 
 class Edge(BaseModel):
@@ -60,23 +60,23 @@ class Graph(BaseModel):
         if task in self.tasks:
             return
         self.tasks.add(task)
-        if task.parent:
+        for subtask in task.subtasks:
             self.add_edge(
                 Edge(
-                    upstream=task.parent,
+                    upstream=subtask,
                     downstream=task,
-                    type=EdgeType.CHILD_OF,
+                    type=EdgeType.SUBTASK,
                 )
             )
-        if task.depends_on:
-            for upstream in task.depends_on:
-                self.add_edge(
-                    Edge(
-                        upstream=upstream,
-                        downstream=task,
-                        type=EdgeType.DEPENDENCY_OF,
-                    )
+
+        for upstream in task.depends_on:
+            self.add_edge(
+                Edge(
+                    upstream=upstream,
+                    downstream=task,
+                    type=EdgeType.DEPENDENCY,
                 )
+            )
         self._cache.clear()
 
     def add_edge(self, edge: Edge):
