@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
+    Any,
     Callable,
     GenericAlias,
     Literal,
@@ -23,6 +24,7 @@ from pydantic import (
 )
 
 from control_flow.core.flow import get_flow
+from control_flow.instructions import get_instructions
 from control_flow.utilities.context import ctx
 from control_flow.utilities.logging import get_logger
 from control_flow.utilities.prefect import wrap_prefect_tool
@@ -46,6 +48,32 @@ class TaskStatus(Enum):
 NOTSET = "__notset__"
 
 
+def visit_task_collection(
+    val: Any, fn: Callable, recursion_limit: int = 3, _counter: int = 0
+) -> list["Task"]:
+    if _counter >= recursion_limit:
+        return val
+
+    if isinstance(val, dict):
+        result = {}
+        for key, value in list(val.items()):
+            result[key] = visit_task_collection(
+                value, fn=fn, recursion_limit=recursion_limit, _counter=_counter + 1
+            )
+    elif isinstance(val, (list, set, tuple)):
+        result = []
+        for item in val:
+            result.append(
+                visit_task_collection(
+                    item, fn=fn, recursion_limit=recursion_limit, _counter=_counter + 1
+                )
+            )
+    elif isinstance(val, Task):
+        return fn(val)
+
+    return val
+
+
 class Task(ControlFlowModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4().hex[:4]))
     objective: str = Field(
@@ -55,13 +83,17 @@ class Task(ControlFlowModel):
         None, description="Detailed instructions for completing the task."
     )
     agents: list["Agent"] = Field(None, validate_default=True)
-    context: dict = {}
-    parent: "Task | None" = Field(
-        NOTSET,
-        description="The task that spawned this task.",
-        validate_default=True,
+    context: dict = Field(
+        default_factory=dict,
+        description="Additional context for the task. If tasks are provided as context, they are automatically added as `depends_on`",
     )
-    depends_on: list["Task"] = []
+    subtasks: list["Task"] = Field(
+        default_factory=list,
+        description="A list of subtasks that are part of this task. Subtasks are considered dependencies, though they may be skipped.",
+    )
+    depends_on: list["Task"] = Field(
+        default_factory=list, description="Tasks that this task depends on explicitly."
+    )
     status: TaskStatus = TaskStatus.INCOMPLETE
     result: T = None
     result_type: type[T] | GenericAlias | _LiteralGenericAlias | None = None
@@ -69,17 +101,36 @@ class Task(ControlFlowModel):
     tools: list[AssistantTool | Callable] = []
     user_access: bool = False
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    _children: list["Task"] = []
-    _downstream: list["Task"] = []
+    _parent: "Task | None" = None
+    _downstreams: list["Task"] = []
     model_config = dict(extra="forbid", arbitrary_types_allowed=True)
 
-    def __init__(self, objective=None, result_type=None, **kwargs):
+    def __init__(
+        self, objective=None, result_type=None, parent: "Task" = None, **kwargs
+    ):
+        # allow certain args to be provided as a positional args
         if result_type is not None:
             kwargs["result_type"] = result_type
         if objective is not None:
             kwargs["objective"] = objective
-        # allow certain args to be provided as a positional args
+
+        if additional_instructions := get_instructions():
+            kwargs["instructions"] = (
+                kwargs.get("instructions", "")
+                + "\n"
+                + "\n".join(additional_instructions)
+            ).strip()
+
         super().__init__(**kwargs)
+
+        # setup up relationships
+        if parent is None:
+            parent_tasks = ctx.get("tasks", [])
+            parent = parent_tasks[-1] if parent_tasks else None
+        if parent is not None:
+            parent.add_subtask(self)
+        for task in self.depends_on:
+            self.add_dependency(task)
 
     def __repr__(self):
         return str(self.model_dump())
@@ -96,31 +147,34 @@ class Task(ControlFlowModel):
             return Literal[tuple(v)]  # type: ignore
         return v
 
-    @field_validator("parent", mode="before")
-    def _load_parent_task_from_ctx(cls, v):
-        if v is NOTSET:
-            v = ctx.get("tasks", None)
-            if v:
-                # get the most recently-added task
-                v = v[-1]
-        return v
-
     @model_validator(mode="after")
-    def _update_relationships(self):
-        if self.parent is not None:
-            self.parent._children.append(self)
-        for task in self.depends_on:
-            task._downstream.append(self)
+    def _load_context_dependencies(self):
+        tasks = []
+
+        def visitor(task):
+            tasks.append(task)
+            return task
+
+        visit_task_collection(self.context, visitor)
+        for task in tasks:
+            if task not in self.depends_on:
+                self.depends_on.append(task)
         return self
 
-    @field_serializer("parent")
-    def _serialize_parent_task(parent: "Task | None"):
-        if parent is not None:
-            return parent.id
+    @field_serializer("subtasks")
+    def _serialize_subtasks(subtasks: list["Task"]):
+        return [t.id for t in subtasks]
 
     @field_serializer("depends_on")
     def _serialize_depends_on(depends_on: list["Task"]):
         return [t.id for t in depends_on]
+
+    @field_serializer("context")
+    def _serialize_context(context: dict):
+        def visitor(task):
+            return f"<Result from task {task.id}>"
+
+        return visit_task_collection(context, visitor)
 
     @field_serializer("result_type")
     def _serialize_result_type(result_type: list["Task"]):
@@ -138,36 +192,25 @@ class Task(ControlFlowModel):
 
         return Graph.from_tasks(tasks=[self])
 
-    def trace_dependencies(self) -> list["Task"]:
+    def add_subtask(self, task: "Task"):
         """
-        Returns a list of all tasks related to this task, including upstream and downstream tasks, parents, and children.
+        Indicate that this task has a subtask (which becomes an implicit dependency).
         """
+        if task._parent is None:
+            task._parent = self
+        elif task._parent is not self:
+            raise ValueError(f"Task {task.id} already has a parent.")
+        if task not in self.subtasks:
+            self.subtasks.append(task)
 
-        # first get all children of this task
-        tasks = set()
-        stack = [self]
-        while stack:
-            current = stack.pop()
-            if current not in tasks:
-                tasks.add(current)
-                stack.extend(current._children)
-
-        # get all the parents
-        current = self
-        while current.parent is not None:
-            tasks.add(current.parent)
-            current = current.parent
-
-        # get all upstream tasks of any we've already found
-        stack: list[Task] = list(tasks)
-        while stack:
-            current = stack.pop()
-            if current not in tasks:
-                tasks.add(current)
-                if current.is_incomplete():
-                    stack.extend(current.depends_on)
-
-        return list(tasks)
+    def add_dependency(self, task: "Task"):
+        """
+        Indicate that this task depends on another task.
+        """
+        if task not in self.depends_on:
+            self.depends_on.append(task)
+        if self not in task._downstreams:
+            task._downstreams.append(self)
 
     def run_once(self, agent: "Agent" = None, run_dependencies: bool = True):
         """
@@ -269,30 +312,37 @@ class Task(ControlFlowModel):
         )
         return tool
 
-    def get_tools(self) -> list[AssistantTool | Callable]:
+    def get_tools(self, validate: bool = True) -> list[AssistantTool | Callable]:
         tools = self.tools.copy()
         if self.is_incomplete():
             tools.extend([self._create_fail_tool(), self._create_success_tool()])
             # add skip tool if this task has a parent task
-            if self.parent is not None:
+            if self._parent is not None:
                 tools.append(self._create_skip_tool())
         if self.user_access:
             tools.append(marvin.utilities.tools.tool_from_function(talk_to_human))
         return [wrap_prefect_tool(t) for t in tools]
 
-    def mark_successful(self, result: T = None, validate_upstreams: bool = True):
+    def mark_successful(self, result: T = None, validate: bool = True):
+        if validate:
+            if any(t.is_incomplete() for t in self.depends_on):
+                raise ValueError(
+                    f"Task {self.objective} cannot be marked successful until all of its "
+                    "upstream dependencies are completed. Incomplete dependencies "
+                    f"are: {[t.id for t in self.depends_on if t.is_incomplete()]}"
+                )
+            elif any(t.is_incomplete() for t in self.subtasks):
+                raise ValueError(
+                    f"Task {self.objective} cannot be marked successful until all of its "
+                    "subtasks are completed. Incomplete subtasks "
+                    f"are: {[t.id for t in self.subtasks if t.is_incomplete()]}"
+                )
+
         if self.result_type is None and result is not None:
             raise ValueError(
                 f"Task {self.objective} specifies no result type, but a result was provided."
             )
         elif self.result_type is not None:
-            if validate_upstreams:
-                if any(t.is_incomplete() for t in self.depends_on):
-                    raise ValueError(
-                        f"Task {self.objective} cannot be marked successful until all of its "
-                        "upstream dependencies are completed. Incomplete dependencies "
-                        f"are: {[t for t in self.depends_on if t.is_incomplete()]}"
-                    )
             result = TypeAdapter(self.result_type).validate_python(result)
 
         self.result = result

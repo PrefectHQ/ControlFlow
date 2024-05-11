@@ -61,22 +61,18 @@ class TasksTemplate(Template):
     template: str = """
         ## Tasks
         
-        ### Your assignments
-        
         You have been assigned to complete certain tasks. Each task has an
         objective and criteria for success. Your job is to perform any required
         actions and then mark each assigned task as successful. If a task
         requires a result, you must provide it. Only work on tasks that are
         assigned to you.
         
-        A task may have a "parent", meaning it is a subtask and should be
-        completed before its parent. You can `skip` a subtask if you are able to
-        complete the parent task first.
-
-        A task may have tasks it "depends_on", meaning it must be completed
-        after the tasks it depends on. Tasks will error if you try to complete
-        them before their dependencies are met.
-
+        ### Dependencies
+        
+        Tasks may have explicit (`depends_on`) or implicit (`subtasks`)
+        dependencies. Tasks complete (or skip) dependencies before completing a
+        downstream task; tasks will error if explicit dependencies are not met.
+        
         ### Current tasks
         
         At the start of your turn, these are all the tasks being worked on. This
@@ -97,7 +93,12 @@ class TasksTemplate(Template):
         marked complete. The objective may require participation from multiple
         agents. Do not mark a task as complete until the objective is fully met.
         
-        If a task does take a result, do not also write the result in a message. 
+        You can only complete tasks you are assigned to.
+        
+        If a task requires a result, do not repeat the result in a message. For
+        example, if the task is to ask a question and accepts a string response,
+        only put the question in the task result; do not also post the question
+        in a message.
         
         Some tasks may require collaboration with other agents to be completed;
         others may take you multiple attempts. A task can only be marked

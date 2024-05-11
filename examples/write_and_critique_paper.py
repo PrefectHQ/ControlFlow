@@ -18,7 +18,7 @@ def write_paper(topic: str) -> str:
     draft = Task(
         "produce a 3-sentence draft on the topic",
         str,
-        agents=[writer],
+        # agents=[writer],
         context=dict(topic=topic),
     )
     edits = Task("edit the draft", str, agents=[editor], depends_on=[draft])
