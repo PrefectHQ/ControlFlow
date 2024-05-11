@@ -1,20 +1,24 @@
 import json
 import logging
-from typing import Callable
+from typing import Any
 
+import marvin.utilities
+import marvin.utilities.tools
 import prefect
-from marvin.beta.assistants import PrintHandler, Run
+from marvin.beta.assistants import EndRun, PrintHandler, Run
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
 from openai.types.beta.threads.runs import ToolCall
 from prefect import get_client as get_prefect_client
 from prefect import task as prefect_task
 from prefect.context import FlowRunContext
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from control_flow.core.agent import Agent
-from control_flow.core.flow import Flow
+from control_flow.core.controller.moderators import marvin_moderator
+from control_flow.core.flow import Flow, get_flow, get_flow_messages
+from control_flow.core.graph import Graph
 from control_flow.core.task import Task
-from control_flow.instructions import get_instructions as get_context_instructions
+from control_flow.instructions import get_instructions
 from control_flow.utilities.prefect import (
     create_json_artifact,
     create_python_artifact,
@@ -39,116 +43,94 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
     """
 
-    flow: Flow
-    agents: list[Agent]
+    flow: Flow = Field(
+        default_factory=get_flow,
+        description="The flow that the controller is a part of.",
+    )
     tasks: list[Task] = Field(
         None,
         description="Tasks that the controller will complete.",
         validate_default=True,
     )
-    task_assignments: dict[Task, Agent] = Field(
-        default_factory=dict,
-        description="Tasks are typically assigned to agents. To "
-        "temporarily assign agent to a task without changing "
-        r"the task definition, use this field as {task: [agent]}",
-    )
+    agents: list[Agent] | None = None
+    run_dependencies: bool = True
     context: dict = {}
+    graph: Graph = None
     model_config: dict = dict(extra="forbid")
 
-    @field_validator("agents", mode="before")
-    def _validate_agents(cls, v):
-        if not v:
-            raise ValueError("At least one agent is required.")
-        return v
+    @model_validator(mode="before")
+    @classmethod
+    def _create_graph(cls, data: Any) -> Any:
+        if not data.get("graph"):
+            data["graph"] = Graph.from_tasks(data.get("tasks", []))
+        return data
 
     @field_validator("tasks", mode="before")
     def _validate_tasks(cls, v):
+        if v is None:
+            v = cls.context.get("tasks", None)
         if not v:
             raise ValueError("At least one task is required.")
         return v
 
-    @field_validator("tasks", mode="before")
-    def _load_tasks_from_ctx(cls, v):
-        if v is None:
-            v = cls.context.get("tasks", None)
-        return v
+    def _create_end_run_tool(self) -> FunctionTool:
+        def end_run():
+            raise EndRun()
 
-    def all_tasks(self) -> list[Task]:
-        tasks = []
-        for task in self.tasks:
-            tasks.extend(task.trace_dependencies())
+        return marvin.utilities.tools.tool_from_function(
+            end_run,
+            description="End your turn if you have no tasks to work on. Only call this tool in an emergency; otherwise you can end your turn normally.",
+        )
 
-        # add temporary assignments
-        assigned_tasks = []
-        for task in set(tasks):
-            if task in assigned_tasks:
-                task = task.model_copy(
-                    update={"agents": task.agents + self.task_assignments.get(task, [])}
-                )
-            assigned_tasks.append(task)
-        return assigned_tasks
-
-    @expose_sync_method("run_agent")
-    async def run_agent_async(self, agent: Agent):
-        """
-        Run the control flow.
-        """
-        if agent not in self.agents:
-            raise ValueError("Agent not found in controller agents.")
-
-        prefect_task = await self._get_prefect_run_agent_task(agent)
-        await prefect_task(agent=agent)
-
-    async def _run_agent(self, agent: Agent, thread: Thread = None) -> Run:
+    async def _run_agent(
+        self, agent: Agent, tasks: list[Task] = None, thread: Thread = None
+    ) -> Run:
         """
         Run a single agent.
         """
-        from control_flow.core.controller.instruction_template import MainTemplate
 
-        instructions_template = MainTemplate(
-            agent=agent,
-            controller=self,
-            context=self.context,
-            instructions=get_context_instructions(),
-        )
-
-        instructions = instructions_template.render()
-
-        tools = self.flow.tools + agent.get_tools()
-
-        # add tools for any inactive tasks that the agent is assigned to
-        for task in self.all_tasks():
-            if task.is_incomplete() and agent in task.agents:
-                tools = tools + task.get_tools()
-
-        # filter tools because duplicate names are not allowed
-        final_tools = []
-        final_tool_names = set()
-        for tool in tools:
-            if isinstance(tool, FunctionTool):
-                if tool.function.name in final_tool_names:
-                    continue
-            final_tool_names.add(tool.function.name)
-            final_tools.append(wrap_prefect_tool(tool))
-
-        run = Run(
-            assistant=agent,
-            thread=thread or self.flow.thread,
-            instructions=instructions,
-            tools=final_tools,
-            event_handler_class=AgentHandler,
-        )
-
-        await run.run_async()
-
-        return run
-
-    async def _get_prefect_run_agent_task(
-        self, agent: Agent, thread: Thread = None
-    ) -> Callable:
         @prefect_task(task_run_name=f'Run Agent: "{agent.name}"')
-        async def _run_agent(agent: Agent, thread: Thread = None):
-            run = await self._run_agent(agent=agent, thread=thread)
+        async def _run_agent(agent: Agent, tasks: list[Task], thread: Thread = None):
+            from control_flow.core.controller.instruction_template import MainTemplate
+
+            tasks = tasks or self.tasks
+
+            tools = self.flow.tools + agent.get_tools() + [self._create_end_run_tool()]
+
+            # add tools for any inactive tasks that the agent is assigned to
+            for task in tasks:
+                if agent in task.agents:
+                    tools = tools + task.get_tools()
+
+            instructions_template = MainTemplate(
+                agent=agent,
+                controller=self,
+                tasks=tasks,
+                context=self.context,
+                instructions=get_instructions(),
+            )
+
+            instructions = instructions_template.render()
+
+            # filter tools because duplicate names are not allowed
+            final_tools = []
+            final_tool_names = set()
+            for tool in tools:
+                if isinstance(tool, FunctionTool):
+                    if tool.function.name in final_tool_names:
+                        continue
+                final_tool_names.add(tool.function.name)
+                final_tools.append(wrap_prefect_tool(tool))
+
+            run = Run(
+                assistant=agent,
+                thread=thread or self.flow.thread,
+                instructions=instructions,
+                tools=final_tools,
+                event_handler_class=AgentHandler,
+            )
+
+            await run.run_async()
 
             create_json_artifact(
                 key="messages",
@@ -162,7 +144,41 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             )
             return run
 
-        return _run_agent
+        return await _run_agent(agent=agent, tasks=tasks, thread=thread)
+
+    @expose_sync_method("run_once")
+    async def run_once_async(self):
+        # get the tasks to run
+        if self.run_dependencies:
+            tasks = self.graph.upstream_dependencies(self.tasks)
+        else:
+            tasks = self.tasks
+
+        # get the agents
+        if self.agents:
+            agents = self.agents
+        else:
+            # if we are running dependencies, only load agents for tasks that are ready
+            if self.run_dependencies:
+                agents = list({a for t in tasks for a in t.agents if t.is_ready()})
+            else:
+                agents = list({a for t in tasks for a in t.agents})
+
+        # select the next agent
+        if len(agents) == 0:
+            agent = Agent()
+        elif len(agents) == 1:
+            agent = agents[0]
+        else:
+            agent = marvin_moderator(
+                agents=agents,
+                tasks=tasks,
+                context=dict(
+                    history=get_flow_messages(), instructions=get_instructions()
+                ),
+            )
+
+        return await self._run_agent(agent, tasks=tasks)
 
 
 class AgentHandler(PrintHandler):

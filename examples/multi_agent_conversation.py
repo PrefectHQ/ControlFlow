@@ -70,7 +70,7 @@ def demo():
         agents=[jerry, george, elaine, kramer, newman],
         context=dict(topic=topic),
     )
-    task.run_until_complete(moderator=Moderator())
+    task.run(moderator=Moderator())
 
 
 demo()
