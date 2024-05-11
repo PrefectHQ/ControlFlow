@@ -3,6 +3,7 @@ import inspect
 from pydantic import BaseModel
 
 from control_flow.core.agent import Agent
+from control_flow.core.task import Task
 from control_flow.utilities.jinja import jinja_env
 from control_flow.utilities.types import ControlFlowModel
 
@@ -60,17 +61,16 @@ class TasksTemplate(Template):
     template: str = """
         ## Tasks
         
+        ### Your assignments
+        
         You have been assigned to complete certain tasks. Each task has an
         objective and criteria for success. Your job is to perform any required
         actions and then mark each assigned task as successful. If a task also
-        requires a result, you must provide it. 
+        requires a result, you must provide it. Only work on tasks that are
+        assigned to you. If the task requires a result, do not also post the
+        result in a message, as this would be redundant. Messages should be used
+        only to provide context that is not captured in task results.
         
-        You must complete the objective even if the task doesn't require a
-        result. For example, a task that asks you to choose, discuss, or perform
-        an action must be completed by posting messages before the task is
-        marked complete. The objective may require participation from multiple
-        agents. Do not mark a task as complete until the objective is fully met.
-                
         A "parent" is a task that spawned another task as a subtask. Generally,
         the subtasks will need to be completed BEFORE the parent task. If you
         can complete a parent task before its subtasks, you should mark the
@@ -80,6 +80,26 @@ class TasksTemplate(Template):
         before the task itself can be completed. The `mark_success` tool will
         not be available until all dependencies are met.
         
+        ### Current tasks
+        
+        At the start of your turn, these are all the tasks being worked on. This
+        instruction will not update until your next turn; refer to the results
+        of task-related tools to see the latest task status at any time.
+        
+        {% for task in tasks %}
+        #### Task {{ task.id }}
+        {{ task.model_dump_json() }}
+        
+        {% endfor %}
+
+        ### Completing a task
+        
+        You must complete the objective even if the task doesn't require a
+        result. For example, a task that asks you to choose, discuss, or perform
+        an action must be completed by posting messages before the task is
+        marked complete. The objective may require participation from multiple
+        agents. Do not mark a task as complete until the objective is fully met.                
+        
         Some tasks may require collaboration with other agents to be completed; others
         may take you multiple attempts. A task can only be marked complete one time,
         so make sure you perform all actions and collect all results before
@@ -87,24 +107,19 @@ class TasksTemplate(Template):
         (both you and others) can no longer act on it. 
         
         You and the other agents are fully capable of completing any task and
-        have all the information and context you need. Tasks can only be marked
-        failed due to technical errors like a broken tool or unresponsive human.
+        have all the information and context you need. Tasks should only be marked
+        failed due to technical errors like a broken or erroring tool or unresponsive human.
         Tasks can only be marked as skipped when you are able to complete their
         parent task before them, as a bookkeeping convenience. Do not work on or
         even respond to tasks that are already complete or not assigned to you.
         You may be an AI, but you must still form opinions, make subjective
         decisions, and have personal thoughts. 
         
-        {% for task in controller.all_tasks() %}
-        ### Task {{ task.id }}
-        {{ task.model_dump_json() }}
-        
-        {% endfor %}
         """
-    controller: Controller
+    tasks: list[Task]
 
     def should_render(self):
-        return any(self.controller.tasks)
+        return bool(self.tasks)
 
 
 class CommunicationTemplate(Template):
@@ -179,18 +194,15 @@ class MainTemplate(BaseModel):
     controller: Controller
     context: dict
     instructions: list[str]
+    tasks: list[Task]
 
     def render(self):
-        all_agents = [self.agent] + self.controller.agents
-        for task in self.controller.tasks:
-            all_agents += task.agents
-        # other_agents = [agent for agent in all_agents if agent != self.agent]
         templates = [
             AgentTemplate(
                 agent=self.agent,
             ),
             TasksTemplate(
-                controller=self.controller,
+                tasks=self.tasks,
             ),
             InstructionsTemplate(
                 agent=self.agent,

@@ -42,3 +42,6 @@ class Agent(Assistant, ControlFlowModel, ExposeSyncMethodsMixin):
 
     def __hash__(self):
         return id(self)
+
+
+DEFAULT_AGENT = Agent(name="Marvin")

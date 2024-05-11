@@ -1,10 +1,10 @@
+import datetime
 import uuid
 from contextlib import contextmanager
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Callable,
-    Generator,
     GenericAlias,
     Literal,
     TypeVar,
@@ -30,6 +30,7 @@ from control_flow.utilities.user_access import talk_to_human
 
 if TYPE_CHECKING:
     from control_flow.core.agent import Agent
+    from control_flow.core.graph import Graph
 T = TypeVar("T")
 logger = get_logger(__name__)
 
@@ -46,9 +47,13 @@ NOTSET = "__notset__"
 
 class Task(ControlFlowModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4().hex[:4]))
-    objective: str
-    instructions: str | None = None
-    agents: list["Agent"] = []
+    objective: str = Field(
+        ..., description="A brief description of the required result."
+    )
+    instructions: str | None = Field(
+        None, description="Detailed instructions for completing the task."
+    )
+    agents: list["Agent"] = Field(None, validate_default=True)
     context: dict = {}
     parent: "Task | None" = Field(
         NOTSET,
@@ -62,6 +67,7 @@ class Task(ControlFlowModel):
     error: str | None = None
     tools: list[AssistantTool | Callable] = []
     user_access: bool = False
+    created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     _children: list["Task"] = []
     _downstream: list["Task"] = []
     model_config = dict(extra="forbid", arbitrary_types_allowed=True)
@@ -74,9 +80,16 @@ class Task(ControlFlowModel):
         # allow certain args to be provided as a positional args
         super().__init__(**kwargs)
 
+    def __repr__(self):
+        return str(self.model_dump())
+
     @field_validator("agents", mode="before")
-    def _turn_none_into_empty_list(cls, v):
-        return v or []
+    def _default_agent(cls, v):
+        if v is None:
+            from control_flow.core.agent import DEFAULT_AGENT
+
+            return [DEFAULT_AGENT]
+        return v
 
     @field_validator("result_type", mode="before")
     def _turn_list_into_literal_result_type(cls, v):
@@ -121,6 +134,11 @@ class Task(ControlFlowModel):
             for a in agents
         ]
 
+    def as_graph(self) -> "Graph":
+        from control_flow.core.graph import Graph
+
+        return Graph.from_tasks(tasks=[self])
+
     def trace_dependencies(self) -> list["Task"]:
         """
         Returns a list of all tasks related to this task, including upstream and downstream tasks, parents, and children.
@@ -152,47 +170,28 @@ class Task(ControlFlowModel):
 
         return list(tasks)
 
-    def dependency_agents(self) -> list["Agent"]:
-        deps = self.trace_dependencies()
-        agents = []
-        for task in deps:
-            agents.extend(task.agents)
-        return agents
-
-    def run(self, agent: "Agent" = None):
+    def run_once(self, agent: "Agent" = None, run_dependencies: bool = True):
         """
-        Runs the task with provided agent. If no agent is provided, a default agent is used.
+        Runs the task with provided agent. If no agent is provided, one will be selected from the task's agents.
         """
-        from control_flow.core.agent import Agent
+        from control_flow.core.controller import Controller
 
-        if agent is None:
-            all_agents = self.dependency_agents()
-            if not all_agents:
-                agent = Agent()
-            elif len(all_agents) == 1:
-                agent = all_agents[0]
-            else:
-                raise ValueError(
-                    f"Task {self.id} has multiple agents assigned to it or its "
-                    "children. Please specify one to run the task or call run_until_complete()."
-                )
+        controller = Controller(
+            tasks=[self], agents=agent, run_dependencies=run_dependencies
+        )
 
-        run_gen = run_iter(tasks=[self], agents=[agent])
-        return next(run_gen)
+        controller.run_once()
 
-    def run_until_complete(
-        self,
-        agents: list["Agent"] = None,
-        moderator: Callable[[list["Agent"]], Generator[None, None, "Agent"]] = None,
-    ) -> T:
+    def run(self, run_dependencies: bool = True) -> T:
         """
         Runs the task with provided agents until it is complete.
         """
-
-        run_until_complete(tasks=[self], agents=agents, moderator=moderator)
-        if self.is_failed():
-            raise ValueError(f"Task {self.id} failed: {self.error}")
-        return self.result
+        while self.is_incomplete():
+            self.run_once(run_dependencies=run_dependencies)
+            if self.is_successful():
+                return self.result
+            elif self.is_failed():
+                raise ValueError(f"Task {self.id} failed: {self.error}")
 
     @contextmanager
     def _context(self):
@@ -223,6 +222,12 @@ class Task(ControlFlowModel):
     def is_skipped(self) -> bool:
         return self.status == TaskStatus.SKIPPED
 
+    def is_ready(self) -> bool:
+        """
+        Returns True if all dependencies are complete and this task is incomplete.
+        """
+        return self.is_incomplete() and all(t.is_complete() for t in self.depends_on)
+
     def __hash__(self):
         return id(self)
 
@@ -232,14 +237,13 @@ class Task(ControlFlowModel):
         """
 
         # wrap the method call to get the correct result type signature
-        def succeed(result: self.result_type):
-            # validate the result
-            self.mark_successful(result=result)
+        def succeed(result: self.result_type) -> str:
+            return self.mark_successful(result=result)
 
         tool = marvin.utilities.tools.tool_from_function(
             succeed,
-            name=f"succeed_task_{self.id}",
-            description=f"Mark task {self.id} as successful and provide a result.",
+            name=f"mark_task_{self.id}_successful",
+            description=f"Mark task {self.id} as successful and optionally provide a result.",
         )
 
         return tool
@@ -250,8 +254,8 @@ class Task(ControlFlowModel):
         """
         tool = marvin.utilities.tools.tool_from_function(
             self.mark_failed,
-            name=f"fail_task_{self.id}",
-            description=f"Mark task {self.id} as failed. Only use when a technical issue prevents completion.",
+            name=f"mark_task_{self.id}_failed",
+            description=f"Mark task {self.id} as failed. Only use when a technical issue like a broken tool or unresponsive human prevents completion.",
         )
         return tool
 
@@ -261,7 +265,7 @@ class Task(ControlFlowModel):
         """
         tool = marvin.utilities.tools.tool_from_function(
             self.mark_skipped,
-            name=f"skip_task_{self.id}",
+            name=f"mark_task_{self.id}_skipped",
             description=f"Mark task {self.id} as skipped. Only use when completing its parent task early.",
         )
         return tool
@@ -269,34 +273,41 @@ class Task(ControlFlowModel):
     def get_tools(self) -> list[AssistantTool | Callable]:
         tools = self.tools.copy()
         if self.is_incomplete():
-            tools.append(self._create_fail_tool())
+            tools.extend([self._create_fail_tool(), self._create_success_tool()])
             # add skip tool if this task has a parent task
             if self.parent is not None:
                 tools.append(self._create_skip_tool())
-            # add success tools if this task has no upstream tasks or all upstream tasks are complete
-            if all(t.is_complete() for t in self.depends_on):
-                tools.append(self._create_success_tool())
         if self.user_access:
             tools.append(marvin.utilities.tools.tool_from_function(talk_to_human))
         return [wrap_prefect_tool(t) for t in tools]
 
-    def mark_successful(self, result: T = None):
+    def mark_successful(self, result: T = None, validate_upstreams: bool = True):
         if self.result_type is None and result is not None:
             raise ValueError(
                 f"Task {self.objective} specifies no result type, but a result was provided."
             )
         elif self.result_type is not None:
+            if validate_upstreams:
+                if any(t.is_incomplete() for t in self.depends_on):
+                    raise ValueError(
+                        f"Task {self.objective} cannot be marked successful until all of its "
+                        "upstream dependencies are completed. Incomplete dependencies "
+                        f"are: {[t for t in self.depends_on if t.is_incomplete()]}"
+                    )
             result = TypeAdapter(self.result_type).validate_python(result)
 
         self.result = result
         self.status = TaskStatus.SUCCESSFUL
+        return f"Task {self.id} marked successful. Updated task definition: {self.model_dump()}"
 
     def mark_failed(self, message: str | None = None):
         self.error = message
         self.status = TaskStatus.FAILED
+        return f"Task {self.id} marked failed. Updated task definition: {self.model_dump()}"
 
     def mark_skipped(self):
         self.status = TaskStatus.SKIPPED
+        return f"Task {self.id} marked skipped. Updated task definition: {self.model_dump()}"
 
 
 def any_incomplete(tasks: list[Task]) -> bool:
@@ -317,49 +328,3 @@ def any_failed(tasks: list[Task]) -> bool:
 
 def none_failed(tasks: list[Task]) -> bool:
     return not any_failed(tasks)
-
-
-def run_iter(
-    tasks: list["Task"],
-    agents: list["Agent"] = None,
-    moderator: Callable[[list["Agent"]], Generator[None, None, "Agent"]] = None,
-):
-    from control_flow.core.controller.moderators import round_robin
-
-    if moderator is None:
-        moderator = round_robin
-
-    if agents is None:
-        agents = list(set([a for t in tasks for a in t.dependency_agents()]))
-
-    if not agents:
-        raise ValueError("Tasks have no agents assigned. Please specify agents.")
-
-    all_tasks = list(set([a for t in tasks for a in t.trace_dependencies()]))
-
-    for agent in moderator(agents, tasks=all_tasks):
-        if any(t.is_failed() for t in tasks):
-            break
-        elif all(t.is_complete() for t in tasks):
-            break
-        agent.run(tasks=all_tasks)
-        yield True
-
-
-def run_until_complete(
-    tasks: list["Task"],
-    agents: list["Agent"] = None,
-    moderator: Callable[[list["Agent"]], Generator[None, None, "Agent"]] = None,
-    raise_on_error: bool = True,
-) -> T:
-    """
-    Runs the task with provided agents until it is complete.
-    """
-
-    for _ in run_iter(tasks=tasks, agents=agents, moderator=moderator):
-        continue
-
-    if raise_on_error and any(t.is_failed() for t in tasks):
-        raise ValueError(
-            f"At least one task failed: {', '.join(t.id for t in tasks if t.is_failed())}"
-        )
