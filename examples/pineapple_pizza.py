@@ -27,18 +27,14 @@ a3 = Agent(name="Moderator")
 def demo():
     topic = "pineapple on pizza"
 
-    task = Task(
-        "Discuss the topic",
-        agents=[a1, a2],
-        context={"topic": topic},
-    )
+    task = Task("Discuss the topic", agents=[a1, a2], context={"topic": topic})
     with instructions("2 sentences max"):
-        task.run_until_complete()
+        task.run()
 
     task2 = Task(
         "which argument do you find more compelling?", [a1.name, a2.name], agents=[a3]
     )
-    task2.run_until_complete()
+    task2.run()
 
 
 demo()

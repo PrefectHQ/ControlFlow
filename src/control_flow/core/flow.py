@@ -48,6 +48,9 @@ class Flow(ControlFlowModel):
         return self.__cm.__exit__(*exc_info)
 
 
+GLOBAL_FLOW = Flow()
+
+
 def get_flow() -> Flow:
     """
     Loads the flow from the context.
@@ -56,8 +59,13 @@ def get_flow() -> Flow:
     """
     flow: Flow | None = ctx.get("flow")
     if not flow:
-        return Flow()
+        return GLOBAL_FLOW
     return flow
+
+
+def reset_global_flow():
+    global GLOBAL_FLOW
+    GLOBAL_FLOW = Flow()
 
 
 def get_flow_messages(limit: int = None) -> list[Message]:

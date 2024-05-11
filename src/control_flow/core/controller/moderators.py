@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 from control_flow.core.agent import Agent
 from control_flow.core.flow import Flow, get_flow_messages
 from control_flow.core.task import Task
-from control_flow.instructions import get_instructions
 
 if TYPE_CHECKING:
     from control_flow.core.agent import Agent
@@ -57,29 +56,29 @@ class AgentModerator(BaseModerator):
                     agents=[self.agent],
                     parent=None,
                 )
-                agent_name = task.run_until_complete()
+                agent_name = task.run()
                 yield next(a for a in agents if a.name == agent_name)
 
 
-class Moderator(BaseModerator):
-    model: str = None
-
-    def run(self, agents: list[Agent], tasks: list[Task]) -> Generator[Any, Any, Agent]:
-        while True:
-            instructions = get_instructions()
-            history = get_flow_messages()
-            context = dict(
-                tasks=tasks, messages=history, global_instructions=instructions
-            )
-            agent = marvin.classify(
-                context,
-                agents,
-                instructions="""
-                Given the conversation context, choose the AI agent most
-                qualified to take the next turn at completing the tasks. Take into
-                account any tasks, history, instructions, and tools.
-                """,
-                model_kwargs=dict(model=self.model) if self.model else None,
-            )
-
-            yield agent
+def marvin_moderator(
+    agents: list[Agent],
+    tasks: list[Task],
+    context: dict = None,
+    model: str = None,
+) -> Agent:
+    context = context or {}
+    context.update(tasks=tasks)
+    agent = marvin.classify(
+        context,
+        agents,
+        instructions="""
+            Given the context, choose the AI agent best suited to take the
+            next turn at completing the tasks in the task graph. Take into account
+            any descriptions, tasks, history, instructions, and tools. Focus on
+            agents assigned to upstream dependencies or subtasks that need to be
+            completed before their downstream/parents can be completed. An agent
+            can only work on a task that it is assigned to.
+            """,
+        model_kwargs=dict(model=model) if model else None,
+    )
+    return agent

@@ -109,7 +109,7 @@ def ai_task(
             tools=tools or [],
         )
 
-        task.run_until_complete()
+        task.run()
         return task.result
 
     return wrapper
