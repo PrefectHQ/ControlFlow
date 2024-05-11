@@ -74,13 +74,15 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         return v
 
     def _create_end_run_tool(self) -> FunctionTool:
+        @marvin.utilities.tools.tool_from_function
         def end_run():
+            """
+            End your turn if you have no tasks to work on. Only call this tool
+            if necessary; otherwise you can end your turn normally.
+            """
             raise EndRun()
 
-        return marvin.utilities.tools.tool_from_function(
-            end_run,
-            description="End your turn if you have no tasks to work on. Only call this tool in an emergency; otherwise you can end your turn normally.",
-        )
+        return end_run
 
     async def _run_agent(
         self, agent: Agent, tasks: list[Task] = None, thread: Thread = None
@@ -148,34 +150,32 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
     @expose_sync_method("run_once")
     async def run_once_async(self):
+        """
+        Run the controller for a single iteration of the provided tasks. An agent will be selected to run the tasks.
+        """
         # get the tasks to run
-        if self.run_dependencies:
-            tasks = self.graph.upstream_dependencies(self.tasks)
-        else:
-            tasks = self.tasks
+        tasks = self.graph.upstream_dependencies(self.tasks)
 
         # get the agents
+        agent_candidates = {a for t in tasks for a in t.agents if t.is_ready()}
         if self.agents:
-            agents = self.agents
+            agents = list(agent_candidates.intersection(self.agents))
         else:
-            # if we are running dependencies, only load agents for tasks that are ready
-            if self.run_dependencies:
-                agents = list({a for t in tasks for a in t.agents if t.is_ready()})
-            else:
-                agents = list({a for t in tasks for a in t.agents})
+            agents = list(agent_candidates)
 
         # select the next agent
         if len(agents) == 0:
-            agent = Agent()
+            raise ValueError(
+                "No agents were provided that are assigned to tasks that are ready to be run."
+            )
         elif len(agents) == 1:
             agent = agents[0]
         else:
             agent = marvin_moderator(
                 agents=agents,
                 tasks=tasks,
-                context=dict(
-                    history=get_flow_messages(), instructions=get_instructions()
-                ),
+                history=get_flow_messages(),
+                instructions=get_instructions(),
             )
 
         return await self._run_agent(agent, tasks=tasks)
