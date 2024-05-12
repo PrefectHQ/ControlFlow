@@ -1,4 +1,4 @@
-from control_flow import Agent, Task, ai_flow
+from control_flow import Agent, Task, flow
 from control_flow.core.controller.moderators import Moderator
 
 jerry = Agent(
@@ -62,7 +62,7 @@ newman = Agent(
 )
 
 
-@ai_flow
+@flow
 def demo():
     topic = "milk and cereal"
     task = Task(
