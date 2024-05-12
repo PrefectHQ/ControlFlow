@@ -1,9 +1,9 @@
 import marvin
 
-from control_flow.core.agent import Agent
-from control_flow.instructions import get_instructions
-from control_flow.utilities.context import ctx
-from control_flow.utilities.threads import get_history
+from controlflow.core.agent import Agent
+from controlflow.instructions import get_instructions
+from controlflow.utilities.context import ctx
+from controlflow.utilities.threads import get_history
 
 
 def choose_agent(

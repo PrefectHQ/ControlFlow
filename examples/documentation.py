@@ -1,12 +1,12 @@
 import glob as glob_module
 from pathlib import Path
 
-import control_flow
-from control_flow import flow, task
+import controlflow
+from controlflow import flow, task
 from marvin.beta.assistants import Assistant, Thread
 from marvin.tools.filesystem import read, write
 
-ROOT = Path(control_flow.__file__).parents[2]
+ROOT = Path(controlflow.__file__).parents[2]
 
 
 def glob(pattern: str) -> list[str]:

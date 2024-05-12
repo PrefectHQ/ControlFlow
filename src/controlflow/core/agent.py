@@ -5,13 +5,13 @@ from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
 from marvin.utilities.tools import tool_from_function
 from pydantic import Field
 
-from control_flow.core.flow import get_flow
-from control_flow.core.task import Task
-from control_flow.utilities.prefect import (
+from controlflow.core.flow import get_flow
+from controlflow.core.task import Task
+from controlflow.utilities.prefect import (
     wrap_prefect_tool,
 )
-from control_flow.utilities.types import Assistant, AssistantTool, ControlFlowModel
-from control_flow.utilities.user_access import talk_to_human
+from controlflow.utilities.types import Assistant, AssistantTool, ControlFlowModel
+from controlflow.utilities.user_access import talk_to_human
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class Agent(Assistant, ControlFlowModel, ExposeSyncMethodsMixin):
 
     @expose_sync_method("run")
     async def run_async(self, tasks: list[Task] | Task | None = None):
-        from control_flow.core.controller import Controller
+        from controlflow.core.controller import Controller
 
         if isinstance(tasks, Task):
             tasks = [tasks]

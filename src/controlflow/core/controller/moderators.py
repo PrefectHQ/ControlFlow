@@ -4,12 +4,12 @@ from typing import TYPE_CHECKING, Any, Generator
 import marvin
 from pydantic import BaseModel, Field
 
-from control_flow.core.agent import Agent
-from control_flow.core.flow import Flow, get_flow_messages
-from control_flow.core.task import Task
+from controlflow.core.agent import Agent
+from controlflow.core.flow import Flow, get_flow_messages
+from controlflow.core.task import Task
 
 if TYPE_CHECKING:
-    from control_flow.core.agent import Agent
+    from controlflow.core.agent import Agent
 
 
 def round_robin(agents: list[Agent], tasks: list[Task]) -> Generator[Any, Any, Agent]:

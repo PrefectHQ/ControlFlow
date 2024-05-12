@@ -1,8 +1,8 @@
 import math
 from typing import Generator
 
-import control_flow.core.task
-from control_flow.core.task import Task
+import controlflow.core.task
+from controlflow.core.task import Task
 
 
 def any_incomplete(
@@ -24,7 +24,7 @@ def any_incomplete(
     i = 0
     while i < max_iterations:
         i += 1
-        if control_flow.core.task.any_incomplete(tasks):
+        if controlflow.core.task.any_incomplete(tasks):
             yield i
         else:
             break

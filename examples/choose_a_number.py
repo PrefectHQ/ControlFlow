@@ -1,4 +1,4 @@
-from control_flow import Agent, Task, flow
+from controlflow import Agent, Task, flow
 
 a1 = Agent(name="A1", instructions="You struggle to make decisions.")
 a2 = Agent(

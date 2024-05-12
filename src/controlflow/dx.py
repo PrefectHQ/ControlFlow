@@ -4,11 +4,11 @@ from typing import Callable, TypeVar
 
 from prefect import task as prefect_task
 
-from control_flow.core.agent import Agent
-from control_flow.core.task import Task, TaskStatus
-from control_flow.utilities.context import ctx
-from control_flow.utilities.logging import get_logger
-from control_flow.utilities.types import AssistantTool
+from controlflow.core.agent import Agent
+from controlflow.core.task import Task, TaskStatus
+from controlflow.utilities.context import ctx
+from controlflow.utilities.logging import get_logger
+from controlflow.utilities.types import AssistantTool
 
 logger = get_logger(__name__)
 T = TypeVar("T")
@@ -133,7 +133,7 @@ def run_ai(
         agents = [Agent(user_access=user_access or False)]
 
     # create Controller
-    from control_flow.core.controller.controller import Controller
+    from controlflow.core.controller.controller import Controller
 
     controller = Controller(tasks=tasks, agents=agents, flow=flow)
     controller.run()
