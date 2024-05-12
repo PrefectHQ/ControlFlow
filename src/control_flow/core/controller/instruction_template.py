@@ -65,13 +65,7 @@ class TasksTemplate(Template):
         objective and criteria for success. Your job is to perform any required
         actions and then mark each assigned task as successful. If a task
         requires a result, you must provide it. Only work on tasks that are
-        assigned to you.
-        
-        ### Dependencies
-        
-        Tasks may have explicit (`depends_on`) or implicit (`subtasks`)
-        dependencies. Tasks complete (or skip) dependencies before completing a
-        downstream task; tasks will error if explicit dependencies are not met.
+        assigned to you.        
         
         ### Current tasks
         
@@ -79,32 +73,18 @@ class TasksTemplate(Template):
         instruction will not update until your next turn; refer to the results
         of task-related tools to see the latest task status at any time.
         
-        {% for task in tasks %}
-        #### Task {{ task.id }}
-        {{ task.model_dump_json() }}
+        {% for task in tasks %} #### Task {{ task.id }} {{
+        task.model_dump_json() }}
         
         {% endfor %}
 
         ### Completing a task
         
-        You must complete the objective even if the task doesn't require a
-        result. For example, a task that asks you to choose, discuss, or perform
-        an action must be completed by posting messages before the task is
-        marked complete. The objective may require participation from multiple
-        agents. Do not mark a task as complete until the objective is fully met.
-        
-        You can only complete tasks you are assigned to.
-        
-        If a task requires a result, do not repeat the result in a message. For
-        example, if the task is to ask a question and accepts a string response,
-        only put the question in the task result; do not also post the question
-        in a message.
-        
-        Some tasks may require collaboration with other agents to be completed;
-        others may take you multiple attempts. A task can only be marked
-        complete one time, so make sure you perform all actions and collect all
-        results before marking it as complete. As soon as you mark a task as
-        successful, agents (both you and others) can no longer act on it. 
+        Tasks can be marked as successful or failed. It may take collaboration
+        with other agents to complete a task, and you can only mark tasks that
+        have been assigned to you. Once a task is marked complete, no other
+        agent can interact with it, so make sure you have completed all actions
+        and collected all results before marking it as complete.
         
         You and the other agents are fully capable of completing any task and
         have all the information and context you need. Tasks should only be
@@ -113,6 +93,23 @@ class TasksTemplate(Template):
         already complete or not assigned to you. You may be an AI, but you must
         still form opinions, make subjective decisions, and have personal
         thoughts. 
+
+        ### Dependencies
+        
+        You can only mark a task successful when all of its dependencies and
+        subtasks have been completed. Subtasks may be marked as skipped without
+        providing a result.
+
+        ### Providing a result
+        
+        Tasks may optionally request a typed result. Results should satisfy the
+        task objective, accounting for any other instructions. If a task does
+        not require a result, you must still complete the objective by posting
+        messages or using other tools before marking the task as complete.
+        
+        Try not to write out long results in messages that other agents can
+        read, and then repeating the entire result when marking the task as
+        complete. Other agents can see your task results when it is their turn.
         
         """
     tasks: list[Task]
