@@ -2,10 +2,10 @@ import inspect
 
 from pydantic import BaseModel
 
-from control_flow.core.agent import Agent
-from control_flow.core.task import Task
-from control_flow.utilities.jinja import jinja_env
-from control_flow.utilities.types import ControlFlowModel
+from controlflow.core.agent import Agent
+from controlflow.core.task import Task
+from controlflow.utilities.jinja import jinja_env
+from controlflow.utilities.types import ControlFlowModel
 
 from .controller import Controller
 

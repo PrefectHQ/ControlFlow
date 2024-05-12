@@ -13,7 +13,7 @@ from prefect.artifacts import ArtifactRequest
 from prefect.context import FlowRunContext, TaskRunContext
 from pydantic import TypeAdapter
 
-from control_flow.utilities.types import AssistantTool
+from controlflow.utilities.types import AssistantTool
 
 
 def create_markdown_artifact(

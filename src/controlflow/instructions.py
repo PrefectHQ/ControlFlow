@@ -1,8 +1,8 @@
 from contextlib import contextmanager
 from typing import Generator, List
 
-from control_flow.utilities.context import ctx
-from control_flow.utilities.logging import get_logger
+from controlflow.utilities.context import ctx
+from controlflow.utilities.logging import get_logger
 
 logger = get_logger(__name__)
 

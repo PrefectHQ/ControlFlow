@@ -13,18 +13,18 @@ from prefect import task as prefect_task
 from prefect.context import FlowRunContext
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from control_flow.core.agent import Agent
-from control_flow.core.controller.moderators import marvin_moderator
-from control_flow.core.flow import Flow, get_flow, get_flow_messages
-from control_flow.core.graph import Graph
-from control_flow.core.task import Task
-from control_flow.instructions import get_instructions
-from control_flow.utilities.prefect import (
+from controlflow.core.agent import Agent
+from controlflow.core.controller.moderators import marvin_moderator
+from controlflow.core.flow import Flow, get_flow, get_flow_messages
+from controlflow.core.graph import Graph
+from controlflow.core.task import Task
+from controlflow.instructions import get_instructions
+from controlflow.utilities.prefect import (
     create_json_artifact,
     create_python_artifact,
     wrap_prefect_tool,
 )
-from control_flow.utilities.types import FunctionTool, Thread
+from controlflow.utilities.types import FunctionTool, Thread
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +93,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
         @prefect_task(task_run_name=f'Run Agent: "{agent.name}"')
         async def _run_agent(agent: Agent, tasks: list[Task], thread: Thread = None):
-            from control_flow.core.controller.instruction_template import MainTemplate
+            from controlflow.core.controller.instruction_template import MainTemplate
 
             tasks = tasks or self.tasks
 

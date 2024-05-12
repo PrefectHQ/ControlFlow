@@ -1,4 +1,4 @@
-from control_flow.core.agent import Agent
+from controlflow.core.agent import Agent
 from pytest import patch
 
 
@@ -9,7 +9,7 @@ class TestAgent:
 class TestAgentRun:
     def test_agent_run(self):
         with patch(
-            "control_flow.core.controller.Controller._get_prefect_run_agent_task"
+            "controlflow.core.controller.Controller._get_prefect_run_agent_task"
         ) as mock_task:
             agent = Agent()
             agent.run()

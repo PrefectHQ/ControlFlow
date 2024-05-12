@@ -15,7 +15,7 @@ class ControlFlowSettings(BaseSettings):
         env_file=(
             ""
             if os.getenv("CONTROLFLOW_TEST_MODE")
-            else ("~/.control_flow/.env", ".env")
+            else ("~/.controlflow/.env", ".env")
         ),
         extra="allow",
         arbitrary_types_allowed=True,
@@ -75,18 +75,18 @@ def temporary_settings(**kwargs: Any):
     Example:
         Temporarily override log level and OpenAI API key:
         ```python
-        import control_flow
-        from control_flow.settings import temporary_settings
+        import controlflow
+        from controlflow.settings import temporary_settings
 
         # Override top-level settings
         with temporary_settings(log_level="INFO"):
-            assert control_flow.settings.log_level == "INFO"
-        assert control_flow.settings.log_level == "DEBUG"
+            assert controlflow.settings.log_level == "INFO"
+        assert controlflow.settings.log_level == "DEBUG"
 
         # Override nested settings
         with temporary_settings(openai__api_key="new-api-key"):
-            assert control_flow.settings.openai.api_key.get_secret_value() == "new-api-key"
-        assert control_flow.settings.openai.api_key.get_secret_value().startswith("sk-")
+            assert controlflow.settings.openai.api_key.get_secret_value() == "new-api-key"
+        assert controlflow.settings.openai.api_key.get_secret_value().startswith("sk-")
         ```
     """
     old_env = os.environ.copy()

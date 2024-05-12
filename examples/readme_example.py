@@ -1,4 +1,4 @@
-from control_flow import Agent, Task, flow, instructions, task
+from controlflow import Agent, Task, flow, instructions, task
 from pydantic import BaseModel
 
 

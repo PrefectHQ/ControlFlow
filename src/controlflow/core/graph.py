@@ -2,7 +2,7 @@ from enum import Enum
 
 from pydantic import BaseModel
 
-from control_flow.core.task import Task
+from controlflow.core.task import Task
 
 
 class EdgeType(Enum):

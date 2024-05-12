@@ -1,4 +1,4 @@
-from control_flow import Agent, Task
+from controlflow import Agent, Task
 
 writer = Agent(name="writer")
 editor = Agent(name="editor", instructions="you always find at least one problem")

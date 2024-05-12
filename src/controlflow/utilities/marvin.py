@@ -8,7 +8,7 @@ from marvin.settings import temporary_settings as temporary_marvin_settings
 from openai.types.chat import ChatCompletion
 from prefect import task as prefect_task
 
-from control_flow.utilities.prefect import (
+from controlflow.utilities.prefect import (
     create_json_artifact,
 )
 
