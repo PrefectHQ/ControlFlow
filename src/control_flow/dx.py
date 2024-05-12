@@ -15,7 +15,7 @@ T = TypeVar("T")
 NOT_PROVIDED = object()
 
 
-def ai_task(
+def task(
     fn=None,
     *,
     objective: str = None,
@@ -30,7 +30,7 @@ def ai_task(
 
     if fn is None:
         return functools.partial(
-            ai_task,
+            task,
             objective=objective,
             agents=agents,
             tools=tools,
@@ -90,7 +90,7 @@ def run_ai(
 ) -> T | list[T]:
     """
     Create and run an agent to complete a task with the given objective and
-    context. This function is similar to an inline version of the @ai_task
+    context. This function is similar to an inline version of the @task
     decorator.
 
     This inline version is useful when you want to create and run an ad-hoc AI
@@ -116,7 +116,7 @@ def run_ai(
 
     # create tasks
     if tasks:
-        ai_tasks = [
+        tasks = [
             Task(
                 objective=t,
                 context=context or {},
@@ -126,7 +126,7 @@ def run_ai(
             for t in tasks
         ]
     else:
-        ai_tasks = []
+        tasks = []
 
     # create agent
     if agents is None:
@@ -135,17 +135,17 @@ def run_ai(
     # create Controller
     from control_flow.core.controller.controller import Controller
 
-    controller = Controller(tasks=ai_tasks, agents=agents, flow=flow)
+    controller = Controller(tasks=tasks, agents=agents, flow=flow)
     controller.run()
 
-    if ai_tasks:
-        if all(task.status == TaskStatus.SUCCESSFUL for task in ai_tasks):
-            result = [task.result for task in ai_tasks]
+    if tasks:
+        if all(task.status == TaskStatus.SUCCESSFUL for task in tasks):
+            result = [task.result for task in tasks]
             if single_result:
                 result = result[0]
             return result
         elif failed_tasks := [
-            task for task in ai_tasks if task.status == TaskStatus.FAILED
+            task for task in tasks if task.status == TaskStatus.FAILED
         ]:
             raise ValueError(
                 f'Failed tasks: {", ".join([task.objective for task in failed_tasks])}'

@@ -1,4 +1,6 @@
 import datetime
+import functools
+import inspect
 import uuid
 from contextlib import contextmanager
 from enum import Enum
@@ -23,6 +25,7 @@ from pydantic import (
     model_validator,
 )
 
+from control_flow.core.agent import Agent
 from control_flow.core.flow import get_flow
 from control_flow.instructions import get_instructions
 from control_flow.utilities.context import ctx
@@ -377,3 +380,59 @@ def any_failed(tasks: list[Task]) -> bool:
 
 def none_failed(tasks: list[Task]) -> bool:
     return not any_failed(tasks)
+
+
+def task(
+    fn=None,
+    *,
+    objective: str = None,
+    instructions: str = None,
+    agents: list[Agent] = None,
+    tools: list[AssistantTool | Callable] = None,
+    user_access: bool = None,
+):
+    """
+    A decorator that turns a Python function into a Task. The Task objective is
+    set to the function name, and the instructions are set to the function
+    docstring. When the function is called, the arguments are provided to the
+    task as context, and the task is run to completion. If successful, the task
+    result is returned; if failed, an error is raised.
+    """
+
+    if fn is None:
+        return functools.partial(
+            task,
+            objective=objective,
+            instructions=instructions,
+            agents=agents,
+            tools=tools,
+            user_access=user_access,
+        )
+
+    sig = inspect.signature(fn)
+
+    if objective is None:
+        objective = fn.__name__
+
+    if instructions is None:
+        instructions = fn.__doc__
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        # first process callargs
+        bound = sig.bind(*args, **kwargs)
+        bound.apply_defaults()
+
+        task = Task(
+            objective=objective,
+            agents=agents,
+            context=bound.arguments,
+            result_type=fn.__annotations__.get("return"),
+            user_access=user_access or False,
+            tools=tools or [],
+        )
+
+        task.run()
+        return task.result
+
+    return wrapper
