@@ -1,12 +1,12 @@
 from control_flow import Agent, Task
-from control_flow.dx import ai_flow
+from control_flow.dx import flow
 from control_flow.instructions import instructions
 
 teacher = Agent(name="teacher")
 student = Agent(name="student")
 
 
-@ai_flow
+@flow
 def demo():
     with Task("Teach a class by asking and answering 3 questions") as task:
         for _ in range(3):

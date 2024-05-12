@@ -2,7 +2,7 @@ import glob as glob_module
 from pathlib import Path
 
 import control_flow
-from control_flow import ai_flow, ai_task
+from control_flow import ai_task, flow
 from marvin.beta.assistants import Assistant, Thread
 from marvin.tools.filesystem import read, write
 
@@ -49,7 +49,7 @@ def write_docs(docs_dir: Path, instructions: str = None):
     """
 
 
-@ai_flow(assistant=assistant)
+@flow(assistant=assistant)
 def docs_flow(instructions: str):
     examine_source_code(ROOT / "src", extensions=[".py"])
     # read_docs(ROOT / "docs")

@@ -1,6 +1,8 @@
+import functools
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Callable, Literal
 
+import prefect
 from marvin.beta.assistants import Thread
 from openai.types.beta.threads import Message
 from prefect import task as prefect_task
@@ -9,6 +11,7 @@ from pydantic import Field, field_validator
 import control_flow
 from control_flow.utilities.context import ctx
 from control_flow.utilities.logging import get_logger
+from control_flow.utilities.marvin import patch_marvin
 from control_flow.utilities.types import AssistantTool, ControlFlowModel
 
 if TYPE_CHECKING:
@@ -98,3 +101,51 @@ def get_flow_messages(limit: int = None) -> list[Message]:
     """
     flow = get_flow()
     return flow.thread.get_messages(limit=limit)
+
+
+def flow(
+    fn=None,
+    *,
+    thread: Thread = None,
+    tools: list[AssistantTool | Callable] = None,
+    agents: list["Agent"] = None,
+):
+    """
+    A decorator that runs a function as a Flow
+    """
+
+    if fn is None:
+        return functools.partial(
+            flow,
+            thread=thread,
+            tools=tools,
+            agents=agents,
+        )
+
+    @functools.wraps(fn)
+    def wrapper(
+        *args,
+        flow_kwargs: dict = None,
+        **kwargs,
+    ):
+        flow_kwargs = flow_kwargs or {}
+
+        if thread is not None:
+            flow_kwargs.setdefault("thread", thread)
+        if tools is not None:
+            flow_kwargs.setdefault("tools", tools)
+        if agents is not None:
+            flow_kwargs.setdefault("agents", agents)
+
+        p_fn = prefect.flow(fn)
+
+        flow_obj = Flow(**flow_kwargs)
+
+        logger.info(
+            f'Executing AI flow "{fn.__name__}" on thread "{flow_obj.thread.id}"'
+        )
+
+        with ctx(flow=flow_obj), patch_marvin():
+            return p_fn(*args, **kwargs)
+
+    return wrapper
