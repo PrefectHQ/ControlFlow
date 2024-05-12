@@ -1,4 +1,4 @@
-from control_flow import Agent, Task, ai_task, flow, instructions
+from control_flow import Agent, Task, flow, instructions, task
 from pydantic import BaseModel
 
 
@@ -7,12 +7,12 @@ class Name(BaseModel):
     last_name: str
 
 
-@ai_task(user_access=True)
+@task(user_access=True)
 def get_user_name() -> Name:
     pass
 
 
-@ai_task(agents=[Agent(name="poetry-bot", instructions="loves limericks")])
+@task(agents=[Agent(name="poetry-bot", instructions="loves limericks")])
 def write_poem_about_user(name: Name, interests: list[str]) -> str:
     """write a poem based on the provided `name` and `interests`"""
     pass
