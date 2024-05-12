@@ -1,9 +1,9 @@
 # test_flow.py
 from unittest.mock import MagicMock
 
-from control_flow.core.agent import Agent
-from control_flow.core.flow import Flow, get_flow
-from control_flow.utilities.context import ctx
+from controlflow.core.agent import Agent
+from controlflow.core.flow import Flow, get_flow
+from controlflow.utilities.context import ctx
 
 
 class TestFlow:

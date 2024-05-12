@@ -19,20 +19,20 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
     Example:
         Basic Usage of `get_logger`
         ```python
-        from control_flow.utilities.logging import get_logger
+        from controlflow.utilities.logging import get_logger
 
-        logger = get_logger("control_flow.test")
-        logger.info("This is a test") # Output: control_flow.test: This is a test
+        logger = get_logger("controlflow.test")
+        logger.info("This is a test") # Output: controlflow.test: This is a test
 
-        debug_logger = get_logger("control_flow.debug")
+        debug_logger = get_logger("controlflow.debug")
         debug_logger.debug_kv("TITLE", "log message", "green")
         ```
     """
-    parent_logger = logging.getLogger("control_flow")
+    parent_logger = logging.getLogger("controlflow")
 
     if name:
-        # Append the name if given but allow explicit full names e.g. "control_flow.test"
-        # should not become "control_flow.control_flow.test"
+        # Append the name if given but allow explicit full names e.g. "controlflow.test"
+        # should not become "controlflow.controlflow.test"
         if not name.startswith(parent_logger.name + "."):
             logger = parent_logger.getChild(name)
         else:

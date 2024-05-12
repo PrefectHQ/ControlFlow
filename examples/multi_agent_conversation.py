@@ -1,5 +1,5 @@
-from control_flow import Agent, Task, flow
-from control_flow.core.controller.moderators import Moderator
+from controlflow import Agent, Task, flow
+from controlflow.core.controller.moderators import Moderator
 
 jerry = Agent(
     name="Jerry",

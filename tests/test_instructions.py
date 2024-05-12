@@ -1,4 +1,4 @@
-from control_flow.instructions import get_instructions, instructions
+from controlflow.instructions import get_instructions, instructions
 
 
 def test_instructions_context():

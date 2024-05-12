@@ -8,19 +8,19 @@ from openai.types.beta.threads import Message
 from prefect import task as prefect_task
 from pydantic import Field, field_validator
 
-import control_flow
-from control_flow.utilities.context import ctx
-from control_flow.utilities.logging import get_logger
-from control_flow.utilities.marvin import patch_marvin
-from control_flow.utilities.types import AssistantTool, ControlFlowModel
+import controlflow
+from controlflow.utilities.context import ctx
+from controlflow.utilities.logging import get_logger
+from controlflow.utilities.marvin import patch_marvin
+from controlflow.utilities.types import AssistantTool, ControlFlowModel
 
 if TYPE_CHECKING:
-    from control_flow.core.agent import Agent
+    from controlflow.core.agent import Agent
 logger = get_logger(__name__)
 
 
 def default_agent():
-    from control_flow.core.agent import Agent
+    from controlflow.core.agent import Agent
 
     return [
         Agent(
@@ -81,7 +81,7 @@ def get_flow() -> Flow:
     """
     flow: Flow | None = ctx.get("flow")
     if not flow:
-        if control_flow.settings.enable_global_flow:
+        if controlflow.settings.enable_global_flow:
             return GLOBAL_FLOW
         else:
             raise ValueError("No flow found in context.")

@@ -1,4 +1,4 @@
-![image](https://github.com/jlowin/control_flow/assets/153965/c2a8a2f0-8777-49a6-a79b-a0e101bd4a04)
+![image](https://github.com/jlowin/controlflow/assets/153965/c2a8a2f0-8777-49a6-a79b-a0e101bd4a04)
 
 # ControlFlow
 
@@ -39,15 +39,15 @@ This targeted approach results in AI systems that are easier to build, maintain,
 ControlFlow is under active development.
 
 ```bash
-git clone https://github.com/jlowin/control_flow.git
-cd control_flow
+git clone https://github.com/jlowin/controlflow.git
+cd controlflow
 pip install .
 ```
 
 ## Example
 
 ```python
-from control_flow import Agent, Task, flow, task, instructions
+from controlflow import Agent, Task, flow, task, instructions
 from pydantic import BaseModel
 
 
@@ -94,4 +94,4 @@ if __name__ == "__main__":
 
 
 
-<img width="1491" alt="image" src="https://github.com/jlowin/control_flow/assets/153965/43b7278b-7bcf-4d65-b219-c3a20f62a179">
+<img width="1491" alt="image" src="https://github.com/jlowin/controlflow/assets/153965/43b7278b-7bcf-4d65-b219-c3a20f62a179">

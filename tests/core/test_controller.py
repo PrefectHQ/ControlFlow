@@ -1,11 +1,11 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from control_flow.core.agent import Agent
-from control_flow.core.controller.controller import Controller
-from control_flow.core.flow import Flow
-from control_flow.core.graph import EdgeType
-from control_flow.core.task import Task
+from controlflow.core.agent import Agent
+from controlflow.core.controller.controller import Controller
+from controlflow.core.flow import Flow
+from controlflow.core.graph import EdgeType
+from controlflow.core.task import Task
 
 
 class TestController:
@@ -70,7 +70,7 @@ class TestController:
         controller = Controller(flow=flow, tasks=[task], agents=[agent1, agent2])
         mocked_marvin_moderator = AsyncMock(return_value=agent1)
         monkeypatch.setattr(
-            "control_flow.core.controller.moderators.marvin_moderator",
+            "controlflow.core.controller.moderators.marvin_moderator",
             mocked_marvin_moderator,
         )
         assert controller.agents == [agent1, agent2]
