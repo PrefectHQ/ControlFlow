@@ -1,6 +1,9 @@
 import os
 import sys
 import warnings
+from contextlib import contextmanager
+from copy import deepcopy
+from typing import Any
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -46,6 +49,10 @@ class Settings(ControlFlowSettings):
     assistant_model: str = "gpt-4-1106-preview"
     max_agent_iterations: int = 10
     prefect: PrefectSettings = Field(default_factory=PrefectSettings)
+    enable_global_flow: bool = Field(
+        True,
+        description="If True, a global flow is created for convenience, so users don't have to wrap every invocation in a flow function. Disable to avoid accidentally sharing context between agents.",
+    )
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -53,3 +60,52 @@ class Settings(ControlFlowSettings):
 
 
 settings = Settings()
+
+
+@contextmanager
+def temporary_settings(**kwargs: Any):
+    """
+    Temporarily override ControlFlow setting values, including nested settings objects.
+
+    To override nested settings, use `__` to separate nested attribute names.
+
+    Args:
+        **kwargs: The settings to override, including nested settings.
+
+    Example:
+        Temporarily override log level and OpenAI API key:
+        ```python
+        import control_flow
+        from control_flow.settings import temporary_settings
+
+        # Override top-level settings
+        with temporary_settings(log_level="INFO"):
+            assert control_flow.settings.log_level == "INFO"
+        assert control_flow.settings.log_level == "DEBUG"
+
+        # Override nested settings
+        with temporary_settings(openai__api_key="new-api-key"):
+            assert control_flow.settings.openai.api_key.get_secret_value() == "new-api-key"
+        assert control_flow.settings.openai.api_key.get_secret_value().startswith("sk-")
+        ```
+    """
+    old_env = os.environ.copy()
+    old_settings = deepcopy(settings)
+
+    def set_nested_attr(obj: object, attr_path: str, value: Any):
+        parts = attr_path.split("__")
+        for part in parts[:-1]:
+            obj = getattr(obj, part)
+        setattr(obj, parts[-1], value)
+
+    try:
+        for attr_path, value in kwargs.items():
+            set_nested_attr(settings, attr_path, value)
+        yield
+
+    finally:
+        os.environ.clear()
+        os.environ.update(old_env)
+
+        for attr, value in old_settings:
+            set_nested_attr(settings, attr, value)
