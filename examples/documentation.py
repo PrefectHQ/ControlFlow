@@ -2,7 +2,7 @@ import glob as glob_module
 from pathlib import Path
 
 import control_flow
-from control_flow import ai_task, flow
+from control_flow import flow, task
 from marvin.beta.assistants import Assistant, Thread
 from marvin.tools.filesystem import read, write
 
@@ -27,7 +27,7 @@ assistant = Assistant(
 )
 
 
-@ai_task(model="gpt-3.5-turbo")
+@task(model="gpt-3.5-turbo")
 def examine_source_code(source_dir: Path, extensions: list[str]):
     """
     Load all matching files in the root dir and all subdirectories and
@@ -35,14 +35,14 @@ def examine_source_code(source_dir: Path, extensions: list[str]):
     """
 
 
-@ai_task(model="gpt-3.5-turbo")
+@task(model="gpt-3.5-turbo")
 def read_docs(docs_dir: Path):
     """
     Read all documentation in the docs dir and subdirectories, if any.
     """
 
 
-@ai_task
+@task
 def write_docs(docs_dir: Path, instructions: str = None):
     """
     Write new documentation based on the provided instructions.
