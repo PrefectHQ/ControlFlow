@@ -1,5 +1,4 @@
-from control_flow import Agent, Task
-from control_flow.dx import flow
+from control_flow import Agent, Task, flow
 from control_flow.instructions import instructions
 
 teacher = Agent(name="teacher")

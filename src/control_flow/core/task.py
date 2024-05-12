@@ -25,7 +25,6 @@ from pydantic import (
     model_validator,
 )
 
-from control_flow.core.agent import Agent
 from control_flow.core.flow import get_flow
 from control_flow.instructions import get_instructions
 from control_flow.utilities.context import ctx
@@ -315,7 +314,7 @@ class Task(ControlFlowModel):
         )
         return tool
 
-    def get_tools(self, validate: bool = True) -> list[AssistantTool | Callable]:
+    def get_tools(self) -> list[AssistantTool | Callable]:
         tools = self.tools.copy()
         if self.is_incomplete():
             tools.extend([self._create_fail_tool(), self._create_success_tool()])
@@ -387,7 +386,7 @@ def task(
     *,
     objective: str = None,
     instructions: str = None,
-    agents: list[Agent] = None,
+    agents: list["Agent"] = None,
     tools: list[AssistantTool | Callable] = None,
     user_access: bool = None,
 ):
