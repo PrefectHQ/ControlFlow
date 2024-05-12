@@ -1,4 +1,4 @@
-from control_flow import Agent, Task, ai_flow, ai_task, instructions
+from control_flow import Agent, Task, ai_task, flow, instructions
 from pydantic import BaseModel
 
 
@@ -18,7 +18,7 @@ def write_poem_about_user(name: Name, interests: list[str]) -> str:
     pass
 
 
-@ai_flow()
+@flow()
 def demo():
     # set instructions that will be used for multiple tasks
     with instructions("talk like a pirate"):

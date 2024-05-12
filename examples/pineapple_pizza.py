@@ -1,4 +1,4 @@
-from control_flow import Agent, Task, ai_flow
+from control_flow import Agent, Task, flow
 from control_flow.instructions import instructions
 
 a1 = Agent(
@@ -23,7 +23,7 @@ a2 = Agent(
 a3 = Agent(name="Moderator")
 
 
-@ai_flow
+@flow
 def demo():
     topic = "pineapple on pizza"
 

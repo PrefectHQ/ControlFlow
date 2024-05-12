@@ -16,7 +16,7 @@ This targeted approach results in AI systems that are easier to build, maintain,
 
 ## Key Concepts
 
-- **Flow**: A container for an AI-enhanced workflow, defined using the `@ai_flow` decorator. Flows maintain consistent context and history across tasks.
+- **Flow**: A container for an AI-enhanced workflow, defined using the `@flow` decorator. Flows maintain consistent context and history across tasks.
 
 - **Task**: A discrete objective for AI agents to solve, defined using the `@ai_task` decorator or declared inline. Tasks specify the expected inputs and outputs, acting as a bridge between AI agents and traditional code.
 
@@ -47,7 +47,7 @@ pip install .
 ## Example
 
 ```python
-from control_flow import Agent, Task, ai_flow, ai_task, instructions
+from control_flow import Agent, Task, flow, ai_task, instructions
 from pydantic import BaseModel
 
 
@@ -67,7 +67,7 @@ def write_poem_about_user(name: Name, interests: list[str]) -> str:
     pass
 
 
-@ai_flow()
+@flow()
 def demo():
     # set instructions that will be used for multiple tasks
     with instructions("talk like a pirate"):

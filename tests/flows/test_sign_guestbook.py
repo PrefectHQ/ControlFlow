@@ -1,4 +1,4 @@
-from control_flow import Agent, ai_flow, run_ai
+from control_flow import Agent, flow, run_ai
 
 # define assistants
 
@@ -25,7 +25,7 @@ def view_guestbook():
 # define flow
 
 
-@ai_flow
+@flow
 def guestbook_flow():
     run_ai(
         """
