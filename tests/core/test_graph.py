@@ -1,6 +1,6 @@
 # test_graph.py
-from control_flow.core.graph import Edge, EdgeType, Graph
-from control_flow.core.task import Task
+from controlflow.core.graph import Edge, EdgeType, Graph
+from controlflow.core.task import Task
 
 
 class TestGraph:

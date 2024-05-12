@@ -1,5 +1,5 @@
 [project]
-name = "control_flow"
+name = "controlflow"
 version = "0.1.0"
 description = "AI Workflows"
 authors = [
@@ -43,7 +43,7 @@ tests = [
     "pytest-xdist",
     "pre-commit>=3.7.0",
 ]
-dev = ["control_flow[tests]", "ipython>=8.22.2", "pdbpp>=0.10.3", "ruff>=0.3.4"]
+dev = ["controlflow[tests]", "ipython>=8.22.2", "pdbpp>=0.10.3", "ruff>=0.3.4"]
 
 [build-system]
 requires = ["hatchling"]
@@ -56,7 +56,7 @@ managed = true
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/control_flow"]
+packages = ["src/controlflow"]
 
 # ruff configuration
 [tool.ruff]
@@ -72,4 +72,4 @@ skip-magic-trailing-comma = false
 "__init__.py" = ['I', 'F401', 'E402']
 "conftest.py" = ["F401", "F403"]
 'tests/fixtures/*.py' = ['F401', 'F403']
-"src/control_flow/utilities/types.py" = ['F401']
+"src/controlflow/utilities/types.py" = ['F401']

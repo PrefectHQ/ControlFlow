@@ -1,5 +1,5 @@
 import pytest
-from control_flow.settings import temporary_settings
+from controlflow.settings import temporary_settings
 
 
 @pytest.fixture(autouse=True, scope="session")

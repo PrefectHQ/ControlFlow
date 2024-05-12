@@ -1,7 +1,7 @@
 from unittest.mock import Mock, patch
 
 import pytest
-from control_flow.utilities.user_access import talk_to_human
+from controlflow.utilities.user_access import talk_to_human
 
 
 # @pytest.fixture(autouse=True)
@@ -15,6 +15,6 @@ from control_flow.utilities.user_access import talk_to_human
 
 #     mock_talk_to_human.__doc__ = talk_to_human.__doc__
 #     with patch(
-#         "control_flow.utilities.user_access.mock_talk_to_human", new=talk_to_human
+#         "controlflow.utilities.user_access.mock_talk_to_human", new=talk_to_human
 #     ):
 #         yield

@@ -25,17 +25,17 @@ from pydantic import (
     model_validator,
 )
 
-from control_flow.core.flow import get_flow
-from control_flow.instructions import get_instructions
-from control_flow.utilities.context import ctx
-from control_flow.utilities.logging import get_logger
-from control_flow.utilities.prefect import wrap_prefect_tool
-from control_flow.utilities.types import AssistantTool, ControlFlowModel
-from control_flow.utilities.user_access import talk_to_human
+from controlflow.core.flow import get_flow
+from controlflow.instructions import get_instructions
+from controlflow.utilities.context import ctx
+from controlflow.utilities.logging import get_logger
+from controlflow.utilities.prefect import wrap_prefect_tool
+from controlflow.utilities.types import AssistantTool, ControlFlowModel
+from controlflow.utilities.user_access import talk_to_human
 
 if TYPE_CHECKING:
-    from control_flow.core.agent import Agent
-    from control_flow.core.graph import Graph
+    from controlflow.core.agent import Agent
+    from controlflow.core.graph import Graph
 T = TypeVar("T")
 logger = get_logger(__name__)
 
@@ -190,7 +190,7 @@ class Task(ControlFlowModel):
         ]
 
     def as_graph(self) -> "Graph":
-        from control_flow.core.graph import Graph
+        from controlflow.core.graph import Graph
 
         return Graph.from_tasks(tasks=[self])
 
@@ -218,7 +218,7 @@ class Task(ControlFlowModel):
         """
         Runs the task with provided agent. If no agent is provided, one will be selected from the task's agents.
         """
-        from control_flow.core.controller import Controller
+        from controlflow.core.controller import Controller
 
         controller = Controller(
             tasks=[self], agents=agent, run_dependencies=run_dependencies
