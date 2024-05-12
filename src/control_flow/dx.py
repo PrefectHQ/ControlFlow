@@ -2,66 +2,17 @@ import functools
 import inspect
 from typing import Callable, TypeVar
 
-from prefect import flow as prefect_flow
 from prefect import task as prefect_task
 
 from control_flow.core.agent import Agent
-from control_flow.core.flow import Flow
 from control_flow.core.task import Task, TaskStatus
 from control_flow.utilities.context import ctx
 from control_flow.utilities.logging import get_logger
-from control_flow.utilities.marvin import patch_marvin
-from control_flow.utilities.types import AssistantTool, Thread
+from control_flow.utilities.types import AssistantTool
 
 logger = get_logger(__name__)
 T = TypeVar("T")
 NOT_PROVIDED = object()
-
-
-def ai_flow(
-    fn=None,
-    *,
-    thread: Thread = None,
-    tools: list[AssistantTool | Callable] = None,
-    model: str = None,
-):
-    """
-    Prepare a function to be executed as a Control Flow flow.
-    """
-
-    if fn is None:
-        return functools.partial(
-            ai_flow,
-            thread=thread,
-            tools=tools,
-            model=model,
-        )
-
-    @functools.wraps(fn)
-    def wrapper(
-        *args,
-        flow_kwargs: dict = None,
-        **kwargs,
-    ):
-        p_fn = prefect_flow(fn)
-
-        flow_obj = Flow(
-            **{
-                "thread": thread,
-                "tools": tools or [],
-                "model": model,
-                **(flow_kwargs or {}),
-            }
-        )
-
-        logger.info(
-            f'Executing AI flow "{fn.__name__}" on thread "{flow_obj.thread.id}"'
-        )
-
-        with ctx(flow=flow_obj), patch_marvin():
-            return p_fn(*args, **kwargs)
-
-    return wrapper
 
 
 def ai_task(
