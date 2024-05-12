@@ -6,6 +6,7 @@ from openai.types.beta.threads import Message
 from prefect import task as prefect_task
 from pydantic import Field, field_validator
 
+import control_flow
 from control_flow.utilities.context import ctx
 from control_flow.utilities.logging import get_logger
 from control_flow.utilities.types import AssistantTool, ControlFlowModel
@@ -36,7 +37,6 @@ class Flow(ControlFlowModel):
         description="The default agents for the flow. These agents will be used "
         "for any task that does not specify agents.",
     )
-    model: str | None = None
     context: dict = {}
 
     @field_validator("thread", mode="before")
@@ -73,11 +73,15 @@ def get_flow() -> Flow:
     """
     Loads the flow from the context.
 
-    Will error if no flow is found in the context.
+    Will error if no flow is found in the context, unless the global flow is
+    enabled in settings
     """
     flow: Flow | None = ctx.get("flow")
     if not flow:
-        return GLOBAL_FLOW
+        if control_flow.settings.enable_global_flow:
+            return GLOBAL_FLOW
+        else:
+            raise ValueError("No flow found in context.")
     return flow
 
 
