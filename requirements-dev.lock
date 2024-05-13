@@ -19,6 +19,7 @@ anyio==3.7.1
     # via openai
     # via prefect
     # via starlette
+    # via watchfiles
 apprise==1.7.5
     # via prefect
 asgi-lifespan==2.1.0
@@ -28,13 +29,30 @@ asttokens==2.4.1
 asyncpg==0.29.0
     # via prefect
 attrs==23.2.0
+    # via cattrs
+    # via ddtrace
     # via jsonschema
     # via referencing
-    # via wmctrl
+babel==2.15.0
+    # via mkdocs-material
+boto3==1.34.103
+    # via moto
+botocore==1.34.103
+    # via boto3
+    # via moto
+    # via s3transfer
+bytecode==0.15.1
+    # via ddtrace
 cachetools==5.3.3
     # via google-auth
     # via marvin
     # via prefect
+cairocffi==1.7.0
+    # via cairosvg
+cairosvg==2.7.1
+    # via prefect
+cattrs==23.2.3
+    # via ddtrace
 certifi==2024.2.2
     # via apprise
     # via httpcore
@@ -42,6 +60,7 @@ certifi==2024.2.2
     # via kubernetes
     # via requests
 cffi==1.16.0
+    # via cairocffi
     # via cryptography
 cfgv==3.4.0
     # via pre-commit
@@ -49,23 +68,41 @@ charset-normalizer==3.3.2
     # via requests
 click==8.1.7
     # via apprise
+    # via mkdocs
+    # via mkdocstrings
     # via prefect
     # via typer-slim
     # via uvicorn
 cloudpickle==3.0.0
     # via prefect
+codespell==2.2.6
+    # via prefect
 colorama==0.4.6
     # via griffe
+    # via mkdocs-material
 coolname==2.2.0
     # via prefect
+coverage==7.5.1
+    # via pytest-cov
 croniter==2.0.3
     # via prefect
 cryptography==42.0.5
+    # via moto
     # via prefect
+cssselect2==0.7.0
+    # via cairosvg
 dateparser==1.2.0
+    # via prefect
+ddsketch==3.0.1
+    # via ddtrace
+ddtrace==2.8.4
     # via prefect
 decorator==5.1.1
     # via ipython
+defusedxml==0.7.1
+    # via cairosvg
+deprecated==1.2.14
+    # via opentelemetry-api
 distlib==0.3.8
     # via virtualenv
 distro==1.9.0
@@ -76,16 +113,20 @@ docker==6.1.3
     # via prefect
 email-validator==2.1.1
     # via pydantic
+envier==0.5.1
+    # via ddtrace
+execnet==2.1.1
+    # via pytest-xdist
 executing==2.0.1
     # via stack-data
-fancycompleter==0.9.1
-    # via pdbpp
 fastapi==0.110.0
     # via marvin
 filelock==3.13.3
     # via virtualenv
 fsspec==2024.3.1
     # via prefect
+ghp-import==2.1.0
+    # via mkdocs
 google-auth==2.29.0
     # via kubernetes
 graphviz==0.20.3
@@ -93,6 +134,7 @@ graphviz==0.20.3
 greenlet==3.0.3
     # via sqlalchemy
 griffe==0.42.1
+    # via mkdocstrings-python
     # via prefect
 h11==0.14.0
     # via httpcore
@@ -108,6 +150,10 @@ httpx==0.27.0
     # via marvin
     # via openai
     # via prefect
+    # via respx
+humanize==4.9.0
+    # via jinja2-humanize-extension
+    # via prefect
 hyperframe==6.0.1
     # via h2
 identify==2.5.35
@@ -117,18 +163,34 @@ idna==3.6
     # via email-validator
     # via httpx
     # via requests
+importlib-metadata==7.0.0
+    # via mike
+    # via opentelemetry-api
 importlib-resources==6.1.3
+    # via mike
     # via prefect
 iniconfig==2.0.0
     # via pytest
 ipython==8.22.2
+    # via prefect
 itsdangerous==2.1.2
     # via prefect
 jedi==0.19.1
     # via ipython
 jinja2==3.1.3
+    # via jinja2-humanize-extension
     # via marvin
+    # via mike
+    # via mkdocs
+    # via mkdocs-material
+    # via mkdocstrings
+    # via moto
     # via prefect
+jinja2-humanize-extension==0.4.0
+    # via prefect
+jmespath==1.0.1
+    # via boto3
+    # via botocore
 jsonpatch==1.33
     # via marvin
     # via prefect
@@ -144,55 +206,114 @@ mako==1.3.2
     # via alembic
 markdown==3.6
     # via apprise
+    # via mkdocs
+    # via mkdocs-autorefs
+    # via mkdocs-material
+    # via mkdocstrings
+    # via pymdown-extensions
 markdown-it-py==3.0.0
     # via rich
 markupsafe==2.1.5
     # via jinja2
     # via mako
-marvin==2.3.1
+    # via mkdocs
+    # via mkdocs-autorefs
+    # via mkdocstrings
+    # via werkzeug
+marvin @ git+https://github.com/prefecthq/marvin@8c0c083aab5c9c2ca6f800fd392bef2a5d3dd9ca
     # via control-flow
 matplotlib-inline==0.1.6
     # via ipython
 mdurl==0.1.2
     # via markdown-it-py
+mergedeep==1.3.4
+    # via mkdocs
+    # via mkdocs-get-deps
+mike==2.1.1
+    # via prefect
+mkdocs==1.6.0
+    # via mike
+    # via mkdocs-autorefs
+    # via mkdocs-gen-files
+    # via mkdocs-material
+    # via mkdocstrings
+    # via prefect
+mkdocs-autorefs==1.0.1
+    # via mkdocstrings
+mkdocs-gen-files==0.5.0
+    # via prefect
+mkdocs-get-deps==0.2.0
+    # via mkdocs
+mkdocs-material==9.5.21
+    # via prefect
+mkdocs-material-extensions==1.3.1
+    # via mkdocs-material
+mkdocstrings==0.25.1
+    # via mkdocstrings-python
+mkdocstrings-python==1.9.2
+    # via prefect
+moto==5.0.6
+    # via prefect
+mypy==1.10.0
+    # via prefect
+mypy-extensions==1.0.0
+    # via mypy
 nodeenv==1.8.0
     # via pre-commit
+numpy==1.26.4
+    # via prefect
 oauthlib==3.2.2
     # via kubernetes
     # via requests-oauthlib
-openai==1.14.3
+openai==1.28.1
     # via marvin
+opentelemetry-api==1.24.0
+    # via ddtrace
 orjson==3.10.0
     # via prefect
 packaging==24.0
     # via docker
+    # via mkdocs
     # via prefect
     # via pytest
+paginate==0.5.6
+    # via mkdocs-material
 parso==0.8.3
     # via jedi
 partialjson==0.0.7
     # via marvin
 pathspec==0.12.1
+    # via mkdocs
     # via prefect
-pdbpp==0.10.3
 pendulum==3.0.0
     # via prefect
 pexpect==4.9.0
     # via ipython
+pillow==10.3.0
+    # via cairosvg
+    # via prefect
 platformdirs==4.2.0
+    # via mkdocs-get-deps
+    # via mkdocstrings
     # via virtualenv
 pluggy==1.4.0
+    # via prefect
     # via pytest
 pre-commit==3.7.0
-prefect @ git+https://github.com/prefecthq/prefect@a7f93ae5e84a11d79c43bf5b9dfeff926c3a0eca
+    # via prefect
+prefect @ git+https://github.com/prefecthq/prefect@3f5d6afbc4e1b5cea416c64d28e4b6feb7c2d656
     # via control-flow
 prompt-toolkit==3.0.43
     # via ipython
     # via marvin
+protobuf==5.26.1
+    # via ddtrace
 ptyprocess==0.7.0
     # via pexpect
 pure-eval==0.2.2
     # via stack-data
+py-cpuinfo==9.0.0
+    # via pytest-benchmark
 pyasn1==0.6.0
     # via pyasn1-modules
     # via rsa
@@ -214,15 +335,43 @@ pydantic-settings==2.2.1
     # via marvin
 pygments==2.17.2
     # via ipython
-    # via pdbpp
+    # via mkdocs-material
     # via rich
-pyrepl==0.9.0
-    # via fancycompleter
-pytest==8.1.1
+pymdown-extensions==10.8.1
+    # via mkdocs-material
+    # via mkdocstrings
+pyparsing==3.1.2
+    # via mike
+pytest==7.4.4
+    # via prefect
+    # via pytest-asyncio
+    # via pytest-benchmark
+    # via pytest-cov
+    # via pytest-env
+    # via pytest-flakefinder
+    # via pytest-timeout
+    # via pytest-xdist
+pytest-asyncio==0.21.2
+    # via prefect
+pytest-benchmark==4.0.0
+    # via prefect
+pytest-cov==5.0.0
+    # via prefect
+pytest-env==1.1.3
+    # via prefect
+pytest-flakefinder==1.1.0
+    # via prefect
+pytest-timeout==2.3.1
+    # via prefect
+pytest-xdist==3.3.1
+    # via prefect
 python-dateutil==2.9.0.post0
+    # via botocore
     # via croniter
     # via dateparser
+    # via ghp-import
     # via kubernetes
+    # via moto
     # via pendulum
     # via prefect
     # via time-machine
@@ -232,6 +381,8 @@ python-multipart==0.0.9
     # via prefect
 python-slugify==8.0.4
     # via prefect
+pytkdocs==0.16.1
+    # via prefect
 pytz==2024.1
     # via croniter
     # via dateparser
@@ -239,8 +390,17 @@ pytz==2024.1
 pyyaml==6.0.1
     # via apprise
     # via kubernetes
+    # via mike
+    # via mkdocs
+    # via mkdocs-get-deps
     # via pre-commit
     # via prefect
+    # via pymdown-extensions
+    # via pyyaml-env-tag
+    # via responses
+pyyaml-env-tag==0.1
+    # via mike
+    # via mkdocs
 readchar==4.0.6
     # via prefect
 referencing==0.34.0
@@ -248,16 +408,25 @@ referencing==0.34.0
     # via jsonschema-specifications
 regex==2023.12.25
     # via dateparser
+    # via mkdocs-material
     # via tiktoken
 requests==2.31.0
     # via apprise
     # via docker
     # via kubernetes
+    # via mkdocs-material
+    # via moto
+    # via prefect
     # via requests-oauthlib
+    # via responses
     # via tiktoken
 requests-oauthlib==2.0.0
     # via apprise
     # via kubernetes
+responses==0.25.0
+    # via moto
+respx==0.21.1
+    # via prefect
 rfc3339-validator==0.1.4
     # via prefect
 rich==13.7.1
@@ -274,13 +443,19 @@ ruamel-yaml==0.18.6
 ruamel-yaml-clib==0.2.8
     # via ruamel-yaml
 ruff==0.3.4
+    # via prefect
+s3transfer==0.10.1
+    # via boto3
 setuptools==69.2.0
+    # via ddtrace
     # via nodeenv
     # via readchar
 shellingham==1.5.4
     # via typer-slim
 six==1.16.0
     # via asttokens
+    # via ddsketch
+    # via ddtrace
     # via kubernetes
     # via python-dateutil
     # via rfc3339-validator
@@ -293,6 +468,8 @@ sniffio==1.3.1
 sqlalchemy==2.0.29
     # via alembic
     # via prefect
+sqlparse==0.5.0
+    # via ddtrace
 stack-data==0.6.3
     # via ipython
 starlette==0.36.3
@@ -303,6 +480,9 @@ tiktoken==0.6.0
     # via marvin
 time-machine==2.14.1
     # via pendulum
+tinycss2==1.3.0
+    # via cairosvg
+    # via cssselect2
 toml==0.10.2
     # via prefect
 tqdm==4.66.2
@@ -318,11 +498,17 @@ typer-cli==0.12.0
 typer-slim==0.12.0
     # via typer
     # via typer-cli
+types-cachetools==5.3.0.7
+    # via prefect
+types-pyyaml==6.0.12.20240311
+    # via prefect
 typing-extensions==4.10.0
     # via aiosqlite
     # via alembic
+    # via ddtrace
     # via fastapi
     # via marvin
+    # via mypy
     # via openai
     # via prefect
     # via pydantic
@@ -337,20 +523,41 @@ tzlocal==5.2
 ujson==5.9.0
     # via prefect
 urllib3==2.2.1
+    # via botocore
     # via docker
     # via kubernetes
     # via requests
+    # via responses
 uvicorn==0.28.1
     # via marvin
     # via prefect
+vermin==1.6.0
+    # via prefect
+verspec==0.1.0
+    # via mike
 virtualenv==20.25.1
     # via pre-commit
+    # via prefect
+watchdog==4.0.0
+    # via mkdocs
+watchfiles==0.21.0
+    # via prefect
 wcwidth==0.2.13
     # via prompt-toolkit
+webencodings==0.5.1
+    # via cssselect2
+    # via tinycss2
 websocket-client==1.7.0
     # via docker
     # via kubernetes
 websockets==12.0
     # via prefect
-wmctrl==0.5
-    # via pdbpp
+werkzeug==3.0.3
+    # via moto
+wrapt==1.16.0
+    # via deprecated
+xmltodict==0.13.0
+    # via ddtrace
+    # via moto
+zipp==3.18.1
+    # via importlib-metadata

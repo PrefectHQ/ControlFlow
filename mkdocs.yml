@@ -1,0 +1,44 @@
+site_name: ControlFlow
+site_url: https://controlflow.ai
+theme:
+  name: material
+  font:
+    text: Inter
+  palette:
+    scheme: default
+    primary: white
+    accent: light blue
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tabs
+    - navigation.tracking
+    # - navigation.sections
+    - search.suggest
+    - search.highlight
+    # - toc.integrate
+    - toc.follow
+plugins:
+  - search
+  - social
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
