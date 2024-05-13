@@ -6,9 +6,7 @@ ControlFlow provides a structured and intuitive way to create complex AI-powered
 
 
 !!! question "What's an agentic workflow?"
-    An agentic workflow is a process that treats LLMs as autonomous entities capable of making decisions and performing complex tasks through iterative interactions. 
-
-
+    An agentic workflow treats LLMs as autonomous entities capable of making decisions and performing complex tasks through iterative interactions. At least some of the workflow logic is carried out by the LLMs themselves.
 
 
 ## Design principles
