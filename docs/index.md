@@ -2,7 +2,9 @@
 
 **ControlFlow is a framework for building agentic LLM workflows.**
 
-ControlFlow provides a structured and intuitive way to create complex AI-powered applications while adhering to traditional software engineering best practices. The resulting workflows are observable, controllable, and easy to trust.
+LLMs are powerful AI models that can understand and generate human-like text, enabling them to perform a wide range of tasks. However, building applications with LLMs can be challenging due to their complexity, unpredictability, and potential for hallucinating or generating irrelevant outputs.
+
+ControlFlow provides a structured and intuitive way to create sophisticated agentic workflows while adhereing to traditional software engineering best practices. The resulting applications are observable, controllable, and easy to trust.
 
 
 !!! question "What's an agentic workflow?"
@@ -10,18 +12,18 @@ ControlFlow provides a structured and intuitive way to create complex AI-powered
 
 
 ## Design principles
-ControlFlow's design is informed by a strong opinon: LLMs are powerful tools, but they are most effective when applied to small, well-defined tasks within a structured workflow.
+ControlFlow's design is informed by a strong opinion: LLMs are powerful tools, but they are most effective when applied to small, well-defined tasks within a structured workflow. This approach mitigates many of the challenges associated with LLMs, such as hallucinations, biases, and unpredictable behavior, while also making it easier to debug, monitor, and control the application.
 
 This belief leads to three core design principles that underpin ControlFlow's architecture:
 
 ### 🛠️ Specialized over generalized
-ControlFlow believes that **single-purpose agents dedicated to a specific tasks** will be more effective than monolithic models that attempt to do everything. By assigning specific tasks to purpose-built models, developers can always ensure that the right tool is used for each job, leading to more efficient, cost-effective, and higher-quality results.
+ControlFlow advocates for the use of **specialized, single-purpose LLMs** rather than monolithic models that try to do everything. By assigning specific tasks to purpose-built models, ControlFlow ensures that the right tool is used for each job, leading to more efficient, cost-effective, and higher-quality results.
 
 ### 🎯 Outcome over process
-ControlFlow defines AI workflows in terms of desired outcomes rather than writing prompts to steer LLM behavior. This **declarative, task-centric approach** lets developers focus on what needs to be done while letting the framework orchestrate agents to achieve those outcomes.
+ControlFlow embraces a **declarative approach to defining AI workflows**, allowing developers to focus on the desired outcomes rather than the intricacies of steering LLM behavior. By specifying tasks and their requirements using intuitive constructs, developers can express what needs to be done without worrying about the details of how it will be accomplished.
 
 ### 🎛️ Control over autonomy
-ControlFlow views agentic workflows as an extension of traditional software development practices. Instead of relying on end-to-end AI systems that make all workflow decisions autonomously, ControlFlow is **explicit by default**, allowing developers to delegate only as much work to AI as they require. This ensures that developers maintain visibility and control over their applications, as well as their preferred methods of testing and debugging.
+ControlFlow recognizes the importance of balancing AI capabilities with traditional software development practices. Instead of relying on end-to-end AI systems that make all workflow decisions autonomously, ControlFlow allows as much or as little AI participation as needed, ensuring that developers **maintain visibility and control** over their applications.
 
 
 
@@ -40,6 +42,8 @@ ControlFlow prioritizes transparency and ease of debugging by providing native t
 ### 🤝 Seamless integration
 ControlFlow is designed to integrate seamlessly with existing Python codebases, treating AI tasks as first-class citizens in the application logic. The `Task` class provides a clean interface for defining the inputs, outputs, and requirements of each task, making it easy to incorporate AI capabilities into traditional software workflows. This seamless integration allows for a gradual and controlled adoption of AI, reducing the risk and complexity of introducing AI into existing systems.
 
+Together, these features make ControlFlow a powerful and flexible framework for building AI-powered applications that are transparent, maintainable, and aligned with software engineering best practices.
+
 
 ## Key concepts
 
@@ -52,12 +56,24 @@ Tasks represent discrete objectives for agents to solve. By specifing the expect
 ### 🤖 Agent
 AI agents are assigned to tasks and responsible for completing them. Each agent is designed to be "single-serving," optimized only for completing its task in cooperation with other agents and the broader workflow.
 
-
 ## Why not "super-agents"?
 
 Many agentic LLM frameworks rely on monolithic "super-agents": powerful, unconstrained models that are expected to achieve their goals by autonomously handling a wide range of tasks, tools, and behaviors. The resulting workflows are opaque, unpredictable, and difficult to debug.
 
 This approach naively assumes that the technology is more advanced than it actually is. LLMs feel like magic because they can perform a wide variety of non-algorithmic tasks, but they are still fundamentally limited when it comes to generalizing beyond their traning data and techniques. Moreover, the failure modes of agentic LLMs are difficult to identify, let alone fix, making them difficult to trust in production environments or with mission-critical tasks.
+
+In contrast to these "super-agent" approaches, ControlFlow promotes a modular, decoupled architecture where specialized agents are orchestrated to perform well-defined tasks, after which traditional software regains control of the application. This approach results in workflows that are more transparent, controllable, and debuggable, setting ControlFlow apart from other frameworks.
+
+
+## Use cases
+ControlFlow can be applied to a wide range of use cases, including:
+
+- Building chatbots and conversational AI systems
+- Automating content generation and summarization
+- Developing AI-powered research and analysis tools
+- Creating intelligent data processing pipelines
+- Enhancing existing applications with AI capabilities
+- 
 ## Getting started
 
 To get started with ControlFlow, install it using pip:
