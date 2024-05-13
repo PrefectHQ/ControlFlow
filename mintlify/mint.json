@@ -26,49 +26,32 @@
         "light": "#07C983",
         "primary": "#0D9373"
     },
-    "favicon": "/favicon.svg",
+    "favicon": "/favicon.jpeg",
     "footerSocials": {
         "github": "https://github.com/mintlify",
         "linkedin": "https://www.linkedin.com/company/mintsearch",
         "x": "https://x.com/mintlify"
     },
     "logo": {
-        "dark": "/logo/dark.svg",
-        "light": "/logo/light.svg"
+        "dark": "/logo/logo.svg",
+        "light": "/logo/logo.svg"
     },
-    "name": "Starter Kit",
+    "name": "ControlFlow",
     "navigation": [
         {
             "group": "Get Started",
             "pages": [
                 "introduction",
-                "quickstart",
-                "development"
+                "concepts",
+                "installation",
+                "quickstart"
             ]
         },
         {
-            "group": "Essentials",
+            "group": "Concepts",
             "pages": [
-                "essentials/markdown",
-                "essentials/code",
-                "essentials/images",
-                "essentials/settings",
-                "essentials/navigation",
-                "essentials/reusable-snippets"
-            ]
-        },
-        {
-            "group": "API Documentation",
-            "pages": [
-                "api-reference/introduction"
-            ]
-        },
-        {
-            "group": "Endpoint Examples",
-            "pages": [
-                "api-reference/endpoint/get",
-                "api-reference/endpoint/create",
-                "api-reference/endpoint/delete"
+                "concepts/tasks",
+                "concepts/flows"
             ]
         }
     ],
