@@ -43,7 +43,13 @@ tests = [
     "pytest-xdist",
     "pre-commit>=3.7.0",
 ]
-dev = ["controlflow[tests]", "ipython>=8.22.2", "pdbpp>=0.10.3", "ruff>=0.3.4"]
+dev = [
+    "controlflow[tests]",
+    "ipython>=8.22.2",
+    "pdbpp>=0.10.3",
+    "ruff>=0.3.4",
+    "mkdocs-material>=9.5.21",
+]
 
 [build-system]
 requires = ["hatchling"]
