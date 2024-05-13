@@ -1,5 +1,6 @@
 from controlflow import Agent, Task, flow
-from controlflow.core.controller.moderators import Moderator
+
+# from controlflow.core.controller.moderators import Moderator
 
 jerry = Agent(
     name="Jerry",
@@ -70,7 +71,7 @@ def demo():
         agents=[jerry, george, elaine, kramer, newman],
         context=dict(topic=topic),
     )
-    task.run(moderator=Moderator())
+    task.run()
 
 
 demo()

@@ -1,0 +1,74 @@
+{
+    "$schema": "https://mintlify.com/schema.json",
+    "anchors": [
+        {
+            "icon": "book-open-cover",
+            "name": "Documentation",
+            "url": "https://mintlify.com/docs"
+        },
+        {
+            "icon": "slack",
+            "name": "Community",
+            "url": "https://mintlify.com/community"
+        },
+        {
+            "icon": "newspaper",
+            "name": "Blog",
+            "url": "https://mintlify.com/blog"
+        }
+    ],
+    "colors": {
+        "anchors": {
+            "from": "#0D9373",
+            "to": "#07C983"
+        },
+        "dark": "#0D9373",
+        "light": "#07C983",
+        "primary": "#0D9373"
+    },
+    "favicon": "/favicon.jpeg",
+    "footerSocials": {
+        "github": "https://github.com/mintlify",
+        "linkedin": "https://www.linkedin.com/company/mintsearch",
+        "x": "https://x.com/mintlify"
+    },
+    "logo": {
+        "dark": "/logo/logo.svg",
+        "light": "/logo/logo.svg"
+    },
+    "name": "ControlFlow",
+    "navigation": [
+        {
+            "group": "Get Started",
+            "pages": [
+                "introduction",
+                "concepts",
+                "installation",
+                "quickstart"
+            ]
+        },
+        {
+            "group": "Concepts",
+            "pages": [
+                "concepts/tasks",
+                "concepts/flows"
+            ]
+        }
+    ],
+    "tabs": [
+        {
+            "name": "API Reference",
+            "url": "api-reference"
+        }
+    ],
+    "topbarCtaButton": {
+        "name": "Dashboard",
+        "url": "https://dashboard.mintlify.com"
+    },
+    "topbarLinks": [
+        {
+            "name": "Support",
+            "url": "mailto:hi@mintlify.com"
+        }
+    ]
+}

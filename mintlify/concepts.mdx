@@ -1,0 +1,21 @@
+---
+title: Core Concepts
+---
+
+**ControlFlow is built on three core concepts** that are essential to understanding how the framework works. These concepts are designed to make it easy to build and manage complex AI workflows, while also providing a clear structure for developers to follow.
+
+## 🚦 Task
+**Tasks are the building blocks of ControlFlow workflows**. Each task represents a discrete objective for agents to solve, such as generating text, classifying data, or extracting information from a document. In addition, tasks can specify instructions, tools for agents to use, a schema for the expected output, and more. 
+
+Tasks can depend on each other in various ways, creating complex workflows that are easy to understand and manage:
+- **sequential** dependencies: one task must be completed before another can start
+- **context** dependencies: the result of one task is used as input for another
+- **subtask** dependencies: a task has subtasks that must be completed before the task can be considered done
+
+By specifying the parameters of each task and how they relate to each other, developers can create complex workflows that are easy to understand and manage.
+
+## 🌊 Flow
+**A flow represents an entire agentic workflow.** It is a "container" for the workflow that maintains consistent context and state across all tasks and agents. Each flow executes on a different thread, meaning all agents in the flow see the same state and can communicate with each other. 
+
+## 🤖 Agent
+**Agents are the AI "workers" that complete tasks.** Each agent can have distinct instructions, personality, and capabilities, and they are responsible for completing any tasks assigned to them. Agents can be specialized for specific tasks or more general-purpose, depending on the requirements of the workflow.
