@@ -1,0 +1,9 @@
+
+Tasks are the building blocks of ControlFlow workflows. Each task represents a discrete objective for agents to solve, such as generating text, classifying data, or extracting information from a document. In addition, tasks can specify instructions, tools for agents to use, a schema for the expected output, and more. 
+
+Tasks can depend on each other in various ways, creating complex workflows that are easy to understand and manage:
+- **sequential** dependencies: one task must be completed before another can start
+- **context** dependencies: the result of one task is used as input for another
+- **subtask** dependencies: a task has subtasks that must be completed before the task can be considered done
+
+By specifying the parameters of each task and how they relate to each other, developers can create complex workflows that are easy to understand and manage.

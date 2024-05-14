@@ -73,8 +73,10 @@ class TasksTemplate(Template):
         instruction will not update until your next turn; refer to the results
         of task-related tools to see the latest task status at any time.
         
-        {% for task in tasks %} #### Task {{ task.id }} {{
-        task.model_dump_json() }}
+        {% for task in tasks %} 
+        #### Task {{ task.id }} 
+        
+        {{task.model_dump_json() }}
         
         {% endfor %}
 
@@ -98,7 +100,7 @@ class TasksTemplate(Template):
         
         You can only mark a task successful when all of its dependencies and
         subtasks have been completed. Subtasks may be marked as skipped without
-        providing a result.
+        providing a result. All else equal, prioritize older tasks over newer ones.
 
         ### Providing a result
         
