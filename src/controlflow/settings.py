@@ -3,7 +3,7 @@ import sys
 import warnings
 from contextlib import contextmanager
 from copy import deepcopy
-from typing import Any
+from typing import Any, Union
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -47,7 +47,7 @@ class PrefectSettings(ControlFlowSettings):
 
 class Settings(ControlFlowSettings):
     assistant_model: str = "gpt-4o"
-    max_task_iterations: int | None = Field(
+    max_task_iterations: Union[int, None] = Field(
         None,
         description="The maximum number of iterations to attempt to complete a task "
         "before raising an error. If None, the task will run indefinitely. "
