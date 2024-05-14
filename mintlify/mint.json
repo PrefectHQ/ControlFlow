@@ -10,11 +10,6 @@
             "icon": "slack",
             "name": "Community",
             "url": "https://mintlify.com/community"
-        },
-        {
-            "icon": "newspaper",
-            "name": "Blog",
-            "url": "https://mintlify.com/blog"
         }
     ],
     "colors": {
@@ -53,17 +48,50 @@
                 "concepts/tasks",
                 "concepts/flows"
             ]
+        },
+        {
+            "group": "Overview",
+            "pages": [
+                "glossary/glossary"
+            ]
+        },
+        {
+            "group": "LLMs",
+            "pages": [
+                "glossary/prompt-engineering",
+                "glossary/flow-engineering",
+                "glossary/agentic-workflow"
+            ]
+        },
+        {
+            "group": "ControlFlow",
+            "pages": [
+                "glossary/task",
+                "glossary/flow"
+            ]
+        },
+        {
+            "group": "Orchestration",
+            "pages": [
+                "glossary/task-orchestration",
+                "glossary/flow-orchestration",
+                "glossary/workflow"
+            ]
         }
     ],
     "tabs": [
         {
             "name": "API Reference",
             "url": "api-reference"
+        },
+        {
+            "name": "Glossary",
+            "url": "glossary"
         }
     ],
     "topbarCtaButton": {
-        "name": "Dashboard",
-        "url": "https://dashboard.mintlify.com"
+        "type": "github",
+        "url": "https://github.com/jlowin/controlflow"
     },
     "topbarLinks": [
         {
