@@ -43,6 +43,10 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
     """
 
+    # the flow is tracked by the Controller, not the Task, so that tasks can be
+    # defined and even instantiated outside a flow. When a Controller is
+    # created, we know we're inside a flow context and ready to load defaults
+    # and run.
     flow: Flow = Field(
         default_factory=get_flow,
         description="The flow that the controller is a part of.",
@@ -64,6 +68,12 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         if not data.get("graph"):
             data["graph"] = Graph.from_tasks(data.get("tasks", []))
         return data
+
+    @model_validator(mode="after")
+    def _finalize(self):
+        for task in self.tasks:
+            self.flow.add_task(task)
+        return self
 
     @field_validator("tasks", mode="before")
     def _validate_tasks(cls, v):
@@ -92,12 +102,21 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         """
 
         @prefect_task(task_run_name=f'Run Agent: "{agent.name}"')
-        async def _run_agent(agent: Agent, tasks: list[Task], thread: Thread = None):
+        async def _run_agent(
+            controller: Controller,
+            agent: Agent,
+            tasks: list[Task],
+            thread: Thread = None,
+        ):
             from controlflow.core.controller.instruction_template import MainTemplate
 
-            tasks = tasks or self.tasks
+            tasks = tasks or controller.tasks
 
-            tools = self.flow.tools + agent.get_tools() + [self._create_end_run_tool()]
+            tools = (
+                controller.flow.tools
+                + agent.get_tools()
+                + [controller._create_end_run_tool()]
+            )
 
             # add tools for any inactive tasks that the agent is assigned to
             for task in tasks:
@@ -106,12 +125,11 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
             instructions_template = MainTemplate(
                 agent=agent,
-                controller=self,
+                controller=controller,
                 tasks=tasks,
-                context=self.context,
+                context=controller.context,
                 instructions=get_instructions(),
             )
-
             instructions = instructions_template.render()
 
             # filter tools because duplicate names are not allowed
@@ -126,7 +144,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
             run = Run(
                 assistant=agent,
-                thread=thread or self.flow.thread,
+                thread=thread or controller.flow.thread,
                 instructions=instructions,
                 tools=final_tools,
                 event_handler_class=AgentHandler,
@@ -146,7 +164,9 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             )
             return run
 
-        return await _run_agent(agent=agent, tasks=tasks, thread=thread)
+        return await _run_agent(
+            controller=self, agent=agent, tasks=tasks, thread=thread
+        )
 
     @expose_sync_method("run_once")
     async def run_once_async(self):

@@ -46,7 +46,7 @@ class PrefectSettings(ControlFlowSettings):
 
 
 class Settings(ControlFlowSettings):
-    assistant_model: str = "gpt-4-1106-preview"
+    assistant_model: str = "gpt-4o"
     max_agent_iterations: int = 10
     prefect: PrefectSettings = Field(default_factory=PrefectSettings)
     enable_global_flow: bool = Field(
