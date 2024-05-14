@@ -40,8 +40,6 @@ class Flow(ControlFlowModel):
             v = ctx.get("thread", None)
             if v is None:
                 v = Thread()
-        if not v.id:
-            v.create()
 
         return v
 
