@@ -1,6 +1,6 @@
 # test_graph.py
 from controlflow.core.graph import Edge, EdgeType, Graph
-from controlflow.core.task import Task
+from controlflow.core.task import Task, TaskStatus
 
 
 class TestGraph:
@@ -74,11 +74,34 @@ class TestGraph:
         task2 = Task(objective="Task 2", depends_on=[task1])
         task3 = Task(objective="Task 3", parent=task2)
         graph = Graph.from_tasks([task1, task2, task3])
-        dependencies = graph.upstream_dependencies([task3])
+        dependencies = graph.upstream_dependencies([task2])
+        assert len(dependencies) == 2
+        assert task1 in dependencies
+        assert task3 in dependencies
+
+    def test_upstream_dependencies_include_tasks(self):
+        task1 = Task(objective="Task 1")
+        task2 = Task(objective="Task 2", depends_on=[task1])
+        task3 = Task(objective="Task 3", parent=task2)
+        graph = Graph.from_tasks([task1, task2, task3])
+        dependencies = graph.upstream_dependencies([task2], include_tasks=True)
         assert len(dependencies) == 3
         assert task1 in dependencies
         assert task2 in dependencies
         assert task3 in dependencies
+
+    def test_upstream_dependencies_prune(self):
+        task1 = Task(objective="Task 1", status=TaskStatus.SUCCESSFUL)
+        task2 = Task(objective="Task 2", depends_on=[task1], status=TaskStatus.FAILED)
+        task3 = Task(objective="Task 3", depends_on=[task2])
+        graph = Graph.from_tasks([task1, task2, task3])
+        dependencies = graph.upstream_dependencies([task3])
+        assert len(dependencies) == 1
+        assert task2 in dependencies
+        dependencies = graph.upstream_dependencies([task3], prune_completed=False)
+        assert len(dependencies) == 2
+        assert task1 in dependencies
+        assert task2 in dependencies
 
     def test_ready_tasks(self):
         task1 = Task(objective="Task 1")
@@ -86,15 +109,17 @@ class TestGraph:
         task3 = Task(objective="Task 3", parent=task2)
         graph = Graph.from_tasks([task1, task2, task3])
         ready_tasks = graph.ready_tasks()
-        assert len(ready_tasks) == 1
+        assert len(ready_tasks) == 2
         assert task1 in ready_tasks
+        assert task3 in ready_tasks
 
         task1.mark_successful()
         ready_tasks = graph.ready_tasks()
-        assert len(ready_tasks) == 1
+        assert len(ready_tasks) == 2
         assert task2 in ready_tasks
+        assert task3 in ready_tasks
 
-        task2.mark_successful()
+        task3.mark_successful()
         ready_tasks = graph.ready_tasks()
         assert len(ready_tasks) == 1
-        assert task3 in ready_tasks
+        assert task2 in ready_tasks

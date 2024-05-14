@@ -46,10 +46,11 @@ def test_task_agent_assignment():
     assert agent in task.agents
 
 
-def test_task_context():
-    with Flow():
+def test_task_tracking(mock_run):
+    with Flow() as flow:
         task = Task(objective="Test objective")
-        assert task in Task._context_stack
+        task.run_once()
+        assert task in flow._tasks.values()
 
 
 def test_task_status_transitions():
@@ -84,6 +85,24 @@ def test_task_status_transitions():
     assert task.is_skipped()
 
 
+def test_validate_upstream_dependencies_on_success():
+    task1 = Task(objective="Task 1")
+    task2 = Task(objective="Task 2", depends_on=[task1])
+    with pytest.raises(ValueError, match="cannot be marked successful"):
+        task2.mark_successful()
+    task1.mark_successful()
+    task2.mark_successful()
+
+
+def test_validate_subtask_dependencies_on_success():
+    task1 = Task(objective="Task 1")
+    task2 = Task(objective="Task 2", parent=task1)
+    with pytest.raises(ValueError, match="cannot be marked successful"):
+        task1.mark_successful()
+    task2.mark_successful()
+    task1.mark_successful()
+
+
 def test_task_ready():
     task1 = Task(objective="Task 1")
     task2 = Task(objective="Task 2", depends_on=[task1])
@@ -102,13 +121,19 @@ def test_task_hash():
 def test_task_tools():
     task = Task(objective="Test objective")
     tools = task.get_tools()
-    assert any(tool.name == f"mark_task_{task.id}_failed" for tool in tools)
-    assert any(tool.name == f"mark_task_{task.id}_successful" for tool in tools)
+    assert any(tool.function.name == f"mark_task_{task.id}_failed" for tool in tools)
+    assert any(
+        tool.function.name == f"mark_task_{task.id}_successful" for tool in tools
+    )
 
     task.mark_successful()
     tools = task.get_tools()
-    assert not any(tool.name == f"mark_task_{task.id}_failed" for tool in tools)
-    assert not any(tool.name == f"mark_task_{task.id}_successful" for tool in tools)
+    assert not any(
+        tool.function.name == f"mark_task_{task.id}_failed" for tool in tools
+    )
+    assert not any(
+        tool.function.name == f"mark_task_{task.id}_successful" for tool in tools
+    )
 
 
 class TestTaskToGraph:

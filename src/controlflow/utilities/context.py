@@ -1,3 +1,8 @@
 from marvin.utilities.context import ScopedContext
 
-ctx = ScopedContext()
+ctx = ScopedContext(
+    dict(
+        flow=None,
+        tasks=[],
+    )
+)
