@@ -3,9 +3,9 @@ import sys
 import warnings
 from contextlib import contextmanager
 from copy import deepcopy
-from typing import Any, Union
+from typing import Any, Optional, Union
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -59,10 +59,19 @@ class Settings(ControlFlowSettings):
         True,
         description="If True, a global flow is created for convenience, so users don't have to wrap every invocation in a flow function. Disable to avoid accidentally sharing context between agents.",
     )
+    openai_api_key: Optional[str] = Field(None, validate_assignment=True)
 
     def __init__(self, **data):
         super().__init__(**data)
         self.prefect.apply()
+
+    @field_validator("openai_api_key", mode="after")
+    def _apply_api_key(cls, v):
+        if v is not None:
+            import marvin
+
+            marvin.settings.openai.api_key = v
+        return v
 
 
 settings = Settings()
