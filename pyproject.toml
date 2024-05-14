@@ -1,6 +1,6 @@
 [project]
 name = "controlflow"
-version = "0.1.0"
+version = "0.3.0"
 description = "AI Workflows"
 authors = [
     { name = "Jeremiah Lowin", email = "153965+jlowin@users.noreply.github.com" },
@@ -17,8 +17,10 @@ keywords = [
     "ai",
     "chatbot",
     "llm",
-    "NLP",
-    "natural language processing",
+    "ai orchestration",
+    "llm orchestration",
+    "agentic workflows",
+    "flow engineering",
     "prefect",
     "workflow",
     "orchestration",
@@ -26,7 +28,9 @@ keywords = [
     "GPT",
     "openai",
     "assistant",
-    "agent",
+    "agents",
+    "AI agents",
+    "natural language processing",
 ]
 
 [project.urls]

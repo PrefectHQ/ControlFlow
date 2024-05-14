@@ -1,6 +1,7 @@
 import functools
+import inspect
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Callable, Literal
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import prefect
 from marvin.beta.assistants import Thread
@@ -16,31 +17,23 @@ from controlflow.utilities.types import AssistantTool, ControlFlowModel
 
 if TYPE_CHECKING:
     from controlflow.core.agent import Agent
+    from controlflow.core.task import Task
 logger = get_logger(__name__)
-
-
-def default_agent():
-    from controlflow.core.agent import Agent
-
-    return [
-        Agent(
-            name="Marvin",
-            description="I am Marvin, the default agent for Control Flow.",
-        )
-    ]
 
 
 class Flow(ControlFlowModel):
     thread: Thread = Field(None, validate_default=True)
     tools: list[AssistantTool | Callable] = Field(
-        [], description="Tools that will be available to every agent in the flow"
+        default_factory=list,
+        description="Tools that will be available to every agent in the flow",
     )
     agents: list["Agent"] = Field(
-        default_factory=default_agent,
         description="The default agents for the flow. These agents will be used "
         "for any task that does not specify agents.",
+        default_factory=list,
     )
-    context: dict = {}
+    _tasks: dict[str, "Task"] = {}
+    context: dict[str, Any] = {}
 
     @field_validator("thread", mode="before")
     def _load_thread_from_ctx(cls, v):
@@ -52,6 +45,13 @@ class Flow(ControlFlowModel):
             v.create()
 
         return v
+
+    def add_task(self, task: "Task"):
+        if self._tasks.get(task.id, task) is not task:
+            raise ValueError(
+                f"A different task with id '{task.id}' already exists in flow."
+            )
+        self._tasks[task.id] = task
 
     def add_message(self, message: str, role: Literal["user", "assistant"] = None):
         prefect_task(self.thread.add)(message, role=role)
@@ -107,6 +107,7 @@ def flow(
     fn=None,
     *,
     thread: Thread = None,
+    instructions: str = None,
     tools: list[AssistantTool | Callable] = None,
     agents: list["Agent"] = None,
 ):
@@ -122,12 +123,18 @@ def flow(
             agents=agents,
         )
 
+    sig = inspect.signature(fn)
+
     @functools.wraps(fn)
     def wrapper(
         *args,
         flow_kwargs: dict = None,
         **kwargs,
     ):
+        # first process callargs
+        bound = sig.bind(*args, **kwargs)
+        bound.apply_defaults()
+
         flow_kwargs = flow_kwargs or {}
 
         if thread is not None:
@@ -139,13 +146,14 @@ def flow(
 
         p_fn = prefect.flow(fn)
 
-        flow_obj = Flow(**flow_kwargs)
+        flow_obj = Flow(**flow_kwargs, context=bound.arguments)
 
         logger.info(
             f'Executing AI flow "{fn.__name__}" on thread "{flow_obj.thread.id}"'
         )
 
         with ctx(flow=flow_obj), patch_marvin():
-            return p_fn(*args, **kwargs)
+            with controlflow.instructions.instructions(instructions):
+                return p_fn(*args, **kwargs)
 
     return wrapper

@@ -25,7 +25,6 @@ from pydantic import (
     model_validator,
 )
 
-from controlflow.core.flow import get_flow
 from controlflow.instructions import get_instructions
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
@@ -77,14 +76,18 @@ def visit_task_collection(
 
 
 class Task(ControlFlowModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4().hex[:4]))
+    id: str = Field(default_factory=lambda: str(uuid.uuid4().hex[:5]))
     objective: str = Field(
         ..., description="A brief description of the required result."
     )
     instructions: str | None = Field(
         None, description="Detailed instructions for completing the task."
     )
-    agents: list["Agent"] = Field(None, validate_default=True)
+    agents: list["Agent"] | None = Field(
+        None,
+        description="The agents assigned to the task. If None, the task will use its flow's default agents.",
+        validate_default=True,
+    )
     context: dict = Field(
         default_factory=dict,
         description="Additional context for the task. If tasks are provided as context, they are automatically added as `depends_on`",
@@ -108,7 +111,11 @@ class Task(ControlFlowModel):
     model_config = dict(extra="forbid", arbitrary_types_allowed=True)
 
     def __init__(
-        self, objective=None, result_type=None, parent: "Task" = None, **kwargs
+        self,
+        objective=None,
+        result_type=None,
+        parent: "Task" = None,
+        **kwargs,
     ):
         # allow certain args to be provided as a positional args
         if result_type is not None:
@@ -138,9 +145,18 @@ class Task(ControlFlowModel):
         return str(self.model_dump())
 
     @field_validator("agents", mode="before")
-    def _default_agent(cls, v):
+    def _default_agents(cls, v):
+        from controlflow.core.agent import default_agent
+        from controlflow.core.flow import get_flow
+
         if v is None:
-            v = get_flow().agents
+            flow = get_flow()
+            if flow.agents:
+                v = flow.agents
+            else:
+                v = [default_agent()]
+        if not v:
+            raise ValueError("At least one agent is required.")
         return v
 
     @field_validator("result_type", mode="before")
@@ -150,7 +166,8 @@ class Task(ControlFlowModel):
         return v
 
     @model_validator(mode="after")
-    def _load_context_dependencies(self):
+    def _finalize(self):
+        # create dependencies to tasks passed in as context
         tasks = []
 
         def visitor(task):
@@ -158,6 +175,7 @@ class Task(ControlFlowModel):
             return task
 
         visit_task_collection(self.context, visitor)
+
         for task in tasks:
             if task not in self.depends_on:
                 self.depends_on.append(task)
@@ -189,6 +207,13 @@ class Task(ControlFlowModel):
             for a in agents
         ]
 
+    def friendly_name(self):
+        if len(self.objective) > 50:
+            objective = self.objective[:50] + "..."
+        else:
+            objective = self.objective
+        return f"Task {self.id} ({objective})"
+
     def as_graph(self) -> "Graph":
         from controlflow.core.graph import Graph
 
@@ -201,7 +226,7 @@ class Task(ControlFlowModel):
         if task._parent is None:
             task._parent = self
         elif task._parent is not self:
-            raise ValueError(f"Task {task.id} already has a parent.")
+            raise ValueError(f"{self.friendly_name()} already has a parent.")
         if task not in self.subtasks:
             self.subtasks.append(task)
 
@@ -235,7 +260,7 @@ class Task(ControlFlowModel):
             if self.is_successful():
                 return self.result
             elif self.is_failed():
-                raise ValueError(f"Task {self.id} failed: {self.error}")
+                raise ValueError(f"{self.friendly_name()} failed: {self.error}")
 
     @contextmanager
     def _context(self):
@@ -349,16 +374,16 @@ class Task(ControlFlowModel):
 
         self.result = result
         self.status = TaskStatus.SUCCESSFUL
-        return f"Task {self.id} marked successful. Updated task definition: {self.model_dump()}"
+        return f"{self.friendly_name()} marked successful. Updated task definition: {self.model_dump()}"
 
     def mark_failed(self, message: str | None = None):
         self.error = message
         self.status = TaskStatus.FAILED
-        return f"Task {self.id} marked failed. Updated task definition: {self.model_dump()}"
+        return f"{self.friendly_name()} marked failed. Updated task definition: {self.model_dump()}"
 
     def mark_skipped(self):
         self.status = TaskStatus.SKIPPED
-        return f"Task {self.id} marked skipped. Updated task definition: {self.model_dump()}"
+        return f"{self.friendly_name()} marked skipped. Updated task definition: {self.model_dump()}"
 
 
 def any_incomplete(tasks: list[Task]) -> bool:

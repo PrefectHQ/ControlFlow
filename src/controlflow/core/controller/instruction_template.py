@@ -1,7 +1,5 @@
 import inspect
 
-from pydantic import BaseModel
-
 from controlflow.core.agent import Agent
 from controlflow.core.task import Task
 from controlflow.utilities.jinja import jinja_env
@@ -187,7 +185,7 @@ class ContextTemplate(Template):
         return bool(self.flow_context or self.controller_context)
 
 
-class MainTemplate(BaseModel):
+class MainTemplate(ControlFlowModel):
     agent: Agent
     controller: Controller
     context: dict

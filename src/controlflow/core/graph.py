@@ -35,7 +35,7 @@ class Edge(BaseModel):
     type: EdgeType
 
     def __repr__(self):
-        return f"{self.type}: {self.upstream.id} -> {self.downstream.id}"
+        return f"{self.type}: {self.upstream.friendly_name()} -> {self.downstream.friendly_name()}"
 
     def __hash__(self) -> int:
         return id(self)
