@@ -4,6 +4,9 @@ from marvin.types import FunctionTool
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin
 from pydantic import BaseModel
 
+# flag for unset defaults
+NOTSET = "__NOTSET__"
+
 
 class ControlFlowModel(BaseModel):
     model_config = dict(validate_assignment=True, extra="forbid")
