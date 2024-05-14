@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any
+from typing import Any, Union
 
 import marvin.utilities
 import marvin.utilities.tools
@@ -56,7 +56,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         description="Tasks that the controller will complete.",
         validate_default=True,
     )
-    agents: list[Agent] | None = None
+    agents: Union[list[Agent], None] = None
     context: dict = {}
     graph: Graph = None
     model_config: dict = dict(extra="forbid")
@@ -173,7 +173,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         Run the controller for a single iteration of the provided tasks. An agent will be selected to run the tasks.
         """
         # get the tasks to run
-        tasks = self.graph.upstream_dependencies(self.tasks)
+        tasks = self.graph.upstream_dependencies(self.tasks, include_tasks=True)
 
         # get the agents
         agent_candidates = {a for t in tasks for a in t.agents if t.is_ready()}

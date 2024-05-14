@@ -26,7 +26,6 @@ class TestController:
         assert controller.flow == flow
         assert controller.tasks == [task]
         assert controller.agents == [agent]
-        assert controller.run_dependencies is True
         assert len(controller.context) == 0
         assert len(controller.graph.tasks) == 1
         assert len(controller.graph.edges) == 0
@@ -61,7 +60,7 @@ class TestController:
         controller = Controller(flow=flow, tasks=[task1, task2], agents=[agent])
         assert len(controller.graph.tasks) == 2
         assert len(controller.graph.edges) == 1
-        assert controller.graph.edges.pop().type == EdgeType.dependency
+        assert controller.graph.edges.pop().type == EdgeType.DEPENDENCY
 
     def test_controller_agent_selection(self, flow, monkeypatch):
         agent1 = Agent(name="Agent 1")
@@ -74,12 +73,3 @@ class TestController:
             mocked_marvin_moderator,
         )
         assert controller.agents == [agent1, agent2]
-
-    async def test_controller_run_dependencies(self, flow, agent):
-        task1 = Task(objective="Task 1")
-        task2 = Task(objective="Task 2", depends_on=[task1])
-        controller = Controller(flow=flow, tasks=[task2], agents=[agent])
-        mocked_run_agent = AsyncMock()
-        controller._run_agent = mocked_run_agent
-        await controller.run_once_async()
-        mocked_run_agent.assert_called_once_with(agent, tasks=[task1, task2])

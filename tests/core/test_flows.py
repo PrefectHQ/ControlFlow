@@ -1,6 +1,4 @@
-# test_flow.py
-from unittest.mock import MagicMock
-
+import pytest
 from controlflow.core.agent import Agent
 from controlflow.core.flow import Flow, get_flow
 from controlflow.utilities.context import ctx
@@ -11,8 +9,7 @@ class TestFlow:
         flow = Flow()
         assert flow.thread is not None
         assert len(flow.tools) == 0
-        assert len(flow.agents) == 1
-        assert isinstance(flow.agents[0], Agent)
+        assert len(flow.agents) == 0
         assert len(flow.context) == 0
 
     def test_flow_with_custom_agents(self):
@@ -40,31 +37,20 @@ class TestFlow:
         assert len(flow.context) == 1
         assert flow.context["key"] == "value"
 
-    def test_add_message(self, monkeypatch):
-        flow = Flow()
-        mocked_add = MagicMock()
-        monkeypatch.setattr(flow.thread, "add", mocked_add)
-        flow.add_message("Test message", role="user")
-        mocked_add.assert_called_once_with("Test message", role="user")
-
     def test_flow_context_manager(self):
         with Flow() as flow:
             assert ctx.get("flow") == flow
             assert ctx.get("tasks") == []
         assert ctx.get("flow") is None
-        assert ctx.get("tasks") is None
+        assert ctx.get("tasks") == []
 
     def test_get_flow_within_context(self):
         with Flow() as flow:
             assert get_flow() == flow
 
     def test_get_flow_without_context(self):
-        flow1 = get_flow()
-        with Flow() as flow2:
-            pass
-        flow3 = get_flow()
-        assert flow1 == flow3
-        assert flow1 != flow2
+        with pytest.raises(ValueError, match="No flow found in context."):
+            get_flow()
 
     def test_get_flow_nested_contexts(self):
         with Flow() as flow1:

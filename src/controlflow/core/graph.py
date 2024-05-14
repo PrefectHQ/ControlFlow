@@ -108,7 +108,10 @@ class Graph(BaseModel):
         return self._cache["downstream_edges"]
 
     def upstream_dependencies(
-        self, tasks: list[Task], prune_completed: bool = True
+        self,
+        tasks: list[Task],
+        prune_completed: bool = True,
+        include_tasks: bool = False,
     ) -> list[Task]:
         """
         From a list of tasks, returns the subgraph of tasks that are directly or
@@ -117,11 +120,15 @@ class Graph(BaseModel):
         dependencies as well as any subtasks that are considered implicit
         dependencies.
 
-        If `prune_completed` is True, the subgraph will be pruned to stop traversal after adding any completed tasks.
+        If `prune_completed` is True, the subgraph will be pruned to stop
+        traversal after adding any completed tasks.
+
+        If `include_tasks` is True, the subgraph will include the tasks provided.
         """
         subgraph = set()
         upstreams = self.upstream_edges()
-        stack = tasks
+        # copy stack to allow difference update with original tasks
+        stack = [t for t in tasks]
         while stack:
             current = stack.pop()
             if current in subgraph:
@@ -133,6 +140,8 @@ class Graph(BaseModel):
                 continue
             stack.extend([edge.upstream for edge in upstreams[current]])
 
+        if not include_tasks:
+            subgraph.difference_update(tasks)
         return list(subgraph)
 
     def ready_tasks(self, tasks: list[Task] = None) -> list[Task]:
@@ -146,7 +155,7 @@ class Graph(BaseModel):
         if tasks is None:
             candidates = self.tasks
         else:
-            candidates = self.upstream_dependencies(tasks)
+            candidates = self.upstream_dependencies(tasks, include_tasks=True)
         return sorted(
             [task for task in candidates if task.is_ready()], key=lambda t: t.created_at
         )

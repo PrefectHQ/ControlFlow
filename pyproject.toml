@@ -47,7 +47,7 @@ tests = [
     "pytest-xdist",
     "pre-commit>=3.7.0",
 ]
-dev = ["controlflow[tests]", "ipython>=8.22.2", "pdbpp>=0.10.3", "ruff>=0.3.4"]
+dev = ["controlflow[tests]", "ipython", "pdbpp", "ruff>=0.3.4"]
 
 [build-system]
 requires = ["hatchling"]
@@ -77,3 +77,6 @@ skip-magic-trailing-comma = false
 "conftest.py" = ["F401", "F403"]
 'tests/fixtures/*.py' = ['F401', 'F403']
 "src/controlflow/utilities/types.py" = ['F401']
+
+[tool.pytest.ini_options]
+timeout = 120

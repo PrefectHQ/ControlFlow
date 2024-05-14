@@ -1,19 +1,18 @@
 import functools
 import inspect
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Union
 
 import prefect
 from marvin.beta.assistants import Thread
 from openai.types.beta.threads import Message
-from prefect import task as prefect_task
 from pydantic import Field, field_validator
 
 import controlflow
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.marvin import patch_marvin
-from controlflow.utilities.types import AssistantTool, ControlFlowModel
+from controlflow.utilities.types import ControlFlowModel, ToolType
 
 if TYPE_CHECKING:
     from controlflow.core.agent import Agent
@@ -23,7 +22,7 @@ logger = get_logger(__name__)
 
 class Flow(ControlFlowModel):
     thread: Thread = Field(None, validate_default=True)
-    tools: list[AssistantTool | Callable] = Field(
+    tools: list[ToolType] = Field(
         default_factory=list,
         description="Tools that will be available to every agent in the flow",
     )
@@ -41,8 +40,6 @@ class Flow(ControlFlowModel):
             v = ctx.get("thread", None)
             if v is None:
                 v = Thread()
-        if not v.id:
-            v.create()
 
         return v
 
@@ -52,9 +49,6 @@ class Flow(ControlFlowModel):
                 f"A different task with id '{task.id}' already exists in flow."
             )
         self._tasks[task.id] = task
-
-    def add_message(self, message: str, role: Literal["user", "assistant"] = None):
-        prefect_task(self.thread.add)(message, role=role)
 
     @contextmanager
     def _context(self):
@@ -79,7 +73,7 @@ def get_flow() -> Flow:
     Will error if no flow is found in the context, unless the global flow is
     enabled in settings
     """
-    flow: Flow | None = ctx.get("flow")
+    flow: Union[Flow, None] = ctx.get("flow")
     if not flow:
         if controlflow.settings.enable_global_flow:
             return GLOBAL_FLOW
@@ -108,7 +102,7 @@ def flow(
     *,
     thread: Thread = None,
     instructions: str = None,
-    tools: list[AssistantTool | Callable] = None,
+    tools: list[ToolType] = None,
     agents: list["Agent"] = None,
 ):
     """
@@ -153,7 +147,7 @@ def flow(
         )
 
         with ctx(flow=flow_obj), patch_marvin():
-            with controlflow.instructions.instructions(instructions):
+            with controlflow.instructions(instructions):
                 return p_fn(*args, **kwargs)
 
     return wrapper
