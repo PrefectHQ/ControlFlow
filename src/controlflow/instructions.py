@@ -17,11 +17,13 @@ def instructions(*instructions: str) -> Generator[list[str], None, None]:
         ...
 
     """
+    filtered_instructions = [i for i in instructions if i]
+    if not filtered_instructions:
+        yield
+        return
 
     stack: list[str] = ctx.get("instructions", [])
-    stack = stack + list(instructions)
-
-    with ctx(instructions=stack):
+    with ctx(instructions=stack + list(filtered_instructions)):
         yield
 
 

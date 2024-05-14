@@ -208,11 +208,20 @@ class Task(ControlFlowModel):
             for a in agents
         ]
 
+    @field_serializer("tools")
+    def _serialize_tools(tools: list[AssistantTool | Callable]):
+        return [
+            marvin.utilities.tools.tool_from_function(t)
+            if not isinstance(t, AssistantTool)
+            else t
+            for t in tools
+        ]
+
     def friendly_name(self):
         if len(self.objective) > 50:
-            objective = self.objective[:50] + "..."
+            objective = f'"{self.objective[:50]}..."'
         else:
-            objective = self.objective
+            objective = f'"{self.objective}"'
         return f"Task {self.id} ({objective})"
 
     def as_graph(self) -> "Graph":
@@ -277,8 +286,7 @@ class Task(ControlFlowModel):
     @contextmanager
     def _context(self):
         stack = ctx.get("tasks", [])
-        stack.append(self)
-        with ctx(tasks=stack):
+        with ctx(tasks=stack + [self]):
             yield self
 
     def __enter__(self):
@@ -351,7 +359,7 @@ class Task(ControlFlowModel):
         )
         return tool
 
-    def get_tools(self) -> list[AssistantTool | Callable]:
+    def get_tools(self) -> list[FunctionTool | AssistantTool | Callable]:
         tools = self.tools.copy()
         if self.is_incomplete():
             tools.extend([self._create_fail_tool(), self._create_success_tool()])
@@ -368,13 +376,13 @@ class Task(ControlFlowModel):
                 raise ValueError(
                     f"Task {self.objective} cannot be marked successful until all of its "
                     "upstream dependencies are completed. Incomplete dependencies "
-                    f"are: {[t.id for t in self.depends_on if t.is_incomplete()]}"
+                    f"are: {', '.join(t.friendly_name() for t in self.depends_on if t.is_incomplete())}"
                 )
             elif any(t.is_incomplete() for t in self.subtasks):
                 raise ValueError(
                     f"Task {self.objective} cannot be marked successful until all of its "
                     "subtasks are completed. Incomplete subtasks "
-                    f"are: {[t.id for t in self.subtasks if t.is_incomplete()]}"
+                    f"are: {', '.join(t.friendly_name() for t in self.subtasks if t.is_incomplete())}"
                 )
 
         if self.result_type is None and result is not None:

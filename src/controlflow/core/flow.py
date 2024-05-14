@@ -1,12 +1,11 @@
 import functools
 import inspect
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Callable
 
 import prefect
 from marvin.beta.assistants import Thread
 from openai.types.beta.threads import Message
-from prefect import task as prefect_task
 from pydantic import Field, field_validator
 
 import controlflow
@@ -52,9 +51,6 @@ class Flow(ControlFlowModel):
                 f"A different task with id '{task.id}' already exists in flow."
             )
         self._tasks[task.id] = task
-
-    def add_message(self, message: str, role: Literal["user", "assistant"] = None):
-        prefect_task(self.thread.add)(message, role=role)
 
     @contextmanager
     def _context(self):
@@ -153,7 +149,7 @@ def flow(
         )
 
         with ctx(flow=flow_obj), patch_marvin():
-            with controlflow.instructions.instructions(instructions):
+            with controlflow.instructions(instructions):
                 return p_fn(*args, **kwargs)
 
     return wrapper
