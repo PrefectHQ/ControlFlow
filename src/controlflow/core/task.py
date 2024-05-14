@@ -29,7 +29,7 @@ from controlflow.instructions import get_instructions
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import wrap_prefect_tool
-from controlflow.utilities.types import AssistantTool, ControlFlowModel
+from controlflow.utilities.types import NOTSET, AssistantTool, ControlFlowModel
 from controlflow.utilities.user_access import talk_to_human
 
 if TYPE_CHECKING:
@@ -44,9 +44,6 @@ class TaskStatus(Enum):
     SUCCESSFUL = "successful"
     FAILED = "failed"
     SKIPPED = "skipped"
-
-
-NOTSET = "__notset__"
 
 
 def visit_task_collection(
@@ -239,24 +236,34 @@ class Task(ControlFlowModel):
         if self not in task._downstreams:
             task._downstreams.append(self)
 
-    def run_once(self, agent: "Agent" = None, run_dependencies: bool = True):
+    def run_once(self, agent: "Agent" = None):
         """
         Runs the task with provided agent. If no agent is provided, one will be selected from the task's agents.
         """
         from controlflow.core.controller import Controller
 
-        controller = Controller(
-            tasks=[self], agents=agent, run_dependencies=run_dependencies
-        )
+        controller = Controller(tasks=[self], agents=agent)
 
         controller.run_once()
 
-    def run(self, run_dependencies: bool = True) -> T:
+    def run(self, max_iterations: int = NOTSET) -> T:
         """
         Runs the task with provided agents until it is complete.
+
+        If max_iterations is provided, the task will run at most that many times before raising an error.
         """
+        if max_iterations == NOTSET:
+            max_iterations = marvin.settings.max_task_iterations
+        if max_iterations is None:
+            max_iterations = float("inf")
+
+        counter = 0
         while self.is_incomplete():
-            self.run_once(run_dependencies=run_dependencies)
+            if counter >= max_iterations:
+                raise ValueError(
+                    f"{self.friendly_name()} did not complete after {max_iterations} iterations."
+                )
+            self.run_once()
             if self.is_successful():
                 return self.result
             elif self.is_failed():
