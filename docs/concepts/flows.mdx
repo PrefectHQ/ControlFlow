@@ -42,7 +42,7 @@ flow = Flow()
 Flows have several key properties that define their behavior and capabilities:
 
 - `thread` (Thread): The thread associated with the flow, which stores the conversation history and context.
-- `tools` (list[AssistantTool | Callable]): A list of tools that are available to all agents in the flow.
+- `tools` (list[ToolType]): A list of tools that are available to all agents in the flow.
 - `agents` (list[Agent]): The default agents for the flow, which are used for tasks that do not specify agents explicitly.
 - `context` (dict): Additional context or information that is shared across tasks and agents in the flow.
 

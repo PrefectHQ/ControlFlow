@@ -13,7 +13,7 @@ from prefect.artifacts import ArtifactRequest
 from prefect.context import FlowRunContext, TaskRunContext
 from pydantic import TypeAdapter
 
-from controlflow.utilities.types import AssistantTool
+from controlflow.utilities.types import AssistantTool, ToolType
 
 
 def create_markdown_artifact(
@@ -117,14 +117,28 @@ TOOL_CALL_FUNCTION_RESULT_TEMPLATE = inspect.cleandoc(
 )
 
 
-def wrap_prefect_tool(tool: AssistantTool | Callable) -> AssistantTool:
+def safe_isinstance(obj, type_) -> bool:
+    # FunctionTool objects are typed generics, and
+    # Python 3.9 will raise an error if you try to isinstance a typed generic...
+    try:
+        return isinstance(obj, type_)
+    except TypeError:
+        try:
+            return issubclass(type(obj), type_)
+        except TypeError:
+            return False
+
+
+def wrap_prefect_tool(tool: ToolType) -> AssistantTool:
     """
     Wraps a Marvin tool in a prefect task
     """
-    if not isinstance(tool, AssistantTool):
+    if not (
+        safe_isinstance(tool, AssistantTool) or safe_isinstance(tool, FunctionTool)
+    ):
         tool = tool_from_function(tool)
 
-    if isinstance(tool, FunctionTool):
+    if safe_isinstance(tool, FunctionTool):
         # for functions, we modify the function to become a Prefect task and
         # publish an artifact that contains details about the function call
 

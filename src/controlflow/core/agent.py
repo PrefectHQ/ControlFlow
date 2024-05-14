@@ -1,5 +1,5 @@
 import logging
-from typing import Callable
+from typing import Union
 
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
 from marvin.utilities.tools import tool_from_function
@@ -10,7 +10,7 @@ from controlflow.core.task import Task
 from controlflow.utilities.prefect import (
     wrap_prefect_tool,
 )
-from controlflow.utilities.types import Assistant, AssistantTool, ControlFlowModel
+from controlflow.utilities.types import Assistant, ControlFlowModel, ToolType
 from controlflow.utilities.user_access import talk_to_human
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ class Agent(Assistant, ControlFlowModel, ExposeSyncMethodsMixin):
         description="If True, the agent is given tools for interacting with a human user.",
     )
 
-    def get_tools(self) -> list[AssistantTool | Callable]:
+    def get_tools(self) -> list[ToolType]:
         tools = super().get_tools()
         if self.user_access:
             tools.append(tool_from_function(talk_to_human))
@@ -41,7 +41,7 @@ class Agent(Assistant, ControlFlowModel, ExposeSyncMethodsMixin):
         return [wrap_prefect_tool(tool) for tool in tools]
 
     @expose_sync_method("run")
-    async def run_async(self, tasks: list[Task] | Task | None = None):
+    async def run_async(self, tasks: Union[list[Task], Task, None] = None):
         from controlflow.core.controller import Controller
 
         if isinstance(tasks, Task):

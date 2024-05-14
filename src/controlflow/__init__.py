@@ -1,6 +1,3 @@
-# support pipe syntax for unions
-from __future__ import annotations
-
 from .settings import settings
 
 from .core.flow import Flow, reset_global_flow as _reset_global_flow, flow
