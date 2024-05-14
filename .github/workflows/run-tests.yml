@@ -18,7 +18,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/run-tests.yml
-      - src**
+      - src/**
       - tests/**
       - pyproject.toml
       - setup.py
@@ -37,7 +37,7 @@ jobs:
         # os: [ubuntu-latest, macos-latest, windows-latest]
         os: [ubuntu-latest]
         # python-version: ['3.9', '3.10', '3.11', '3.12']
-        python-version: ["3.9"]
+        python-version: ["3.9", "3.12"]
 
     runs-on: ${{ matrix.os }}
 
@@ -56,8 +56,8 @@ jobs:
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: Install ControlFlow
-        run: uv pip install --system ".[tests]"
+        run: uv pip install ".[tests]"
 
       - name: Run tests
-        run: pytest -n auto -vv
+        run: pytest -vv
         if: ${{ !(github.event.pull_request.head.repo.fork) }}
