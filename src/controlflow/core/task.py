@@ -25,6 +25,7 @@ from pydantic import (
     model_validator,
 )
 
+import controlflow
 from controlflow.instructions import get_instructions
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
@@ -147,8 +148,11 @@ class Task(ControlFlowModel):
         from controlflow.core.flow import get_flow
 
         if v is None:
-            flow = get_flow()
-            if flow.agents:
+            try:
+                flow = get_flow()
+            except ValueError:
+                flow = None
+            if flow and flow.agents:
                 v = flow.agents
             else:
                 v = [default_agent()]
@@ -253,7 +257,7 @@ class Task(ControlFlowModel):
         If max_iterations is provided, the task will run at most that many times before raising an error.
         """
         if max_iterations == NOTSET:
-            max_iterations = marvin.settings.max_task_iterations
+            max_iterations = controlflow.settings.max_task_iterations
         if max_iterations is None:
             max_iterations = float("inf")
 
@@ -264,6 +268,7 @@ class Task(ControlFlowModel):
                     f"{self.friendly_name()} did not complete after {max_iterations} iterations."
                 )
             self.run_once()
+            counter += 1
             if self.is_successful():
                 return self.result
             elif self.is_failed():
