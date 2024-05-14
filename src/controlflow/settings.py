@@ -3,9 +3,9 @@ import sys
 import warnings
 from contextlib import contextmanager
 from copy import deepcopy
-from typing import Any
+from typing import Any, Optional, Union
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,16 +47,31 @@ class PrefectSettings(ControlFlowSettings):
 
 class Settings(ControlFlowSettings):
     assistant_model: str = "gpt-4o"
-    max_task_iterations: int = None
+    max_task_iterations: Union[int, None] = Field(
+        None,
+        description="The maximum number of iterations to attempt to complete a task "
+        "before raising an error. If None, the task will run indefinitely. "
+        "This setting can be overridden by the `max_iterations` attribute "
+        "on a task.",
+    )
     prefect: PrefectSettings = Field(default_factory=PrefectSettings)
     enable_global_flow: bool = Field(
         True,
         description="If True, a global flow is created for convenience, so users don't have to wrap every invocation in a flow function. Disable to avoid accidentally sharing context between agents.",
     )
+    openai_api_key: Optional[str] = Field(None, validate_assignment=True)
 
     def __init__(self, **data):
         super().__init__(**data)
         self.prefect.apply()
+
+    @field_validator("openai_api_key", mode="after")
+    def _apply_api_key(cls, v):
+        if v is not None:
+            import marvin
+
+            marvin.settings.openai.api_key = v
+        return v
 
 
 settings = Settings()
