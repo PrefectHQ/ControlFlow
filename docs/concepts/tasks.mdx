@@ -59,7 +59,7 @@ Tasks have several key properties that define their behavior and requirements:
 - `agents` (list[Agent], optional): The AI agents assigned to work on the task.
 - `context` (dict, optional): Additional context or information required for the task.
 - `result_type` (type, optional): The expected type of the task's result.
-- `tools` (list[AssistantTool | Callable], optional): Tools or functions available to the agents for completing the task.
+- `tools` (list[ToolType], optional): Tools or functions available to the agents for completing the task.
 - `user_access` (bool, optional): Indicates whether the task requires human user interaction.
 
 ## Task Execution and Results

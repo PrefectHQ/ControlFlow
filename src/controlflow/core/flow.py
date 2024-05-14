@@ -1,7 +1,7 @@
 import functools
 import inspect
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Union
 
 import prefect
 from marvin.beta.assistants import Thread
@@ -12,7 +12,7 @@ import controlflow
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.marvin import patch_marvin
-from controlflow.utilities.types import AssistantTool, ControlFlowModel
+from controlflow.utilities.types import ControlFlowModel, ToolType
 
 if TYPE_CHECKING:
     from controlflow.core.agent import Agent
@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 
 class Flow(ControlFlowModel):
     thread: Thread = Field(None, validate_default=True)
-    tools: list[AssistantTool | Callable] = Field(
+    tools: list[ToolType] = Field(
         default_factory=list,
         description="Tools that will be available to every agent in the flow",
     )
@@ -75,7 +75,7 @@ def get_flow() -> Flow:
     Will error if no flow is found in the context, unless the global flow is
     enabled in settings
     """
-    flow: Flow | None = ctx.get("flow")
+    flow: Union[Flow, None] = ctx.get("flow")
     if not flow:
         if controlflow.settings.enable_global_flow:
             return GLOBAL_FLOW
@@ -104,7 +104,7 @@ def flow(
     *,
     thread: Thread = None,
     instructions: str = None,
-    tools: list[AssistantTool | Callable] = None,
+    tools: list[ToolType] = None,
     agents: list["Agent"] = None,
 ):
     """

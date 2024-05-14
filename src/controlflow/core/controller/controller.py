@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any
+from typing import Any, Union
 
 import marvin.utilities
 import marvin.utilities.tools
@@ -56,7 +56,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         description="Tasks that the controller will complete.",
         validate_default=True,
     )
-    agents: list[Agent] | None = None
+    agents: Union[list[Agent], None] = None
     context: dict = {}
     graph: Graph = None
     model_config: dict = dict(extra="forbid")

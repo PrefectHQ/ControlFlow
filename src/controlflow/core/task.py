@@ -11,6 +11,7 @@ from typing import (
     GenericAlias,
     Literal,
     TypeVar,
+    Union,
     _LiteralGenericAlias,
 )
 
@@ -30,7 +31,12 @@ from controlflow.instructions import get_instructions
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import wrap_prefect_tool
-from controlflow.utilities.types import NOTSET, AssistantTool, ControlFlowModel
+from controlflow.utilities.types import (
+    NOTSET,
+    AssistantTool,
+    ControlFlowModel,
+    ToolType,
+)
 from controlflow.utilities.user_access import talk_to_human
 
 if TYPE_CHECKING:
@@ -78,10 +84,10 @@ class Task(ControlFlowModel):
     objective: str = Field(
         ..., description="A brief description of the required result."
     )
-    instructions: str | None = Field(
+    instructions: Union[str, None] = Field(
         None, description="Detailed instructions for completing the task."
     )
-    agents: list["Agent"] | None = Field(
+    agents: Union[list["Agent"], None] = Field(
         None,
         description="The agents assigned to the task. If None, the task will use its flow's default agents.",
         validate_default=True,
@@ -99,12 +105,12 @@ class Task(ControlFlowModel):
     )
     status: TaskStatus = TaskStatus.INCOMPLETE
     result: T = None
-    result_type: type[T] | GenericAlias | _LiteralGenericAlias | None = None
-    error: str | None = None
-    tools: list[AssistantTool | Callable] = []
+    result_type: Union[type[T], GenericAlias, _LiteralGenericAlias, None] = None
+    error: Union[str, None] = None
+    tools: list[ToolType] = []
     user_access: bool = False
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    _parent: "Task | None" = None
+    _parent: "Union[Task, None]" = None
     _downstreams: list["Task"] = []
     model_config = dict(extra="forbid", arbitrary_types_allowed=True)
 
@@ -209,7 +215,7 @@ class Task(ControlFlowModel):
         ]
 
     @field_serializer("tools")
-    def _serialize_tools(tools: list[AssistantTool | Callable]):
+    def _serialize_tools(tools: list[ToolType]):
         return [
             marvin.utilities.tools.tool_from_function(t)
             if not isinstance(t, AssistantTool)
@@ -359,7 +365,7 @@ class Task(ControlFlowModel):
         )
         return tool
 
-    def get_tools(self) -> list[FunctionTool | AssistantTool | Callable]:
+    def get_tools(self) -> list[ToolType]:
         tools = self.tools.copy()
         if self.is_incomplete():
             tools.extend([self._create_fail_tool(), self._create_success_tool()])
@@ -396,7 +402,7 @@ class Task(ControlFlowModel):
         self.status = TaskStatus.SUCCESSFUL
         return f"{self.friendly_name()} marked successful. Updated task definition: {self.model_dump()}"
 
-    def mark_failed(self, message: str | None = None):
+    def mark_failed(self, message: Union[str, None] = None):
         self.error = message
         self.status = TaskStatus.FAILED
         return f"{self.friendly_name()} marked failed. Updated task definition: {self.model_dump()}"
@@ -432,7 +438,7 @@ def task(
     objective: str = None,
     instructions: str = None,
     agents: list["Agent"] = None,
-    tools: list[AssistantTool | Callable] = None,
+    tools: list[ToolType] = None,
     user_access: bool = None,
 ):
     """
