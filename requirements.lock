@@ -220,8 +220,8 @@ markupsafe==2.1.5
     # via mkdocs-autorefs
     # via mkdocstrings
     # via werkzeug
-marvin @ git+https://github.com/prefecthq/marvin@8c0c083aab5c9c2ca6f800fd392bef2a5d3dd9ca
-    # via control-flow
+marvin @ git+https://github.com/prefecthq/marvin@aedfb9573e5f0844a1dc1b45b59d279524b0d363
+    # via controlflow
 matplotlib-inline==0.1.7
     # via ipython
 mdurl==0.1.2
@@ -301,8 +301,8 @@ pluggy==1.5.0
     # via pytest
 pre-commit==3.7.1
     # via prefect
-prefect @ git+https://github.com/prefecthq/prefect@3f5d6afbc4e1b5cea416c64d28e4b6feb7c2d656
-    # via control-flow
+prefect @ git+https://github.com/prefecthq/prefect@8454a1c8938bdd1204eefbdb3606129e37501653
+    # via controlflow
 prompt-toolkit==3.0.43
     # via ipython
     # via marvin
@@ -322,7 +322,7 @@ pyasn1-modules==0.4.0
 pycparser==2.22
     # via cffi
 pydantic==2.6.4
-    # via control-flow
+    # via controlflow
     # via fastapi
     # via marvin
     # via openai
