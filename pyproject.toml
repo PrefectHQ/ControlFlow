@@ -77,3 +77,6 @@ skip-magic-trailing-comma = false
 "conftest.py" = ["F401", "F403"]
 'tests/fixtures/*.py' = ['F401', 'F403']
 "src/controlflow/utilities/types.py" = ['F401']
+
+[tool.pytest.ini_options]
+timeout = 120

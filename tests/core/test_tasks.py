@@ -1,7 +1,10 @@
+from unittest.mock import AsyncMock
+
+import pytest
 from controlflow.core.agent import Agent
 from controlflow.core.flow import Flow
 from controlflow.core.graph import EdgeType
-from controlflow.core.task import Task, TaskStatus, get_tasks
+from controlflow.core.task import Task, TaskStatus
 from controlflow.utilities.context import ctx
 
 
@@ -13,16 +16,6 @@ def test_context_open_and_close():
             assert ctx.get("tasks") == [ta, tb]
         assert ctx.get("tasks") == [ta]
     assert ctx.get("tasks") == []
-
-
-def test_get_tasks_function():
-    # assert get_tasks() == []
-    with Task("a") as ta:
-        assert get_tasks() == [ta]
-        with Task("b") as tb:
-            assert get_tasks() == [ta, tb]
-        assert get_tasks() == [ta]
-    assert get_tasks() == []
 
 
 def test_task_initialization():
@@ -178,3 +171,52 @@ class TestTaskToGraph:
             and edge.type == EdgeType.SUBTASK
             for edge in graph.edges
         )
+
+
+@pytest.mark.usefixtures("mock_run")
+class TestTaskRun:
+    def test_run_task_max_iterations(self, mock_run: AsyncMock):
+        task = Task(objective="Say hello")
+
+        with Flow():
+            with pytest.raises(ValueError):
+                task.run()
+
+        assert mock_run.await_count == 3
+
+    def test_run_task_mark_successful(self, mock_run: AsyncMock):
+        task = Task(objective="Say hello")
+
+        def mark_complete():
+            task.mark_successful()
+
+        mock_run.side_effect = mark_complete
+        with Flow():
+            result = task.run()
+        assert task.is_successful()
+        assert result is None
+
+    def test_run_task_mark_successful_with_result(self, mock_run: AsyncMock):
+        task = Task(objective="Say hello", result_type=int)
+
+        def mark_complete():
+            task.mark_successful(result=42)
+
+        mock_run.side_effect = mark_complete
+        with Flow():
+            result = task.run()
+        assert task.is_successful()
+        assert result == 42
+
+    def test_run_task_mark_failed(self, mock_run: AsyncMock):
+        task = Task(objective="Say hello")
+
+        def mark_complete():
+            task.mark_failed(message="Failed to say hello")
+
+        mock_run.side_effect = mark_complete
+        with Flow():
+            with pytest.raises(ValueError):
+                task.run()
+        assert task.is_failed()
+        assert task.error == "Failed to say hello"

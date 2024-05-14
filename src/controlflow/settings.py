@@ -47,7 +47,13 @@ class PrefectSettings(ControlFlowSettings):
 
 class Settings(ControlFlowSettings):
     assistant_model: str = "gpt-4o"
-    max_task_iterations: int = None
+    max_task_iterations: int | None = Field(
+        None,
+        description="The maximum number of iterations to attempt to complete a task "
+        "before raising an error. If None, the task will run indefinitely. "
+        "This setting can be overridden by the `max_iterations` attribute "
+        "on a task.",
+    )
     prefect: PrefectSettings = Field(default_factory=PrefectSettings)
     enable_global_flow: bool = Field(
         True,
