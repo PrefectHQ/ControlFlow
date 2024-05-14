@@ -16,6 +16,16 @@ from controlflow.utilities.user_access import talk_to_human
 logger = logging.getLogger(__name__)
 
 
+def default_agent():
+    return Agent(
+        name="Marvin",
+        instructions="""
+            You are a diligent AI assistant. You complete 
+            your tasks efficiently and without error.
+            """,
+    )
+
+
 class Agent(Assistant, ControlFlowModel, ExposeSyncMethodsMixin):
     name: str
     user_access: bool = Field(
