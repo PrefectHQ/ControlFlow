@@ -56,7 +56,7 @@ jobs:
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: Install ControlFlow
-        run: uv pip install ".[tests]"
+        run: uv pip install --system ".[tests]"
 
       - name: Run tests
         run: pytest -vv
