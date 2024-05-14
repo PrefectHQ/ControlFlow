@@ -57,7 +57,6 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         validate_default=True,
     )
     agents: list[Agent] | None = None
-    run_dependencies: bool = True
     context: dict = {}
     graph: Graph = None
     model_config: dict = dict(extra="forbid")
@@ -90,7 +89,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             End your turn if you have no tasks to work on. Only call this tool
             if necessary; otherwise you can end your turn normally.
             """
-            raise EndRun()
+            return EndRun()
 
         return end_run
 
