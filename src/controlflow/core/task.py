@@ -493,6 +493,7 @@ def task(
 
         task = Task(
             objective=objective,
+            instructions=instructions,
             agents=agents,
             context=bound.arguments,
             result_type=fn.__annotations__.get("return"),
