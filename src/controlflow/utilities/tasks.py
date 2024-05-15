@@ -87,3 +87,23 @@ def resolve_tasks(val: T) -> T:
         return task.run()
 
     return visit_task_collection(val, visit_task)
+
+
+def any_incomplete(tasks: list["Task"]) -> bool:
+    return any(t.is_incomplete() for t in tasks)
+
+
+def all_complete(tasks: list["Task"]) -> bool:
+    return all(t.is_complete() for t in tasks)
+
+
+def all_successful(tasks: list["Task"]) -> bool:
+    return all(t.is_successful() for t in tasks)
+
+
+def any_failed(tasks: list["Task"]) -> bool:
+    return any(t.is_failed() for t in tasks)
+
+
+def none_failed(tasks: list["Task"]) -> bool:
+    return not any_failed(tasks)
