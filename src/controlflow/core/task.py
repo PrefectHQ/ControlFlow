@@ -302,10 +302,10 @@ class Task(ControlFlowModel):
                 )
             self.run_once()
             counter += 1
-            if self.is_successful():
-                return self.result
-            elif self.is_failed():
-                raise ValueError(f"{self.friendly_name()} failed: {self.error}")
+        if self.is_successful():
+            return self.result
+        elif self.is_failed():
+            raise ValueError(f"{self.friendly_name()} failed: {self.error}")
 
     @contextmanager
     def _context(self):
