@@ -146,7 +146,24 @@ class Task(ControlFlowModel):
             self.add_dependency(task)
 
     def __repr__(self):
-        return str(self.model_dump())
+        include_fields = [
+            "id",
+            "objective",
+            "status",
+            "result_type",
+            "agents",
+            "context",
+            "user_access",
+            "subtasks",
+            "depends_on",
+            "tools",
+        ]
+        fields = self.model_dump(include=include_fields)
+        field_str = ", ".join(
+            f"{k}={f'"{fields[k]}"' if isinstance(fields[k], str) else fields[k] }"
+            for k in include_fields
+        )
+        return f"{self.__class__.__name__}({field_str})"
 
     @field_validator("agents", mode="before")
     def _default_agents(cls, v):
@@ -205,7 +222,8 @@ class Task(ControlFlowModel):
 
     @field_serializer("result_type")
     def _serialize_result_type(result_type: list["Task"]):
-        return repr(result_type)
+        if result_type is not None:
+            return repr(result_type)
 
     @field_serializer("agents")
     def _serialize_agents(agents: list["Agent"]):
@@ -284,10 +302,10 @@ class Task(ControlFlowModel):
                 )
             self.run_once()
             counter += 1
-            if self.is_successful():
-                return self.result
-            elif self.is_failed():
-                raise ValueError(f"{self.friendly_name()} failed: {self.error}")
+        if self.is_successful():
+            return self.result
+        elif self.is_failed():
+            raise ValueError(f"{self.friendly_name()} failed: {self.error}")
 
     @contextmanager
     def _context(self):
@@ -475,6 +493,7 @@ def task(
 
         task = Task(
             objective=objective,
+            instructions=instructions,
             agents=agents,
             context=bound.arguments,
             result_type=fn.__annotations__.get("return"),
