@@ -6,8 +6,6 @@ from contextlib import contextmanager
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
-    Any,
-    Callable,
     GenericAlias,
     Literal,
     TypeVar,
@@ -31,6 +29,7 @@ from controlflow.instructions import get_instructions
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import wrap_prefect_tool
+from controlflow.utilities.tasks import collect_tasks, visit_task_collection
 from controlflow.utilities.types import (
     NOTSET,
     AssistantTool,
@@ -51,32 +50,6 @@ class TaskStatus(Enum):
     SUCCESSFUL = "successful"
     FAILED = "failed"
     SKIPPED = "skipped"
-
-
-def visit_task_collection(
-    val: Any, fn: Callable, recursion_limit: int = 3, _counter: int = 0
-) -> list["Task"]:
-    if _counter >= recursion_limit:
-        return val
-
-    if isinstance(val, dict):
-        result = {}
-        for key, value in list(val.items()):
-            result[key] = visit_task_collection(
-                value, fn=fn, recursion_limit=recursion_limit, _counter=_counter + 1
-            )
-    elif isinstance(val, (list, set, tuple)):
-        result = []
-        for item in val:
-            result.append(
-                visit_task_collection(
-                    item, fn=fn, recursion_limit=recursion_limit, _counter=_counter + 1
-                )
-            )
-    elif isinstance(val, Task):
-        return fn(val)
-
-    return val
 
 
 class Task(ControlFlowModel):
@@ -109,6 +82,7 @@ class Task(ControlFlowModel):
     error: Union[str, None] = None
     tools: list[ToolType] = []
     user_access: bool = False
+    is_auto_completed_by_subtasks: bool = False
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     _parent: "Union[Task, None]" = None
     _downstreams: list["Task"] = []
@@ -191,16 +165,16 @@ class Task(ControlFlowModel):
 
     @model_validator(mode="after")
     def _finalize(self):
+        # validate correlated settings
+        if self.result_type is not None and self.is_auto_completed_by_subtasks:
+            raise ValueError(
+                "Tasks with a result type cannot be auto-completed by their subtasks."
+            )
+
         # create dependencies to tasks passed in as context
-        tasks = []
+        context_tasks = collect_tasks(self.context)
 
-        def visitor(task):
-            tasks.append(task)
-            return task
-
-        visit_task_collection(self.context, visitor)
-
-        for task in tasks:
+        for task in context_tasks:
             if task not in self.depends_on:
                 self.depends_on.append(task)
         return self
@@ -283,7 +257,7 @@ class Task(ControlFlowModel):
 
         controller.run_once()
 
-    def run(self, max_iterations: int = NOTSET) -> T:
+    def run(self, raise_on_error: bool = True, max_iterations: int = NOTSET) -> T:
         """
         Runs the task with provided agents until it is complete.
 
@@ -304,7 +278,7 @@ class Task(ControlFlowModel):
             counter += 1
         if self.is_successful():
             return self.result
-        elif self.is_failed():
+        elif self.is_failed() and raise_on_error:
             raise ValueError(f"{self.friendly_name()} failed: {self.error}")
 
     @contextmanager
@@ -394,6 +368,9 @@ class Task(ControlFlowModel):
             tools.append(marvin.utilities.tools.tool_from_function(talk_to_human))
         return [wrap_prefect_tool(t) for t in tools]
 
+    def dependencies(self):
+        return self.depends_on + self.subtasks
+
     def mark_successful(self, result: T = None, validate: bool = True):
         if validate:
             if any(t.is_incomplete() for t in self.depends_on):
@@ -418,15 +395,41 @@ class Task(ControlFlowModel):
 
         self.result = result
         self.status = TaskStatus.SUCCESSFUL
+
+        # attempt to complete the parent, if appropriate
+        if (
+            self._parent
+            and self._parent.is_auto_completed_by_subtasks
+            and all_complete(self._parent.dependencies())
+        ):
+            self._parent.mark_successful(validate=True)
+
         return f"{self.friendly_name()} marked successful. Updated task definition: {self.model_dump()}"
 
     def mark_failed(self, message: Union[str, None] = None):
         self.error = message
         self.status = TaskStatus.FAILED
+
+        # attempt to fail the parent, if appropriate
+        if (
+            self._parent
+            and self._parent.is_auto_completed_by_subtasks
+            and all_complete(self._parent.dependencies())
+        ):
+            self._parent.mark_failed()
+
         return f"{self.friendly_name()} marked failed. Updated task definition: {self.model_dump()}"
 
     def mark_skipped(self):
         self.status = TaskStatus.SKIPPED
+        # attempt to complete the parent, if appropriate
+        if (
+            self._parent
+            and self._parent.is_auto_completed_by_subtasks
+            and all_complete(self._parent.dependencies())
+        ):
+            self._parent.mark_successful(validate=False)
+
         return f"{self.friendly_name()} marked skipped. Updated task definition: {self.model_dump()}"
 
 
