@@ -82,15 +82,11 @@ def flow(
         if agents is not None:
             flow_kwargs.setdefault("agents", agents)
 
-        p_fn = prefect.flow(fn)
-
         flow_obj = Flow(**flow_kwargs, context=bound.arguments)
 
-        logger.info(
-            f'Executing AI flow "{fn.__name__}" on thread "{flow_obj.thread.id}"'
-        )
-
-        with flow_obj, patch_marvin():
+        # create a function to wrap as a Prefect flow
+        @prefect.flow
+        def wrapped_flow(*args, **kwargs):
             with Task(
                 fn.__name__,
                 instructions="Complete all subtasks of this task.",
@@ -98,7 +94,7 @@ def flow(
                 context=bound.arguments,
             ) as parent_task:
                 with controlflow.instructions(instructions):
-                    result = p_fn(*args, **kwargs)
+                    result = fn(*args, **kwargs)
 
                     # ensure all subtasks are completed
                     parent_task.run()
@@ -107,7 +103,14 @@ def flow(
                         # resolve any returned tasks; this will raise on failure
                         result = resolve_tasks(result)
 
-            return result
+                return result
+
+        logger.info(
+            f'Executing AI flow "{fn.__name__}" on thread "{flow_obj.thread.id}"'
+        )
+
+        with flow_obj, patch_marvin():
+            return wrapped_flow(*args, **kwargs)
 
     return wrapper
 
