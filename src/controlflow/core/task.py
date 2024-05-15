@@ -146,7 +146,24 @@ class Task(ControlFlowModel):
             self.add_dependency(task)
 
     def __repr__(self):
-        return str(self.model_dump())
+        include_fields = [
+            "id",
+            "objective",
+            "status",
+            "result_type",
+            "agents",
+            "context",
+            "user_access",
+            "subtasks",
+            "depends_on",
+            "tools",
+        ]
+        fields = self.model_dump(include=include_fields)
+        field_str = ", ".join(
+            f"{k}={f'"{fields[k]}"' if isinstance(fields[k], str) else fields[k] }"
+            for k in include_fields
+        )
+        return f"{self.__class__.__name__}({field_str})"
 
     @field_validator("agents", mode="before")
     def _default_agents(cls, v):
@@ -205,7 +222,8 @@ class Task(ControlFlowModel):
 
     @field_serializer("result_type")
     def _serialize_result_type(result_type: list["Task"]):
-        return repr(result_type)
+        if result_type is not None:
+            return repr(result_type)
 
     @field_serializer("agents")
     def _serialize_agents(agents: list["Agent"]):
