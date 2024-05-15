@@ -167,6 +167,20 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             controller=self, agent=agent, tasks=tasks, thread=thread
         )
 
+    def choose_agent(
+        self,
+        agents: list[Agent],
+        tasks: list[Task],
+        history: list = None,
+        instructions: list[str] = None,
+    ) -> Agent:
+        return marvin_moderator(
+            agents=agents,
+            tasks=tasks,
+            history=history,
+            instructions=instructions,
+        )
+
     @expose_sync_method("run_once")
     async def run_once_async(self):
         """
@@ -190,7 +204,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         elif len(agents) == 1:
             agent = agents[0]
         else:
-            agent = marvin_moderator(
+            agent = self.choose_agent(
                 agents=agents,
                 tasks=tasks,
                 history=get_flow_messages(),
