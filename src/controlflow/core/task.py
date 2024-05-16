@@ -76,14 +76,15 @@ class LoadMessage(ControlFlowModel):
     )
 
     strip_prefix: str = Field(
+        None,
         description="These characters will be removed from the start "
-        "of the message. Use it to remove e.g. your name from the message.",
+        "of the message. For example, remove text like your name prefix.",
     )
 
     strip_suffix: Optional[str] = Field(
         None,
-        description="If provided, these characters will be removed from the end of "
-        "the message.",
+        description="These characters will be removed from the end of "
+        "the message. For example, remove comments like 'I'll mark the task complete now.'",
     )
 
     def trim_message(self, message: BaseMessage) -> str:
