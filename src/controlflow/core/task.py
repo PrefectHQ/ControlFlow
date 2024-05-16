@@ -165,9 +165,8 @@ class Task(ControlFlowModel):
 
         if additional_instructions := get_instructions():
             kwargs["instructions"] = (
-                kwargs.get("instructions", "")
-                + "\n"
-                + "\n".join(additional_instructions)
+                kwargs.get("instructions")
+                or "" + "\n" + "\n".join(additional_instructions)
             ).strip()
 
         # setup up relationships
