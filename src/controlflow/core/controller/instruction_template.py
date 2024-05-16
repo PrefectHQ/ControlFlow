@@ -109,20 +109,24 @@ class TasksTemplate(Template):
         satisfy the task objective, accounting for any other instructions. If a
         task does not require a result (`result_type=None`), you must still
         complete its stated objective by posting messages or using other tools
-        before marking the task as complete.
+        before marking the task as complete. Your result must be compatible with
+        the result constructor. For most results, the tool schema will indicate
+        the correct types. For some, like a DataFrame, provide an appropriate
+        kwargs dict.
         
         #### Using messages as results
         
-        You can reuse the contents of any message as a task's result by
-        providing a special `ThreadMessage` object when marking a task
-        successful. Only do this if the thread message is exactly compatible
-        with task's result_type (e.g. a string of JSON representation). Indicate
-        the number of messages ago that the message was posted (defaults to 1).
-        Also provide any characters to strip from the start or end of the
-        message, to make sure that the result doesn't reveal any internal
-        details (for example, always remove your name prefix and irrelevant
-        comments from the beginning or end of the response such as
-        "I'll mark the task complete now.").
+        If you posted a message whose contents could be reused as the result of
+        a task, you can quickly load the contents by providing a special
+        `ThreadMessage` object when marking a task successful. Indicate the
+        number of messages ago that the message was posted (defaults to 1), as
+        well as any characters to strip from the start or end of the message
+        (for example, always remove your name prefix and irrelevant comments
+        from the beginning or end of the response such as "I'll mark the task
+        complete now."). This will only work if the literal message contents (as
+        a string or JSON reprseentation) are exactly compatible with the result
+        type and will error otherwise. This is not magic; the string or JSON are
+        passed to the result constructor as-is.
         
         """
     tasks: list[Task]

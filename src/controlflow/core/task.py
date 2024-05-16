@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
+    Any,
     GenericAlias,
     Literal,
     Optional,
@@ -18,6 +19,7 @@ from marvin.types import BaseMessage
 from marvin.utilities.tools import FunctionTool
 from pydantic import (
     Field,
+    PydanticSchemaGenerationError,
     TypeAdapter,
     field_serializer,
     field_validator,
@@ -38,6 +40,8 @@ from controlflow.utilities.types import (
     NOTSET,
     AssistantTool,
     ControlFlowModel,
+    PandasDataFrame,
+    PandasSeries,
     ToolType,
 )
 from controlflow.utilities.user_access import talk_to_human
@@ -113,22 +117,29 @@ class Task(ControlFlowModel):
     )
     agents: list["Agent"] = Field(
         None,
-        description="The agents assigned to the task. If not provided, agents will be inferred from the parent task, flow, or global default.",
+        description="The agents assigned to the task. If not provided, agents "
+        "will be inferred from the parent task, flow, or global default.",
     )
     context: dict = Field(
         default_factory=dict,
-        description="Additional context for the task. If tasks are provided as context, they are automatically added as `depends_on`",
+        description="Additional context for the task. If tasks are provided as "
+        "context, they are automatically added as `depends_on`",
     )
     subtasks: list["Task"] = Field(
         default_factory=list,
-        description="A list of subtasks that are part of this task. Subtasks are considered dependencies, though they may be skipped.",
+        description="A list of subtasks that are part of this task. Subtasks are "
+        "considered dependencies, though they may be skipped.",
     )
     depends_on: list["Task"] = Field(
         default_factory=list, description="Tasks that this task depends on explicitly."
     )
     status: TaskStatus = TaskStatus.INCOMPLETE
     result: T = None
-    result_type: Union[type[T], GenericAlias, _LiteralGenericAlias, None] = None
+    result_type: Union[type[T], GenericAlias, _LiteralGenericAlias, None] = Field(
+        None,
+        description="The expected type of the result. This should be a type"
+        ", generic alias, BaseModel subclass, pd.DataFrame, or pd.Series.",
+    )
     error: Union[str, None] = None
     tools: list[ToolType] = []
     user_access: bool = False
@@ -398,8 +409,9 @@ class Task(ControlFlowModel):
 
         # generate tool for other result types
         else:
+            result_schema = generate_result_schema(self.result_type)
 
-            def succeed(result: Union[ThreadMessage, self.result_type]) -> str:
+            def succeed(result: Union[ThreadMessage, result_schema]) -> str:  # type: ignore
                 # a shortcut for loading results from recent messages
                 if isinstance(result, dict) and result.get("type") == "ThreadMessage":
                     result = ThreadMessage(**result)
@@ -455,8 +467,8 @@ class Task(ControlFlowModel):
     def dependencies(self):
         return self.depends_on + self.subtasks
 
-    def mark_successful(self, result: T = None, validate: bool = True):
-        if validate:
+    def mark_successful(self, result: T = None, validate_upstreams: bool = True):
+        if validate_upstreams:
             if any(t.is_incomplete() for t in self.depends_on):
                 raise ValueError(
                     f"Task {self.objective} cannot be marked successful until all of its "
@@ -470,14 +482,7 @@ class Task(ControlFlowModel):
                     f"are: {', '.join(t.friendly_name() for t in self.subtasks if t.is_incomplete())}"
                 )
 
-        if self.result_type is None and result is not None:
-            raise ValueError(
-                f"Task {self.objective} has result_type=None, but a result was provided."
-            )
-        elif self.result_type is not None:
-            result = TypeAdapter(self.result_type).validate_python(result)
-
-        self.result = result
+        self.result = validate_result(result, self.result_type)
         self.status = TaskStatus.SUCCESSFUL
         return f"{self.friendly_name()} marked successful. Updated task definition: {self.model_dump()}"
 
@@ -489,3 +494,54 @@ class Task(ControlFlowModel):
     def mark_skipped(self):
         self.status = TaskStatus.SKIPPED
         return f"{self.friendly_name()} marked skipped. Updated task definition: {self.model_dump()}"
+
+
+def generate_result_schema(result_type: type[T]) -> type[T]:
+    result_schema = None
+    # try loading pydantic-compatible schemas
+    try:
+        TypeAdapter(result_type)
+        result_schema = result_type
+    except PydanticSchemaGenerationError:
+        pass
+    # try loading as dataframe
+    try:
+        import pandas as pd
+
+        if result_type is pd.DataFrame:
+            result_schema = PandasDataFrame
+        elif result_type is pd.Series:
+            result_schema = PandasSeries
+    except ImportError:
+        pass
+    if result_schema is None:
+        raise ValueError(
+            f"Could not load or infer schema for result type {result_type}. "
+            "Please use a custom type or add compatibility."
+        )
+    return result_schema
+
+
+def validate_result(result: Any, result_type: type[T]) -> T:
+    if result_type is None and result is not None:
+        raise ValueError("Task has result_type=None, but a result was provided.")
+    elif result_type is not None:
+        try:
+            result = TypeAdapter(result_type).validate_python(result)
+        except PydanticSchemaGenerationError:
+            if isinstance(result, dict):
+                result = result_type(**result)
+            else:
+                result = result_type(result)
+
+        # Convert DataFrame schema back into pd.DataFrame object
+        if result_type == PandasDataFrame:
+            import pandas as pd
+
+            result = pd.DataFrame(**result)
+        elif result_type == PandasSeries:
+            import pandas as pd
+
+            result = pd.Series(**result)
+
+    return result

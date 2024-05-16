@@ -46,6 +46,7 @@ tests = [
     "pytest-timeout",
     "pytest-xdist",
     "pre-commit>=3.7.0",
+    "pandas",
 ]
 dev = ["controlflow[tests]", "ipython", "pdbpp", "ruff>=0.3.4"]
 
