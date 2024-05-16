@@ -67,9 +67,10 @@ newman = Agent(
 def demo():
     topic = "milk and cereal"
     task = Task(
-        "Discuss a topic; everyone should speak at least once",
+        "Discuss a topic",
         agents=[jerry, george, elaine, kramer, newman],
         context=dict(topic=topic),
+        instructions="every agent should speak at least once",
     )
     task.run()
 
