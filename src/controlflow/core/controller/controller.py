@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 from typing import Any, Union
 
 import marvin.utilities
@@ -13,6 +14,7 @@ from prefect import task as prefect_task
 from prefect.context import FlowRunContext
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+import controlflow
 from controlflow.core.agent import Agent
 from controlflow.core.controller.moderators import marvin_moderator
 from controlflow.core.flow import Flow, get_flow, get_flow_messages
@@ -24,6 +26,7 @@ from controlflow.utilities.prefect import (
     create_python_artifact,
     wrap_prefect_tool,
 )
+from controlflow.utilities.tasks import any_incomplete
 from controlflow.utilities.types import FunctionTool, Thread
 
 logger = logging.getLogger(__name__)
@@ -60,6 +63,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
     context: dict = {}
     graph: Graph = None
     model_config: dict = dict(extra="forbid")
+    _iteration: int = 0
 
     @model_validator(mode="before")
     @classmethod
@@ -171,14 +175,12 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         self,
         agents: list[Agent],
         tasks: list[Task],
-        history: list = None,
-        instructions: list[str] = None,
+        iterations: int = 0,
     ) -> Agent:
         return marvin_moderator(
             agents=agents,
             tasks=tasks,
-            history=history,
-            instructions=instructions,
+            iteration=self._iteration,
         )
 
     @expose_sync_method("run_once")
@@ -188,6 +190,9 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         """
         # get the tasks to run
         tasks = self.graph.upstream_dependencies(self.tasks, include_tasks=True)
+
+        if all(t.is_complete() for t in tasks):
+            return
 
         # get the agents
         agent_candidates = {a for t in tasks for a in t.agents if t.is_ready()}
@@ -211,7 +216,24 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
                 instructions=get_instructions(),
             )
 
-        return await self._run_agent(agent, tasks=tasks)
+        await self._run_agent(agent, tasks=tasks)
+        self._iteration += 1
+
+    @expose_sync_method("run")
+    async def run_async(self):
+        """
+        Run the controller until all tasks are complete.
+        """
+        max_task_iterations = controlflow.settings.max_task_iterations or math.inf
+        start_iteration = self._iteration
+        while any_incomplete(self.tasks):
+            await self.run_once_async()
+            if self._iteration > start_iteration + max_task_iterations * len(
+                self.tasks
+            ):
+                raise ValueError(
+                    f"Task iterations exceeded maximum of {max_task_iterations} for each task."
+                )
 
 
 class AgentHandler(PrintHandler):

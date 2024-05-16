@@ -65,16 +65,13 @@ GLOBAL_FLOW = None
 def get_flow() -> Flow:
     """
     Loads the flow from the context.
-
-    Will error if no flow is found in the context, unless the global flow is
-    enabled in settings
     """
     flow: Union[Flow, None] = ctx.get("flow")
     if not flow:
         if controlflow.settings.enable_global_flow:
             return GLOBAL_FLOW
         else:
-            raise ValueError("No flow found in context.")
+            raise ValueError("No flow found in context and global flow is disabled.")
     return flow
 
 

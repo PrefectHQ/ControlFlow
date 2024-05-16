@@ -1,73 +1,29 @@
-import itertools
-from typing import TYPE_CHECKING, Any, Generator
-
 import marvin
-from pydantic import BaseModel, Field
 
 from controlflow.core.agent import Agent
-from controlflow.core.flow import Flow, get_flow_messages
+from controlflow.core.flow import get_flow_messages
 from controlflow.core.task import Task
-
-if TYPE_CHECKING:
-    from controlflow.core.agent import Agent
+from controlflow.instructions import get_instructions
 
 
-def round_robin(agents: list[Agent], tasks: list[Task]) -> Generator[Any, Any, Agent]:
-    """
-    Given a list of potential agents, delegate the tasks in a round-robin fashion.
-    """
-    cycle = itertools.cycle(agents)
-    while True:
-        yield next(cycle)
-
-
-class BaseModerator(BaseModel):
-    def __call__(
-        self, agents: list[Agent], tasks: list[Task]
-    ) -> Generator[Any, Any, Agent]:
-        yield from self.run(agents=agents, tasks=tasks)
-
-
-class AgentModerator(BaseModerator):
-    agent: Agent
-    participate: bool = Field(
-        False,
-        description="If True, the moderator can participate in the conversation. Default is False.",
-    )
-
-    def __init__(self, agent: Agent, **kwargs):
-        super().__init__(agent=agent, **kwargs)
-
-    def run(self, agents: list[Agent], tasks: list[Task]) -> Generator[Any, Any, Agent]:
-        while True:
-            history = get_flow_messages()
-
-            with Flow():
-                task = Task(
-                    "Choose the next agent that should speak.",
-                    instructions="""
-                        You are acting as a moderator. Choose the next agent to
-                        speak. Complete the task and stay silent. Do not post
-                        any messages, even to confirm marking the task as
-                        successful.
-                        """,
-                    result_type=[a.name for a in agents],
-                    context=dict(agents=agents, history=history, tasks=tasks),
-                    agents=[self.agent],
-                    parent=None,
-                )
-                agent_name = task.run()
-                yield next(a for a in agents if a.name == agent_name)
+def round_robin(
+    agents: list[Agent],
+    tasks: list[Task],
+    context: dict = None,
+    iteration: int = 0,
+) -> Agent:
+    return agents[iteration % len(agents)]
 
 
 def marvin_moderator(
     agents: list[Agent],
     tasks: list[Task],
-    history: list = None,
-    instructions: list[str] = None,
     context: dict = None,
+    iteration: int = 0,
     model: str = None,
 ) -> Agent:
+    history = get_flow_messages()
+    instructions = get_instructions()
     context = context or {}
     context.update(tasks=tasks, history=history, instructions=instructions)
     agent = marvin.classify(

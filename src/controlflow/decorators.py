@@ -6,6 +6,7 @@ from marvin.beta.assistants import Thread
 
 import controlflow
 from controlflow.core.agent import Agent
+from controlflow.core.controller import Controller
 from controlflow.core.flow import Flow
 from controlflow.core.task import Task
 from controlflow.utilities.logging import get_logger
@@ -87,21 +88,19 @@ def flow(
         # create a function to wrap as a Prefect flow
         @prefect.flow
         def wrapped_flow(*args, **kwargs):
-            with Task(
-                fn.__name__,
-                instructions="Complete all subtasks of this task.",
-                is_auto_completed_by_subtasks=True,
-                context=bound.arguments,
-            ) as parent_task:
+            with flow_obj, patch_marvin():
                 with controlflow.instructions(instructions):
                     result = fn(*args, **kwargs)
-
-                    # ensure all subtasks are completed
-                    parent_task.run()
 
                     if resolve_results:
                         # resolve any returned tasks; this will raise on failure
                         result = resolve_tasks(result)
+
+                    # run all tasks in the flow to completion
+                    Controller(
+                        flow=flow_obj,
+                        tasks=list(flow_obj._tasks.values()),
+                    ).run()
 
                 return result
 
@@ -109,8 +108,7 @@ def flow(
             f'Executing AI flow "{fn.__name__}" on thread "{flow_obj.thread.id}"'
         )
 
-        with flow_obj, patch_marvin():
-            return wrapped_flow(*args, **kwargs)
+        return wrapped_flow(*args, **kwargs)
 
     return wrapper
 
