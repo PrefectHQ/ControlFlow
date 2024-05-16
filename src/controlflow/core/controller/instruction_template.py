@@ -32,12 +32,12 @@ class AgentTemplate(Template):
         
         These are your instructions: "{{ agent.instructions or 'No additional instructions provided.'}}"
         
-        You must follow these instructions at all times. They define your role and behavior.
+        You must follow these instructions at all times. They define your role
+        and behavior.
         
-        You are participating in an agentic workflow (a "flow"), parts of which have
-        been delegated to you and other AI agents. You are being orchestrated by a
-        "controller" object. DO NOT speak on behalf of other agents or the system.
-        You can only post messages on behalf of yourself.
+        You are participating in an agentic workflow (a "flow"), parts of which
+        have been delegated to you and other AI agents. You are being
+        orchestrated by a "controller" object. 
         """
     agent: Agent
 
@@ -65,7 +65,8 @@ class TasksTemplate(Template):
         objective and criteria for success. Your job is to perform any required
         actions and then mark each assigned task as successful. If a task
         requires a result, you must provide it. Only work on tasks that are
-        assigned to you.        
+        assigned to you. Tasks may have multiple agents assigned. Only one agent
+        can respond or take actions at a time.
         
         ### Current tasks
         
