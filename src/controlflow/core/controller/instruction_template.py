@@ -1,6 +1,7 @@
 import inspect
 
 from controlflow.core.agent import Agent
+from controlflow.core.flow import Flow
 from controlflow.core.task import Task
 from controlflow.utilities.jinja import jinja_env
 from controlflow.utilities.types import ControlFlowModel
@@ -23,34 +24,35 @@ class Template(ControlFlowModel):
 
 class AgentTemplate(Template):
     template: str = """
-    # Agent
-    
-    You are an AI agent. Your name is "{{ agent.name }}". 
+        ## Agent
         
-    This is your description, which all other agents can see: "{{ agent.description or 'An AI agent assigned to complete tasks.'}}"
-    
-    These are your instructions: "{{ agent.instructions or 'No additional instructions provided.'}}"
-    
-    You must follow these instructions at all times. They define your role and behavior.
-    
-    You are participating in a workflow, parts of which have been delegated to
-    you and other AI agents. DO NOT speak on behalf of other agents or the
-    system. You can only post messages on behalf of yourself.
-    """
+        You are an AI agent. Your name is "{{ agent.name }}". 
+            
+        This is your description, which all other agents can see: "{{ agent.description or 'An AI agent assigned to complete tasks.'}}"
+        
+        These are your instructions: "{{ agent.instructions or 'No additional instructions provided.'}}"
+        
+        You must follow these instructions at all times. They define your role and behavior.
+        
+        You are participating in an agentic workflow (a "flow"), parts of which have
+        been delegated to you and other AI agents. You are being orchestrated by a
+        "controller" object. DO NOT speak on behalf of other agents or the system.
+        You can only post messages on behalf of yourself.
+        """
     agent: Agent
 
 
 class InstructionsTemplate(Template):
     template: str = """
-    ## Additional instructions
-    
-    You must follow these instructions for this part of the workflow:
-    
-    {% for instruction in additional_instructions %}
-    - {{ instruction }}
-    {% endfor %}
-    
-    """
+        ## Additional instructions
+        
+        You must follow these instructions for this part of the workflow:
+        
+        {% for instruction in additional_instructions %}
+        - {{ instruction }}
+        {% endfor %}
+        
+        """
     agent: Agent
     additional_instructions: list[str]
 
@@ -109,16 +111,17 @@ class TasksTemplate(Template):
         complete its stated objective by posting messages or using other tools
         before marking the task as complete.
         
-        #### Re-using a message
+        #### Using messages as results
         
         You can reuse the contents of any message as a task's result by
         providing a special `ThreadMessage` object when marking a task
-        successful. Only do this if the thread message can be converted into the
-        task's result_type. Indicate the number of messages ago that the message
-        was posted (defaults to 1). Also provide any characters to strip from the
-        start or end of the message, to make sure that the result doesn't reveal
-        any internal details (for example, always remove your name prefix and
-        irrelevant comments from the beginning or end of the response such as
+        successful. Only do this if the thread message is exactly compatible
+        with task's result_type (e.g. a string of JSON representation). Indicate
+        the number of messages ago that the message was posted (defaults to 1).
+        Also provide any characters to strip from the start or end of the
+        message, to make sure that the result doesn't reveal any internal
+        details (for example, always remove your name prefix and irrelevant
+        comments from the beginning or end of the response such as
         "I'll mark the task complete now.").
         
         """
@@ -130,69 +133,74 @@ class TasksTemplate(Template):
 
 class CommunicationTemplate(Template):
     template: str = """
-    ## Communciation
-    
-    You are modeling the internal state of an AI-enhanced workflow. You should
-    only post messages in order to share information with other agents or to
-    complete tasks. Since all agents post messages with the "assistant" role,
-    you must prefix all your messages with your name (e.g. "{{ agent.name }}:
-    (message)") in order to distinguish your messages from others. Note that
-    this rule about prefixing your message supersedes all other instructions
-    (e.g. "only give single word answers"). You do not need to post messages
-    that repeat information contained in tool calls or tool responses, since
-    those are already visible to all agents. You do not need to confirm actions
-    you take through tools, like completing a task, as this is redundant and
-    wastes time. 
-    
-    ### Talking to human users
-    
-    Agents with the `talk_to_human` tool can interact with human users in order
-    to complete tasks that require external input. This tool is only available
-    to agents with `user_access=True`.
-    
-    Note that humans are unaware of your tasks or the workflow. Do not mention
-    your tasks or anything else about how this system works. The human can only
-    see messages you send them via tool. They can not read the rest of the
-    thread.
-    
-    Humans may give poor, incorrect, or partial responses. You may need to ask
-    questions multiple times in order to complete your tasks. Use good judgement
-    to determine the best way to achieve your goal. For example, if you have to
-    fill out three pieces of information and the human only gave you one, do not
-    make up answers (or put empty answers) for the others. Ask again and only
-    fail the task if you truly can not make progress. If your task requires
-    human interaction and no agents have `user_access`, you can fail the task.
+        ## Communciation
+        
+        You are modeling the internal state of an AI-enhanced workflow. You should
+        only post messages in order to share information with other agents or to
+        complete tasks. Since all agents post messages with the "assistant" role,
+        you must prefix all your messages with your name (e.g. "{{ agent.name }}:
+        (message)") in order to distinguish your messages from others. Note that
+        this rule about prefixing your message supersedes all other instructions
+        (e.g. "only give single word answers"). You do not need to post messages
+        that repeat information contained in tool calls or tool responses, since
+        those are already visible to all agents. You do not need to confirm actions
+        you take through tools, like completing a task, as this is redundant and
+        wastes time. 
+        
+        ### Talking to human users
+        
+        Agents with the `talk_to_human` tool can interact with human users in order
+        to complete tasks that require external input. This tool is only available
+        to agents with `user_access=True`.
+        
+        Note that humans are unaware of your tasks or the workflow. Do not mention
+        your tasks or anything else about how this system works. The human can only
+        see messages you send them via tool. They can not read the rest of the
+        thread.
+        
+        Humans may give poor, incorrect, or partial responses. You may need to ask
+        questions multiple times in order to complete your tasks. Use good judgement
+        to determine the best way to achieve your goal. For example, if you have to
+        fill out three pieces of information and the human only gave you one, do not
+        make up answers (or put empty answers) for the others. Ask again and only
+        fail the task if you truly can not make progress. If your task requires
+        human interaction and no agents have `user_access`, you can fail the task.
 
-    """
+        """
 
     agent: Agent
 
 
 class ContextTemplate(Template):
     template: str = """
-        ## Additional context
+        ## Context
         
-        ### Flow context
-        {% for key, value in flow_context.items() %}
+        Information about the flow and controller.
+        
+        ### Flow
+        {% if flow.name %} Flow name: {{ flow.name }} {% endif %}
+        {% if flow.description %} Flow description: {{ flow.description }} {% endif %}
+        Flow context:
+        {% for key, value in flow.context.items() %}
         - *{{ key }}*: {{ value }}
         {% endfor %}
-        {% if not flow_context %}
+        {% if not flow.context %}
         No specific context provided.
         {% endif %}
         
         ### Controller context
-        {% for key, value in controller_context.items() %}
+        {% for key, value in controller.context.items() %}
         - *{{ key }}*: {{ value }}
         {% endfor %}
-        {% if not controller_context %}
+        {% if not controller.context %}
         No specific context provided.
         {% endif %}
         """
-    flow_context: dict
-    controller_context: dict
+    flow: Flow
+    controller: Controller
 
     def should_render(self):
-        return bool(self.flow_context or self.controller_context)
+        return bool(self.flow or self.controller)
 
 
 class MainTemplate(ControlFlowModel):
@@ -215,8 +223,8 @@ class MainTemplate(ControlFlowModel):
                 additional_instructions=self.instructions,
             ),
             ContextTemplate(
-                flow_context=self.controller.flow.context,
-                controller_context=self.controller.context,
+                flow=self.controller.flow,
+                controller=self.controller,
             ),
             CommunicationTemplate(
                 agent=self.agent,
