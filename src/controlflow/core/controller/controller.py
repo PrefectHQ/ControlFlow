@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 import controlflow
 from controlflow.core.agent import Agent
 from controlflow.core.controller.moderators import marvin_moderator
-from controlflow.core.flow import Flow, get_flow, get_flow_messages
+from controlflow.core.flow import Flow, get_flow
 from controlflow.core.graph import Graph
 from controlflow.core.task import Task
 from controlflow.instructions import get_instructions
@@ -171,12 +171,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             controller=self, agent=agent, tasks=tasks, thread=thread
         )
 
-    def choose_agent(
-        self,
-        agents: list[Agent],
-        tasks: list[Task],
-        iterations: int = 0,
-    ) -> Agent:
+    def choose_agent(self, agents: list[Agent], tasks: list[Task]) -> Agent:
         return marvin_moderator(
             agents=agents,
             tasks=tasks,
@@ -209,12 +204,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         elif len(agents) == 1:
             agent = agents[0]
         else:
-            agent = self.choose_agent(
-                agents=agents,
-                tasks=tasks,
-                history=get_flow_messages(),
-                instructions=get_instructions(),
-            )
+            agent = self.choose_agent(agents=agents, tasks=tasks)
 
         await self._run_agent(agent, tasks=tasks)
         self._iteration += 1
