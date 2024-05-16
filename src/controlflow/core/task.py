@@ -6,6 +6,7 @@ from typing import (
     TYPE_CHECKING,
     GenericAlias,
     Literal,
+    Optional,
     TypeVar,
     Union,
     _LiteralGenericAlias,
@@ -13,6 +14,7 @@ from typing import (
 
 import marvin
 import marvin.utilities.tools
+from marvin.types import BaseMessage
 from marvin.utilities.tools import FunctionTool
 from pydantic import (
     Field,
@@ -23,12 +25,12 @@ from pydantic import (
 )
 
 import controlflow
+from controlflow.core.flow import get_flow_messages
 from controlflow.instructions import get_instructions
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import wrap_prefect_tool
 from controlflow.utilities.tasks import (
-    all_complete,
     collect_tasks,
     visit_task_collection,
 )
@@ -52,6 +54,53 @@ class TaskStatus(Enum):
     SUCCESSFUL = "successful"
     FAILED = "failed"
     SKIPPED = "skipped"
+
+
+class ThreadMessage(ControlFlowModel):
+    """
+    This special object can be used to indicate that a task result should be
+    loaded from a recent message posted to the flow's thread.
+    """
+
+    type: Literal["ThreadMessage"] = Field(
+        'You must provide this value as "ThreadMessage".'
+    )
+
+    num_messages_ago: int = Field(
+        1,
+        description="The number of messages ago to retrieve. Default is 1, or the most recent message.",
+    )
+
+    strip_prefix: str = Field(
+        description="These characters will be removed from the start "
+        "of the message. Use it to remove e.g. your name from the message.",
+    )
+
+    strip_suffix: Optional[str] = Field(
+        None,
+        description="If provided, these characters will be removed from the end of "
+        "the message.",
+    )
+
+    def trim_message(self, message: BaseMessage) -> str:
+        content = message.content[0].text.value
+        if self.strip_prefix:
+            if content.startswith(self.strip_prefix):
+                content = content[len(self.strip_prefix) :]
+            else:
+                raise ValueError(
+                    f'Invalid strip prefix "{self.strip_prefix}"; messages '
+                    f'starts with "{content[:len(self.strip_prefix) + 10]}"'
+                )
+        if self.strip_suffix:
+            if content.endswith(self.strip_suffix):
+                content = content[: -len(self.strip_suffix)]
+            else:
+                raise ValueError(
+                    f'Invalid strip suffix "{self.strip_suffix}"; messages '
+                    f'ends with "{content[-len(self.strip_suffix) - 10:]}"'
+                )
+        return content.strip()
 
 
 class Task(ControlFlowModel):
@@ -84,8 +133,8 @@ class Task(ControlFlowModel):
     error: Union[str, None] = None
     tools: list[ToolType] = []
     user_access: bool = False
-    is_auto_completed_by_subtasks: bool = False
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    visible: bool = True
     _parent: "Union[Task, None]" = None
     _downstreams: list["Task"] = []
     model_config = dict(extra="forbid", arbitrary_types_allowed=True)
@@ -167,11 +216,11 @@ class Task(ControlFlowModel):
 
     @model_validator(mode="after")
     def _finalize(self):
-        # validate correlated settings
-        if self.result_type is not None and self.is_auto_completed_by_subtasks:
-            raise ValueError(
-                "Tasks with a result type cannot be auto-completed by their subtasks."
-            )
+        from controlflow.core.flow import get_flow
+
+        # add task to flow
+        flow = get_flow()
+        flow.add_task(self)
 
         # create dependencies to tasks passed in as context
         context_tasks = collect_tasks(self.context)
@@ -324,15 +373,31 @@ class Task(ControlFlowModel):
         """
         Create an agent-compatible tool for marking this task as successful.
         """
+        # generate tool for result_type=None
+        if self.result_type is None:
 
-        # wrap the method call to get the correct result type signature
-        def succeed(result: self.result_type) -> str:
-            return self.mark_successful(result=result)
+            def succeed() -> str:
+                return self.mark_successful(result=None)
+
+        # generate tool for other result types
+        else:
+
+            def succeed(result: Union[ThreadMessage, self.result_type]) -> str:
+                # a shortcut for loading results from recent messages
+                if isinstance(result, dict) and result.get("type") == "ThreadMessage":
+                    result = ThreadMessage(**result)
+                    messages = get_flow_messages(limit=result.num_messages_ago)
+                    if messages:
+                        result = result.trim_message(messages[0])
+                    else:
+                        raise ValueError("Could not load last message.")
+
+                return self.mark_successful(result=result)
 
         tool = marvin.utilities.tools.tool_from_function(
             succeed,
             name=f"mark_task_{self.id}_successful",
-            description=f"Mark task {self.id} as successful and optionally provide a result.",
+            description=f"Mark task {self.id} as successful.",
         )
 
         return tool
@@ -390,46 +455,20 @@ class Task(ControlFlowModel):
 
         if self.result_type is None and result is not None:
             raise ValueError(
-                f"Task {self.objective} specifies no result type, but a result was provided."
+                f"Task {self.objective} has result_type=None, but a result was provided."
             )
         elif self.result_type is not None:
             result = TypeAdapter(self.result_type).validate_python(result)
 
         self.result = result
         self.status = TaskStatus.SUCCESSFUL
-
-        # attempt to complete the parent, if appropriate
-        if (
-            self._parent
-            and self._parent.is_auto_completed_by_subtasks
-            and all_complete(self._parent.dependencies())
-        ):
-            self._parent.mark_successful(validate=True)
-
         return f"{self.friendly_name()} marked successful. Updated task definition: {self.model_dump()}"
 
     def mark_failed(self, message: Union[str, None] = None):
         self.error = message
         self.status = TaskStatus.FAILED
-
-        # attempt to fail the parent, if appropriate
-        if (
-            self._parent
-            and self._parent.is_auto_completed_by_subtasks
-            and all_complete(self._parent.dependencies())
-        ):
-            self._parent.mark_failed()
-
         return f"{self.friendly_name()} marked failed. Updated task definition: {self.model_dump()}"
 
     def mark_skipped(self):
         self.status = TaskStatus.SKIPPED
-        # attempt to complete the parent, if appropriate
-        if (
-            self._parent
-            and self._parent.is_auto_completed_by_subtasks
-            and all_complete(self._parent.dependencies())
-        ):
-            self._parent.mark_successful(validate=False)
-
         return f"{self.friendly_name()} marked skipped. Updated task definition: {self.model_dump()}"

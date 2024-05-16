@@ -1,4 +1,5 @@
 import pytest
+from controlflow import reset_global_flow
 from controlflow.settings import temporary_settings
 from prefect.testing.utilities import prefect_test_harness
 
@@ -7,8 +8,12 @@ from .fixtures import *
 
 @pytest.fixture(autouse=True, scope="session")
 def temp_controlflow_settings():
-    with temporary_settings(enable_global_flow=False, max_task_iterations=3):
-        yield
+    with temporary_settings(max_task_iterations=3):
+        try:
+            yield
+        finally:
+            # reset the global flow after each test
+            reset_global_flow()
 
 
 @pytest.fixture(autouse=True, scope="session")
