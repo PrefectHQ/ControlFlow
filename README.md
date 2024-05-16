@@ -22,17 +22,6 @@ This targeted approach results in AI systems that are easier to build, maintain,
 
 - **Agent**: An AI agent that can be assigned tasks. Agents are powered by specialized AI models that excel at specific tasks, such as text generation or decision making based on unstructured data.
 
-## Key Features
-
-- **Targeted AI Integration**: Engage specialized AI agents only for the tasks they're best suited for, while keeping the majority of your application logic in the realm of traditional software.
-
-- **Seamless Data Flow**: The `Task` class facilitates smooth data transfer between AI agents and your application, making it easy to incorporate AI-generated results into your workflow.
-
-- **Flexible Agent Orchestration**: Coordinate multiple AI agents to work together on complex tasks, leveraging their individual strengths.
-
-- **Human Interaction**: AI agents can interact with humans to gather input or provide information when needed, enabling powerful human-in-the-loop workflows.
-
-- **Intuitive APIs**: Clean, readable decorators and APIs for defining tasks and agents, built on top of the powerful Prefect and Marvin engines.
 
 ## Get Started
 
@@ -44,6 +33,32 @@ cd controlflow
 pip install .
 ```
 
+## Development
+
+To install for development:
+
+```bash
+git clone https://github.com/jlowin/controlflow.git
+cd controlflow
+pip install -e ".[dev]"
+```
+
+To run tests:
+
+```bash
+cd controlflow
+pytest -vv
+```
+
+The ControlFlow documentation is built with [Mintlify](https://mintlify.com/). To build the documentation, first install `mintlify`:
+```bash
+npm i -g mintlify
+```
+Then run the local build:
+```bash
+cd controlflow/docs
+mintlify dev
+```
 ## Example
 
 ```python
