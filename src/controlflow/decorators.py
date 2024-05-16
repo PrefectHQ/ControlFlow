@@ -6,7 +6,6 @@ from marvin.beta.assistants import Thread
 
 import controlflow
 from controlflow.core.agent import Agent
-from controlflow.core.controller import Controller
 from controlflow.core.flow import Flow
 from controlflow.core.task import Task
 from controlflow.utilities.logging import get_logger
@@ -101,20 +100,12 @@ def flow(
                     # allow runtime override of eager mode
                     eager_mode = eager_ if eager_ is not None else eager
                     if eager_mode:
+                        flow_obj.run()
+
                         # resolve any returned tasks; this will raise on failure
-                        result = resolve_tasks(result)
-
-                        # run all tasks in the flow to completion
-                        Controller(
-                            flow=flow_obj,
-                            tasks=list(flow_obj._tasks.values()),
-                        ).run()
-
-                return result
-
-        logger.info(
-            f'Executing AI flow "{fn.__name__}" on thread "{flow_obj.thread.id}"'
-        )
+                        return resolve_tasks(result)
+                    else:
+                        return flow_obj
 
         return wrapped_flow(*args, **kwargs)
 

@@ -50,6 +50,13 @@
             ]
         },
         {
+            "group": "Reference",
+            "pages": [
+                "reference/task-class",
+                "reference/task-decorator"
+            ]
+        },
+        {
             "group": "Overview",
             "pages": [
                 "glossary/glossary"
