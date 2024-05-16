@@ -117,17 +117,15 @@ class TasksTemplate(Template):
         
         #### Using messages as results
         
-        If you posted a message whose contents could be reused as the result of
-        a task, you can quickly load the contents by providing a special
-        `ThreadMessage` object when marking a task successful. Indicate the
-        number of messages ago that the message was posted (defaults to 1), as
-        well as any characters to strip from the start or end of the message
-        (for example, always remove your name prefix and irrelevant comments
-        from the beginning or end of the response such as "I'll mark the task
-        complete now."). This will only work if the literal message contents (as
-        a string or JSON reprseentation) are exactly compatible with the result
-        type and will error otherwise. This is not magic; the string or JSON are
-        passed to the result constructor as-is.
+        If you posted a message whose contents could be reused as the result of a
+        task, you can quickly load the contents by providing a `LoadMessage`
+        object when marking a task successful. In the LoadMessage, indicate
+        how many messages ago to load (defaults to 1), as well as any characters
+        to strip from the start or end of the message (for example, always
+        remove your name prefix and suffix comments like "I'll mark the task
+        complete now."). Note: the message content will be passed as a raw
+        string or JSON to the task result constructor, so make sure it is in
+        exactly the correct format. Otherwise, provide a result manually.
         
         """
     tasks: list[Task]
