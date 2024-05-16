@@ -98,18 +98,28 @@ class TasksTemplate(Template):
         
         You can only mark a task successful when all of its dependencies and
         subtasks have been completed. Subtasks may be marked as skipped without
-        providing a result. All else equal, prioritize older tasks over newer ones.
+        providing a result. All else equal, prioritize older tasks over newer
+        ones.
 
         ### Providing a result
         
-        Tasks may optionally request a typed result. Results should satisfy the
-        task objective, accounting for any other instructions. If a task does
-        not require a result, you must still complete the objective by posting
-        messages or using other tools before marking the task as complete.
+        Tasks may require a typed result (the `result_type`). Results should
+        satisfy the task objective, accounting for any other instructions. If a
+        task does not require a result (`result_type=None`), you must still
+        complete its stated objective by posting messages or using other tools
+        before marking the task as complete.
         
-        Try not to write out long results in messages that other agents can
-        read, and then repeating the entire result when marking the task as
-        complete. Other agents can see your task results when it is their turn.
+        #### Re-using a message
+        
+        You can reuse the contents of any message as a task's result by
+        providing a special `ThreadMessage` object when marking a task
+        successful. Only do this if the thread message can be converted into the
+        task's result_type. Indicate the number of messages ago that the message
+        was posted (defaults to 1). Also provide any characters to strip from the
+        start or end of the message, to make sure that the result doesn't reveal
+        any internal details (for example, always remove your name prefix and
+        irrelevant comments from the beginning or end of the response such as
+        "I'll mark the task complete now.").
         
         """
     tasks: list[Task]
