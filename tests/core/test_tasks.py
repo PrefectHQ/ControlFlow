@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from controlflow.core.agent import Agent
+from controlflow.core.agent import Agent, default_agent
 from controlflow.core.flow import Flow
 from controlflow.core.graph import EdgeType
 from controlflow.core.task import Task, TaskStatus
@@ -37,13 +37,60 @@ def test_task_subtasks():
     task1 = Task(objective="Task 1")
     task2 = Task(objective="Task 2", parent=task1)
     assert task2 in task1.subtasks
-    assert task2._parent == task1
+    assert task2.parent() is task1
+
+
+def test_task_parent_context():
+    with Task("grandparent") as task1:
+        with Task("parent") as task2:
+            task3 = Task("child")
+
+    assert task3.parent() is task2
+    assert task2.parent() is task1
+    assert task1.parent() is None
+
+    assert task1.subtasks == [task2]
+    assert task2.subtasks == [task3]
+    assert task3.subtasks == []
 
 
 def test_task_agent_assignment():
     agent = Agent(name="Test Agent")
     task = Task(objective="Test objective", agents=[agent])
     assert agent in task.agents
+
+
+def test_task_loads_agent_from_parent():
+    agent = Agent(name="Test Agent")
+    with Task("parent", agents=[agent]):
+        child = Task("child")
+
+    assert child.agents == [agent]
+
+
+def test_task_loads_agent_from_flow():
+    agent = Agent(name="Test Agent")
+    with Flow(agents=[agent]):
+        task = Task("task")
+
+    assert task.agents == [agent]
+
+
+def test_task_loads_agent_from_default_if_none_otherwise():
+    agent = default_agent()
+    task = Task("task")
+
+    assert task.agents == [agent]
+
+
+def test_task_loads_agent_from_parent_before_flow():
+    agent1 = Agent(name="Test Agent 1")
+    agent2 = Agent(name="Test Agent 2")
+    with Flow(agents=[agent1]):
+        with Task("parent", agents=[agent2]):
+            child = Task("child")
+
+    assert child.agents == [agent2]
 
 
 def test_task_tracking(mock_run):
