@@ -111,10 +111,9 @@ class Task(ControlFlowModel):
     instructions: Union[str, None] = Field(
         None, description="Detailed instructions for completing the task."
     )
-    agents: Union[list["Agent"], None] = Field(
+    agents: list["Agent"] = Field(
         None,
-        description="The agents assigned to the task. If None, the task will use its flow's default agents.",
-        validate_default=True,
+        description="The agents assigned to the task. If not provided, agents will be inferred from the parent task, flow, or global default.",
     )
     context: dict = Field(
         default_factory=dict,
@@ -143,6 +142,7 @@ class Task(ControlFlowModel):
         self,
         objective=None,
         result_type=None,
+        *,
         parent: "Task" = None,
         **kwargs,
     ):
@@ -159,16 +159,37 @@ class Task(ControlFlowModel):
                 + "\n".join(additional_instructions)
             ).strip()
 
-        super().__init__(**kwargs)
-
         # setup up relationships
         if parent is None:
             parent_tasks = ctx.get("tasks", [])
             parent = parent_tasks[-1] if parent_tasks else None
+
+        # set up default agents
+        # - if provided, use the provided agents
+        # - if not provided, use the parent's agents
+        # - if no parent, use the flow's agents
+        # - if no flow, use the default agent
+        if not kwargs.get("agents"):
+            from controlflow.core.agent import default_agent
+            from controlflow.core.flow import get_flow
+
+            if parent and parent.agents:
+                kwargs["agents"] = parent.agents
+            else:
+                try:
+                    flow = get_flow()
+                except ValueError:
+                    flow = None
+                if flow and flow.agents:
+                    kwargs["agents"] = flow.agents
+                else:
+                    kwargs["agents"] = [default_agent()]
+
+        super().__init__(**kwargs)
+
+        # register task with parent
         if parent is not None:
             parent.add_subtask(self)
-        for task in self.depends_on:
-            self.add_dependency(task)
 
     def __repr__(self):
         include_fields = [
@@ -192,18 +213,6 @@ class Task(ControlFlowModel):
 
     @field_validator("agents", mode="before")
     def _default_agents(cls, v):
-        from controlflow.core.agent import default_agent
-        from controlflow.core.flow import get_flow
-
-        if v is None:
-            try:
-                flow = get_flow()
-            except ValueError:
-                flow = None
-            if flow and flow.agents:
-                v = flow.agents
-            else:
-                v = [default_agent()]
         if not v:
             raise ValueError("At least one agent is required.")
         return v
@@ -222,13 +231,21 @@ class Task(ControlFlowModel):
         flow = get_flow()
         flow.add_task(self)
 
+        # create dependencies to tasks passed in as depends_on
+        for task in self.depends_on:
+            self.add_dependency(task)
+
         # create dependencies to tasks passed in as context
         context_tasks = collect_tasks(self.context)
 
         for task in context_tasks:
             if task not in self.depends_on:
                 self.depends_on.append(task)
+
         return self
+
+    def parent(self) -> Optional["Task"]:
+        return self._parent
 
     @field_serializer("subtasks")
     def _serialize_subtasks(subtasks: list["Task"]):
