@@ -1,0 +1,153 @@
+---
+title: "Tutorial: Tasks"
+---
+
+Welcome to ControlFlow! In this tutorial, we'll explore the fundamental building block of ControlFlow workflows: `Tasks`.
+
+We'll learn how to create tasks, define dependencies between them, and control their execution within a flow. By the end of this tutorial, you'll have a solid understanding of how to break down complex problems into manageable tasks and orchestrate them effectively.
+
+## Creating a Simple Task
+
+At the core of ControlFlow are `Task` objects, which represent discrete units of work to be performed by AI agents. Let's start by creating a simple task that generates a list of top attractions in Washington D.C.:
+
+```python
+from controlflow import flow, Task
+
+
+@flow
+def generate_attractions(destination: str):
+    attractions = Task(
+        objective="Generate a list of 10 must-see attractions at the destination",
+        result_type=list[str],
+    )
+    return attractions
+
+
+attractions = generate_attractions("Washington D.C.")
+print(attractions)
+# ['Lincoln Memorial', 'National Mall', 'United States Capitol', ...]
+```
+
+In this example, we:
+
+- Define a function `generate_attractions()` and decorate it with `@flow`, turning it into a ControlFlow workflow
+- Create a `Task` object named `attractions` with an objective and result type of `list[str]`. Tasks have access to their flow's context, which is why the task knew about the `destination`.
+- Return the `attractions` task from the flow function
+
+When we call `generate_attractions()`, ControlFlow automatically detects and runs the task. When a task is returned from a flow, it is automatically resolved into its result, which is why we received a list of attractions as the output.
+
+## Defining Task Dependencies
+
+Complex workflows often involve multiple tasks with dependencies between them. ControlFlow makes it easy to define these dependencies and ensure tasks are executed in the correct order. Let's expand our example to generate a personalized travel itinerary for Washington D.C.:
+
+```python
+@flow
+def generate_itinerary(destination: str):
+    attractions = Task(
+        objective="Generate a list of 10 must-see attractions at the destination",
+        result_type=list[str],
+    )
+
+    itinerary = [
+        Task(
+            objective=f"Make an itinerary for day {day} in the destination, focusing on attractions in the provided `area`",
+            context=dict(attractions=attractions, destination=destination, area=area),
+            result_type=str,
+        )
+        for day, area in enumerate(['National Mall', 'Tidal Basin', 'Downtown'], start=1)
+    ]
+
+    return itinerary
+
+
+itinerary = generate_itinerary('Washington D.C.')
+for day, activity in enumerate(itinerary, start=1):
+    print(f"Day {day}:\n\n{activity}\n\n")
+
+# Day 1:
+#
+# 8:00 AM - 9:00 AM: Lincoln Memorial
+# 9:00 AM - 10:00 AM: Washington Monument
+# 10:00 AM - 12:00 PM: National Museum of American History
+# ...
+```
+
+In this example, we:
+
+- Create an `attractions` task that generates a list of top attractions in Washington D.C.
+- Create an `itinerary` task for each day of the trip, focusing on attractions in specific areas of the city and using the `attractions` task as context
+
+By passing the `attractions` task as context to the `itinerary` tasks, we define a dependency between them. ControlFlow ensures that the `attractions` task is executed before the `itinerary` tasks, and the `itinerary` tasks can access the result of the `attractions` task.
+
+## Controlling Task Execution
+
+Sometimes, you might want to control the execution of tasks within a flow based on the results of previous tasks. You can do this by calling `task.run()` to manually run a task and get its result:
+
+```python
+@flow
+def generate_dc_itinerary_with_recommendations():
+    trip = generate_dc_itinerary()
+
+    budget = Task(
+        objective="Ask the user for their daily budget for meals and activities in Washington D.C.",
+        result_type=float,
+        user_access=True,
+    )
+    budget.run()
+
+    cuisine = Task(
+        objective="Ask the user for their preferred cuisine type for dining in Washington D.C.",
+        result_type=str,
+        user_access=True,
+    )
+    cuisine.run()
+
+    recommendations = [
+        Task(
+            objective="Generate a list of restaurant recommendations for `cuisine` cuisine in Washington D.C. for a budget of `budget` per day",
+            context=dict(cuisine=cuisine.result, budget=budget.result),
+            result_type=list[str],
+        )
+        for _ in trip['itinerary']
+    ]
+
+    return dict(trip=trip, recommendations=recommendations)
+
+trip_with_recs = generate_dc_itinerary_with_recommendations()
+print(f"Top attractions: {', '.join(trip_with_recs['trip']['attractions'])}")
+for day, (activity, recs) in enumerate(zip(trip_with_recs['trip']['itinerary'], trip_with_recs['recommendations']), start=1):
+    print(f"Day {day}: {activity}")
+    print(f"Restaurant recommendations: {', '.join(recs)}")
+
+# Output:
+# Top attractions: Lincoln Memorial, National Mall, United States Capitol, White House, Smithsonian National Air and Space Museum, Washington Monument, Smithsonian National Museum of Natural History, Tidal Basin, Vietnam Veterans Memorial, Library of Congress
+# Day 1: Start your day at the Lincoln Memorial, then walk along the National Mall, taking in the sights of the Washington Monument and the Reflecting Pool. Visit the Smithsonian National Museum of American History and the Smithsonian National Museum of Natural History.
+# Restaurant recommendations: Ben's Chili Bowl, Founding Farmers, Busboys and Poets
+# Day 2: Explore the Tidal Basin area, starting with the Jefferson Memorial. Take a stroll around the Tidal Basin to enjoy the cherry blossoms (if in season). Visit the Martin Luther King Jr. Memorial and the Franklin Delano Roosevelt Memorial.
+# Restaurant recommendations: Old Ebbitt Grill, The Hamilton, Jaleo
+# Day 3: Spend the day in Downtown Washington D.C. Start at the White House Visitor Center, then take a guided tour of the United States Capitol. Visit the Library of Congress and the Supreme Court Building. End your day with a visit to the Smithsonian National Portrait Gallery.
+# Restaurant recommendations: Rasika, Zaytinya, Oyamel
+```
+
+In this example, we:
+
+- Call the `generate_dc_itinerary()` flow to get the top attractions and daily itinerary
+- Create a `budget` task to ask the user for their daily budget, using `user_access=True` to allow user interaction
+- Create a `cuisine` task to ask the user for their preferred cuisine type
+- Manually run the `budget` and `cuisine` tasks using `task.run()` to get their results
+- Create a `recommendations` list comprehension that generates a task for each day of the trip, providing restaurant recommendations based on the user's budget and preferred cuisine
+- Return a dictionary with the original `trip` and the `recommendations`
+
+By calling `task.run()`, we can control the execution flow based on task results, allowing for more dynamic and responsive workflows.
+
+## Next Steps
+
+Congratulations on completing this introduction to tasks in ControlFlow! You've learned how to:
+
+- Create simple tasks
+- Define dependencies between tasks using context
+- Control task execution within a flow using `task.run()`
+
+In the next tutorial, we'll dive deeper into the world of AI agents and explore how they can be used to bring your workflows to life. Stay tuned!
+
+If you can't wait to learn more, check out the [ControlFlow Concepts](/concepts) guide and [API Reference](/api-reference) for additional information and examples. Happy engineering!
