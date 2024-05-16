@@ -60,14 +60,14 @@ class TaskStatus(Enum):
     SKIPPED = "skipped"
 
 
-class ThreadMessage(ControlFlowModel):
+class LoadMessage(ControlFlowModel):
     """
     This special object can be used to indicate that a task result should be
     loaded from a recent message posted to the flow's thread.
     """
 
-    type: Literal["ThreadMessage"] = Field(
-        'You must provide this value as "ThreadMessage".'
+    type: Literal["LoadMessage"] = Field(
+        'You must provide this value as "LoadMessage".'
     )
 
     num_messages_ago: int = Field(
@@ -76,14 +76,15 @@ class ThreadMessage(ControlFlowModel):
     )
 
     strip_prefix: str = Field(
+        None,
         description="These characters will be removed from the start "
-        "of the message. Use it to remove e.g. your name from the message.",
+        "of the message. For example, remove text like your name prefix.",
     )
 
     strip_suffix: Optional[str] = Field(
         None,
-        description="If provided, these characters will be removed from the end of "
-        "the message.",
+        description="These characters will be removed from the end of "
+        "the message. For example, remove comments like 'I'll mark the task complete now.'",
     )
 
     def trim_message(self, message: BaseMessage) -> str:
@@ -410,10 +411,10 @@ class Task(ControlFlowModel):
         else:
             result_schema = generate_result_schema(self.result_type)
 
-            def succeed(result: Union[ThreadMessage, result_schema]) -> str:  # type: ignore
+            def succeed(result: Union[LoadMessage, result_schema]) -> str:  # type: ignore
                 # a shortcut for loading results from recent messages
-                if isinstance(result, dict) and result.get("type") == "ThreadMessage":
-                    result = ThreadMessage(**result)
+                if isinstance(result, dict) and result.get("type") == "LoadMessage":
+                    result = LoadMessage(**result)
                     messages = get_flow_messages(limit=result.num_messages_ago)
                     if messages:
                         result = result.trim_message(messages[0])
