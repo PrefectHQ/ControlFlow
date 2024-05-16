@@ -117,22 +117,29 @@ class Task(ControlFlowModel):
     )
     agents: list["Agent"] = Field(
         None,
-        description="The agents assigned to the task. If not provided, agents will be inferred from the parent task, flow, or global default.",
+        description="The agents assigned to the task. If not provided, agents "
+        "will be inferred from the parent task, flow, or global default.",
     )
     context: dict = Field(
         default_factory=dict,
-        description="Additional context for the task. If tasks are provided as context, they are automatically added as `depends_on`",
+        description="Additional context for the task. If tasks are provided as "
+        "context, they are automatically added as `depends_on`",
     )
     subtasks: list["Task"] = Field(
         default_factory=list,
-        description="A list of subtasks that are part of this task. Subtasks are considered dependencies, though they may be skipped.",
+        description="A list of subtasks that are part of this task. Subtasks are "
+        "considered dependencies, though they may be skipped.",
     )
     depends_on: list["Task"] = Field(
         default_factory=list, description="Tasks that this task depends on explicitly."
     )
     status: TaskStatus = TaskStatus.INCOMPLETE
     result: T = None
-    result_type: Union[type[T], GenericAlias, _LiteralGenericAlias, None] = None
+    result_type: Union[type[T], GenericAlias, _LiteralGenericAlias, None] = Field(
+        None,
+        description="The expected type of the result. This should be a type"
+        ", generic alias, BaseModel subclass, pd.DataFrame, or pd.Series.",
+    )
     error: Union[str, None] = None
     tools: list[ToolType] = []
     user_access: bool = False
