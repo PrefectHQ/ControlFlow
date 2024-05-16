@@ -24,7 +24,7 @@ def flow(
     instructions: str = None,
     tools: list[ToolType] = None,
     agents: list["Agent"] = None,
-    resolve_results: bool = None,
+    eager: bool = None,
 ):
     """
     A decorator that wraps a function as a ControlFlow flow.
@@ -43,7 +43,7 @@ def flow(
         instructions (str, optional): Instructions for the flow. Defaults to None.
         tools (list[ToolType], optional): List of tools to be used in the flow. Defaults to None.
         agents (list[Agent], optional): List of agents to be used in the flow. Defaults to None.
-        resolve_results (bool, optional): Whether to resolve the results of tasks. Defaults to True.
+        eager (bool, optional): Whether the flow should be run eagerly. Defaults to the global setting (True)
 
     Returns:
         callable: The wrapped function or a new flow decorator if `fn` is not provided.
@@ -57,11 +57,12 @@ def flow(
             instructions=instructions,
             tools=tools,
             agents=agents,
-            resolve_results=resolve_results,
+            eager=eager,
         )
 
-    if resolve_results is None:
-        resolve_results = True
+    if eager is None:
+        eager = controlflow.settings.eager_mode
+
     sig = inspect.signature(fn)
 
     @functools.wraps(fn)
@@ -92,20 +93,22 @@ def flow(
 
         # create a function to wrap as a Prefect flow
         @prefect.flow
-        def wrapped_flow(*args, **kwargs):
+        def wrapped_flow(*args, eager_=None, **kwargs):
             with flow_obj, patch_marvin():
                 with controlflow.instructions(instructions):
                     result = fn(*args, **kwargs)
 
-                    if resolve_results:
+                    # allow runtime override of eager mode
+                    eager_mode = eager_ if eager_ is not None else eager
+                    if eager_mode:
                         # resolve any returned tasks; this will raise on failure
                         result = resolve_tasks(result)
 
-                    # run all tasks in the flow to completion
-                    Controller(
-                        flow=flow_obj,
-                        tasks=list(flow_obj._tasks.values()),
-                    ).run()
+                        # run all tasks in the flow to completion
+                        Controller(
+                            flow=flow_obj,
+                            tasks=list(flow_obj._tasks.values()),
+                        ).run()
 
                 return result
 
@@ -126,13 +129,16 @@ def task(
     agents: list["Agent"] = None,
     tools: list[ToolType] = None,
     user_access: bool = None,
+    eager: bool = None,
 ):
     """
     A decorator that turns a Python function into a Task. The Task objective is
     set to the function name, and the instructions are set to the function
-    docstring. When the function is called, the arguments are provided to the
-    task as context, and the task is run to completion. If successful, the task
-    result is returned; if failed, an error is raised.
+    docstring. When the function is called in eager mode, the arguments are
+    provided to the task as context, and the task is run to completion. If
+    successful, the task result is returned; if failed, an error is raised. When
+    the function is called with eager mode set to False, a Task object is
+    returned which can be run later.
 
     Args:
         fn (callable, optional): The function to be wrapped as a task. If not provided,
@@ -145,6 +151,7 @@ def task(
         tools (list[ToolType], optional): List of tools to be used in the task. Defaults to None.
         user_access (bool, optional): Whether the task requires user access. Defaults to None,
             in which case it is set to False.
+        eager (bool, optional): Whether the task should be run eagerly. Defaults to the global setting (True)
 
     Returns:
         callable: The wrapped function or a new task decorator if `fn` is not provided.
@@ -158,6 +165,7 @@ def task(
             agents=agents,
             tools=tools,
             user_access=user_access,
+            eager=eager,
         )
 
     sig = inspect.signature(fn)
@@ -168,8 +176,13 @@ def task(
     if instructions is None:
         instructions = fn.__doc__
 
+    if eager is None:
+        eager = controlflow.settings.eager_mode
+
+    result_type = fn.__annotations__.get("return")
+
     @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, eager_: bool = None, **kwargs):
         # first process callargs
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
@@ -179,12 +192,20 @@ def task(
             instructions=instructions,
             agents=agents,
             context=bound.arguments,
-            result_type=fn.__annotations__.get("return"),
+            result_type=result_type,
             user_access=user_access or False,
             tools=tools or [],
         )
 
-        task.run()
-        return task.result
+        # allow runtime override of eager mode
+        eager_mode = eager_ if eager_ is not None else eager
+        if eager_mode:
+            task.run()
+            return task.result
+        else:
+            return task
+
+    if eager is False:
+        wrapper.__annotations__["return"] = Task
 
     return wrapper

@@ -60,6 +60,11 @@ class Settings(ControlFlowSettings):
         description="If True, a global flow is created for convenience, so users don't have to wrap every invocation in a flow function. Disable to avoid accidentally sharing context between agents.",
     )
     openai_api_key: Optional[str] = Field(None, validate_assignment=True)
+    eager_mode: bool = Field(
+        True,
+        description="If True, @task- and @flow-decorated functions are run immediately. "
+        "This can be set on a per-task or per-flow basis using the `eager` argument.",
+    )
 
     def __init__(self, **data):
         super().__init__(**data)
