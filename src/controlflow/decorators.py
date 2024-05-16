@@ -83,7 +83,12 @@ def flow(
         if agents is not None:
             flow_kwargs.setdefault("agents", agents)
 
-        flow_obj = Flow(**flow_kwargs, context=bound.arguments)
+        flow_obj = Flow(
+            name=fn.__name__,
+            description=fn.__doc__,
+            context=bound.arguments,
+            **flow_kwargs,
+        )
 
         # create a function to wrap as a Prefect flow
         @prefect.flow

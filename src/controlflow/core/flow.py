@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from marvin.beta.assistants import Thread
 from openai.types.beta.threads import Message
@@ -17,6 +17,8 @@ logger = get_logger(__name__)
 
 
 class Flow(ControlFlowModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
     thread: Thread = Field(None, validate_default=True)
     tools: list[ToolType] = Field(
         default_factory=list,
