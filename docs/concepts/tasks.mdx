@@ -1,28 +1,13 @@
-# Tasks
 
-In ControlFlow, a `Task` is the fundamental unit of work that represents a specific objective or goal within an AI-powered workflow. Tasks are the primary means of defining and structuring the desired outcomes of an application, acting as a bridge between the AI agents and the application logic.
+Tasks are the fundamental building blocks of ControlFlow workflows, representing specific objectives or goals within an AI-powered application. They act as a bridge between AI agents and application logic, enabling developers to define and structure desired outcomes in a clear and intuitive manner.
 
-## Modeling Application State with Tasks
+## Creating Tasks
 
-One of the key roles of tasks in ControlFlow is to model the internal state of an AI-powered application. By defining tasks with clear objectives, dependencies, and result types, developers can create a structured representation of the application's desired outcomes and the steps required to achieve them.
-
-Each task contributes to the overall state of the application, either by producing a specific result or by performing an action that affects the behavior of other tasks or agents. This allows developers to build complex workflows where the results of one task can be used as inputs for subsequent tasks, creating a dynamic and responsive application state.
-
-## The Philosophy of Declarative Task-Based Workflows
-
-ControlFlow embraces a declarative, task-based approach to defining AI workflows. Instead of focusing on directly controlling the AI agents' behavior, which can be unpredictable and difficult to manage, ControlFlow encourages developers to define clear, discrete tasks that specify what needs to be accomplished.
-
-By defining tasks with specific objectives, inputs, outputs, and dependencies, developers can create a structured workflow that guides the AI agents towards the desired outcomes. This declarative approach allows for more predictable and manageable AI integrations, as the agents are dispatched to complete well-defined tasks rather than being controlled through complex prompts that attempt to steer their behavior.
-
-The task-based workflow also promotes modularity and reusability. Tasks can be easily composed, reordered, and reused across different workflows, enabling developers to build complex AI applications by combining smaller, self-contained units of work.
-
-## Defining Tasks
-
-In ControlFlow, tasks can be defined using the `Task` class or the `@task` decorator.
+ControlFlow provides two convenient ways to create tasks: using the `Task` class or the `@task` decorator.
 
 ### Using the `Task` Class
 
-The `Task` class provides a flexible way to define tasks by specifying various properties and requirements, such as the objective, instructions, assigned agents, context, dependencies, and more.
+The `Task` class offers a flexible and expressive way to define tasks by specifying various properties and requirements.
 
 ```python
 from controlflow import Task
@@ -35,9 +20,11 @@ interests = Task(
 )
 ```
 
+The `Task` class allows you to explicitly define the objective, instructions, agents, context, result type, tools, and other properties of a task. This approach provides full control over the task definition and is particularly useful when you need to specify complex requirements or dependencies.
+
 ### Using the `@task` Decorator
 
-The `@task` decorator offers a convenient way to define and execute tasks using familiar Python functions. The decorator automatically infers the task's objective from the function name, instructions from its docstring, context from the function arguments, and result type from the return annotation. Various additional arguments can be passed to the decorator.
+The `@task` decorator provides a concise and intuitive way to define tasks using familiar Python functions. The decorator automatically infers key properties from the function definition, making task creation more streamlined.
 
 ```python
 from controlflow import task
@@ -48,56 +35,204 @@ def get_user_name() -> str:
     pass
 ```
 
-When a decorator-based task is called, it automatically invokes the `run()` method, executing the task and returning its result (or raising an exception if the task fails).
+When using the `@task` decorator, the objective is inferred from the function name, instructions are derived from the docstring, context is inferred from the function arguments, and the result type is inferred from the return annotation. This approach is ideal for simple tasks or when you want to leverage existing functions as tasks.
 
-## Task Properties
+## Defining Task Objectives and Instructions
 
-Tasks have several key properties that define their behavior and requirements:
+Clear objectives and instructions are crucial for guiding AI agents and ensuring successful task execution.
 
-- `objective` (str): A brief description of the task's goal or desired outcome.
-- `instructions` (str, optional): Detailed instructions or guidelines for completing the task.
-- `agents` (list[Agent], optional): The AI agents assigned to work on the task.
-- `context` (dict, optional): Additional context or information required for the task.
-- `result_type` (type, optional): The expected type of the task's result.
-- `tools` (list[ToolType], optional): Tools or functions available to the agents for completing the task.
-- `user_access` (bool, optional): Indicates whether the task requires human user interaction.
+### Objectives
 
-## Task Execution and Results
+The objective of a task should be a brief description of the task's goal or desired outcome. It helps both developers and AI agents understand the purpose of the task and what it aims to achieve.
 
-Tasks can be executed using the `run()` method, which intelligently selects the appropriate agents and iterates until the task is complete. The `run_once()` method allows for more fine-grained control, executing a single step of the task with a selected agent.
-
-The `result` property of a task holds the outcome or output of the task execution. By specifying a clear `result_type`, developers can ensure that the task's result is structured and can be easily integrated into the application logic. This makes it possible to create complex workflows where the results of one task can be used as inputs for subsequent tasks.
-
-It's important to note that not all tasks require a result. In some cases, a task may be designed to perform an action or produce a side effect without returning a specific value. For example, a task could be used to prompt an agent to say something on the internal thread, which could be useful for later tasks or agents. In such cases, the `result_type` can be set to `None`.
-
-## Task Dependencies and Composition
-
-Tasks can have dependencies on other tasks, which must be completed before the dependent task can be executed. Dependencies can be specified explicitly using the `depends_on` property or implicitly by providing tasks as values in the `context` dictionary.
-
-Tasks can also be composed hierarchically using subtasks. Subtasks are tasks that are part of a larger, parent task. They can be added to a parent task using the `subtasks` property or by creating tasks within a context manager (e.g., `with Task():`). Parent tasks cannot be completed until all their subtasks are finished, although subtasks can be skipped using a special `skip` tool.
-
-## Talking to Humans
-
-ControlFlow provides a built-in mechanism for tasks to interact with human users. By setting the `user_access` property to `True`, a task can indicate that it requires human input or feedback to be completed.
-
-When a task with `user_access=True` is executed, the AI agents assigned to the task will be given access to a special `talk_to_human` tool. This tool allows the agents to send messages to the user and receive their responses, enabling a conversation between the AI and the human.
-
-Here's an example of a task that interacts with a human user:
+When defining objectives, aim for clarity and specificity. Use action-oriented language and avoid ambiguity. For example:
 
 ```python
-@task(user_access=True)
-def get_user_feedback(product_name: str) -> str:
-    """
-    Ask the user for their feedback on a specific product.
-    
-    Example conversation:
-    AI: What do you think about the new iPhone?
-    Human: I think it's a great phone with impressive features, but it's a bit expensive.
-    AI: Thank you for your feedback!
-    """
+summary_task = Task(
+    objective="Summarize the key points of the customer feedback",
+    result_type=str,
+)
+```
+
+### Instructions
+
+Instructions provide detailed guidelines or steps for completing the task. They offer more context and direction to the AI agents, beyond what is conveyed in the objective.
+
+When writing instructions, use concise language and bullet points or numbered steps if applicable. Avoid ambiguity and provide sufficient detail to enable the AI agents to complete the task effectively.
+
+```python
+data_analysis_task = Task(
+    objective="Analyze the sales data and identify top-performing products",
+    instructions="""
+    1. Load the sales data from the provided CSV file
+    2. Calculate the total revenue for each product
+    3. Sort the products by total revenue in descending order
+    4. Select the top 5 products based on total revenue
+    5. Return a list of tuples containing the product name and total revenue
+    """,
+    result_type=list[tuple[str, float]],
+)
+```
+
+## Specifying Result Types
+
+The `result_type` property allows you to define the expected type of the task's result. It provides a contract for the task's output, ensuring consistency and enabling seamless integration with the broader workflow.
+
+By specifying a result type, you make it clear to both the AI agents and the developers what kind of data to expect. The `result_type` can be any valid Python type, such as `str`, `int`, `list`, `dict`, or even custom classes.
+
+```python
+sentiment_analysis_task = Task(
+    objective="Analyze the sentiment of the given text",
+    result_type=float,
+)
+
+product_classification_task = Task(
+    objective="Classify the product based on its description",
+    result_type=list[str],
+)
+```
+
+When using the `@task` decorator, the result type is inferred from the function's return annotation:
+
+```python
+@task
+def count_words(text: str) -> int:
+    "Count the number of words in the provided text."
     pass
 ```
 
-In this example, the AI agent will use the `talk_to_human` tool to ask the user for their feedback on the specified product. The agent can then process the user's response and store it in the task's `result` property, making it available for use in subsequent tasks or other parts of the application.
+## Assigning Agents and Tools
 
-By leveraging the `user_access` property and the `talk_to_human` tool, developers can create AI-powered workflows that seamlessly integrate human input and feedback, enabling more interactive and user-centric applications.
+ControlFlow allows you to assign specific AI agents and tools to tasks, enabling you to leverage their specialized skills and capabilities.
+
+### Assigning Agents
+
+By assigning agents to a task, you can ensure that the most suitable agent is responsible for executing the task. Agents can be assigned using the `agents` property of the `Task` class or the `agents` parameter of the `@task` decorator.
+
+```python
+from controlflow import Agent
+
+data_analyst = Agent(
+    name="DataAnalyst", 
+    description="Specializes in data analysis and statistical modeling",
+)
+
+business_analyst = Agent(
+    name="BusinessAnalyst", 
+    description="Expert in business strategy and market research",
+    instructions="Use the DataAnalyst's insights to inform business decisions.",
+)
+
+analysis_task = Task(
+    objective="Analyze the customer data and provide insights",
+    agents=[data_analyst, business_analyst],
+    result_type=str,
+)
+```
+
+If no agents are explicitly assigned to a task, ControlFlow will use the agents defined in a task's parent task, flow, or fall back on a global default agent, respectively.
+
+### Providing Tools
+
+Tools are Python functions that can be used by agents to perform specific actions or computations. By providing relevant tools to a task, you empower the AI agents to tackle more complex problems and enhance their problem-solving abilities.
+
+Tools can be specified using the `tools` property of the `Task` class or the `tools` parameter of the `@task` decorator.
+
+```python
+def calculate_square_root(number: float) -> float:
+    return number ** 0.5
+
+calculation_task = Task(
+    objective="Calculate the square root of the given number",
+    tools=[calculate_square_root],
+    result_type=float,
+)
+```
+
+## Handling User Interaction
+
+ControlFlow provides a built-in mechanism for tasks to interact with human users. By setting the `user_access` property to `True`, a task can indicate that it requires human input or feedback to be completed.
+
+```python
+feedback_task = Task(
+    objective="Collect user feedback on the new feature",
+    user_access=True,
+    result_type=str,
+    instructions="Ask the user to provide their thoughts on the new feature.",
+)
+```
+
+When a task with `user_access=True` is executed, the AI agents assigned to the task will be given access to a special `talk_to_human` tool. This tool allows the agents to send messages to the user and receive their responses, enabling a conversation between the AI and the human.
+
+## Creating Task Dependencies and Subtasks
+
+ControlFlow allows you to define dependencies between tasks and create subtasks to break down complex tasks into smaller, more manageable units of work.
+
+### Task Dependencies
+
+Dependencies can be specified using the `depends_on` property of the `Task` class. By specifying dependencies, you ensure that tasks are executed in the correct order and have access to the necessary data or results from previous tasks.
+
+```python
+data_collection_task = Task(
+    objective="Collect user data from the database",
+    result_type=pd.DataFrame,
+)
+
+data_cleaning_task = Task(
+    objective="Clean and preprocess the collected user data",
+    depends_on=[data_collection_task],
+    result_type=pd.DataFrame,
+)
+
+data_analysis_task = Task(
+    objective="Analyze the cleaned user data and generate insights",
+    depends_on=[data_cleaning_task],
+    result_type=dict,
+)
+```
+
+### Subtasks
+
+Subtasks can be defined using the `subtasks` property of the `Task` class. By organizing tasks into subtasks, you can break down complex tasks into smaller, more focused units of work.
+
+```python
+data_processing_task = Task(
+    objective="Process the raw data and prepare it for analysis",
+    subtasks=[
+        Task(
+            objective="Load the raw data from the source",
+            result_type=pd.DataFrame,
+        ),
+        Task(
+            objective="Clean and preprocess the loaded data",
+            result_type=pd.DataFrame,
+        ),
+        Task(
+            objective="Perform feature engineering on the preprocessed data",
+            result_type=pd.DataFrame,
+        ),
+    ],
+    result_type=pd.DataFrame,
+)
+```
+
+## Executing Tasks
+
+Tasks can be executed using the `run()` method, which coordinates the execution of the task, its subtasks, and any dependent tasks, ensuring that the necessary steps are performed in the correct order.
+
+```python
+data_processing_task = Task(
+    objective="Process the raw data and prepare it for analysis",
+    subtasks=[...],
+    result_type=pd.DataFrame,
+)
+
+processed_data = data_processing_task.run()
+```
+
+The `run_once()` method allows for more fine-grained control, executing a single step of the task with a selected agent.
+
+```python
+data_processing_task.run_once()
+partial_result = data_processing_task.result
+```

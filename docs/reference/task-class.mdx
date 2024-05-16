@@ -1,0 +1,79 @@
+# Task Reference
+
+This document serves as a comprehensive reference for the `Task` class in ControlFlow. It provides detailed information about the properties and usage of tasks.
+
+## `Task` Class
+
+The `Task` class is used to define a task in ControlFlow. It provides a flexible way to specify various properties and requirements for a task.
+
+### Properties
+
+<ParamField path="objective" type="str" required>
+The `objective` property is a brief description of the task's goal or desired outcome. It should clearly and concisely convey the purpose of the task, helping both developers and AI agents understand what the task aims to achieve.
+
+A well-defined objective is crucial for ensuring that tasks are focused and aligned with the overall workflow. It serves as a guiding statement for the AI agents working on the task, helping them stay on track and deliver relevant results.
+</ParamField>
+
+<ParamField path="instructions" type="str">
+The `instructions` property provides detailed guidelines or steps for completing the task. It offers a way to give more context and direction to the AI agents, beyond what is conveyed in the objective.
+
+Instructions can include specific requirements, constraints, or preferences that should be considered when working on the task. They can also break down the task into smaller steps or provide examples to clarify the expected outcome.
+
+By offering clear and thorough instructions, you can guide the AI agents towards delivering more accurate and relevant results. Well-crafted instructions help ensure consistency and quality in task execution.
+</ParamField>
+
+<ParamField path="agents" type="list[Agent]">
+The `agents` property specifies the AI agents assigned to work on the task. By assigning specific agents to a task, you can leverage their specialized skills or knowledge to achieve better results.
+
+When defining a task, you can provide a list of `Agent` instances that should be responsible for executing the task. These agents will be given priority when the task is run, and the task will be assigned to one of them based on their availability and suitability.
+
+If no agents are explicitly assigned to a task, ControlFlow will use the default agents defined in the flow or fall back to a global default agent.
+</ParamField>
+
+<ParamField path="context" type="dict">
+The `context` property allows you to provide additional information or data that is required for the task's execution. It serves as a way to pass inputs, dependencies, or any other relevant context to the task.
+
+The context is defined as a dictionary, where each key-value pair represents a piece of contextual information. The keys are typically strings that describe the nature of the data, and the values can be of any valid Python type, such as strings, numbers, lists, or even other tasks.
+
+When a task is executed, the AI agents have access to the context and can use it to inform their decision-making process or to supplement their knowledge. The context can contain data from previous tasks, external sources, or any other relevant information that is needed to complete the task effectively.
+</ParamField>
+
+<ParamField path="result_type" type="type">
+The `result_type` property specifies the expected type of the task's result. It allows you to define the structure and format of the data that the task should return upon completion.
+
+By specifying a result type, you provide a contract for the task's output, making it clear to both the AI agents and the developers what kind of data to expect. This helps ensure consistency and enables seamless integration of the task's result into the broader workflow.
+
+The `result_type` can be any valid Python type, such as `str`, `int`, `list`, `dict`, or even custom classes. You can also use type annotations to define more complex types, such as `list[str]` for a list of strings or `dict[str, int]` for a dictionary mapping strings to integers.
+</ParamField>
+
+<ParamField path="tools" type="list[Callable]">
+The `tools` property allows you to provide a list of Python functions that the AI agents can use to complete the task. These tools serve as additional capabilities or utilities that the agents can leverage during task execution.
+
+Tools can be any valid Python functions that perform specific actions, computations, or transformations. They can range from simple utility functions to complex algorithms or external API calls.
+
+By providing relevant tools to a task, you empower the AI agents to tackle more complex problems and enhance their problem-solving abilities. The agents can invoke these tools as needed during the task execution process.
+</ParamField>
+
+<ParamField path="user_access" type="bool">
+The `user_access` property indicates whether the task requires human interaction or input during its execution. It is a boolean flag that, when set to `True`, signifies that the task involves user communication.
+
+When a task has `user_access` set to `True`, the AI agents are provided with a special `talk_to_human` tool that enables them to send messages to the user and receive responses. This allows for a conversational flow between the agents and the user, facilitating the exchange of information required for the task.
+
+It's important to note that tasks with `user_access` enabled should be designed with care, considering the user experience and the clarity of the communication. The AI agents should provide clear instructions and prompts to guide the user in providing the necessary input.
+</ParamField>
+
+<ParamField path="depends_on" type="list[Task]">
+The `depends_on` property allows you to specify other tasks that the current task depends on. It establishes a dependency relationship between tasks, indicating that the current task cannot be started until the specified dependencies are completed.
+
+Dependencies are defined as a list of `Task` instances. When a task is executed, ControlFlow ensures that all its dependencies are resolved before allowing the task to begin.
+
+By specifying dependencies, you can create a structured workflow where tasks are executed in a specific order based on their dependencies. This helps ensure that tasks have access to the necessary data or results from previous tasks before they start.
+</ParamField>
+
+<ParamField path="subtasks" type="list[Task]">
+The `subtasks` property allows you to define a hierarchical structure of tasks by specifying subtasks for a given task. Subtasks are smaller, more focused tasks that contribute to the completion of the parent task.
+
+Subtasks are defined as a list of `Task` instances. When a task is executed, its subtasks are also executed as part of the overall task execution process. The parent task is considered complete only when all its subtasks have been successfully completed.
+
+By organizing tasks into subtasks, you can break down complex tasks into smaller, more manageable units of work. This promotes modularity, reusability, and easier maintenance of the task hierarchy.
+</ParamField>

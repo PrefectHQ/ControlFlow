@@ -1,0 +1,121 @@
+# `@task` Decorator
+
+The `@task` decorator is used to define a task using a Python function. It provides a convenient way to create tasks by leveraging the function's properties and automatically inferring various task attributes.
+
+## Parameters
+
+<ParamField path="objective" type="str">
+The `objective` parameter allows you to specify the objective of the task. It should be a brief description of the task's goal or desired outcome.
+
+If not provided, the objective will be inferred from the function name. It is recommended to use descriptive and meaningful function names that clearly convey the purpose of the task.
+
+When using the `@task` decorator, the objective can be explicitly specified to provide more clarity or to override the inferred objective from the function name.
+</ParamField>
+
+<ParamField path="instructions" type="str">
+The `instructions` parameter allows you to provide detailed instructions or guidelines for completing the task. It serves as a way to give more context and direction to the AI agents working on the task.
+
+If not provided, the instructions will be inferred from the function's docstring. It is recommended to use descriptive and clear docstrings that explain the steps or requirements for completing the task.
+
+When using the `@task` decorator, the instructions can be explicitly specified to provide more comprehensive guidance or to override the inferred instructions from the docstring.
+</ParamField>
+
+<ParamField path="agents" type="list[Agent]">
+The `agents` parameter allows you to specify the AI agents that should work on the task. It accepts a list of `Agent` instances, representing the agents assigned to the task.
+
+By specifying agents using the `@task` decorator, you can leverage their specialized skills or knowledge to achieve better results. The assigned agents will be given priority when the task is run, and the task will be assigned to one of them based on their availability and suitability.
+
+If no agents are explicitly assigned to a task, ControlFlow will use the default agents defined in the flow or fall back to a global default agent.
+</ParamField>
+
+<ParamField path="tools" type="list[Callable]">
+The `tools` parameter allows you to provide a list of Python functions that the AI agents can use to complete the task. These tools serve as additional capabilities or utilities that the agents can leverage during task execution.
+
+Tools can be any valid Python functions that perform specific actions, computations, or transformations. They can range from simple utility functions to complex algorithms or external API calls.
+
+By specifying tools using the `@task` decorator, you empower the AI agents to tackle more complex problems and enhance their problem-solving abilities. The agents can invoke these tools as needed during the task execution process.
+</ParamField>
+
+<ParamField path="user_access" type="bool">
+The `user_access` parameter indicates whether the task requires human interaction or input during its execution. It is a boolean flag that, when set to `True`, signifies that the task involves user communication.
+
+When a task has `user_access` set to `True`, the AI agents are provided with a special `talk_to_human` tool that enables them to send messages to the user and receive responses. This allows for a conversational flow between the agents and the user, facilitating the exchange of information required for the task.
+
+By default, `user_access` is set to `False`. It can be explicitly set to `True` using the `@task` decorator when the task requires human interaction.
+</ParamField>
+
+<ParamField path="eager" type="bool">
+The `eager` parameter determines whether the task should be executed eagerly or lazily. It is a boolean flag that controls the execution behavior of the task.
+
+When `eager` is set to `True` (default), the task is executed immediately when the decorated function is called. The task is run, and the result is returned synchronously.
+
+When `eager` is set to `False`, the task is not executed immediately. Instead, a `Task` instance is returned, representing the deferred execution of the task. The task can be run later using the `run()` or `run_once()` methods.
+
+By default, the `eager` parameter is set to the global setting (`True`). It can be explicitly specified using the `@task` decorator to override the global setting for a specific task.
+</ParamField>
+
+## Inferred Properties
+
+When using the `@task` decorator, several task properties are automatically inferred from the decorated function:
+
+<ParamField path="objective" type="str">
+The objective of the task is inferred from the function name. It is assumed that the function name provides a clear and concise description of the task's goal or desired outcome.
+
+For example, if the decorated function is named `generate_summary()`, the inferred objective would be "Generate summary".
+</ParamField>
+
+<ParamField path="instructions" type="str">
+The instructions for the task are inferred from the function's docstring. The docstring is expected to provide detailed guidelines or steps for completing the task.
+
+For example:
+```python
+@task
+def analyze_sentiment(text: str) -> str:
+    """
+    Analyze the sentiment of the given text.
+
+    Steps:
+    1. Preprocess the text by removing punctuation and converting to lowercase.
+    2. Tokenize the preprocessed text into individual words.
+    3. Perform sentiment analysis using a pre-trained model.
+    4. Return the sentiment label (e.g., positive, negative, neutral).
+    """
+    pass
+```
+
+In this case, the inferred instructions would be the content of the docstring.
+</ParamField>
+
+<ParamField path="context" type="dict">
+The context for the task is inferred from the function's arguments. Each argument of the decorated function is considered a piece of contextual information required for the task's execution.
+
+For example:
+```python
+@task
+def greet_user(name: str, age: int) -> str:
+    pass
+```
+
+In this case, the inferred context would be a dictionary containing the `name` and `age` arguments:
+```python
+{
+    "name": <value of name>,
+    "age": <value of age>
+}
+```
+</ParamField>
+
+<ParamField path="result_type" type="type">
+The expected result type of the task is inferred from the function's return annotation. The return annotation specifies the type of data that the task should return upon completion.
+
+For example:
+```python
+@task
+def generate_greeting(name: str) -> str:
+    pass
+```
+
+In this case, the inferred result type would be `str`, indicating that the task is expected to return a string value.
+</ParamField>
+
+By leveraging the inferred properties, the `@task` decorator simplifies the process of creating tasks and reduces the need for explicit configuration. The decorator automatically extracts relevant information from the function definition, making task creation more intuitive and concise.

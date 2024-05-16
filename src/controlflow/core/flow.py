@@ -60,6 +60,15 @@ class Flow(ControlFlowModel):
     def __exit__(self, *exc_info):
         return self.__cm.__exit__(*exc_info)
 
+    def run(self):
+        """
+        Runs the flow.
+        """
+        from controlflow.core.controller import Controller
+
+        controller = Controller(flow=self, tasks=list(self._tasks.values()))
+        controller.run()
+
 
 GLOBAL_FLOW = None
 
