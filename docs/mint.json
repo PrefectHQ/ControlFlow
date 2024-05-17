@@ -46,7 +46,9 @@
             "group": "Concepts",
             "pages": [
                 "concepts/tasks",
-                "concepts/flows"
+                "concepts/flows",
+                "concepts/agents",
+                "concepts/execution"
             ]
         },
         {
