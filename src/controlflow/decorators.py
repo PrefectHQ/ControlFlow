@@ -23,7 +23,7 @@ def flow(
     instructions: str = None,
     tools: list[ToolType] = None,
     agents: list["Agent"] = None,
-    eager: bool = None,
+    lazy: bool = None,
 ):
     """
     A decorator that wraps a function as a ControlFlow flow.
@@ -42,7 +42,9 @@ def flow(
         instructions (str, optional): Instructions for the flow. Defaults to None.
         tools (list[ToolType], optional): List of tools to be used in the flow. Defaults to None.
         agents (list[Agent], optional): List of agents to be used in the flow. Defaults to None.
-        eager (bool, optional): Whether the flow should be run eagerly. Defaults to the global setting (True)
+        lazy (bool, optional): Whether the flow should be run lazily. If not
+            set, behavior is determined by the global `eager_mode` setting. Lazy execution means
+            that tasks are not run and a `Flow` object is returned instead.
 
     Returns:
         callable: The wrapped function or a new flow decorator if `fn` is not provided.
@@ -56,11 +58,8 @@ def flow(
             instructions=instructions,
             tools=tools,
             agents=agents,
-            eager=eager,
+            lazy=lazy,
         )
-
-    if eager is None:
-        eager = controlflow.settings.eager_mode
 
     sig = inspect.signature(fn)
 
@@ -92,14 +91,19 @@ def flow(
 
         # create a function to wrap as a Prefect flow
         @prefect.flow
-        def wrapped_flow(*args, eager_=None, **kwargs):
+        def wrapped_flow(*args, lazy_=None, **kwargs):
             with flow_obj, patch_marvin():
                 with controlflow.instructions(instructions):
                     result = fn(*args, **kwargs)
 
-                    # allow runtime override of eager mode
-                    eager_mode = eager_ if eager_ is not None else eager
-                    if eager_mode:
+                    # determine if we should run the flow eagerly or lazily
+                    if lazy_ is not None:
+                        lazy = lazy_
+                    if lazy is None:
+                        run_eagerly = controlflow.settings.eager_mode
+                    else:
+                        run_eagerly = not lazy
+                    if run_eagerly:
                         flow_obj.run()
 
                         # resolve any returned tasks; this will raise on failure
@@ -108,6 +112,9 @@ def flow(
                         return flow_obj
 
         return wrapped_flow(*args, **kwargs)
+
+    if lazy is True or (lazy is None and not controlflow.settings.eager_mode):
+        wrapper.__annotations__["return"] = Flow
 
     return wrapper
 
@@ -120,15 +127,15 @@ def task(
     agents: list["Agent"] = None,
     tools: list[ToolType] = None,
     user_access: bool = None,
-    eager: bool = None,
+    lazy: bool = None,
 ):
     """
     A decorator that turns a Python function into a Task. The Task objective is
     set to the function name, and the instructions are set to the function
-    docstring. When the function is called in eager mode, the arguments are
+    docstring. When the function is called in eager mode (default), the arguments are
     provided to the task as context, and the task is run to completion. If
     successful, the task result is returned; if failed, an error is raised. When
-    the function is called with eager mode set to False, a Task object is
+    the function is called with eager mode disabled or `lazy=True`, a Task object is
     returned which can be run later.
 
     Args:
@@ -142,7 +149,9 @@ def task(
         tools (list[ToolType], optional): List of tools to be used in the task. Defaults to None.
         user_access (bool, optional): Whether the task requires user access. Defaults to None,
             in which case it is set to False.
-        eager (bool, optional): Whether the task should be run eagerly. Defaults to the global setting (True)
+        lazy (bool, optional): Whether the task should be run lazily. If not
+            set, behavior is determined by the global `eager_mode` setting. Lazy
+            execution means that a `Task` object is returned instead of running the task.
 
     Returns:
         callable: The wrapped function or a new task decorator if `fn` is not provided.
@@ -156,7 +165,7 @@ def task(
             agents=agents,
             tools=tools,
             user_access=user_access,
-            eager=eager,
+            lazy=lazy,
         )
 
     sig = inspect.signature(fn)
@@ -167,13 +176,10 @@ def task(
     if instructions is None:
         instructions = fn.__doc__
 
-    if eager is None:
-        eager = controlflow.settings.eager_mode
-
     result_type = fn.__annotations__.get("return")
 
     @functools.wraps(fn)
-    def wrapper(*args, eager_: bool = None, **kwargs):
+    def wrapper(*args, lazy_: bool = None, **kwargs):
         # first process callargs
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
@@ -188,15 +194,20 @@ def task(
             tools=tools or [],
         )
 
-        # allow runtime override of eager mode
-        eager_mode = eager_ if eager_ is not None else eager
-        if eager_mode:
+        # determine if we should run the flow eagerly or lazily
+        if lazy_ is not None:
+            lazy = lazy_
+        if lazy is None:
+            run_eagerly = controlflow.settings.eager_mode
+        else:
+            run_eagerly = not lazy
+        if run_eagerly:
             task.run()
             return task.result
         else:
             return task
 
-    if eager is False:
+    if lazy is True or (lazy is None and not controlflow.settings.eager_mode):
         wrapper.__annotations__["return"] = Task
 
     return wrapper

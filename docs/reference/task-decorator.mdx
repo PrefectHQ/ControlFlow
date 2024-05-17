@@ -44,14 +44,14 @@ When a task has `user_access` set to `True`, the AI agents are provided with a s
 By default, `user_access` is set to `False`. It can be explicitly set to `True` using the `@task` decorator when the task requires human interaction.
 </ParamField>
 
-<ParamField path="eager" type="bool">
-The `eager` parameter determines whether the task should be executed eagerly or lazily. It is a boolean flag that controls the execution behavior of the task.
+<ParamField path="lazy" type="bool">
+The `lazy` parameter determines whether the task should be executed eagerly or lazily. It is a boolean flag that controls the execution behavior of the task.
 
-When `eager` is set to `True` (default), the task is executed immediately when the decorated function is called. The task is run, and the result is returned synchronously.
+The default `lazy` behavior is determined by the global `eager_mode` setting in ControlFlow. Eager mode is enabled by default, which means that tasks are executed immediately. The `lazy` parameter allows you to override this behavior for a specific task.
 
-When `eager` is set to `False`, the task is not executed immediately. Instead, a `Task` instance is returned, representing the deferred execution of the task. The task can be run later using the `run()` or `run_once()` methods.
+When `lazy` is set to `True`, the task is not executed immediately. Instead, a `Task` instance is returned, representing the deferred execution of the task. The task can be run later using the `run()` or `run_once()` methods.
 
-By default, the `eager` parameter is set to the global setting (`True`). It can be explicitly specified using the `@task` decorator to override the global setting for a specific task.
+When `lazy` is set to `False` (default), the task is executed immediately when the decorated function is called. Setting `lazy=False` ensures the task is executed eagerly, even if the global `eager_mode` is disabled.
 </ParamField>
 
 ## Inferred Properties

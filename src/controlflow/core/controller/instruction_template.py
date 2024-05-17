@@ -113,7 +113,8 @@ class TasksTemplate(Template):
         before marking the task as complete. Your result must be compatible with
         the result constructor. For most results, the tool schema will indicate
         the correct types. For some, like a DataFrame, provide an appropriate
-        kwargs dict.
+        kwargs dict. Results should never include your name prefix; that's only
+        for messages.
         
         #### Using messages as results
         

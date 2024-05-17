@@ -3,9 +3,26 @@ Flows are the high-level containers that encapsulate and orchestrate AI-powered 
 
 ## Creating Flows
 
-Flows can be created using the `Flow` class or the `@flow` decorator.
+Flows can be created using the `Flow` class or the `@flow` decorator. 
 
-### Using the `Flow` Class
+### The `@flow` Decorator
+
+The `@flow` decorator provides a convenient way to define a flow using a Python function.
+
+```python
+from controlflow import flow
+
+@flow
+def data_processing_flow():
+    data = load_data()
+    cleaned_data = clean_data(data)
+    insights = analyze_data(cleaned_data)
+    return insights
+```
+
+When using the `@flow` decorator, the decorated function becomes the entry point for the flow. The function can contain tasks, which are automatically executed when the flow is run. The `@flow` decorator also allows you to specify flow-level properties such as agents, tools, and context.
+
+### The `Flow` Class
 
 The `Flow` class allows you to explicitly define a flow and its properties.
 
@@ -22,22 +39,34 @@ flow = Flow(
 
 By creating a `Flow` instance, you can specify the name, description, agents, tools, and other properties of the flow. This approach provides full control over the flow definition and is particularly useful when you need to customize the flow's behavior or configure advanced settings.
 
-### Using the `@flow` Decorator
+#### Adding tasks to a flow
 
-The `@flow` decorator provides a convenient way to define a flow using a Python function.
+Tasks can be added to a flow object in two ways: by calling `Flow.add_task(task)` or by creating the tasks inside the `Flow` context manager.
+<CodeGroup>
+```python Using a flow context
+from controlflow import Flow, Task
 
-```python
-from controlflow import flow
-
-@flow
-def data_processing_flow():
-    data = load_data()
-    cleaned_data = clean_data(data)
-    insights = analyze_data(cleaned_data)
-    return insights
+with Flow() as flow:
+    task = Task('Load data')
 ```
 
-When using the `@flow` decorator, the decorated function becomes the entry point for the flow. The function can contain tasks, which are automatically executed when the flow is run. The `@flow` decorator also allows you to specify flow-level properties such as agents, tools, and context.
+```python Adding tasks imperatively
+from controlflow import Flow, Task
+
+flow = Flow()
+task = Task('Load data')
+flow.add_task(task)
+```
+</CodeGroup>
+### Which Approach Should I Use?
+
+<Tip>
+    **tldr:** Prefer the `@flow` decorator for simplicity and conciseness. Use the `Flow` class only for advanced customization and configuration.
+</Tip>
+
+Both the `Flow` class and the `@flow` decorator offer ways to compartmentalize and structure your workflow. The choice between the two approaches depends on your preference and the complexity of the flow.
+
+In most cases, including this documentation, the `@flow` decorator is used for its simplicity and conciseness. As a user, you rarely need to interact with the flow object itself; its main job is to provide an isolated container for your tasks. By using the `@flow` decorator, you can cleanly define your workflow's inputs, logic, and outputs in a clear and readable manner. Moreover, calling the decorated function will automatically run the flow, making it easy to execute and test.
 
 ## Flow Properties
 
@@ -56,7 +85,9 @@ flow = Flow(
 
 ### Agents and Tools
 
-The `agents` and `tools` properties allow you to specify the AI agents and tools that are available throughout the flow. These agents and tools can be used by tasks within the flow to perform specific actions or computations.
+The `agents` and `tools` properties allow you to specify AI agents and tools that are available to tasks throughout the flow. 
+
+Flow-level agents are used by tasks **unless** the tasks have their own agents assigned. Flow-level tools are used by tasks **in addition** to any tools they have defined.
 
 ```python
 flow = Flow(
@@ -65,7 +96,6 @@ flow = Flow(
 )
 ```
 
-Agents and tools defined at the flow level are accessible to all tasks within the flow. However, tasks can also have their own specific agents and tools assigned to them.
 
 ### Context
 
@@ -84,118 +114,76 @@ The context can be accessed and modified by tasks and agents during the flow exe
 
 ## Running Flows
 
-Flows can be run using the `run()` method, which executes all of the tasks that were defined within the flow.
+To a run a `@flow` decorated function, simply call the function with appropriate arguments. The arguments are automatically added to the flow's context, making them visible to all tasks even if they aren't passed directly to that task's context. Any tasks returned from the flow are automatically resolved into their `result` values.
+
+To run a `Flow` instance, use its `run()` method, which executes all of the tasks that were defined within the flow. You can then access the results of individual tasks by referencing their `result` attribute, or by calling them (if they are `@task`-decorated functions).
+
 <CodeGroup>
-    
 ```python @flow decorator
 @flow
-def data_processing_flow():
-    data = load_data()
-    cleaned_data = clean_data(data)
-    insights = analyze_data(cleaned_data)
-    return insights
+def item_flow():
+    price = Task('generate a price between 1 and 1000', result_type=int)
+    item = Task(
+        'Come up with an common item that has the provided price', 
+        result_type=str, 
+        context=dict(price=price)
+    )
+    return item
 
-results = data_processing_flow()
+# call the flow; the result is automatically resolved 
+# as the result of the `item` task.
+item = item_flow()
 ```
 ```python Flow class
-with Flow() as data_processing_flow:
-    data = load_data()
-    cleaned_data = clean_data(data)
-    insights = analyze_data(cleaned_data)
+with Flow() as item_flow:
+    price = Task('generate a price between 1 and 1000', result_type=int)
+    item = Task(
+        'Come up with an common item that has the provided price', 
+        result_type=str, 
+        context=dict(price=price)
+    )
 
-data_processing_flow.run()
-print(insights.result)
+# run all tasks in the flow
+item_flow.run()
+# access the item task's result
+item.result
 ```
 </CodeGroup>
 
-When a flow is run, ControlFlow orchestrates the execution of tasks, resolving dependencies, and managing the flow of data between tasks. The flow ensures that tasks are executed in the correct order and that the necessary context and results are propagated throughout the flow.
+<Tip>
+**What happens when a flow is run?**
 
-## Flow Execution and Task Dependencies
+When a flow is run, the decorated function is executed and any tasks created within the function are registered with the flow. The flow then orchestrates the execution of the tasks, resolving dependencies, and managing the flow of data between tasks. If the flow function returns a task, or a nested collection of tasks, the flow will automatically replace them with their final results. 
+</Tip>
 
-Flows in ControlFlow follow a structured execution model based on task dependencies. When a flow is run, ControlFlow analyzes the dependencies between tasks and determines the execution order.
+## Controlling Execution
 
-### Task Dependencies
+ControlFlow provides many mechanisms for determining how tasks are executed within a flow. So far, we've only looked at flows composed entirely of dependent tasks. These tasks form a DAG which is automatically executed when the flow runs. 
 
-Tasks within a flow can have dependencies on other tasks. These dependencies define the order in which tasks should be executed and ensure that tasks have access to the necessary data or results from previous tasks.
+### Control Flow
 
-Dependencies can be specified using the `depends_on` property of the `Task` class or by passing tasks as arguments to other tasks.
+Because a flow function is a regular Python function, you can use standard Python control flow to determine when tasks are executed and in what order. At any point, you can manually `run()` any task in order to work with its result. Running a task inside a flow will also run any tasks it depends on.
 
-```python
-@flow
-def data_processing_flow():
-    raw_data = load_data()
-    cleaned_data = clean_data(raw_data)
-    insights = analyze_data(cleaned_data)
-    report = generate_report(insights)
-    return report
-```
-
-In this example, the `clean_data` task depends on the `load_data` task, the `analyze_data` task depends on the `clean_data` task, and the `generate_report` task depends on the `analyze_data` task. ControlFlow ensures that the tasks are executed in the correct order based on these dependencies.
-
-### Parallel Execution
-
-ControlFlow supports parallel execution of tasks that are independent of each other. When multiple tasks have no dependencies between them, they can be executed concurrently, improving the overall performance of the flow.
+In this flow, we flip a coin to determine which poem to write. The coin toss task is run manually, and the result is used to determine which poem task to return, using a standard Python `if` statement:
 
 ```python
 @flow
-def parallel_flow():
-    task1 = process_data1()
-    task2 = process_data2()
-    task3 = process_data3()
-    results = combine_results(task1, task2, task3)
-    return results
+def conditional_flow():
+    coin_toss_task = Task('Flip a coin', result_type=['heads', 'tails'])
+    # manually run the coin-toss task
+    outcome = coin_toss_task.run()
+
+    # generate a different task based on the outcome of the toss
+    if outcome == 'heads':
+        poem = Task('Write a poem about Mt. Rushmore', result_type=str)
+    elif outcome == 'tails':
+        poem = Task('Write a poem about the Grand Canyon', result_type=str)
+    
+    # return the poem task
+    return poem
+
+print(conditional_flow())
+# Upon granite heights, 'neath skies of blue,
+# Mount Rushmore stands, a sight to view.
+# ...
 ```
-
-In this example, `task1`, `task2`, and `task3` have no dependencies on each other and can be executed in parallel. ControlFlow automatically manages the parallel execution and ensures that the results are properly combined in the `combine_results` task.
-
-## Error Handling and Flow Control
-
-ControlFlow provides mechanisms for error handling and flow control within flows.
-
-### Error Handling
-
-Errors that occur during task execution can be handled using exception handling. By wrapping tasks in try-except blocks, you can catch and handle specific exceptions, providing appropriate error messages or fallback behavior.
-
-```python
-@flow
-def error_handling_flow():
-    try:
-        data = load_data()
-        cleaned_data = clean_data(data)
-        insights = analyze_data(cleaned_data)
-    except DataLoadError:
-        logger.error("Failed to load data")
-        insights = None
-    except DataCleaningError:
-        logger.error("Failed to clean data")
-        insights = None
-    return insights
-```
-
-In this example, if an error occurs during the `load_data` or `clean_data` tasks, the corresponding exception is caught, an error message is logged, and the `insights` variable is set to `None`. This allows the flow to gracefully handle errors and continue execution.
-
-### Flow Control
-
-ControlFlow provides flow control mechanisms to conditionally execute tasks or repeat tasks based on certain conditions.
-
-```python
-@flow
-def conditional_flow(condition):
-    data = load_data()
-    if condition:
-        cleaned_data = clean_data(data)
-        insights = analyze_data(cleaned_data)
-    else:
-        insights = analyze_raw_data(data)
-    return insights
-```
-
-In this example, the flow conditionally executes either the `clean_data` and `analyze_data` tasks or the `analyze_raw_data` task based on the value of the `condition` variable. This allows for dynamic flow execution based on runtime conditions.
-
-## Conclusion
-
-Flows in ControlFlow provide a powerful and flexible way to orchestrate AI-powered workflows. By defining flows using the `Flow` class or the `@flow` decorator, developers can create structured and organized workflows that manage tasks, agents, tools, and context.
-
-Flows enable the execution of tasks in a defined order, resolving dependencies and allowing for parallel execution when possible. They also provide mechanisms for error handling and flow control, allowing for robust and adaptive workflow execution.
-
-By leveraging flows in ControlFlow, developers can build complex and dynamic AI-powered applications that are maintainable, scalable, and aligned with business requirements. Flows provide a high-level abstraction for managing AI workflows, enabling developers to focus on the logic and objectives of their applications while ControlFlow handles the underlying orchestration and execution.
