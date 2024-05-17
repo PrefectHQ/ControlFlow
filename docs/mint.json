@@ -52,16 +52,16 @@
             ]
         },
         {
+            "group": "Guides",
+            "pages": [
+                "guides/subtasks"
+            ]
+        },
+        {
             "group": "Reference",
             "pages": [
                 "reference/task-class",
                 "reference/task-decorator"
-            ]
-        },
-        {
-            "group": "Guides",
-            "pages": [
-                "guides/subtasks"
             ]
         },
         {
@@ -95,10 +95,6 @@
         }
     ],
     "tabs": [
-        {
-            "name": "Guides",
-            "url": "guides"
-        },
         {
             "name": "Glossary",
             "url": "glossary"
