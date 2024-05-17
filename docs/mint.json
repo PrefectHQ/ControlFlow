@@ -21,15 +21,15 @@
         "light": "#E44BF4",
         "primary": "#2D6DF6"
     },
-    "favicon": "/favicon.jpeg",
+    "favicon": "/assets/logo_2.webp",
     "footerSocials": {
         "github": "https://github.com/mintlify",
         "linkedin": "https://www.linkedin.com/company/mintsearch",
         "x": "https://x.com/mintlify"
     },
     "logo": {
-        "dark": "/logo/logo.svg",
-        "light": "/logo/logo.svg"
+        "dark": "/assets/logo_2.webp",
+        "light": "/assets/logo_2.webp"
     },
     "name": "ControlFlow",
     "navigation": [
