@@ -59,6 +59,12 @@
             ]
         },
         {
+            "group": "Guides",
+            "pages": [
+                "guides/subtasks"
+            ]
+        },
+        {
             "group": "Overview",
             "pages": [
                 "glossary/glossary"
@@ -90,8 +96,8 @@
     ],
     "tabs": [
         {
-            "name": "API Reference",
-            "url": "api-reference"
+            "name": "Guides",
+            "url": "guides"
         },
         {
             "name": "Glossary",
