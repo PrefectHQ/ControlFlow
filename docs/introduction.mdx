@@ -1,6 +1,18 @@
 ---
-title: Why ControlFlow?
+title: ControlFlow
+# sidebarTitle: Why ControlFlow?
 ---
+
+<video
+    autoPlay
+    muted
+    loop
+    playsInline
+  className="w-full aspect-video"
+  src="/assets/video/controlflow-orbits.mp4"
+></video>
+
+## What is ControlFlow?
 
 **ControlFlow is a framework for orchestrating agentic LLM workflows.**
 
@@ -18,19 +30,21 @@ ControlFlow's design is informed by a strong opinion: LLMs are powerful tools, b
 
 This belief leads to three core design principles that underpin ControlFlow's architecture:
 
-### 🛠️ Specialized over generalized
+### 🛠️ Simple over complex
 
-ControlFlow advocates for the use of **specialized, single-purpose LLMs** rather than monolithic models that try to do everything. By assigning specific tasks to purpose-built models, ControlFlow ensures that the right tool is used for each job, leading to more efficient, cost-effective, and higher-quality results.
+ControlFlow believes in using **specialized, single-purpose LLMs** rather than monolithic models that try to do everything. Single-serving LLMs are more effective and efficient, ensuring that each task is handled by the right tool, leading to higher-quality results and easier management.
 
 ### 🎯 Outcome over process
 
-ControlFlow embraces a **declarative approach to defining AI workflows**, allowing developers to focus on the desired outcomes rather than the intricacies of steering LLM behavior. By specifying tasks and their requirements using intuitive constructs, developers can express what needs to be done without worrying about the details of how it will be accomplished.
+ControlFlow advocates for a **declarative approach to defining AI workflows**. By focusing on desired outcomes instead of attempting to steer every action of the LLM, developers can create more predictable and controllable workflows, making it easier to achieve the desired results.
 
-### 🎛️ Control over autonomy
 
-ControlFlow recognizes the importance of balancing AI capabilities with traditional software development practices. Instead of relying on end-to-end AI systems that make all workflow decisions autonomously, ControlFlow allows as much or as little AI participation as needed, ensuring that developers **maintain visibility and control** over their applications.
+### 🎛️ Explicit over implicit
 
-## Key Features
+ControlFlow emphasizes the importance of treating LLMs as discrete, traditional software calls rather than relying on an end-to-end magic process. Explicitly defining tasks and checkpoints within a workflow ensures reliable results, allowing developers to maintain visibility and control while still leveraging the autonomy of LLMs.
+
+
+## Why ControlFlow?
 
 The three design principles of ControlFlow lead to a number of key features that make it a powerful tool for building AI-powered applications:
 
