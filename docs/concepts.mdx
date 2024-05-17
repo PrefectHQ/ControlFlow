@@ -2,20 +2,39 @@
 title: Core Concepts
 ---
 
-**ControlFlow is built on three core concepts** that are essential to understanding how the framework works. These concepts are designed to make it easy to build and manage complex AI workflows, while also providing a clear structure for developers to follow.
 
-## 🚦 Task
-**Tasks are the building blocks of ControlFlow workflows**. Each task represents a discrete objective for agents to solve, such as generating text, classifying data, or extracting information from a document. In addition, tasks can specify instructions, tools for agents to use, a schema for the expected output, and more. 
+ControlFlow is a Python framework for building AI-powered applications using large language models (LLMs). It provides a structured and intuitive way to create sophisticated workflows that leverage the power of AI while adhering to traditional software engineering best practices.
 
-Tasks can depend on each other in various ways, creating complex workflows that are easy to understand and manage:
-- **sequential** dependencies: one task must be completed before another can start
-- **context** dependencies: the result of one task is used as input for another
-- **subtask** dependencies: a task has subtasks that must be completed before the task can be considered done
+At the core of ControlFlow are three key concepts: Tasks, Flows, and Agents.
 
-By specifying the parameters of each task and how they relate to each other, developers can create complex workflows that are easy to understand and manage.
+## Tasks
 
-## 🌊 Flow
-**A flow represents an entire agentic workflow.** It is a "container" for the workflow that maintains consistent context and state across all tasks and agents. Each flow executes on a different thread, meaning all agents in the flow see the same state and can communicate with each other. 
+Tasks are the building blocks of ControlFlow workflows. Each task represents a discrete objective or goal that an AI agent needs to solve, such as generating text, classifying data, or extracting information from a document. Tasks are defined using a declarative approach, specifying the objective, instructions, expected result type, and any required context or tools.
 
-## 🤖 Agent
-**Agents are the AI "workers" that complete tasks.** Each agent can have distinct instructions, personality, and capabilities, and they are responsible for completing any tasks assigned to them. Agents can be specialized for specific tasks or more general-purpose, depending on the requirements of the workflow.
+ControlFlow provides two ways to create tasks:
+
+1. Using the `Task` class, which allows you to explicitly define all properties of a task.
+2. Using the `@task` decorator on a Python function, which automatically infers task properties from the function definition.
+
+Tasks can depend on each other in various ways, such as sequential dependencies (one task must be completed before another can start), context dependencies (the result of one task is used as input for another), or subtask dependencies (a task has subtasks that must be completed before the parent task can be considered done).
+
+
+## Agents
+
+Agents are the AI "workers" responsible for executing tasks within a flow. Each agent can have distinct instructions, personality, and capabilities, tailored to specific roles or domains. Agents are assigned to tasks based on their suitability and availability.
+
+ControlFlow allows you to create specialized agents equipped with relevant tools and instructions to tackle specific tasks efficiently. Agents can interact with each other and with human users (if given user access) to gather information, make decisions, and complete tasks collaboratively.
+
+## Flows
+
+Flows are high-level containers that encapsulate and orchestrate entire AI-powered workflows. They provide a structured way to manage tasks, agents, tools, and shared context. A flow maintains a consistent state across all its components, allowing agents to communicate and collaborate effectively.
+
+## Putting It All Together
+
+When designing workflows in ControlFlow, you break down your application logic into discrete tasks, define the dependencies and relationships between them, and assign suitable agents to execute them. Flows provide a high-level orchestration mechanism to manage the execution of tasks, handle data flow, and maintain a shared context.
+
+ControlFlow seamlessly integrates with existing Python codebases, treating AI tasks as first-class citizens. You can mix imperative and declarative programming styles, leverage Python's control flow and error handling capabilities, and gradually adopt AI capabilities into your applications.
+
+Under the hood, ControlFlow utilizes Prefect, a popular workflow orchestration tool, to provide observability, monitoring, and management features. This allows you to track the progress of your workflows, identify bottlenecks, and optimize performance.
+
+By adhering to software engineering best practices, such as modularity, error handling, and documentation, ControlFlow enables you to build robust, maintainable, and trustworthy AI-powered applications.

@@ -64,9 +64,11 @@ flow.add_task(task)
     **tldr:** Prefer the `@flow` decorator for simplicity and conciseness. Use the `Flow` class only for advanced customization and configuration.
 </Tip>
 
-Both the `Flow` class and the `@flow` decorator offer ways to compartmentalize and structure your workflow. The choice between the two approaches depends on your preference and the complexity of the flow.
+Both the `Flow` class and the `@flow` decorator offer ways to compartmentalize and structure your workflow.
 
-In most cases, including this documentation, the `@flow` decorator is used for its simplicity and conciseness. As a user, you rarely need to interact with the flow object itself; its main job is to provide an isolated container for your tasks. By using the `@flow` decorator, you can cleanly define your workflow's inputs, logic, and outputs in a clear and readable manner. Moreover, calling the decorated function will automatically run the flow, making it easy to execute and test.
+In general, users should prefer the `@flow` decorator for its simplicity and ease of use. The `@flow` decorator allows you to define a flow using a single function, making it easy to read and understand. It automatically registers tasks within the flow and handles the execution of tasks when the flow is run. 
+
+The `Flow` class is only recommended for use when a group of tasks need to be quickly placed into a separate flow to isolate their work from the main flow. This circumstance is rare and can also be achieved by using the `@flow` decorator with a separate function.
 
 ## Flow Properties
 

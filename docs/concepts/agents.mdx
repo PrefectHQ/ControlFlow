@@ -1,0 +1,90 @@
+
+Agents are a key concept in ControlFlow, representing the AI entities responsible for executing tasks within a workflow. Each agent has its own set of properties, methods, and capabilities that define its behavior and role in the flow.
+
+## Creating an Agent
+
+To create an agent, you can use the `Agent` class provided by ControlFlow. Here's an example of how to create an agent:
+
+```python
+from controlflow import Agent
+
+agent = Agent(
+    name="DataAnalyst",
+    description="An AI agent specialized in data analysis",
+    instructions="Perform data analysis tasks efficiently and accurately",
+    tools=[pandas_tool, matplotlib_tool]
+)
+```
+
+In this example, we create an agent named "DataAnalyst" with a description and specific instructions. The `tools` parameter is used to provide the agent with a list of tools it can use during task execution. These tools are essentially Python functions that the agent can call at any time.
+
+## Agent Properties
+
+An agent has the following key properties:
+
+- `name` (str): The name of the agent, which serves as an identifier and is visible to other agents in the workflow.
+- `description` (str, optional): A brief description of the agent's role or specialization, which is also visible to other agents.
+- `instructions` (str, optional): Specific instructions or guidelines for the agent to follow during task execution. These instructions are private to the agent and not visible to other agents.
+- `tools` (List[ToolType], optional): A list of tools available to the agent. Tools are Python functions that the agent can call to perform specific actions or computations.
+- `user_access` (bool, default=False): Indicates whether the agent has access to user interactions. If set to `True`, the agent will be provided with the `talk_to_human` tool to communicate with users.
+
+These properties help define the agent's characteristics, behavior, and capabilities within the flow.
+
+## Assigning Agents to Tasks
+
+To assign an agent to a task, you can use the `agents` parameter when creating a task. Here's an example:
+
+```python
+from controlflow import Task
+
+task = Task(
+    objective="Analyze sales data",
+    agents=[data_analyst, data_visualizer]
+)
+```
+
+In this example, we create a task with the objective "Analyze sales data" and assign two agents, `data_analyst` and `data_visualizer`, to it. Agents can only work on tasks they are assigned to.
+
+## Running Agents
+
+The `Agent` class provides a `run()` method to take low-level control of an agent's execution. Here's an example of how to run an agent:
+
+```python
+from controlflow import Agent, Task
+
+agent = Agent(name="DataAnalyst")
+task = Task(objective="Analyze sales data", agents=[agent])
+
+while task.is_incomplete():
+    agent.run(task)
+```
+
+In this example, we create an agent and a task, and assign the agent to the task. We then use a while loop to run the agent repeatedly until the task is marked as complete.
+
+## User Access and Interaction
+
+Agents with the `user_access` flag set to `True` have the ability to interact with users using the `talk_to_human` tool. This tool allows agents to send messages to users and receive responses.
+
+```python
+from controlflow import Agent
+
+agent = Agent(
+    name="UserAssistant",
+    description="An AI agent that interacts with users",
+    user_access=True
+)
+```
+
+In this example, we create an agent named "UserAssistant" with the `user_access` flag set to `True`. This agent will have access to the `talk_to_human` tool to communicate with users when necessary.
+
+## Best Practices
+
+When working with agents in ControlFlow, consider the following best practices:
+
+- Create specialized agents tailored to specific tasks or equipped with relevant tools.
+- Provide clear and concise instructions to guide the agent's behavior and decision-making process.
+- Assign agents to tasks based on their capabilities and the task's requirements.
+- Use the `user_access` flag judiciously and ensure proper handling of user interactions.
+- Monitor and debug agent execution to identify and resolve any issues or inefficiencies.
+
+By designing and deploying agents effectively, you can build powerful and efficient workflows that leverage the strengths of AI in task execution and decision-making.
