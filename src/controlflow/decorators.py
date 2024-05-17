@@ -96,13 +96,14 @@ def flow(
                 with controlflow.instructions(instructions):
                     result = fn(*args, **kwargs)
 
-                    # determine if we should run the flow eagerly or lazily
+                    # Determine if we should run eagerly or lazily
                     if lazy_ is not None:
-                        lazy = lazy_
-                    if lazy is None:
-                        run_eagerly = controlflow.settings.eager_mode
-                    else:
+                        run_eagerly = not lazy_
+                    elif lazy is not None:
                         run_eagerly = not lazy
+                    else:
+                        run_eagerly = controlflow.settings.eager_mode
+
                     if run_eagerly:
                         flow_obj.run()
 
@@ -194,13 +195,14 @@ def task(
             tools=tools or [],
         )
 
-        # determine if we should run the flow eagerly or lazily
+        # Determine if we should run eagerly or lazily
         if lazy_ is not None:
-            lazy = lazy_
-        if lazy is None:
-            run_eagerly = controlflow.settings.eager_mode
-        else:
+            run_eagerly = not lazy_
+        elif lazy is not None:
             run_eagerly = not lazy
+        else:
+            run_eagerly = controlflow.settings.eager_mode
+
         if run_eagerly:
             task.run()
             return task.result
