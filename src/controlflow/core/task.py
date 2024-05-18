@@ -188,7 +188,7 @@ class Task(ControlFlowModel):
         ]
         fields = self.model_dump(include=include_fields)
         field_str = ", ".join(
-            f"{k}={f'"{fields[k]}"' if isinstance(fields[k], str) else fields[k] }"
+            f'{k}="{fields[k]}"' if isinstance(fields[k], str) else f"{k}={fields[k]}"
             for k in include_fields
         )
         return f"{self.__class__.__name__}({field_str})"
