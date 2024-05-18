@@ -70,10 +70,8 @@ Dependencies are defined as a list of `Task` instances. When a task is executed,
 By specifying dependencies, you can create a structured workflow where tasks are executed in a specific order based on their dependencies. This helps ensure that tasks have access to the necessary data or results from previous tasks before they start.
 </ParamField>
 
-<ParamField path="subtasks" type="list[Task]">
-The `subtasks` property allows you to define a hierarchical structure of tasks by specifying subtasks for a given task. Subtasks are smaller, more focused tasks that contribute to the completion of the parent task.
+<ParamField path="parent" type="Optional[Task]">
+The `parent` property allows you to specify a parent task for the current task. It establishes a hierarchical relationship between tasks, where the parent task is responsible for managing and coordinating the execution of its child tasks.
 
-Subtasks are defined as a list of `Task` instances. When a task is executed, its subtasks are also executed as part of the overall task execution process. The parent task is considered complete only when all its subtasks have been successfully completed.
-
-By organizing tasks into subtasks, you can break down complex tasks into smaller, more manageable units of work. This promotes modularity, reusability, and easier maintenance of the task hierarchy.
+By organizing tasks into subtasks, you can break down complex tasks into smaller, more manageable units of work. This promotes modularity, reusability, and easier maintenance of the task hierarchy. When a task is created with a parent task, it automatically becomes a subtask of the parent task. The parent task is considered complete only when all its subtasks have been successfully completed.
 </ParamField>

@@ -192,29 +192,38 @@ data_analysis_task = Task(
 ```
 
 ### Subtasks
+Subtasks allow you to break down complex tasks into smaller steps and manage the workflow more effectively. Subtasks can be defined either by creating tasks with the context of another task, or by passing a task as a `parent` parameter to the subtask. 
 
-Subtasks can be defined using the `subtasks` property of the `Task` class. By organizing tasks into subtasks, you can break down complex tasks into smaller, more focused units of work.
+<CodeGroup>
+```python Context manager
+from controlflow import Task
 
-```python
-data_processing_task = Task(
-    objective="Process the raw data and prepare it for analysis",
-    subtasks=[
-        Task(
-            objective="Load the raw data from the source",
-            result_type=pd.DataFrame,
-        ),
-        Task(
-            objective="Clean and preprocess the loaded data",
-            result_type=pd.DataFrame,
-        ),
-        Task(
-            objective="Perform feature engineering on the preprocessed data",
-            result_type=pd.DataFrame,
-        ),
-    ],
-    result_type=pd.DataFrame,
+with Task(objective="Prepare data", result_type=list) as parent_task:
+    child_task_1 = Task('Load data from the source', result_type=list)
+    child_task_2 = Task(
+        'Clean and preprocess the loaded data', 
+        result_type=list, 
+        context=dict(data=child_task_1),
+    )
+```
+
+```python Parent parameter
+from controlflow import Task
+
+parent_task = Task(objective="Prepare data", result_type=list)
+child_task_1 = Task(
+    'Load data from the source', 
+    result_type=list, 
+    parent=parent_task,
+)
+child_task_2 = Task(
+    'Clean and preprocess the loaded data', 
+    result_type=list, 
+    context=dict(data=child_task_1),
+    parent=parent_task,
 )
 ```
+</CodeGroup>
 
 ## Executing Tasks
 
@@ -223,7 +232,6 @@ Tasks can be executed using the `run()` method, which coordinates the execution 
 ```python
 data_processing_task = Task(
     objective="Process the raw data and prepare it for analysis",
-    subtasks=[...],
     result_type=pd.DataFrame,
 )
 
