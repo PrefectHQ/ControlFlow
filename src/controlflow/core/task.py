@@ -116,7 +116,7 @@ class Task(ControlFlowModel):
     instructions: Union[str, None] = Field(
         None, description="Detailed instructions for completing the task."
     )
-    agents: list["Agent"] = Field(
+    agents: Optional[list["Agent"]] = Field(
         None,
         description="The agents assigned to the task. If not provided, agents "
         "will be inferred from the parent task, flow, or global default.",
@@ -126,10 +126,10 @@ class Task(ControlFlowModel):
         description="Additional context for the task. If tasks are provided as "
         "context, they are automatically added as `depends_on`",
     )
-    subtasks: list["Task"] = Field(
-        default_factory=list,
-        description="A list of subtasks that are part of this task. Subtasks are "
-        "considered dependencies, though they may be skipped.",
+    parent: Optional["Task"] = Field(
+        None,
+        description="The parent task of this task. Subtasks are considered"
+        " upstream dependencies of their parents.",
     )
     depends_on: list["Task"] = Field(
         default_factory=list, description="Tasks that this task depends on explicitly."
@@ -145,17 +145,14 @@ class Task(ControlFlowModel):
     tools: list[ToolType] = []
     user_access: bool = False
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    visible: bool = True
-    _parent: "Union[Task, None]" = None
-    _downstreams: list["Task"] = []
+    _subtasks: set["Task"] = set()
+    _downstreams: set["Task"] = set()
     model_config = dict(extra="forbid", arbitrary_types_allowed=True)
 
     def __init__(
         self,
         objective=None,
         result_type=None,
-        *,
-        parent: "Task" = None,
         **kwargs,
     ):
         # allow certain args to be provided as a positional args
@@ -170,37 +167,7 @@ class Task(ControlFlowModel):
                 or "" + "\n" + "\n".join(additional_instructions)
             ).strip()
 
-        # setup up relationships
-        if parent is None:
-            parent_tasks = ctx.get("tasks", [])
-            parent = parent_tasks[-1] if parent_tasks else None
-
-        # set up default agents
-        # - if provided, use the provided agents
-        # - if not provided, use the parent's agents
-        # - if no parent, use the flow's agents
-        # - if no flow, use the default agent
-        if not kwargs.get("agents"):
-            from controlflow.core.agent import default_agent
-            from controlflow.core.flow import get_flow
-
-            if parent and parent.agents:
-                kwargs["agents"] = parent.agents
-            else:
-                try:
-                    flow = get_flow()
-                except ValueError:
-                    flow = None
-                if flow and flow.agents:
-                    kwargs["agents"] = flow.agents
-                else:
-                    kwargs["agents"] = [default_agent()]
-
         super().__init__(**kwargs)
-
-        # register task with parent
-        if parent is not None:
-            parent.add_subtask(self)
 
     def __repr__(self):
         include_fields = [
@@ -211,7 +178,7 @@ class Task(ControlFlowModel):
             "agents",
             "context",
             "user_access",
-            "subtasks",
+            "parent",
             "depends_on",
             "tools",
         ]
@@ -222,9 +189,17 @@ class Task(ControlFlowModel):
         )
         return f"{self.__class__.__name__}({field_str})"
 
+    @field_validator("parent", mode="before")
+    def _default_parent(cls, v):
+        if v is None:
+            parent_tasks = ctx.get("tasks", [])
+            v = parent_tasks[-1] if parent_tasks else None
+
+        return v
+
     @field_validator("agents", mode="before")
     def _default_agents(cls, v):
-        if not v:
+        if v == []:
             raise ValueError("At least one agent is required.")
         return v
 
@@ -246,6 +221,10 @@ class Task(ControlFlowModel):
         for task in self.depends_on:
             self.add_dependency(task)
 
+        # create dependencies to tasks passed as subtasks
+        if self.parent is not None:
+            self.parent.add_subtask(self)
+
         # create dependencies to tasks passed in as context
         context_tasks = collect_tasks(self.context)
 
@@ -255,44 +234,47 @@ class Task(ControlFlowModel):
 
         return self
 
-    def parent(self) -> Optional["Task"]:
-        return self._parent
-
-    @field_serializer("subtasks")
-    def _serialize_subtasks(subtasks: list["Task"]):
-        return [t.id for t in subtasks]
+    @field_serializer("parent")
+    def _serialize_parent(self, parent: Optional["Task"]):
+        return parent.id if parent is not None else None
 
     @field_serializer("depends_on")
-    def _serialize_depends_on(depends_on: list["Task"]):
+    def _serialize_depends_on(self, depends_on: list["Task"]):
         return [t.id for t in depends_on]
 
     @field_serializer("context")
-    def _serialize_context(context: dict):
+    def _serialize_context(self, context: dict):
         def visitor(task):
             return f"<Result from task {task.id}>"
 
         return visit_task_collection(context, visitor)
 
     @field_serializer("result_type")
-    def _serialize_result_type(result_type: list["Task"]):
+    def _serialize_result_type(self, result_type: list["Task"]):
         if result_type is not None:
             return repr(result_type)
 
     @field_serializer("agents")
-    def _serialize_agents(agents: list["Agent"]):
+    def _serialize_agents(self, agents: Optional[list["Agent"]]):
+        agents = self.get_agents()
         return [
             a.model_dump(include={"name", "description", "tools", "user_access"})
             for a in agents
         ]
 
     @field_serializer("tools")
-    def _serialize_tools(tools: list[ToolType]):
-        return [
-            marvin.utilities.tools.tool_from_function(t)
-            if not isinstance(t, AssistantTool)
-            else t
-            for t in tools
-        ]
+    def _serialize_tools(self, tools: list[ToolType]):
+        serialized_tools = []
+        for tool in tools:
+            if not isinstance(tool, AssistantTool):
+                tool = marvin.utilities.tools.tool_from_function(tool)
+            if isinstance(tool, FunctionTool):
+                serialized_tools.append(
+                    tool.function.model_dump(include={"name", "description"})
+                )
+            else:
+                serialized_tools.append(tool)
+        return serialized_tools
 
     def friendly_name(self):
         if len(self.objective) > 50:
@@ -310,12 +292,12 @@ class Task(ControlFlowModel):
         """
         Indicate that this task has a subtask (which becomes an implicit dependency).
         """
-        if task._parent is None:
-            task._parent = self
-        elif task._parent is not self:
+        if task.parent is None:
+            task.parent = self
+        elif task.parent is not self:
             raise ValueError(f"{self.friendly_name()} already has a parent.")
-        if task not in self.subtasks:
-            self.subtasks.append(task)
+        if task not in self._subtasks:
+            self._subtasks.add(task)
 
     def add_dependency(self, task: "Task"):
         """
@@ -324,7 +306,7 @@ class Task(ControlFlowModel):
         if task not in self.depends_on:
             self.depends_on.append(task)
         if self not in task._downstreams:
-            task._downstreams.append(self)
+            task._downstreams.add(self)
 
     def run_once(self, agent: "Agent" = None):
         """
@@ -453,19 +435,37 @@ class Task(ControlFlowModel):
         )
         return tool
 
+    def get_agents(self) -> list["Agent"]:
+        if self.agents:
+            return self.agents
+        elif self.parent:
+            return self.parent.get_agents()
+        else:
+            from controlflow.core.agent import default_agent
+            from controlflow.core.flow import get_flow
+
+            try:
+                flow = get_flow()
+            except ValueError:
+                flow = None
+            if flow and flow.agents:
+                return flow.agents
+            else:
+                return [default_agent()]
+
     def get_tools(self) -> list[ToolType]:
         tools = self.tools.copy()
         if self.is_incomplete():
             tools.extend([self._create_fail_tool(), self._create_success_tool()])
             # add skip tool if this task has a parent task
-            if self._parent is not None:
+            if self.parent is not None:
                 tools.append(self._create_skip_tool())
         if self.user_access:
             tools.append(marvin.utilities.tools.tool_from_function(talk_to_human))
         return [wrap_prefect_tool(t) for t in tools]
 
     def dependencies(self):
-        return self.depends_on + self.subtasks
+        return self.depends_on + self._subtasks
 
     def mark_successful(self, result: T = None, validate_upstreams: bool = True):
         if validate_upstreams:
@@ -475,11 +475,11 @@ class Task(ControlFlowModel):
                     "upstream dependencies are completed. Incomplete dependencies "
                     f"are: {', '.join(t.friendly_name() for t in self.depends_on if t.is_incomplete())}"
                 )
-            elif any(t.is_incomplete() for t in self.subtasks):
+            elif any(t.is_incomplete() for t in self._subtasks):
                 raise ValueError(
                     f"Task {self.objective} cannot be marked successful until all of its "
                     "subtasks are completed. Incomplete subtasks "
-                    f"are: {', '.join(t.friendly_name() for t in self.subtasks if t.is_incomplete())}"
+                    f"are: {', '.join(t.friendly_name() for t in self._subtasks if t.is_incomplete())}"
                 )
 
         self.result = validate_result(result, self.result_type)

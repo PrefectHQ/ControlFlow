@@ -123,7 +123,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
             # add tools for any inactive tasks that the agent is assigned to
             for task in tasks:
-                if agent in task.agents:
+                if agent in task.get_agents():
                     tools = tools + task.get_tools()
 
             instructions_template = MainTemplate(
@@ -190,7 +190,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             return
 
         # get the agents
-        agent_candidates = {a for t in tasks for a in t.agents if t.is_ready()}
+        agent_candidates = {a for t in tasks for a in t.get_agents() if t.is_ready()}
         if self.agents:
             agents = list(agent_candidates.intersection(self.agents))
         else:

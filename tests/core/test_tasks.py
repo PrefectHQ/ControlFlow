@@ -36,8 +36,8 @@ def test_task_dependencies():
 def test_task_subtasks():
     task1 = Task(objective="Task 1")
     task2 = Task(objective="Task 2", parent=task1)
-    assert task2 in task1.subtasks
-    assert task2.parent() is task1
+    assert task2 in task1._subtasks
+    assert task2.parent is task1
 
 
 def test_task_parent_context():
@@ -45,13 +45,13 @@ def test_task_parent_context():
         with Task("parent") as task2:
             task3 = Task("child")
 
-    assert task3.parent() is task2
-    assert task2.parent() is task1
-    assert task1.parent() is None
+    assert task3.parent is task2
+    assert task2.parent is task1
+    assert task1.parent is None
 
-    assert task1.subtasks == [task2]
-    assert task2.subtasks == [task3]
-    assert task3.subtasks == []
+    assert task1._subtasks == [task2]
+    assert task2._subtasks == [task3]
+    assert task3._subtasks == []
 
 
 def test_task_agent_assignment():

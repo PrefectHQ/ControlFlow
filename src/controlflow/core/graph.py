@@ -1,8 +1,11 @@
 from enum import Enum
+from typing import TypeVar
 
 from pydantic import BaseModel
 
 from controlflow.core.task import Task
+
+T = TypeVar("T")
 
 
 class EdgeType(Enum):
@@ -60,7 +63,7 @@ class Graph(BaseModel):
         if task in self.tasks:
             return
         self.tasks.add(task)
-        for subtask in task.subtasks:
+        for subtask in task._subtasks:
             self.add_edge(
                 Edge(
                     upstream=subtask,
@@ -125,6 +128,7 @@ class Graph(BaseModel):
 
         If `include_tasks` is True, the subgraph will include the tasks provided.
         """
+        currently_visiting = set()
         subgraph = set()
         upstreams = self.upstream_edges()
         # copy stack to allow difference update with original tasks
@@ -134,14 +138,23 @@ class Graph(BaseModel):
             if current in subgraph:
                 continue
 
+            if current in currently_visiting:
+                raise ValueError(f"Cycle detected at task {current}")
+
+            currently_visiting.add(current)
             subgraph.add(current)
             # if prune_completed, stop traversal if the current task is complete
             if prune_completed and current.is_complete():
                 continue
-            stack.extend([edge.upstream for edge in upstreams[current]])
+
+            for edge in upstreams[current]:
+                stack.append(edge.upstream)
+
+            currently_visiting.remove(current)
 
         if not include_tasks:
             subgraph.difference_update(tasks)
+
         return list(subgraph)
 
     def ready_tasks(self, tasks: list[Task] = None) -> list[Task]:
@@ -159,3 +172,33 @@ class Graph(BaseModel):
         return sorted(
             [task for task in candidates if task.is_ready()], key=lambda t: t.created_at
         )
+
+
+def toposort(graph: dict[T, list[T]]) -> list[T]:
+    """
+    Given a graph that represents a node and a list of all nodes upstream of that node, returns a
+    list of nodes in topological order such that a node only appears after its upstream nodes.
+
+    If the graph is cyclic, a ValueError will be raised.
+    """
+    visited: set[T] = set()
+    stack: list[T] = []
+    temp_mark: set[T] = set()
+
+    def visit(node: T) -> None:
+        if node in temp_mark:
+            raise ValueError("Graph has a cycle, topological sort not possible")
+        if node not in visited:
+            temp_mark.add(node)
+            if node in graph:
+                for upstream in graph[node]:
+                    visit(upstream)
+            temp_mark.remove(node)
+            visited.add(node)
+            stack.append(node)
+
+    for node in graph:
+        if node not in visited:
+            visit(node)
+
+    return stack
