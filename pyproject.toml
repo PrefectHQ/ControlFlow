@@ -1,7 +1,7 @@
 [project]
 name = "controlflow"
 version = "0.3.0"
-description = "AI Workflows"
+description = "A framework for agentic workflows"
 authors = [
     { name = "Jeremiah Lowin", email = "153965+jlowin@users.noreply.github.com" },
 ]
