@@ -66,7 +66,7 @@ class Settings(ControlFlowSettings):
         "This can be set on a per-task or per-flow basis using the `eager` argument.",
     )
 
-    # --- sending messages to LLMs
+    # --- sending messages to Agents
 
     enable_local_input: bool = Field(
         True,
