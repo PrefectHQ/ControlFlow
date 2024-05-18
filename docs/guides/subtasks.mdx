@@ -1,12 +1,11 @@
-### Overview of Subtasks
 
 Subtasks in ControlFlow allow you to break down complex tasks into smaller, more manageable units. This hierarchical task structure helps organize workflows efficiently and ensures that each subtask is completed or skipped before the parent task can be marked as done. This drives progress and helps manage complex workflows.
 
-#### Why Use Subtasks?
+## Why Use Subtasks?
 
 Subtasks help organize the workflow for the agent by breaking down complex tasks into smaller units. Instead of "hoping" that the agent figures out the best way to complete a task, you can explicitly define the required steps. This makes it easier to manage and scale complex AI-powered applications.
 
-#### Creating Subtasks
+## Creating Subtasks
 
 The recommended pattern for creating subtasks is to use a parent task as a context manager. Any tasks created within the context will automatically be associated with the parent task. Alternatively, you can explicitly specify the parent task when creating a subtask.
 
@@ -41,7 +40,7 @@ child_task_2 = Task(
 ```
 </CodeGroup>
 
-#### Running Subtasks
+## Running Subtasks
 
 A subtask can be run like any other task. 
 
