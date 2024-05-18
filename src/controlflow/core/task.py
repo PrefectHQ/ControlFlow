@@ -29,6 +29,7 @@ from pydantic import (
 import controlflow
 from controlflow.core.flow import get_flow_messages
 from controlflow.instructions import get_instructions
+from controlflow.tools.talk_to_human import talk_to_human
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import wrap_prefect_tool
@@ -44,7 +45,6 @@ from controlflow.utilities.types import (
     PandasSeries,
     ToolType,
 )
-from controlflow.utilities.user_access import talk_to_human
 
 if TYPE_CHECKING:
     from controlflow.core.agent import Agent
@@ -461,7 +461,7 @@ class Task(ControlFlowModel):
             if self.parent is not None:
                 tools.append(self._create_skip_tool())
         if self.user_access:
-            tools.append(marvin.utilities.tools.tool_from_function(talk_to_human))
+            tools.append(talk_to_human)
         return [wrap_prefect_tool(t) for t in tools]
 
     def dependencies(self):

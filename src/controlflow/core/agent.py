@@ -2,16 +2,15 @@ import logging
 from typing import Union
 
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
-from marvin.utilities.tools import tool_from_function
 from pydantic import Field
 
 from controlflow.core.flow import get_flow
 from controlflow.core.task import Task
+from controlflow.tools.talk_to_human import talk_to_human
 from controlflow.utilities.prefect import (
     wrap_prefect_tool,
 )
 from controlflow.utilities.types import Assistant, ControlFlowModel, ToolType
-from controlflow.utilities.user_access import talk_to_human
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,7 @@ class Agent(Assistant, ControlFlowModel, ExposeSyncMethodsMixin):
     def get_tools(self) -> list[ToolType]:
         tools = super().get_tools()
         if self.user_access:
-            tools.append(tool_from_function(talk_to_human))
+            tools.append(talk_to_human)
 
         return [wrap_prefect_tool(tool) for tool in tools]
 

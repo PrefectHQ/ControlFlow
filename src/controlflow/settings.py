@@ -66,6 +66,14 @@ class Settings(ControlFlowSettings):
         "This can be set on a per-task or per-flow basis using the `eager` argument.",
     )
 
+    # --- sending messages to LLMs
+
+    enable_local_input: bool = Field(
+        True,
+        description="If True, the user can provide input via "
+        "the terminal. Otherwise, only API input is accepted.",
+    )
+
     def __init__(self, **data):
         super().__init__(**data)
         self.prefect.apply()
