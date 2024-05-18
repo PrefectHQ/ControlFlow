@@ -209,7 +209,6 @@ class Task(ControlFlowModel):
             return Literal[tuple(v)]  # type: ignore
         return v
 
-    @field_validator("agents", mode="before")
     @model_validator(mode="after")
     def _finalize(self):
         from controlflow.core.flow import get_flow
@@ -236,40 +235,46 @@ class Task(ControlFlowModel):
         return self
 
     @field_serializer("parent")
-    def _serialize_parent(parent: Optional["Task"]):
+    def _serialize_parent(self, parent: Optional["Task"]):
         return parent.id if parent is not None else None
 
     @field_serializer("depends_on")
-    def _serialize_depends_on(depends_on: list["Task"]):
+    def _serialize_depends_on(self, depends_on: list["Task"]):
         return [t.id for t in depends_on]
 
     @field_serializer("context")
-    def _serialize_context(context: dict):
+    def _serialize_context(self, context: dict):
         def visitor(task):
             return f"<Result from task {task.id}>"
 
         return visit_task_collection(context, visitor)
 
     @field_serializer("result_type")
-    def _serialize_result_type(result_type: list["Task"]):
+    def _serialize_result_type(self, result_type: list["Task"]):
         if result_type is not None:
             return repr(result_type)
 
     @field_serializer("agents")
-    def _serialize_agents(agents: list["Agent"]):
+    def _serialize_agents(self, agents: Optional[list["Agent"]]):
+        agents = self.get_agents()
         return [
             a.model_dump(include={"name", "description", "tools", "user_access"})
             for a in agents
         ]
 
     @field_serializer("tools")
-    def _serialize_tools(tools: list[ToolType]):
-        return [
-            marvin.utilities.tools.tool_from_function(t)
-            if not isinstance(t, AssistantTool)
-            else t
-            for t in tools
-        ]
+    def _serialize_tools(self, tools: list[ToolType]):
+        serialized_tools = []
+        for tool in tools:
+            if not isinstance(tool, AssistantTool):
+                tool = marvin.utilities.tools.tool_from_function(tool)
+            if isinstance(tool, FunctionTool):
+                serialized_tools.append(
+                    tool.function.model_dump(include={"name", "description"})
+                )
+            else:
+                serialized_tools.append(tool)
+        return serialized_tools
 
     def friendly_name(self):
         if len(self.objective) > 50:
@@ -460,7 +465,7 @@ class Task(ControlFlowModel):
         return [wrap_prefect_tool(t) for t in tools]
 
     def dependencies(self):
-        return self.depends_on + self.subtasks
+        return self.depends_on + self._subtasks
 
     def mark_successful(self, result: T = None, validate_upstreams: bool = True):
         if validate_upstreams:
@@ -470,11 +475,11 @@ class Task(ControlFlowModel):
                     "upstream dependencies are completed. Incomplete dependencies "
                     f"are: {', '.join(t.friendly_name() for t in self.depends_on if t.is_incomplete())}"
                 )
-            elif any(t.is_incomplete() for t in self.subtasks):
+            elif any(t.is_incomplete() for t in self._subtasks):
                 raise ValueError(
                     f"Task {self.objective} cannot be marked successful until all of its "
                     "subtasks are completed. Incomplete subtasks "
-                    f"are: {', '.join(t.friendly_name() for t in self.subtasks if t.is_incomplete())}"
+                    f"are: {', '.join(t.friendly_name() for t in self._subtasks if t.is_incomplete())}"
                 )
 
         self.result = validate_result(result, self.result_type)

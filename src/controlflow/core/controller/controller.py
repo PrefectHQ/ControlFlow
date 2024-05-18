@@ -190,7 +190,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             return
 
         # get the agents
-        agent_candidates = {a for t in tasks for a in t.agents if t.is_ready()}
+        agent_candidates = {a for t in tasks for a in t.get_agents() if t.is_ready()}
         if self.agents:
             agents = list(agent_candidates.intersection(self.agents))
         else:
