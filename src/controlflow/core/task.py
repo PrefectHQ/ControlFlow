@@ -48,7 +48,9 @@ from controlflow.utilities.types import (
 
 if TYPE_CHECKING:
     from controlflow.core.agent import Agent
+    from controlflow.core.flow import Flow
     from controlflow.core.graph import Graph
+
 T = TypeVar("T")
 logger = get_logger(__name__)
 
@@ -213,9 +215,9 @@ class Task(ControlFlowModel):
     def _finalize(self):
         from controlflow.core.flow import get_flow
 
-        # add task to flow
-        flow = get_flow()
-        flow.add_task(self)
+        # add task to flow, if exists
+        if flow := get_flow():
+            flow.add_task(self)
 
         # create dependencies to tasks passed in as depends_on
         for task in self.depends_on:
@@ -308,26 +310,45 @@ class Task(ControlFlowModel):
         if self not in task._downstreams:
             task._downstreams.add(self)
 
-    def run_once(self, agent: "Agent" = None):
+    def run_once(self, agent: "Agent" = None, flow: "Flow" = None):
         """
         Runs the task with provided agent. If no agent is provided, one will be selected from the task's agents.
+
+        run_once must be called within a flow context or with a flow argument.
         """
         from controlflow.core.controller import Controller
+        from controlflow.core.flow import get_flow
 
-        controller = Controller(tasks=[self], agents=agent)
+        # run once doesn't create new flows because the history would be lost
+        flow = flow or get_flow()
+        if flow is None:
+            raise ValueError(
+                "run_once must be called within a flow context or with a flow argument."
+            )
+
+        controller = Controller(tasks=[self], agents=agent, flow=flow)
 
         controller.run_once()
 
-    def run(self, raise_on_error: bool = True, max_iterations: int = NOTSET) -> T:
+    def run(
+        self,
+        raise_on_error: bool = True,
+        max_iterations: int = NOTSET,
+        flow: "Flow" = None,
+    ) -> T:
         """
         Runs the task with provided agents until it is complete.
 
         If max_iterations is provided, the task will run at most that many times before raising an error.
         """
+        from controlflow.core.flow import Flow, get_flow
+
         if max_iterations == NOTSET:
             max_iterations = controlflow.settings.max_task_iterations
         if max_iterations is None:
             max_iterations = float("inf")
+
+        flow = flow or get_flow() or Flow()
 
         counter = 0
         while self.is_incomplete():
@@ -335,7 +356,7 @@ class Task(ControlFlowModel):
                 raise ValueError(
                     f"{self.friendly_name()} did not complete after {max_iterations} iterations."
                 )
-            self.run_once()
+            self.run_once(flow=flow)
             counter += 1
         if self.is_successful():
             return self.result
