@@ -225,22 +225,55 @@ child_task_2 = Task(
 ```
 </CodeGroup>
 
-## Executing Tasks
+## Running Tasks
 
+### Running to Completion
 Tasks can be executed using the `run()` method, which coordinates the execution of the task, its subtasks, and any dependent tasks, ensuring that the necessary steps are performed in the correct order.
 
 ```python
-data_processing_task = Task(
-    objective="Process the raw data and prepare it for analysis",
-    result_type=pd.DataFrame,
+from controlflow import Task
+
+title_task = Task('Generate a title for a poem about AI', result_type=str)
+poem_task = Task(
+    'Write a poem about AI using the provided title', 
+    result_type=str, 
+    context=dict(title=title_task),
 )
 
-processed_data = data_processing_task.run()
+poem_task.run()
+print(poem_task.result)
 ```
 
-The `run_once()` method allows for more fine-grained control, executing a single step of the task with a selected agent.
+When you run a task, ControlFlow orchestrates the execution of the task and its dependencies in a loop, ensuring that each step is completed successfully before proceeding to the next one. The `run()` method exits when the task is completed, at which point the task's result is available (if it succeeded) or an exception is raised (if it failed).
+
+You can limit the number of iterations in the task loop by passing `max_iterations=n` to the `run()` method, or set a global limit using `controlflow.settings.max_task_iterations`. There is no defaul limit.
+
+<Tip>
+**Do I need to create a flow?** 
+
+Tasks must always be run within the context of a flow in order to manage dependencies, history, and agent interactions effectively. As a convenience, if you call `task.run()` outside a flow context, a new flow will be automatically created to manage the task's execution for that run only. In the above example, `poem_task.run()` implicitly creates a new flow for both tasks.
+
+This is useful for testing tasks in isolation or running them as standalone units of work. However, it can lead to confusing behavior if you try to combine multiple tasks that created their own flows, because they will not have access to each other's context or history.
+</Tip>
+
+### Controlling Iteration
+
+The `run()` method starts a loop and orchestrates the execution of the task, its subtasks, and dependencies until the task is completed. If you need more fine-grained control over task execution, you can use the `run_once()` method to execute only a single step of the graph.
 
 ```python
-data_processing_task.run_once()
-partial_result = data_processing_task.result
+from controlflow import Flow, Task
+
+title_task = Task('Generate a title for a poem about AI', result_type=str)
+poem_task = Task(
+    'Write a poem about AI using the provided title', 
+    result_type=str, 
+    context=dict(title=title_task),
+)
+
+with Flow():
+    while poem_task.is_incomplete():
+        poem_task.run_once()
+    print(poem_task.result)
 ```
+
+Note that run_once requires the task to be run within a flow context, as it relies on the flow to manage the task's execution and history over each invocation.

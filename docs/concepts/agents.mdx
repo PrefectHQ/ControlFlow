@@ -50,16 +50,19 @@ In this example, we create a task with the objective "Analyze sales data" and as
 The `Agent` class provides a `run()` method to take low-level control of an agent's execution. Here's an example of how to run an agent:
 
 ```python
-from controlflow import Agent, Task
+from controlflow import Agent, Task, Flow
 
 agent = Agent(name="DataAnalyst")
 task = Task(objective="Analyze sales data", agents=[agent])
 
-while task.is_incomplete():
-    agent.run(task)
+with Flow():
+    while task.is_incomplete():
+        agent.run(task)
 ```
 
 In this example, we create an agent and a task, and assign the agent to the task. We then use a while loop to run the agent repeatedly until the task is marked as complete.
+
+Agents can not be run manually outside a flow context, because the flow is necessary for maintaining the shared history and context across invocations.
 
 ## User Access and Interaction
 
@@ -76,15 +79,3 @@ agent = Agent(
 ```
 
 In this example, we create an agent named "UserAssistant" with the `user_access` flag set to `True`. This agent will have access to the `talk_to_human` tool to communicate with users when necessary.
-
-## Best Practices
-
-When working with agents in ControlFlow, consider the following best practices:
-
-- Create specialized agents tailored to specific tasks or equipped with relevant tools.
-- Provide clear and concise instructions to guide the agent's behavior and decision-making process.
-- Assign agents to tasks based on their capabilities and the task's requirements.
-- Use the `user_access` flag judiciously and ensure proper handling of user interactions.
-- Monitor and debug agent execution to identify and resolve any issues or inefficiencies.
-
-By designing and deploying agents effectively, you can build powerful and efficient workflows that leverage the strengths of AI in task execution and decision-making.
