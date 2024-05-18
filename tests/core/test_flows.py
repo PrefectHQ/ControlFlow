@@ -1,4 +1,3 @@
-import pytest
 from controlflow.core.agent import Agent
 from controlflow.core.flow import Flow, get_flow
 from controlflow.utilities.context import ctx
@@ -49,8 +48,7 @@ class TestFlow:
             assert get_flow() == flow
 
     def test_get_flow_without_context(self):
-        with pytest.raises(ValueError, match="No flow found in context."):
-            get_flow()
+        assert get_flow() is None
 
     def test_get_flow_nested_contexts(self):
         with Flow() as flow1:

@@ -65,8 +65,9 @@ class Flow(ControlFlowModel):
         """
         from controlflow.core.controller import Controller
 
-        controller = Controller(flow=self, tasks=list(self._tasks.values()))
-        controller.run()
+        if self._tasks:
+            controller = Controller(flow=self, tasks=list(self._tasks.values()))
+            controller.run()
 
 
 def get_flow() -> Optional[Flow]:

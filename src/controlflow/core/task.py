@@ -122,6 +122,7 @@ class Task(ControlFlowModel):
         None,
         description="The agents assigned to the task. If not provided, agents "
         "will be inferred from the parent task, flow, or global default.",
+        validate_default=True,
     )
     context: dict = Field(
         default_factory=dict,
@@ -132,6 +133,7 @@ class Task(ControlFlowModel):
         None,
         description="The parent task of this task. Subtasks are considered"
         " upstream dependencies of their parents.",
+        validate_default=True,
     )
     depends_on: list["Task"] = Field(
         default_factory=list, description="Tasks that this task depends on explicitly."

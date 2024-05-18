@@ -1,6 +1,7 @@
 import controlflow
 import pytest
 from controlflow import Task
+from controlflow.core.flow import Flow
 from controlflow.decorators import flow, task
 from controlflow.settings import temporary_settings
 
@@ -74,8 +75,8 @@ class TestTaskEagerMode:
         return_42()
         assert mock_controller_run_agent.call_count == 1
 
-    def test_task_eager_mode_off(self, mock_controller_run_agent):
-        @task(eager=False)
+    def test_task_lazy(self, mock_controller_run_agent):
+        @task(lazy=True)
         def return_42() -> int:
             """Return the number 42"""
             pass
@@ -87,15 +88,15 @@ class TestTaskEagerMode:
         assert result.result_type == int
         assert result.instructions == "Return the number 42"
 
-    def test_task_eager_mode_loads_default(self, mock_controller_run_agent):
+    def test_task_eager_mode_loads_default_setting(self, mock_controller_run_agent):
+        @task
+        def return_42() -> int:
+            """Return the number 42"""
+            pass
+
         with temporary_settings(eager_mode=False):
+            result = return_42()
 
-            @task
-            def return_42() -> int:
-                """Return the number 42"""
-                pass
-
-        result = return_42()
         assert mock_controller_run_agent.call_count == 0
         assert isinstance(result, Task)
         assert result.objective == "return_42"
@@ -113,7 +114,7 @@ class TestTaskEagerMode:
                 """Return the number 42"""
                 pass
 
-        return_42(eager_=not eager_mode)
+        return_42(lazy_=eager_mode)
         if eager_mode:
             assert mock_controller_run_agent.call_count == 0
         else:
@@ -132,27 +133,32 @@ class TestFlowEagerMode:
         assert mock_controller_run_agent.call_count == 1
         assert result == "hello"
 
-    def test_flow_eager_mode_off(self, mock_controller_run_agent):
-        @flow(eager=False)
+    def test_flow_lazy(self, mock_controller_run_agent):
+        @flow(lazy=True)
         def test_flow():
+            """This is a test flow"""
             task = Task("say hello", result="hello")
             return task
 
         result = test_flow()
         assert mock_controller_run_agent.call_count == 0
-        assert isinstance(result, Task)
-        assert result.objective == "say hello"
-        assert result.result == "hello"
+        assert isinstance(result, Flow)
+        assert result.name == "test_flow"
+        assert result.description == "This is a test flow"
+        tasks = list(result._tasks.values())
+        assert len(tasks) == 1
+        assert tasks[0].objective == "say hello"
+        assert tasks[0].result == "hello"
 
-    def test_flow_eager_mode_off_doesnt_affect_tasks_with_eager_mode_on(
+    def test_flow_lazy_doesnt_affect_tasks_with_eager_mode_on(
         self, mock_controller_run_agent
     ):
-        @task(eager=True)
+        @task
         def return_42() -> int:
             """Return the number 42"""
             pass
 
-        @flow(eager=False)
+        @flow(lazy=True)
         def test_flow():
             result = return_42()
             return result

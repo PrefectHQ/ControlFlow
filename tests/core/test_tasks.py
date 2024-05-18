@@ -49,9 +49,9 @@ def test_task_parent_context():
     assert task2.parent is task1
     assert task1.parent is None
 
-    assert task1._subtasks == [task2]
-    assert task2._subtasks == [task3]
-    assert task3._subtasks == []
+    assert task1._subtasks == {task2}
+    assert task2._subtasks == {task3}
+    assert task3._subtasks == set()
 
 
 def test_task_agent_assignment():
@@ -60,27 +60,39 @@ def test_task_agent_assignment():
     assert agent in task.agents
 
 
+def test_task_bad_agent_assignment():
+    with pytest.raises(ValueError):
+        Task(objective="Test objective", agents=[])
+
+
 def test_task_loads_agent_from_parent():
     agent = Agent(name="Test Agent")
     with Task("parent", agents=[agent]):
         child = Task("child")
 
-    assert child.agents == [agent]
+    assert child.agents is None
+    assert child.get_agents() == [agent]
 
 
 def test_task_loads_agent_from_flow():
+    def_agent = default_agent()
     agent = Agent(name="Test Agent")
     with Flow(agents=[agent]):
         task = Task("task")
 
-    assert task.agents == [agent]
+        assert task.agents is None
+        assert task.get_agents() == [agent]
+
+    # outside the flow context, pick up the default agent
+    assert task.get_agents() == [def_agent]
 
 
 def test_task_loads_agent_from_default_if_none_otherwise():
     agent = default_agent()
     task = Task("task")
 
-    assert task.agents == [agent]
+    assert task.agents is None
+    assert task.get_agents() == [agent]
 
 
 def test_task_loads_agent_from_parent_before_flow():
@@ -90,14 +102,21 @@ def test_task_loads_agent_from_parent_before_flow():
         with Task("parent", agents=[agent2]):
             child = Task("child")
 
-    assert child.agents == [agent2]
+    assert child.agents is None
+    assert child.get_agents() == [agent2]
 
 
-def test_task_tracking(mock_run):
+def test_task_tracking(mock_controller_run_agent):
     with Flow() as flow:
         task = Task(objective="Test objective")
-        task.run_once()
         assert task in flow._tasks.values()
+
+
+def test_task_tracking_on_call(mock_controller_run_agent):
+    task = Task(objective="Test objective")
+    with Flow() as flow:
+        task.run_once()
+    assert task in flow._tasks.values()
 
 
 def test_task_status_transitions():
@@ -292,3 +311,33 @@ class TestTaskRun:
                 task.run()
         assert task.is_failed()
         assert task.error == "Failed to say hello"
+
+    def test_run_task_outside_flow(self, mock_run: AsyncMock):
+        task = Task(objective="Say hello")
+
+        def mark_complete():
+            task.mark_successful()
+
+        mock_run.side_effect = mark_complete
+        result = task.run()
+        assert task.is_successful()
+        assert result is None
+
+    def test_task_run_once_outside_flow_fails(self, mock_run: AsyncMock):
+        task = Task(objective="Say hello")
+
+        with pytest.raises(ValueError):
+            task.run_once()
+
+    def test_task_run_once_with_passed_flow(self, mock_run: AsyncMock):
+        task = Task(objective="Say hello")
+
+        def mark_complete():
+            task.mark_successful()
+
+        mock_run.side_effect = mark_complete
+        flow = Flow()
+        while task.is_incomplete():
+            task.run_once(flow=flow)
+        assert task.is_successful()
+        assert task.result is None
