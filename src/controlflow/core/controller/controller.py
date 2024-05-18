@@ -123,7 +123,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
             # add tools for any inactive tasks that the agent is assigned to
             for task in tasks:
-                if agent in task.agents:
+                if agent in task.get_agents():
                     tools = tools + task.get_tools()
 
             instructions_template = MainTemplate(
