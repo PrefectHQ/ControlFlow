@@ -55,7 +55,7 @@
             "group": "Guides",
             "pages": [
                 "guides/subtasks",
-                "guides/production"
+                "guides/deployment"
             ]
         },
         {
