@@ -315,8 +315,6 @@ class Task(ControlFlowModel):
     def run_once(self, agent: "Agent" = None, flow: "Flow" = None):
         """
         Runs the task with provided agent. If no agent is provided, one will be selected from the task's agents.
-
-        run_once must be called within a flow context or with a flow argument.
         """
         from controlflow.core.controller import Controller
         from controlflow.core.flow import get_flow
@@ -325,7 +323,7 @@ class Task(ControlFlowModel):
         flow = flow or get_flow()
         if flow is None:
             raise ValueError(
-                "run_once must be called within a flow context or with a flow argument."
+                "Task.run_once() must be called within a flow context or with a flow argument."
             )
 
         controller = Controller(tasks=[self], agents=agent, flow=flow)
@@ -350,7 +348,15 @@ class Task(ControlFlowModel):
         if max_iterations is None:
             max_iterations = float("inf")
 
-        flow = flow or get_flow() or Flow()
+        flow = flow or get_flow()
+        if flow is None:
+            if controlflow.settings.strict_flow_context:
+                raise ValueError(
+                    "Task.run() must be called within a flow context or with a "
+                    "flow argument if implicit flows are disabled."
+                )
+            else:
+                flow = Flow()
 
         counter = 0
         while self.is_incomplete():

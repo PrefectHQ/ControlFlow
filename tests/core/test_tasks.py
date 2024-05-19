@@ -5,6 +5,7 @@ from controlflow.core.agent import Agent, default_agent
 from controlflow.core.flow import Flow
 from controlflow.core.graph import EdgeType
 from controlflow.core.task import Task, TaskStatus
+from controlflow.settings import temporary_settings
 from controlflow.utilities.context import ctx
 
 
@@ -322,6 +323,15 @@ class TestTaskRun:
         result = task.run()
         assert task.is_successful()
         assert result is None
+
+    def test_run_task_outside_flow_fails_if_strict_flows_enforced(
+        self, mock_run: AsyncMock
+    ):
+        task = Task(objective="Say hello")
+
+        with temporary_settings(strict_flow_context=True):
+            with pytest.raises(ValueError):
+                task.run()
 
     def test_task_run_once_outside_flow_fails(self, mock_run: AsyncMock):
         task = Task(objective="Say hello")

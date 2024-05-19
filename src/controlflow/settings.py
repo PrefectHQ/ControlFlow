@@ -70,6 +70,12 @@ class Settings(ControlFlowSettings):
         "the terminal. Otherwise, only API input is accepted.",
     )
 
+    strict_flow_context: bool = Field(
+        False,
+        description="If False, calling Task.run() outside a flow context will automatically "
+        "create a flow and run the task within it. If True, an error will be raised.",
+    )
+
     def __init__(self, **data):
         super().__init__(**data)
         self.prefect.apply()

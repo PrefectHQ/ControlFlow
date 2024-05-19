@@ -1,0 +1,21 @@
+---
+title: Deployment
+---
+## Settings
+
+ControlFlow has a number of settings that are designed to enhance the developer experience. When deploying ControlFlow, you can adjust these settings to optimize performance and logging.
+
+Here are recommendations for production settings:
+
+
+```bash
+# set log levels to INFO for CF and Marvin
+CONTROLFLOW_LOGGING_LEVEL=INFO
+MARVIN_LOGGING_LEVEL=INFO
+
+# disable local (terminal) inputs for flows that take user inputs
+CONTROLFLOW_ENABLE_LOCAL_INPUT=0
+
+# require all tasks to be run inside flows
+CONTROLFLOW_STRICT_FLOW_CONTEXT=1
+```
