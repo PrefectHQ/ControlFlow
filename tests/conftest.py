@@ -1,5 +1,4 @@
 import pytest
-from controlflow import reset_global_flow
 from controlflow.settings import temporary_settings
 from prefect.testing.utilities import prefect_test_harness
 
@@ -12,8 +11,7 @@ def temp_controlflow_settings():
         try:
             yield
         finally:
-            # reset the global flow after each test
-            reset_global_flow()
+            pass
 
 
 @pytest.fixture(autouse=True, scope="session")

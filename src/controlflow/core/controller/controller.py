@@ -53,6 +53,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
     flow: Flow = Field(
         default_factory=get_flow,
         description="The flow that the controller is a part of.",
+        validate_default=True,
     )
     tasks: list[Task] = Field(
         None,

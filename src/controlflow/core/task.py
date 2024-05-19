@@ -48,7 +48,9 @@ from controlflow.utilities.types import (
 
 if TYPE_CHECKING:
     from controlflow.core.agent import Agent
+    from controlflow.core.flow import Flow
     from controlflow.core.graph import Graph
+
 T = TypeVar("T")
 logger = get_logger(__name__)
 
@@ -120,6 +122,7 @@ class Task(ControlFlowModel):
         None,
         description="The agents assigned to the task. If not provided, agents "
         "will be inferred from the parent task, flow, or global default.",
+        validate_default=True,
     )
     context: dict = Field(
         default_factory=dict,
@@ -130,6 +133,7 @@ class Task(ControlFlowModel):
         None,
         description="The parent task of this task. Subtasks are considered"
         " upstream dependencies of their parents.",
+        validate_default=True,
     )
     depends_on: list["Task"] = Field(
         default_factory=list, description="Tasks that this task depends on explicitly."
@@ -184,7 +188,7 @@ class Task(ControlFlowModel):
         ]
         fields = self.model_dump(include=include_fields)
         field_str = ", ".join(
-            f"{k}={f'"{fields[k]}"' if isinstance(fields[k], str) else fields[k] }"
+            f'{k}="{fields[k]}"' if isinstance(fields[k], str) else f"{k}={fields[k]}"
             for k in include_fields
         )
         return f"{self.__class__.__name__}({field_str})"
@@ -213,9 +217,9 @@ class Task(ControlFlowModel):
     def _finalize(self):
         from controlflow.core.flow import get_flow
 
-        # add task to flow
-        flow = get_flow()
-        flow.add_task(self)
+        # add task to flow, if exists
+        if flow := get_flow():
+            flow.add_task(self)
 
         # create dependencies to tasks passed in as depends_on
         for task in self.depends_on:
@@ -308,26 +312,51 @@ class Task(ControlFlowModel):
         if self not in task._downstreams:
             task._downstreams.add(self)
 
-    def run_once(self, agent: "Agent" = None):
+    def run_once(self, agent: "Agent" = None, flow: "Flow" = None):
         """
         Runs the task with provided agent. If no agent is provided, one will be selected from the task's agents.
         """
         from controlflow.core.controller import Controller
+        from controlflow.core.flow import get_flow
 
-        controller = Controller(tasks=[self], agents=agent)
+        # run once doesn't create new flows because the history would be lost
+        flow = flow or get_flow()
+        if flow is None:
+            raise ValueError(
+                "Task.run_once() must be called within a flow context or with a flow argument."
+            )
+
+        controller = Controller(tasks=[self], agents=agent, flow=flow)
 
         controller.run_once()
 
-    def run(self, raise_on_error: bool = True, max_iterations: int = NOTSET) -> T:
+    def run(
+        self,
+        raise_on_error: bool = True,
+        max_iterations: int = NOTSET,
+        flow: "Flow" = None,
+    ) -> T:
         """
         Runs the task with provided agents until it is complete.
 
         If max_iterations is provided, the task will run at most that many times before raising an error.
         """
+        from controlflow.core.flow import Flow, get_flow
+
         if max_iterations == NOTSET:
             max_iterations = controlflow.settings.max_task_iterations
         if max_iterations is None:
             max_iterations = float("inf")
+
+        flow = flow or get_flow()
+        if flow is None:
+            if controlflow.settings.strict_flow_context:
+                raise ValueError(
+                    "Task.run() must be called within a flow context or with a "
+                    "flow argument if implicit flows are disabled."
+                )
+            else:
+                flow = Flow()
 
         counter = 0
         while self.is_incomplete():
@@ -335,7 +364,7 @@ class Task(ControlFlowModel):
                 raise ValueError(
                     f"{self.friendly_name()} did not complete after {max_iterations} iterations."
                 )
-            self.run_once()
+            self.run_once(flow=flow)
             counter += 1
         if self.is_successful():
             return self.result

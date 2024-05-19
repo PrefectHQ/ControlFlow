@@ -55,10 +55,6 @@ class Settings(ControlFlowSettings):
         "on a task.",
     )
     prefect: PrefectSettings = Field(default_factory=PrefectSettings)
-    enable_global_flow: bool = Field(
-        True,
-        description="If True, a global flow is created for convenience, so users don't have to wrap every invocation in a flow function. Disable to avoid accidentally sharing context between agents.",
-    )
     openai_api_key: Optional[str] = Field(None, validate_assignment=True)
     eager_mode: bool = Field(
         True,
@@ -72,6 +68,12 @@ class Settings(ControlFlowSettings):
         True,
         description="If True, the user can provide input via "
         "the terminal. Otherwise, only API input is accepted.",
+    )
+
+    strict_flow_context: bool = Field(
+        False,
+        description="If False, calling Task.run() outside a flow context will automatically "
+        "create a flow and run the task within it. If True, an error will be raised.",
     )
 
     def __init__(self, **data):

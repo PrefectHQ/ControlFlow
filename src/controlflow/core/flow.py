@@ -5,7 +5,6 @@ from marvin.beta.assistants import Thread
 from openai.types.beta.threads import Message
 from pydantic import Field, field_validator
 
-import controlflow
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.types import ControlFlowModel, ToolType
@@ -66,29 +65,17 @@ class Flow(ControlFlowModel):
         """
         from controlflow.core.controller import Controller
 
-        controller = Controller(flow=self, tasks=list(self._tasks.values()))
-        controller.run()
+        if self._tasks:
+            controller = Controller(flow=self, tasks=list(self._tasks.values()))
+            controller.run()
 
 
-GLOBAL_FLOW = None
-
-
-def get_flow() -> Flow:
+def get_flow() -> Optional[Flow]:
     """
-    Loads the flow from the context.
+    Loads the flow from the context. If no flow is found, returns None.
     """
     flow: Union[Flow, None] = ctx.get("flow")
-    if not flow:
-        if controlflow.settings.enable_global_flow:
-            return GLOBAL_FLOW
-        else:
-            raise ValueError("No flow found in context and global flow is disabled.")
     return flow
-
-
-def reset_global_flow():
-    global GLOBAL_FLOW
-    GLOBAL_FLOW = Flow()
 
 
 def get_flow_messages(limit: int = None) -> list[Message]:

@@ -28,4 +28,4 @@ class TestTaskResults:
         )
         result = task.run()
         assert isinstance(result, pd.DataFrame)
-        assert result == pd.DataFrame(data={"x": [1, 2], "y": [3, 4]})
+        assert result.equals(pd.DataFrame(data={"x": [1, 2], "y": [3, 4]}))

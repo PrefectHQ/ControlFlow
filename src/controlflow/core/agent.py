@@ -4,7 +4,7 @@ from typing import Union
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
 from pydantic import Field
 
-from controlflow.core.flow import get_flow
+from controlflow.core.flow import Flow, get_flow
 from controlflow.core.task import Task
 from controlflow.tools.talk_to_human import talk_to_human
 from controlflow.utilities.prefect import (
@@ -40,13 +40,24 @@ class Agent(Assistant, ControlFlowModel, ExposeSyncMethodsMixin):
         return [wrap_prefect_tool(tool) for tool in tools]
 
     @expose_sync_method("run")
-    async def run_async(self, tasks: Union[list[Task], Task, None] = None):
+    async def run_async(
+        self,
+        tasks: Union[list[Task], Task, None] = None,
+        flow: Flow = None,
+    ):
         from controlflow.core.controller import Controller
 
         if isinstance(tasks, Task):
             tasks = [tasks]
 
-        controller = Controller(agents=[self], tasks=tasks or [], flow=get_flow())
+        flow = flow or get_flow()
+
+        if not flow:
+            raise ValueError(
+                "Agents must be run within a flow context or with a flow argument."
+            )
+
+        controller = Controller(agents=[self], tasks=tasks or [], flow=flow)
         return await controller.run_agent_async(agent=self)
 
     def __hash__(self):
