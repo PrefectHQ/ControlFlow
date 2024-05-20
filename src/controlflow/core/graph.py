@@ -73,13 +73,14 @@ class Graph(BaseModel):
             )
 
         for upstream in task.depends_on:
-            self.add_edge(
-                Edge(
-                    upstream=upstream,
-                    downstream=task,
-                    type=EdgeType.DEPENDENCY,
+            if upstream not in task._subtasks:
+                self.add_edge(
+                    Edge(
+                        upstream=upstream,
+                        downstream=task,
+                        type=EdgeType.DEPENDENCY,
+                    )
                 )
-            )
         self._cache.clear()
 
     def add_edge(self, edge: Edge):

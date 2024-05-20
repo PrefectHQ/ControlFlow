@@ -66,7 +66,7 @@ class Flow(ControlFlowModel):
         from controlflow.core.controller import Controller
 
         if self._tasks:
-            controller = Controller(flow=self, tasks=list(self._tasks.values()))
+            controller = Controller(flow=self)
             controller.run()
 
 
