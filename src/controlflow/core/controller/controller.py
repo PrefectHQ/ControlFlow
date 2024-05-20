@@ -200,36 +200,37 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         Run the controller for a single iteration of the provided tasks. An agent will be selected to run the tasks.
         """
         async with self.tui():
-            # get the tasks to run
-            ready_tasks = {t for t in self.tasks if t.is_ready()}
-            upstreams = {d for t in ready_tasks for d in t.depends_on}
-            tasks = list(ready_tasks.union(upstreams))
-            # tasks = self.graph.upstream_dependencies(self.tasks, include_tasks=True)
+            with self.flow:
+                # get the tasks to run
+                ready_tasks = {t for t in self.tasks if t.is_ready()}
+                upstreams = {d for t in ready_tasks for d in t.depends_on}
+                tasks = list(ready_tasks.union(upstreams))
+                # tasks = self.graph.upstream_dependencies(self.tasks, include_tasks=True)
 
-            if all(t.is_complete() for t in tasks):
-                return
+                if all(t.is_complete() for t in tasks):
+                    return
 
-            # get the agents
-            agent_candidates = {
-                a for t in tasks for a in t.get_agents() if t.is_ready()
-            }
-            if self.agents:
-                agents = list(agent_candidates.intersection(self.agents))
-            else:
-                agents = list(agent_candidates)
+                # get the agents
+                agent_candidates = {
+                    a for t in tasks for a in t.get_agents() if t.is_ready()
+                }
+                if self.agents:
+                    agents = list(agent_candidates.intersection(self.agents))
+                else:
+                    agents = list(agent_candidates)
 
-            # select the next agent
-            if len(agents) == 0:
-                raise ValueError(
-                    "No agents were provided that are assigned to tasks that are ready to be run."
-                )
-            elif len(agents) == 1:
-                agent = agents[0]
-            else:
-                agent = self.choose_agent(agents=agents, tasks=tasks)
+                # select the next agent
+                if len(agents) == 0:
+                    raise ValueError(
+                        "No agents were provided that are assigned to tasks that are ready to be run."
+                    )
+                elif len(agents) == 1:
+                    agent = agents[0]
+                else:
+                    agent = self.choose_agent(agents=agents, tasks=tasks)
 
-            await self._run_agent(agent, tasks=tasks)
-            self._iteration += 1
+                await self._run_agent(agent, tasks=tasks)
+                self._iteration += 1
 
     @expose_sync_method("run")
     async def run_async(self):
