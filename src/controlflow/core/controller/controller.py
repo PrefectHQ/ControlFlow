@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 import math
@@ -25,7 +26,7 @@ from controlflow.core.flow import Flow, get_flow
 from controlflow.core.graph import Graph
 from controlflow.core.task import Task
 from controlflow.instructions import get_instructions
-from controlflow.tui.app import App as TUI
+from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
 from controlflow.utilities.prefect import (
     create_json_artifact,
@@ -86,26 +87,19 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             self.flow.add_task(task)
         return self
 
-    def _create_end_run_tool(self) -> FunctionTool:
+    def _create_help_tool(self) -> FunctionTool:
         @marvin.utilities.tools.tool_from_function
-        def end_run(abort: bool = False):
+        def help_im_stuck():
             """
-            End your turn if you have no tasks to work on. Only call this tool
-            if absolutely necessary; otherwise you can simply stop normally. If this tool is used 10 times, the workflow will be aborted automatically.
-
-            If abort is False (default), another agent (possibly yourself) will
-            be selected to go next.
-
-            If abort is True, the entire workflow will end immediately. Use this
-            if you are trapped in a loop and unable to advance the workflow.
+            If you are stuck because no tasks are ready to be worked on, you can call this tool to end your turn. A new agent (possibly you) will be selected to go next. If this tool is used 3 times, the workflow will be aborted automatically, so only use it if you are truly stuck.
             """
             self._endrun_count += 1
-            if abort or self._endrun_count > 10:
+            if self._endrun_count >= 3:
                 self._should_abort = True
                 self._endrun_count = 0
             return EndRun()
 
-        return end_run
+        return help_im_stuck
 
     async def _run_agent(
         self, agent: Agent, tasks: list[Task] = None, thread: Thread = None
@@ -128,7 +122,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             tools = (
                 controller.flow.tools
                 + agent.get_tools()
-                + [controller._create_end_run_tool()]
+                + [controller._create_help_tool()]
             )
 
             # add tools for any inactive tasks that the agent is assigned to
@@ -196,8 +190,9 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             yield tui
         else:
             tui = TUI(flow=self.flow)
-            async with tui.run_context(run=controlflow.settings.enable_tui):
-                yield tui
+            with ctx(tui=tui):
+                async with tui.run_context(run=controlflow.settings.enable_tui):
+                    yield tui
 
     @expose_sync_method("run_once")
     async def run_once_async(self):
@@ -206,8 +201,10 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         """
         async with self.tui():
             # get the tasks to run
-            ready_tasks = [t for t in self.tasks if t.is_ready()]
-            tasks = self.graph.upstream_dependencies(self.tasks, include_tasks=True)
+            ready_tasks = {t for t in self.tasks if t.is_ready()}
+            upstreams = {d for t in ready_tasks for d in t.depends_on}
+            tasks = list(ready_tasks.union(upstreams))
+            # tasks = self.graph.upstream_dependencies(self.tasks, include_tasks=True)
 
             if all(t.is_complete() for t in tasks):
                 return
@@ -258,7 +255,17 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 class TUIHandler(AsyncAssistantEventHandler):
     async def on_message_delta(self, delta: MessageDelta, snapshot: Message) -> None:
         if tui := ctx.get("tui"):
-            tui.update_message(snapshot)
+            content = []
+            for item in snapshot.content:
+                if item.type == "text":
+                    content.append(item.text.value)
+
+            tui.update_message(
+                m_id=snapshot.id,
+                message="\n\n".join(content),
+                role=snapshot.role,
+                timestamp=datetime.datetime.fromtimestamp(snapshot.created_at),
+            )
 
     async def on_run_step_delta(self, delta: RunStepDelta, snapshot: RunStep) -> None:
         if tui := ctx.get("tui"):

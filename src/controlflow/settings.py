@@ -75,6 +75,10 @@ class Settings(ControlFlowSettings):
         True,
         description="If True, the TUI will be enabled. If False, the TUI will be disabled.",
     )
+    run_tui_headless: bool = Field(
+        False,
+        description="If True, the TUI will run in headless mode, which is useful for debugging.",
+    )
 
     def __init__(self, **data):
         super().__init__(**data)

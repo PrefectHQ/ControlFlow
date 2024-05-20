@@ -1,4 +1,6 @@
 from textual.containers import Horizontal, VerticalScroll
+from textual.reactive import reactive
+from textual.widgets import Label
 
 
 class Row(Horizontal):
@@ -17,3 +19,10 @@ class Column(VerticalScroll):
             height: auto;
         }
     """
+
+
+class ReactiveLabel(Label):
+    value = reactive(None)
+
+    def render(self):
+        return str(self.value)

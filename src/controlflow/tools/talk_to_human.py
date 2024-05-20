@@ -10,7 +10,7 @@ import controlflow
 from controlflow.utilities.context import ctx
 
 if TYPE_CHECKING:
-    from controlflow.tui.app import App
+    from controlflow.tui.app import TUIApp
 
 
 async def get_terminal_input():
@@ -21,7 +21,7 @@ async def get_terminal_input():
     return user_input
 
 
-async def get_tui_input(tui: "App", message: str):
+async def get_tui_input(tui: "TUIApp", message: str):
     container = []
     await tui.get_input(message=message, container=container)
     while not container:
