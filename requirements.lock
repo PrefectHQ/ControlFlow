@@ -14,8 +14,6 @@ aiosignal==1.3.1
     # via aiohttp
 aiosqlite==0.20.0
     # via prefect
-alabaster==0.7.16
-    # via sphinx
 alembic==1.13.1
     # via prefect
 annotated-types==0.6.0
@@ -42,7 +40,6 @@ attrs==23.2.0
     # via referencing
 babel==2.15.0
     # via mkdocs-material
-    # via sphinx
 boto3==1.34.103
     # via moto
 botocore==1.34.103
@@ -118,8 +115,6 @@ distro==1.9.0
     # via openai
 docker==6.1.3
     # via prefect
-docutils==0.21.2
-    # via sphinx
 envier==0.5.1
     # via ddtrace
 execnet==2.1.1
@@ -177,8 +172,6 @@ idna==3.6
     # via httpx
     # via requests
     # via yarl
-imagesize==1.4.1
-    # via sphinx
 importlib-metadata==7.0.0
     # via litellm
     # via mike
@@ -204,7 +197,6 @@ jinja2==3.1.3
     # via mkdocstrings
     # via moto
     # via prefect
-    # via sphinx
 jinja2-humanize-extension==0.4.0
     # via prefect
 jmespath==1.0.1
@@ -292,8 +284,6 @@ nodeenv==1.8.0
     # via pre-commit
 numpy==1.26.4
     # via prefect
-numpydoc==1.7.0
-    # via controlflow
 oauthlib==3.2.2
     # via kubernetes
     # via requests-oauthlib
@@ -310,7 +300,6 @@ packaging==24.0
     # via mkdocs
     # via prefect
     # via pytest
-    # via sphinx
 paginate==0.5.6
     # via mkdocs-material
 parso==0.8.4
@@ -372,7 +361,6 @@ pygments==2.17.2
     # via ipython
     # via mkdocs-material
     # via rich
-    # via sphinx
 pymdown-extensions==10.8.1
     # via mkdocs-material
     # via mkdocstrings
@@ -459,7 +447,6 @@ requests==2.31.0
     # via prefect
     # via requests-oauthlib
     # via responses
-    # via sphinx
     # via tiktoken
 requests-oauthlib==2.0.0
     # via apprise
@@ -508,22 +495,6 @@ sniffio==1.3.1
     # via httpx
     # via openai
     # via prefect
-snowballstemmer==2.2.0
-    # via sphinx
-sphinx==7.3.7
-    # via numpydoc
-sphinxcontrib-applehelp==1.0.8
-    # via sphinx
-sphinxcontrib-devhelp==1.0.6
-    # via sphinx
-sphinxcontrib-htmlhelp==2.0.5
-    # via sphinx
-sphinxcontrib-jsmath==1.0.1
-    # via sphinx
-sphinxcontrib-qthelp==1.0.7
-    # via sphinx
-sphinxcontrib-serializinghtml==1.1.10
-    # via sphinx
 sqlalchemy==2.0.29
     # via alembic
     # via prefect
@@ -533,8 +504,6 @@ stack-data==0.6.3
     # via ipython
 starlette==0.36.3
     # via fastapi
-tabulate==0.9.0
-    # via numpydoc
 text-unidecode==1.3
     # via python-slugify
 textual==0.61.1
