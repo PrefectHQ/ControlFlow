@@ -11,6 +11,8 @@ dependencies = [
     # can remove when prefect fully migrates to pydantic 2
     "pydantic>=2",
     "textual>=0.61.1",
+    "litellm>=1.37.17",
+    "numpydoc>=1.7.0",
 ]
 readme = "README.md"
 requires-python = ">= 3.9"

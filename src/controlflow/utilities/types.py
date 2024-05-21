@@ -1,5 +1,6 @@
 from typing import Callable, Union
 
+from litellm import Message
 from marvin.beta.assistants import Assistant, Thread
 from marvin.beta.assistants.assistants import AssistantTool
 from marvin.types import FunctionTool

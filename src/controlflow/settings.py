@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 from typing import Any, Optional, Union
 
+import litellm
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -56,6 +57,9 @@ class Settings(ControlFlowSettings):
     )
     prefect: PrefectSettings = Field(default_factory=PrefectSettings)
     openai_api_key: Optional[str] = Field(None, validate_assignment=True)
+
+    # ------------ flow settings ------------
+
     eager_mode: bool = Field(
         True,
         description="If True, @task- and @flow-decorated functions are run immediately. "
@@ -71,6 +75,13 @@ class Settings(ControlFlowSettings):
         description="If False, calling Task.run() outside a flow context will automatically "
         "create a flow and run the task within it. If True, an error will be raised.",
     )
+
+    # ------------ LLM settings ------------
+
+    model: str = Field("gpt-4o", description="The LLM model to use.")
+
+    # ------------ TUI settings ------------
+
     enable_tui: bool = Field(
         False,
         description="If True, the TUI will be enabled. If False, the TUI will be disabled.",
@@ -90,6 +101,12 @@ class Settings(ControlFlowSettings):
             import marvin
 
             marvin.settings.openai.api_key = v
+        return v
+
+    @field_validator("model", mode="before")
+    def _validate_model(cls, v):
+        if not litellm.supports_function_calling(model=v):
+            raise ValueError(f"Model '{v}' does not support function calling.")
         return v
 
 
