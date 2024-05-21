@@ -89,7 +89,7 @@ class LiteAgent(ControlFlowModel, ExposeSyncMethodsMixin):
         description="The model used by the agent. If not provided, the default model will be used.",
     )
 
-    async def say_async(self, messages: Union[str, dict]) -> Response:
+    async def run_async(self, messages: Union[str, dict]) -> Response:
         if not isinstance(messages, list):
             raise ValueError("Messages must be provided as a list.")
 
@@ -102,7 +102,7 @@ class LiteAgent(ControlFlowModel, ExposeSyncMethodsMixin):
             messages=messages, model=self.model, tools=self.tools
         )
 
-    async def say(self, messages: Union[str, dict]) -> Response:
+    async def run(self, messages: Union[str, dict]) -> Response:
         if not isinstance(messages, list):
             raise ValueError("Messages must be provided as a list.")
 

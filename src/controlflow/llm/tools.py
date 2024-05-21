@@ -1,47 +1,13 @@
+import datetime
 import inspect
 import json
 from functools import partial, update_wrapper
-from typing import Any, Callable, Literal, Optional, Union
+from typing import Any, AsyncGenerator, Callable, Generator, Optional, Union, cast
 
 import litellm
 import pydantic
-from pydantic import PrivateAttr
 
-from controlflow.utilities.types import ControlFlowModel, Message
-
-
-class ToolFunction(ControlFlowModel):
-    name: str
-    parameters: dict
-    description: str = ""
-
-
-class Tool(ControlFlowModel):
-    type: Literal["function"] = "function"
-    function: ToolFunction
-    _fn: Callable = PrivateAttr()
-
-    def __init__(self, *, _fn: Callable, **kwargs):
-        super().__init__(**kwargs)
-        self._fn = _fn
-
-    @classmethod
-    def from_function(
-        cls, fn: Callable, name: Optional[str] = None, description: Optional[str] = None
-    ):
-        return cls(
-            function=ToolFunction(
-                name=name or fn.__name__,
-                description=inspect.cleandoc(description or fn.__doc__ or ""),
-                parameters=pydantic.TypeAdapter(
-                    fn, config=pydantic.ConfigDict(arbitrary_types_allowed=True)
-                ).json_schema(),
-            ),
-            _fn=fn,
-        )
-
-    def __call__(self, *args, **kwargs):
-        return self._fn(*args, **kwargs)
+from controlflow.utilities.types import Message, Tool, ToolCall
 
 
 def tool(
@@ -56,7 +22,13 @@ def tool(
 
 
 def as_tools(tools: list[Union[Tool, Callable]]) -> list[Tool]:
-    return [t if isinstance(t, Tool) else tool(t) for t in tools]
+    tools = [t if isinstance(t, Tool) else tool(t) for t in tools]
+    if len({t.function.name for t in tools}) != len(tools):
+        duplicates = {t.function.name for t in tools if tools.count(t) > 1}
+        raise ValueError(
+            f"Tool names must be unique, but found duplicates: {', '.join(duplicates)}"
+        )
+    return tools
 
 
 def as_tool_lookup(tools: list[Union[Tool, Callable]]) -> dict[str, Tool]:
@@ -112,16 +84,13 @@ def output_to_string(output: Any) -> str:
     return output
 
 
-def handle_tool_calls(response: litellm.ModelResponse, tools: list[dict, Callable]):
-    messages = []
+def handle_tool_calls_gen(
+    response: litellm.ModelResponse, tools: list[dict, Callable]
+) -> Generator[Message, None, None]:
     tool_lookup = as_tool_lookup(tools)
 
-    response_message = response.choices[0].message
-    tool_calls: list[litellm.utils.ChatCompletionMessageToolCall] = (
-        response_message.tool_calls
-    )
-
-    for tool_call in tool_calls:
+    for tool_call in response.choices[0].message.get("tool_calls", []):
+        tool_call = cast(litellm.utils.ChatCompletionMessageToolCall, tool_call)
         fn_name = tool_call.function.name
         try:
             if fn_name not in tool_lookup:
@@ -131,30 +100,36 @@ def handle_tool_calls(response: litellm.ModelResponse, tools: list[dict, Callabl
             fn_output = tool(**fn_args)
         except Exception as exc:
             fn_output = f'Error calling function "{fn_name}": {exc}'
-        messages.append(
-            Message(
-                role="tool",
-                name=fn_name,
-                content=output_to_string(fn_output),
+
+        yield Message(
+            role="tool",
+            name=fn_name,
+            content=output_to_string(fn_output),
+            tool_call_id=tool_call.id,
+            _tool_call=ToolCall(
                 tool_call_id=tool_call.id,
-            )
+                tool_name=fn_name,
+                tool=tool,
+                args=fn_args,
+                output=fn_output,
+                timestamp=datetime.datetime.now(datetime.timezone.utc),
+            ),
         )
 
-    return messages
 
-
-async def handle_tool_calls_async(
+def handle_tool_calls(
     response: litellm.ModelResponse, tools: list[dict, Callable]
-):
-    messages = []
+) -> list[Message]:
+    return list(handle_tool_calls_gen(response, tools))
+
+
+async def handle_tool_calls_gen_async(
+    response: litellm.ModelResponse, tools: list[dict, Callable]
+) -> AsyncGenerator[Message, None]:
     tool_lookup = as_tool_lookup(tools)
 
-    response_message = response.choices[0].message
-    tool_calls: list[litellm.utils.ChatCompletionMessageToolCall] = (
-        response_message.tool_calls
-    )
-
-    for tool_call in tool_calls:
+    for tool_call in response.choices[0].message.get("tool_calls", []):
+        tool_call = cast(litellm.utils.ChatCompletionMessageToolCall, tool_call)
         fn_name = tool_call.function.name
         try:
             if fn_name not in tool_lookup:
@@ -166,13 +141,23 @@ async def handle_tool_calls_async(
                 fn_output = await fn_output
         except Exception as exc:
             fn_output = f'Error calling function "{fn_name}": {exc}'
-        messages.append(
-            Message(
-                role="tool",
-                name=fn_name,
-                content=output_to_string(fn_output),
+        yield Message(
+            role="tool",
+            name=fn_name,
+            content=output_to_string(fn_output),
+            tool_call_id=tool_call.id,
+            _tool_call=ToolCall(
                 tool_call_id=tool_call.id,
-            )
+                tool_name=fn_name,
+                tool=tool,
+                args=fn_args,
+                output=fn_output,
+                timestamp=datetime.datetime.now(datetime.timezone.utc),
+            ),
         )
 
-    return messages
+
+async def handle_tool_calls_async(
+    response: litellm.ModelResponse, tools: list[dict, Callable]
+) -> list[Message]:
+    return [t async for t in handle_tool_calls_gen_async(response, tools)]

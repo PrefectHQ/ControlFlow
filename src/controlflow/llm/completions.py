@@ -1,39 +1,46 @@
-from typing import AsyncGenerator, Callable, Generator, Tuple, Union
+import math
+from typing import AsyncGenerator, Callable, Generator, Optional, Tuple, Union
 
 import litellm
 from litellm.utils import trim_messages
-from pydantic import computed_field
 
 import controlflow
 from controlflow.llm.tools import (
     as_tools,
     handle_tool_calls,
     handle_tool_calls_async,
+    handle_tool_calls_gen,
+    handle_tool_calls_gen_async,
     has_tool_calls,
 )
-from controlflow.utilities.types import ControlFlowModel
+from controlflow.utilities.types import ControlFlowModel, ToolCall
 
 
 class Response(ControlFlowModel):
     messages: list[litellm.Message] = []
     responses: list[litellm.ModelResponse] = []
 
-    @computed_field
-    def last_message(self) -> litellm.Message:
+    def last_message(self) -> Optional[litellm.Message]:
         return self.messages[-1] if self.messages else None
 
-    @computed_field
-    def last_response(self) -> litellm.ModelResponse:
+    def last_response(self) -> Optional[litellm.ModelResponse]:
         return self.responses[-1] if self.responses else None
+
+    def tool_calls(self) -> list[ToolCall]:
+        return [
+            m["_tool_call"]
+            for m in self.messages
+            if m.role == "tool" and m.get("_tool_call") is not None
+        ]
 
 
 def completion(
     messages: list[Union[dict, litellm.Message]],
     model=None,
     tools: list[Callable] = None,
-    call_tools=True,
+    max_iterations=None,
     **kwargs,
-) -> litellm.ModelResponse:
+) -> Response:
     """
     Perform completion using the LLM model.
 
@@ -45,51 +52,44 @@ def completion(
         **kwargs: Additional keyword arguments to be passed to the litellm.completion function.
 
     Returns:
-        A litellm.ModelResponse object representing the completion response.
+        A Response object representing the completion response.
     """
 
+    response = None
+    responses = []
     new_messages = []
-    new_responses = []
 
     if model is None:
         model = controlflow.settings.model
 
-    tools = as_tools(tools or []) or None
+    tools = as_tools(tools or [])
 
-    response = litellm.completion(
-        model=model,
-        messages=trim_messages(messages, model=model),
-        tools=[t.model_dump() for t in tools],
-        **kwargs,
-    )
-
-    new_responses.append(response)
-    new_messages.append(response.choices[0].message)
-
-    while call_tools and has_tool_calls(response):
-        new_messages.extend(handle_tool_calls(response, tools))
-
+    while not response or has_tool_calls(response):
         response = litellm.completion(
             model=model,
             messages=trim_messages(messages + new_messages, model=model),
-            tools=[t.model_dump() for t in tools],
+            tools=[t.model_dump() for t in tools] if tools else None,
             **kwargs,
         )
 
-        new_responses.append(response)
+        responses.append(response)
         new_messages.append(response.choices[0].message)
+        new_messages.extend(handle_tool_calls(response, tools))
+
+        if len(responses) >= (max_iterations or math.inf):
+            break
 
     return Response(
         messages=new_messages,
-        responses=new_responses,
+        responses=responses,
     )
 
 
-def stream_completion(
+def completion_stream(
     messages: list[Union[dict, litellm.Message]],
     model=None,
     tools: list[Callable] = None,
-    call_tools: bool = True,
+    max_iterations: int = None,
     **kwargs,
 ) -> Generator[Tuple[litellm.ModelResponse, litellm.ModelResponse], None, None]:
     """
@@ -103,54 +103,50 @@ def stream_completion(
         **kwargs: Additional keyword arguments to be passed to the litellm.completion function.
 
     Yields:
-        A tuple containing the current completion chunk and the snapshot of the completion response.
+        A tuple containing the current completion delta and the snapshot of the completion response.
 
     Returns:
         The final completion response as a litellm.ModelResponse object.
     """
-    new_messages = []
+    response = None
+    messages = messages.copy()
 
     if model is None:
         model = controlflow.settings.model
 
-    tools = as_tools(tools or []) or None
+    tools = as_tools(tools or [])
 
-    chunks = []
-    for chunk in litellm.completion(
-        model=model,
-        messages=trim_messages(messages, model=model),
-        stream=True,
-        tools=[t.model_dump() for t in tools],
-        **kwargs,
-    ):
-        chunks.append(chunk)
-        response = litellm.stream_chunk_builder(chunks)
-        yield chunk, response
+    i = 0
+    while not response or has_tool_calls(response):
+        deltas = []
 
-    new_messages.append(response.choices[0].message)
-
-    while call_tools and has_tool_calls(response):
-        new_messages.extend(handle_tool_calls(response, tools))
-        chunks = []
-
-        for chunk in litellm.completion(
+        for delta in litellm.completion(
             model=model,
             messages=trim_messages(messages, model=model),
-            tools=[t.model_dump() for t in tools],
-            stream=True**kwargs,
+            tools=[t.model_dump() for t in tools] if tools else None,
+            stream=True,
+            **kwargs,
         ):
-            chunks.append(chunk)
-            response = litellm.stream_chunk_builder(chunks)
-            yield chunk, response
+            deltas.append(delta)
+            response = litellm.stream_chunk_builder(deltas)
+            yield delta, response
 
-        new_messages.append(response.choices[0].message)
+        for tool_msg in handle_tool_calls_gen(response, tools):
+            messages.append(tool_msg)
+            yield None, tool_msg
+
+        messages.append(response.choices[0].message)
+
+        i += 1
+        if i >= (max_iterations or math.inf):
+            break
 
 
 async def completion_async(
     messages: list[Union[dict, litellm.Message]],
     model=None,
     tools: list[Callable] = None,
-    call_tools=True,
+    max_iterations=None,
     **kwargs,
 ) -> Response:
     """
@@ -166,48 +162,38 @@ async def completion_async(
     Returns:
         Response
     """
+    response = None
+    responses = []
     new_messages = []
-    new_responses = []
 
     if model is None:
         model = controlflow.settings.model
 
-    tools = as_tools(tools or []) or None
+    tools = as_tools(tools or [])
 
-    response = await litellm.acompletion(
-        model=model,
-        messages=trim_messages(messages, model=model),
-        tools=[t.model_dump() for t in tools],
-        **kwargs,
-    )
-
-    new_responses.append(response)
-    new_messages.append(response.choices[0].message)
-
-    while call_tools and has_tool_calls(response):
-        new_messages.extend(await handle_tool_calls_async(response, tools))
-
+    while not response or has_tool_calls(response):
         response = await litellm.acompletion(
             model=model,
             messages=trim_messages(messages + new_messages, model=model),
-            tools=[t.model_dump() for t in tools],
+            tools=[t.model_dump() for t in tools] if tools else None,
             **kwargs,
         )
 
-        new_responses.append(response)
+        responses.append(response)
         new_messages.append(response.choices[0].message)
+        new_messages.extend(await handle_tool_calls_async(response, tools))
 
     return Response(
         messages=new_messages,
-        responses=new_responses,
+        responses=responses,
     )
 
 
-async def stream_completion_async(
+async def completion_stream_async(
     messages: list[Union[dict, litellm.Message]],
     model=None,
     tools: list[Callable] = None,
-    call_tools: bool = True,
+    max_iterations: int = None,
     **kwargs,
 ) -> AsyncGenerator[Tuple[litellm.ModelResponse, litellm.ModelResponse], None]:
     """
@@ -221,45 +207,39 @@ async def stream_completion_async(
         **kwargs: Additional keyword arguments to be passed to the litellm.acompletion function.
 
     Yields:
-        A tuple containing the current completion chunk and the snapshot of the completion response.
+        A tuple containing the current completion delta and the snapshot of the completion response.
 
     Returns:
         The final completion response as a litellm.ModelResponse object.
     """
-    new_messages = []
+    response = None
+    messages = messages.copy()
 
     if model is None:
         model = controlflow.settings.model
 
-    tools = as_tools(tools or []) or None
+    tools = as_tools(tools or [])
 
-    chunks = []
-    async for chunk in litellm.acompletion(
-        model=model,
-        messages=trim_messages(messages, model=model),
-        stream=True,
-        tools=[t.model_dump() for t in tools],
-        **kwargs,
-    ):
-        chunks.append(chunk)
-        response = litellm.stream_chunk_builder(chunks)
-        yield chunk, response
+    i = 0
+    while not response or has_tool_calls(response):
+        deltas = []
 
-    new_messages.append(response.choices[0].message)
-
-    while call_tools and has_tool_calls(response):
-        new_messages.extend(await handle_tool_calls_async(response, tools))
-        chunks = []
-
-        async for chunk in litellm.acompletion(
+        async for delta in litellm.acompletion(
             model=model,
-            messages=trim_messages(messages + new_messages, model=model),
-            tools=[t.model_dump() for t in tools],
+            messages=trim_messages(messages, model=model),
+            tools=[t.model_dump() for t in tools] if tools else None,
             stream=True,
             **kwargs,
         ):
-            chunks.append(chunk)
-            response = litellm.stream_chunk_builder(chunks)
-            yield chunk, response
+            deltas.append(delta)
+            response = litellm.stream_chunk_builder(deltas)
+            yield delta, response
 
-        new_messages.append(response.choices[0].message)
+        async for tool_msg in handle_tool_calls_gen_async(response, tools):
+            messages.append(tool_msg)
+            yield None, tool_msg
+        messages.append(response.choices[0].message)
+
+        i += 1
+        if i >= (max_iterations or math.inf):
+            break
