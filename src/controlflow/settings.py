@@ -3,11 +3,15 @@ import sys
 import warnings
 from contextlib import contextmanager
 from copy import deepcopy
-from typing import Any, Optional, Union
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import litellm
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+if TYPE_CHECKING:
+    pass
 
 
 class ControlFlowSettings(BaseSettings):
@@ -58,6 +62,14 @@ class Settings(ControlFlowSettings):
     prefect: PrefectSettings = Field(default_factory=PrefectSettings)
     openai_api_key: Optional[str] = Field(None, validate_assignment=True)
 
+    # ------------ home settings ------------
+
+    home_path: Path = Field(
+        "~/.controlflow",
+        description="The path to the ControlFlow home directory.",
+        validate_default=True,
+    )
+
     # ------------ flow settings ------------
 
     eager_mode: bool = Field(
@@ -101,6 +113,13 @@ class Settings(ControlFlowSettings):
             import marvin
 
             marvin.settings.openai.api_key = v
+        return v
+
+    @field_validator("home_path", mode="before")
+    def _validate_home_path(cls, v):
+        v = Path(v).expanduser()
+        if not v.exists():
+            v.mkdir(parents=True, exist_ok=True)
         return v
 
     @field_validator("model", mode="before")

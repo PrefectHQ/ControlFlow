@@ -26,6 +26,7 @@ from controlflow.core.flow import Flow, get_flow
 from controlflow.core.graph import Graph
 from controlflow.core.task import Task
 from controlflow.instructions import get_instructions
+from controlflow.llm.history import BaseHistory
 from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
 from controlflow.utilities.prefect import (
@@ -34,7 +35,7 @@ from controlflow.utilities.prefect import (
     wrap_prefect_tool,
 )
 from controlflow.utilities.tasks import all_complete, any_incomplete
-from controlflow.utilities.types import FunctionTool, Thread
+from controlflow.utilities.types import FunctionTool
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         description="Tasks that the controller will complete.",
     )
     agents: Union[list[Agent], None] = None
+    history: BaseHistory = Field()
     context: dict = {}
     model_config: dict = dict(extra="forbid")
     enable_tui: bool = Field(default_factory=lambda: controlflow.settings.enable_tui)
@@ -101,20 +103,13 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
         return help_im_stuck
 
-    async def _run_agent(
-        self, agent: Agent, tasks: list[Task] = None, thread: Thread = None
-    ) -> Run:
+    async def _run_agent(self, agent: Agent, tasks: list[Task] = None) -> Run:
         """
         Run a single agent.
         """
 
         @prefect_task(task_run_name=f'Run Agent: "{agent.name}"')
-        async def _run_agent(
-            controller: Controller,
-            agent: Agent,
-            tasks: list[Task],
-            thread: Thread = None,
-        ):
+        async def _run_agent(controller: Controller, agent: Agent, tasks: list[Task]):
             from controlflow.core.controller.instruction_template import MainTemplate
 
             tasks = tasks or controller.tasks

@@ -83,3 +83,8 @@ skip-magic-trailing-comma = false
 
 [tool.pytest.ini_options]
 timeout = 120
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning:litellm.*",
+    "ignore::PendingDeprecationWarning:litellm.*",
+]

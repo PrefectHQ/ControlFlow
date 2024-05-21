@@ -1,31 +1,46 @@
-from typing import AsyncGenerator, Callable, Generator, Tuple, Union
+import math
+from typing import AsyncGenerator, Callable, Generator, Optional, Tuple, Union
 
 import litellm
+from litellm.utils import trim_messages
 
 import controlflow
 from controlflow.llm.tools import (
-    function_to_tool_dict,
+    as_tools,
     handle_tool_calls,
     handle_tool_calls_async,
+    handle_tool_calls_gen,
+    handle_tool_calls_gen_async,
     has_tool_calls,
 )
-from controlflow.utilities.types import ControlFlowModel
+from controlflow.utilities.types import ControlFlowModel, ToolCall
 
 
 class Response(ControlFlowModel):
-    message: litellm.Message
-    response: litellm.ModelResponse
-    intermediate_messages: list[litellm.Message] = []
-    intermediate_responses: list[litellm.ModelResponse] = []
+    messages: list[litellm.Message] = []
+    responses: list[litellm.ModelResponse] = []
+
+    def last_message(self) -> Optional[litellm.Message]:
+        return self.messages[-1] if self.messages else None
+
+    def last_response(self) -> Optional[litellm.ModelResponse]:
+        return self.responses[-1] if self.responses else None
+
+    def tool_calls(self) -> list[ToolCall]:
+        return [
+            m["_tool_call"]
+            for m in self.messages
+            if m.role == "tool" and m.get("_tool_call") is not None
+        ]
 
 
 def completion(
     messages: list[Union[dict, litellm.Message]],
     model=None,
     tools: list[Callable] = None,
-    use_tools=True,
+    max_iterations=None,
     **kwargs,
-) -> litellm.ModelResponse:
+) -> Response:
     """
     Perform completion using the LLM model.
 
@@ -33,53 +48,48 @@ def completion(
         messages: A list of messages to be used for completion.
         model: The LLM model to be used for completion. If not provided, the default model from controlflow.settings will be used.
         tools: A list of callable tools to be used during completion.
-        use_tools: A boolean indicating whether to use the provided tools during completion.
+        call_tools: A boolean indicating whether to use the provided tools during completion.
         **kwargs: Additional keyword arguments to be passed to the litellm.completion function.
 
     Returns:
-        A litellm.ModelResponse object representing the completion response.
+        A Response object representing the completion response.
     """
 
-    intermediate_messages = []
-    intermediate_responses = []
+    response = None
+    responses = []
+    new_messages = []
 
     if model is None:
         model = controlflow.settings.model
 
-    tool_dicts = [function_to_tool_dict(tool) for tool in tools or []] or None
+    tools = as_tools(tools or [])
 
-    response = litellm.completion(
-        model=model,
-        messages=messages,
-        tools=tool_dicts,
-        **kwargs,
-    )
-
-    while use_tools and has_tool_calls(response):
-        intermediate_responses.append(response)
-        intermediate_messages.append(response.choices[0].message)
-        tool_messages = handle_tool_calls(response, tools)
-        intermediate_messages.extend(tool_messages)
+    while not response or has_tool_calls(response):
         response = litellm.completion(
             model=model,
-            messages=messages + intermediate_messages,
-            tools=tool_dicts,
+            messages=trim_messages(messages + new_messages, model=model),
+            tools=[t.model_dump() for t in tools] if tools else None,
             **kwargs,
         )
 
+        responses.append(response)
+        new_messages.append(response.choices[0].message)
+        new_messages.extend(handle_tool_calls(response, tools))
+
+        if len(responses) >= (max_iterations or math.inf):
+            break
+
     return Response(
-        message=response.choices[0].message,
-        response=response,
-        intermediate_messages=intermediate_messages,
-        intermediate_responses=intermediate_responses,
+        messages=new_messages,
+        responses=responses,
     )
 
 
-def stream_completion(
+def completion_stream(
     messages: list[Union[dict, litellm.Message]],
     model=None,
     tools: list[Callable] = None,
-    use_tools: bool = True,
+    max_iterations: int = None,
     **kwargs,
 ) -> Generator[Tuple[litellm.ModelResponse, litellm.ModelResponse], None, None]:
     """
@@ -89,56 +99,54 @@ def stream_completion(
         messages: A list of messages to be used for completion.
         model: The LLM model to be used for completion. If not provided, the default model from controlflow.settings will be used.
         tools: A list of callable tools to be used during completion.
-        use_tools: A boolean indicating whether to use the provided tools during completion.
+        call_tools: A boolean indicating whether to use the provided tools during completion.
         **kwargs: Additional keyword arguments to be passed to the litellm.completion function.
 
     Yields:
-        A tuple containing the current completion chunk and the snapshot of the completion response.
+        A tuple containing the current completion delta and the snapshot of the completion response.
 
     Returns:
         The final completion response as a litellm.ModelResponse object.
     """
+    response = None
+    messages = messages.copy()
+
     if model is None:
         model = controlflow.settings.model
 
-    tool_dicts = [function_to_tool_dict(tool) for tool in tools or []] or None
+    tools = as_tools(tools or [])
 
-    chunks = []
-    for chunk in litellm.completion(
-        model=model,
-        messages=messages,
-        stream=True,
-        tools=tool_dicts,
-        **kwargs,
-    ):
-        chunks.append(chunk)
-        snapshot = litellm.stream_chunk_builder(chunks)
-        yield chunk, snapshot
+    i = 0
+    while not response or has_tool_calls(response):
+        deltas = []
 
-    response = snapshot
-
-    while use_tools and has_tool_calls(response):
-        messages.append(response.choices[0].message)
-        tool_messages = handle_tool_calls(response, tools)
-        messages.extend(tool_messages)
-        chunks = []
-        for chunk in litellm.completion(
+        for delta in litellm.completion(
             model=model,
-            messages=messages,
-            tools=tool_dicts,
-            stream=True**kwargs,
+            messages=trim_messages(messages, model=model),
+            tools=[t.model_dump() for t in tools] if tools else None,
+            stream=True,
+            **kwargs,
         ):
-            chunks.append(chunk)
-            snapshot = litellm.stream_chunk_builder(chunks)
-            yield chunk, snapshot
-        response = snapshot
+            deltas.append(delta)
+            response = litellm.stream_chunk_builder(deltas)
+            yield delta, response
+
+        for tool_msg in handle_tool_calls_gen(response, tools):
+            messages.append(tool_msg)
+            yield None, tool_msg
+
+        messages.append(response.choices[0].message)
+
+        i += 1
+        if i >= (max_iterations or math.inf):
+            break
 
 
 async def completion_async(
     messages: list[Union[dict, litellm.Message]],
     model=None,
     tools: list[Callable] = None,
-    use_tools=True,
+    max_iterations=None,
     **kwargs,
 ) -> Response:
     """
@@ -148,52 +156,44 @@ async def completion_async(
         messages: A list of messages to be used for completion.
         model: The LLM model to be used for completion. If not provided, the default model from controlflow.settings will be used.
         tools: A list of callable tools to be used during completion.
-        use_tools: A boolean indicating whether to use the provided tools during completion.
+        call_tools: A boolean indicating whether to use the provided tools during completion.
         **kwargs: Additional keyword arguments to be passed to the litellm.acompletion function.
 
     Returns:
         Response
     """
-    intermediate_messages = []
-    intermediate_responses = []
+    response = None
+    responses = []
+    new_messages = []
 
     if model is None:
         model = controlflow.settings.model
 
-    tool_dicts = [function_to_tool_dict(tool) for tool in tools or []] or None
+    tools = as_tools(tools or [])
 
-    response = await litellm.acompletion(
-        model=model,
-        messages=messages,
-        tools=tool_dicts,
-        **kwargs,
-    )
-
-    while use_tools and has_tool_calls(response):
-        intermediate_responses.append(response)
-        intermediate_messages.append(response.choices[0].message)
-        tool_messages = await handle_tool_calls_async(response, tools)
-        intermediate_messages.extend(tool_messages)
+    while not response or has_tool_calls(response):
         response = await litellm.acompletion(
             model=model,
-            messages=messages + intermediate_messages,
-            tools=tool_dicts,
+            messages=trim_messages(messages + new_messages, model=model),
+            tools=[t.model_dump() for t in tools] if tools else None,
             **kwargs,
         )
 
+        responses.append(response)
+        new_messages.append(response.choices[0].message)
+        new_messages.extend(await handle_tool_calls_async(response, tools))
+
     return Response(
-        message=response.choices[0].message,
-        response=response,
-        intermediate_messages=intermediate_messages,
-        intermediate_responses=intermediate_responses,
+        messages=new_messages,
+        responses=responses,
     )
 
 
-async def stream_completion_async(
+async def completion_stream_async(
     messages: list[Union[dict, litellm.Message]],
     model=None,
     tools: list[Callable] = None,
-    use_tools: bool = True,
+    max_iterations: int = None,
     **kwargs,
 ) -> AsyncGenerator[Tuple[litellm.ModelResponse, litellm.ModelResponse], None]:
     """
@@ -203,48 +203,43 @@ async def stream_completion_async(
         messages: A list of messages to be used for completion.
         model: The LLM model to be used for completion. If not provided, the default model from controlflow.settings will be used.
         tools: A list of callable tools to be used during completion.
-        use_tools: A boolean indicating whether to use the provided tools during completion.
+        call_tools: A boolean indicating whether to use the provided tools during completion.
         **kwargs: Additional keyword arguments to be passed to the litellm.acompletion function.
 
     Yields:
-        A tuple containing the current completion chunk and the snapshot of the completion response.
+        A tuple containing the current completion delta and the snapshot of the completion response.
 
     Returns:
         The final completion response as a litellm.ModelResponse object.
     """
+    response = None
+    messages = messages.copy()
+
     if model is None:
         model = controlflow.settings.model
 
-    tool_dicts = [function_to_tool_dict(tool) for tool in tools or []] or None
+    tools = as_tools(tools or [])
 
-    chunks = []
-    async for chunk in litellm.acompletion(
-        model=model,
-        messages=messages,
-        stream=True,
-        tools=tool_dicts,
-        **kwargs,
-    ):
-        chunks.append(chunk)
-        snapshot = litellm.stream_chunk_builder(chunks)
-        yield chunk, snapshot
+    i = 0
+    while not response or has_tool_calls(response):
+        deltas = []
 
-    response = snapshot
-
-    while use_tools and has_tool_calls(response):
-        messages.append(response.choices[0].message)
-        tool_messages = await handle_tool_calls_async(response, tools)
-        messages.extend(tool_messages)
-        chunks = []
-        async for chunk in litellm.acompletion(
+        async for delta in litellm.acompletion(
             model=model,
-            messages=messages,
-            tools=tool_dicts,
+            messages=trim_messages(messages, model=model),
+            tools=[t.model_dump() for t in tools] if tools else None,
             stream=True,
             **kwargs,
         ):
-            chunks.append(chunk)
-            snapshot = litellm.stream_chunk_builder(chunks)
-            yield chunk, snapshot
+            deltas.append(delta)
+            response = litellm.stream_chunk_builder(deltas)
+            yield delta, response
 
-        response = snapshot
+        async for tool_msg in handle_tool_calls_gen_async(response, tools):
+            messages.append(tool_msg)
+            yield None, tool_msg
+        messages.append(response.choices[0].message)
+
+        i += 1
+        if i >= (max_iterations or math.inf):
+            break
