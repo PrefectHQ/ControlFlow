@@ -56,10 +56,10 @@ logger = get_logger(__name__)
 
 
 class TaskStatus(Enum):
-    INCOMPLETE = "incomplete"
-    SUCCESSFUL = "successful"
-    FAILED = "failed"
-    SKIPPED = "skipped"
+    INCOMPLETE = "INCOMPLETE"
+    SUCCESSFUL = "SUCCESSFUL"
+    FAILED = "FAILED"
+    SKIPPED = "SKIPPED"
 
 
 class LoadMessage(ControlFlowModel):
@@ -135,8 +135,8 @@ class Task(ControlFlowModel):
         " upstream dependencies of their parents.",
         validate_default=True,
     )
-    depends_on: list["Task"] = Field(
-        default_factory=list, description="Tasks that this task depends on explicitly."
+    depends_on: set["Task"] = Field(
+        default_factory=set, description="Tasks that this task depends on explicitly."
     )
     status: TaskStatus = TaskStatus.INCOMPLETE
     result: T = None
@@ -233,8 +233,7 @@ class Task(ControlFlowModel):
         context_tasks = collect_tasks(self.context)
 
         for task in context_tasks:
-            if task not in self.depends_on:
-                self.depends_on.append(task)
+            self.depends_on.add(task)
 
         return self
 
@@ -243,7 +242,7 @@ class Task(ControlFlowModel):
         return parent.id if parent is not None else None
 
     @field_serializer("depends_on")
-    def _serialize_depends_on(self, depends_on: list["Task"]):
+    def _serialize_depends_on(self, depends_on: set["Task"]):
         return [t.id for t in depends_on]
 
     @field_serializer("context")
@@ -300,17 +299,15 @@ class Task(ControlFlowModel):
             task.parent = self
         elif task.parent is not self:
             raise ValueError(f"{self.friendly_name()} already has a parent.")
-        if task not in self._subtasks:
-            self._subtasks.add(task)
+        self._subtasks.add(task)
+        self.depends_on.add(task)
 
     def add_dependency(self, task: "Task"):
         """
         Indicate that this task depends on another task.
         """
-        if task not in self.depends_on:
-            self.depends_on.append(task)
-        if self not in task._downstreams:
-            task._downstreams.add(self)
+        self.depends_on.add(task)
+        task._downstreams.add(self)
 
     def run_once(self, agent: "Agent" = None, flow: "Flow" = None):
         """
@@ -493,8 +490,10 @@ class Task(ControlFlowModel):
             tools.append(talk_to_human)
         return [wrap_prefect_tool(t) for t in tools]
 
-    def dependencies(self):
-        return self.depends_on + self._subtasks
+    def set_status(self, status: TaskStatus):
+        self.status = status
+        if tui := ctx.get("tui"):
+            tui.update_task(self)
 
     def mark_successful(self, result: T = None, validate_upstreams: bool = True):
         if validate_upstreams:
@@ -512,16 +511,17 @@ class Task(ControlFlowModel):
                 )
 
         self.result = validate_result(result, self.result_type)
-        self.status = TaskStatus.SUCCESSFUL
+        self.set_status(TaskStatus.SUCCESSFUL)
+
         return f"{self.friendly_name()} marked successful. Updated task definition: {self.model_dump()}"
 
     def mark_failed(self, message: Union[str, None] = None):
         self.error = message
-        self.status = TaskStatus.FAILED
+        self.set_status(TaskStatus.FAILED)
         return f"{self.friendly_name()} marked failed. Updated task definition: {self.model_dump()}"
 
     def mark_skipped(self):
-        self.status = TaskStatus.SKIPPED
+        self.set_status(TaskStatus.SKIPPED)
         return f"{self.friendly_name()} marked skipped. Updated task definition: {self.model_dump()}"
 
 

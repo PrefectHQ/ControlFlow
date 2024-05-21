@@ -1,18 +1,23 @@
+import datetime
 import json
 import logging
 import math
-from typing import Any, Union
+from contextlib import asynccontextmanager
+from functools import cached_property
+from typing import Union
 
 import marvin.utilities
 import marvin.utilities.tools
 import prefect
 from marvin.beta.assistants import EndRun, PrintHandler, Run
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
-from openai.types.beta.threads.runs import ToolCall
+from openai import AsyncAssistantEventHandler
+from openai.types.beta.threads import Message, MessageDelta
+from openai.types.beta.threads.runs import RunStep, RunStepDelta, ToolCall
 from prefect import get_client as get_prefect_client
 from prefect import task as prefect_task
 from prefect.context import FlowRunContext
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, computed_field, model_validator
 
 import controlflow
 from controlflow.core.agent import Agent
@@ -21,12 +26,14 @@ from controlflow.core.flow import Flow, get_flow
 from controlflow.core.graph import Graph
 from controlflow.core.task import Task
 from controlflow.instructions import get_instructions
+from controlflow.tui.app import TUIApp as TUI
+from controlflow.utilities.context import ctx
 from controlflow.utilities.prefect import (
     create_json_artifact,
     create_python_artifact,
     wrap_prefect_tool,
 )
-from controlflow.utilities.tasks import any_incomplete
+from controlflow.utilities.tasks import all_complete, any_incomplete
 from controlflow.utilities.types import FunctionTool, Thread
 
 logger = logging.getLogger(__name__)
@@ -58,45 +65,41 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
     tasks: list[Task] = Field(
         None,
         description="Tasks that the controller will complete.",
-        validate_default=True,
     )
     agents: Union[list[Agent], None] = None
     context: dict = {}
-    graph: Graph = None
     model_config: dict = dict(extra="forbid")
+    enable_tui: bool = Field(default_factory=lambda: controlflow.settings.enable_tui)
     _iteration: int = 0
+    _should_abort: bool = False
+    _endrun_count: int = 0
 
-    @model_validator(mode="before")
-    @classmethod
-    def _create_graph(cls, data: Any) -> Any:
-        if not data.get("graph"):
-            data["graph"] = Graph.from_tasks(data.get("tasks", []))
-        return data
+    @computed_field
+    @cached_property
+    def graph(self) -> Graph:
+        return Graph.from_tasks(self.tasks)
 
     @model_validator(mode="after")
     def _finalize(self):
+        if self.tasks is None:
+            self.tasks = list(self.flow._tasks.values())
         for task in self.tasks:
             self.flow.add_task(task)
         return self
 
-    @field_validator("tasks", mode="before")
-    def _validate_tasks(cls, v):
-        if v is None:
-            v = cls.context.get("tasks", None)
-        if not v:
-            raise ValueError("At least one task is required.")
-        return v
-
-    def _create_end_run_tool(self) -> FunctionTool:
+    def _create_help_tool(self) -> FunctionTool:
         @marvin.utilities.tools.tool_from_function
-        def end_run():
+        def help_im_stuck():
             """
-            End your turn if you have no tasks to work on. Only call this tool
-            if necessary; otherwise you can end your turn normally.
+            If you are stuck because no tasks are ready to be worked on, you can call this tool to end your turn. A new agent (possibly you) will be selected to go next. If this tool is used 3 times, the workflow will be aborted automatically, so only use it if you are truly stuck.
             """
+            self._endrun_count += 1
+            if self._endrun_count >= 3:
+                self._should_abort = True
+                self._endrun_count = 0
             return EndRun()
 
-        return end_run
+        return help_im_stuck
 
     async def _run_agent(
         self, agent: Agent, tasks: list[Task] = None, thread: Thread = None
@@ -119,7 +122,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             tools = (
                 controller.flow.tools
                 + agent.get_tools()
-                + [controller._create_end_run_tool()]
+                + [controller._create_help_tool()]
             )
 
             # add tools for any inactive tasks that the agent is assigned to
@@ -146,12 +149,14 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
                 final_tool_names.add(tool.function.name)
                 final_tools.append(wrap_prefect_tool(tool))
 
+            handler = TUIHandler if controlflow.settings.enable_tui else AgentHandler
+
             run = Run(
                 assistant=agent,
                 thread=thread or controller.flow.thread,
                 instructions=instructions,
                 tools=final_tools,
-                event_handler_class=AgentHandler,
+                event_handler_class=handler,
             )
 
             await run.run_async()
@@ -179,36 +184,53 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             iteration=self._iteration,
         )
 
+    @asynccontextmanager
+    async def tui(self):
+        if tui := ctx.get("tui"):
+            yield tui
+        else:
+            tui = TUI(flow=self.flow)
+            with ctx(tui=tui):
+                async with tui.run_context(run=controlflow.settings.enable_tui):
+                    yield tui
+
     @expose_sync_method("run_once")
     async def run_once_async(self):
         """
         Run the controller for a single iteration of the provided tasks. An agent will be selected to run the tasks.
         """
-        # get the tasks to run
-        tasks = self.graph.upstream_dependencies(self.tasks, include_tasks=True)
+        async with self.tui():
+            with self.flow:
+                # get the tasks to run
+                ready_tasks = {t for t in self.tasks if t.is_ready()}
+                upstreams = {d for t in ready_tasks for d in t.depends_on}
+                tasks = list(ready_tasks.union(upstreams))
+                # tasks = self.graph.upstream_dependencies(self.tasks, include_tasks=True)
 
-        if all(t.is_complete() for t in tasks):
-            return
+                if all(t.is_complete() for t in tasks):
+                    return
 
-        # get the agents
-        agent_candidates = {a for t in tasks for a in t.get_agents() if t.is_ready()}
-        if self.agents:
-            agents = list(agent_candidates.intersection(self.agents))
-        else:
-            agents = list(agent_candidates)
+                # get the agents
+                agent_candidates = {
+                    a for t in tasks for a in t.get_agents() if t.is_ready()
+                }
+                if self.agents:
+                    agents = list(agent_candidates.intersection(self.agents))
+                else:
+                    agents = list(agent_candidates)
 
-        # select the next agent
-        if len(agents) == 0:
-            raise ValueError(
-                "No agents were provided that are assigned to tasks that are ready to be run."
-            )
-        elif len(agents) == 1:
-            agent = agents[0]
-        else:
-            agent = self.choose_agent(agents=agents, tasks=tasks)
+                # select the next agent
+                if len(agents) == 0:
+                    raise ValueError(
+                        "No agents were provided that are assigned to tasks that are ready to be run."
+                    )
+                elif len(agents) == 1:
+                    agent = agents[0]
+                else:
+                    agent = self.choose_agent(agents=agents, tasks=tasks)
 
-        await self._run_agent(agent, tasks=tasks)
-        self._iteration += 1
+                await self._run_agent(agent, tasks=tasks)
+                self._iteration += 1
 
     @expose_sync_method("run")
     async def run_async(self):
@@ -217,14 +239,38 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         """
         max_task_iterations = controlflow.settings.max_task_iterations or math.inf
         start_iteration = self._iteration
-        while any_incomplete(self.tasks):
-            await self.run_once_async()
-            if self._iteration > start_iteration + max_task_iterations * len(
-                self.tasks
-            ):
-                raise ValueError(
-                    f"Task iterations exceeded maximum of {max_task_iterations} for each task."
-                )
+        if all_complete(self.tasks):
+            return
+        async with self.tui():
+            while any_incomplete(self.tasks) and not self._should_abort:
+                await self.run_once_async()
+                if self._iteration > start_iteration + max_task_iterations * len(
+                    self.tasks
+                ):
+                    raise ValueError(
+                        f"Task iterations exceeded maximum of {max_task_iterations} for each task."
+                    )
+            self._should_abort = False
+
+
+class TUIHandler(AsyncAssistantEventHandler):
+    async def on_message_delta(self, delta: MessageDelta, snapshot: Message) -> None:
+        if tui := ctx.get("tui"):
+            content = []
+            for item in snapshot.content:
+                if item.type == "text":
+                    content.append(item.text.value)
+
+            tui.update_message(
+                m_id=snapshot.id,
+                message="\n\n".join(content),
+                role=snapshot.role,
+                timestamp=datetime.datetime.fromtimestamp(snapshot.created_at),
+            )
+
+    async def on_run_step_delta(self, delta: RunStepDelta, snapshot: RunStep) -> None:
+        if tui := ctx.get("tui"):
+            tui.update_step(snapshot)
 
 
 class AgentHandler(PrintHandler):

@@ -4,5 +4,6 @@ ctx = ScopedContext(
     dict(
         flow=None,
         tasks=[],
+        tui=None,
     )
 )

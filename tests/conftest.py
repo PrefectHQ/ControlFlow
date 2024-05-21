@@ -7,7 +7,10 @@ from .fixtures import *
 
 @pytest.fixture(autouse=True, scope="session")
 def temp_controlflow_settings():
-    with temporary_settings(max_task_iterations=3):
+    with temporary_settings(
+        max_task_iterations=3,
+        enable_tui=False,
+    ):
         try:
             yield
         finally:

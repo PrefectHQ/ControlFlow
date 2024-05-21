@@ -61,19 +61,23 @@ class Settings(ControlFlowSettings):
         description="If True, @task- and @flow-decorated functions are run immediately. "
         "This can be set on a per-task or per-flow basis using the `eager` argument.",
     )
-
-    # --- sending messages to Agents
-
     enable_local_input: bool = Field(
         True,
         description="If True, the user can provide input via "
         "the terminal. Otherwise, only API input is accepted.",
     )
-
     strict_flow_context: bool = Field(
         False,
         description="If False, calling Task.run() outside a flow context will automatically "
         "create a flow and run the task within it. If True, an error will be raised.",
+    )
+    enable_tui: bool = Field(
+        False,
+        description="If True, the TUI will be enabled. If False, the TUI will be disabled.",
+    )
+    run_tui_headless: bool = Field(
+        False,
+        description="If True, the TUI will run in headless mode, which is useful for debugging.",
     )
 
     def __init__(self, **data):

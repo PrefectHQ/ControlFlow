@@ -49,7 +49,7 @@ class Flow(ControlFlowModel):
 
     @contextmanager
     def _context(self):
-        with ctx(flow=self, tasks=[]):
+        with ctx(flow=self):
             yield self
 
     def __enter__(self):
@@ -66,7 +66,7 @@ class Flow(ControlFlowModel):
         from controlflow.core.controller import Controller
 
         if self._tasks:
-            controller = Controller(flow=self, tasks=list(self._tasks.values()))
+            controller = Controller(flow=self)
             controller.run()
 
 
@@ -85,4 +85,7 @@ def get_flow_messages(limit: int = None) -> list[Message]:
     Will error if no flow is found in the context.
     """
     flow = get_flow()
-    return flow.thread.get_messages(limit=limit)
+    if flow:
+        return flow.thread.get_messages(limit=limit)
+    else:
+        return []

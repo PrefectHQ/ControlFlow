@@ -10,6 +10,7 @@ dependencies = [
     "prefect[dev] @ git+https://github.com/prefecthq/prefect@main",
     # can remove when prefect fully migrates to pydantic 2
     "pydantic>=2",
+    "textual>=0.61.1",
 ]
 readme = "README.md"
 requires-python = ">= 3.9"
@@ -48,7 +49,7 @@ tests = [
     "pre-commit>=3.7.0",
     "pandas",
 ]
-dev = ["controlflow[tests]", "ipython", "pdbpp", "ruff>=0.3.4"]
+dev = ["controlflow[tests]", "ipython", "pdbpp", "ruff>=0.3.4", "textual-dev"]
 
 [build-system]
 requires = ["hatchling"]
