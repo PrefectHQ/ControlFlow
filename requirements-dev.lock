@@ -8,8 +8,14 @@
 #   with-sources: false
 
 -e file:.
+aiohttp==3.9.5
+    # via litellm
+aiosignal==1.3.1
+    # via aiohttp
 aiosqlite==0.20.0
     # via prefect
+alabaster==0.7.16
+    # via sphinx
 alembic==1.13.1
     # via prefect
 annotated-types==0.6.0
@@ -29,12 +35,14 @@ asttokens==2.4.1
 asyncpg==0.29.0
     # via prefect
 attrs==23.2.0
+    # via aiohttp
     # via cattrs
     # via ddtrace
     # via jsonschema
     # via referencing
 babel==2.15.0
     # via mkdocs-material
+    # via sphinx
 boto3==1.34.103
     # via moto
 botocore==1.34.103
@@ -68,6 +76,7 @@ charset-normalizer==3.3.2
     # via requests
 click==8.1.7
     # via apprise
+    # via litellm
     # via mkdocs
     # via mkdocstrings
     # via prefect
@@ -109,6 +118,8 @@ distro==1.9.0
     # via openai
 docker==6.1.3
     # via prefect
+docutils==0.21.2
+    # via sphinx
 envier==0.5.1
     # via ddtrace
 execnet==2.1.1
@@ -118,8 +129,13 @@ executing==2.0.1
 fastapi==0.110.0
     # via marvin
 filelock==3.13.3
+    # via huggingface-hub
     # via virtualenv
+frozenlist==1.4.1
+    # via aiohttp
+    # via aiosignal
 fsspec==2024.3.1
+    # via huggingface-hub
     # via prefect
 ghp-import==2.1.0
     # via mkdocs
@@ -147,6 +163,8 @@ httpx==0.27.0
     # via openai
     # via prefect
     # via respx
+huggingface-hub==0.23.0
+    # via tokenizers
 humanize==4.9.0
     # via jinja2-humanize-extension
     # via prefect
@@ -158,7 +176,11 @@ idna==3.6
     # via anyio
     # via httpx
     # via requests
+    # via yarl
+imagesize==1.4.1
+    # via sphinx
 importlib-metadata==7.0.0
+    # via litellm
     # via mike
     # via opentelemetry-api
 importlib-resources==6.1.3
@@ -174,6 +196,7 @@ jedi==0.19.1
     # via ipython
 jinja2==3.1.3
     # via jinja2-humanize-extension
+    # via litellm
     # via marvin
     # via mike
     # via mkdocs
@@ -181,6 +204,7 @@ jinja2==3.1.3
     # via mkdocstrings
     # via moto
     # via prefect
+    # via sphinx
 jinja2-humanize-extension==0.4.0
     # via prefect
 jmespath==1.0.1
@@ -199,6 +223,8 @@ kubernetes==29.0.0
     # via prefect
 linkify-it-py==2.0.3
     # via markdown-it-py
+litellm==1.37.17
+    # via controlflow
 mako==1.3.2
     # via alembic
 markdown==3.6
@@ -255,6 +281,9 @@ mkdocstrings-python==1.9.2
     # via prefect
 moto==5.0.6
     # via prefect
+multidict==6.0.5
+    # via aiohttp
+    # via yarl
 mypy==1.10.0
     # via prefect
 mypy-extensions==1.0.0
@@ -263,10 +292,13 @@ nodeenv==1.8.0
     # via pre-commit
 numpy==1.26.4
     # via prefect
+numpydoc==1.7.0
+    # via controlflow
 oauthlib==3.2.2
     # via kubernetes
     # via requests-oauthlib
 openai==1.28.1
+    # via litellm
     # via marvin
 opentelemetry-api==1.24.0
     # via ddtrace
@@ -274,9 +306,11 @@ orjson==3.10.0
     # via prefect
 packaging==24.0
     # via docker
+    # via huggingface-hub
     # via mkdocs
     # via prefect
     # via pytest
+    # via sphinx
 paginate==0.5.6
     # via mkdocs-material
 parso==0.8.3
@@ -302,7 +336,7 @@ pluggy==1.4.0
     # via pytest
 pre-commit==3.7.0
     # via prefect
-prefect @ git+https://github.com/prefecthq/prefect@8d56742dd83273af0c9d6c986b752f2a8439e9a8
+prefect @ git+https://github.com/prefecthq/prefect@b7ce5ed9eb0cf813dfb20a9f1fe8815dd2008ca1
     # via controlflow
 prompt-toolkit==3.0.43
     # via ipython
@@ -338,6 +372,7 @@ pygments==2.17.2
     # via ipython
     # via mkdocs-material
     # via rich
+    # via sphinx
 pymdown-extensions==10.8.1
     # via mkdocs-material
     # via mkdocstrings
@@ -377,6 +412,7 @@ python-dateutil==2.9.0.post0
     # via prefect
     # via time-machine
 python-dotenv==1.0.1
+    # via litellm
     # via pydantic-settings
 python-multipart==0.0.9
     # via prefect
@@ -390,6 +426,7 @@ pytz==2024.1
     # via prefect
 pyyaml==6.0.1
     # via apprise
+    # via huggingface-hub
     # via kubernetes
     # via mike
     # via mkdocs
@@ -414,12 +451,15 @@ regex==2023.12.25
 requests==2.31.0
     # via apprise
     # via docker
+    # via huggingface-hub
     # via kubernetes
+    # via litellm
     # via mkdocs-material
     # via moto
     # via prefect
     # via requests-oauthlib
     # via responses
+    # via sphinx
     # via tiktoken
 requests-oauthlib==2.0.0
     # via apprise
@@ -468,6 +508,22 @@ sniffio==1.3.1
     # via httpx
     # via openai
     # via prefect
+snowballstemmer==2.2.0
+    # via sphinx
+sphinx==7.3.7
+    # via numpydoc
+sphinxcontrib-applehelp==1.0.8
+    # via sphinx
+sphinxcontrib-devhelp==1.0.6
+    # via sphinx
+sphinxcontrib-htmlhelp==2.0.5
+    # via sphinx
+sphinxcontrib-jsmath==1.0.1
+    # via sphinx
+sphinxcontrib-qthelp==1.0.7
+    # via sphinx
+sphinxcontrib-serializinghtml==1.1.10
+    # via sphinx
 sqlalchemy==2.0.29
     # via alembic
     # via prefect
@@ -477,20 +533,26 @@ stack-data==0.6.3
     # via ipython
 starlette==0.36.3
     # via fastapi
+tabulate==0.9.0
+    # via numpydoc
 text-unidecode==1.3
     # via python-slugify
 textual==0.61.1
     # via controlflow
 tiktoken==0.6.0
+    # via litellm
     # via marvin
 time-machine==2.14.1
     # via pendulum
 tinycss2==1.3.0
     # via cairosvg
     # via cssselect2
+tokenizers==0.19.1
+    # via litellm
 toml==0.10.2
     # via prefect
 tqdm==4.66.2
+    # via huggingface-hub
     # via openai
 traitlets==5.14.2
     # via ipython
@@ -512,6 +574,7 @@ typing-extensions==4.10.0
     # via alembic
     # via ddtrace
     # via fastapi
+    # via huggingface-hub
     # via marvin
     # via mypy
     # via openai
@@ -567,5 +630,7 @@ wrapt==1.16.0
 xmltodict==0.13.0
     # via ddtrace
     # via moto
+yarl==1.9.4
+    # via aiohttp
 zipp==3.18.1
     # via importlib-metadata
