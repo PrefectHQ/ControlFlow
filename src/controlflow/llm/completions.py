@@ -39,15 +39,15 @@ def completion(
     Returns:
         A litellm.ModelResponse object representing the completion response.
     """
+
     intermediate_messages = []
     intermediate_responses = []
 
     if model is None:
         model = controlflow.settings.model
-    if tools is not None:
-        tool_dicts = [function_to_tool_dict(tool) for tool in tools]
-    else:
-        tool_dicts = None
+
+    tool_dicts = [function_to_tool_dict(tool) for tool in tools or []] or None
+
     response = litellm.completion(
         model=model,
         messages=messages,
@@ -101,10 +101,7 @@ def stream_completion(
     if model is None:
         model = controlflow.settings.model
 
-    if tools is not None:
-        tool_dicts = [function_to_tool_dict(tool) for tool in tools]
-    else:
-        tool_dicts = None
+    tool_dicts = [function_to_tool_dict(tool) for tool in tools or []] or None
 
     chunks = []
     for chunk in litellm.completion(
@@ -163,10 +160,7 @@ async def completion_async(
     if model is None:
         model = controlflow.settings.model
 
-    if tools is not None:
-        tool_dicts = [function_to_tool_dict(tool) for tool in tools]
-    else:
-        tool_dicts = None
+    tool_dicts = [function_to_tool_dict(tool) for tool in tools or []] or None
 
     response = await litellm.acompletion(
         model=model,
@@ -221,10 +215,7 @@ async def stream_completion_async(
     if model is None:
         model = controlflow.settings.model
 
-    if tools is not None:
-        tool_dicts = [function_to_tool_dict(tool) for tool in tools]
-    else:
-        tool_dicts = None
+    tool_dicts = [function_to_tool_dict(tool) for tool in tools or []] or None
 
     chunks = []
     async for chunk in litellm.acompletion(

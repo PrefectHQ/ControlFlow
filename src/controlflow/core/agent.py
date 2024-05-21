@@ -1,11 +1,13 @@
 import logging
-from typing import Union
+from typing import Callable, Optional, Union
 
+from litellm import Message
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
 from pydantic import Field
 
 from controlflow.core.flow import Flow, get_flow
 from controlflow.core.task import Task
+from controlflow.llm.completions import Response, completion, completion_async
 from controlflow.tools.talk_to_human import talk_to_human
 from controlflow.utilities.prefect import (
     wrap_prefect_tool,
@@ -62,3 +64,51 @@ class Agent(Assistant, ControlFlowModel, ExposeSyncMethodsMixin):
 
     def __hash__(self):
         return id(self)
+
+
+class LiteAgent(ControlFlowModel, ExposeSyncMethodsMixin):
+    name: str = Field(
+        ...,
+        description="The name of the agent. This is used to identify the agent in the system and should be unique per assigned task.",
+    )
+    description: Optional[str] = Field(
+        None, description="A description of the agent, visible to other agents."
+    )
+    instructions: Optional[str] = Field(
+        None, description="Instructions for the agent, private to this agent."
+    )
+    tools: list[Callable] = Field(
+        [], description="List of tools availble to the agent."
+    )
+    user_access: bool = Field(
+        False,
+        description="If True, the agent is given tools for interacting with a human user.",
+    )
+    model: Optional[str] = Field(
+        None,
+        description="The model used by the agent. If not provided, the default model will be used.",
+    )
+
+    async def say_async(self, messages: Union[str, dict]) -> Response:
+        if not isinstance(messages, list):
+            raise ValueError("Messages must be provided as a list.")
+
+        messages = [
+            Message(role="user", content=m) if isinstance(m, str) else m
+            for m in messages
+        ]
+
+        return await completion_async(
+            messages=messages, model=self.model, tools=self.tools
+        )
+
+    async def say(self, messages: Union[str, dict]) -> Response:
+        if not isinstance(messages, list):
+            raise ValueError("Messages must be provided as a list.")
+
+        messages = [
+            Message(role="user", content=m) if isinstance(m, str) else m
+            for m in messages
+        ]
+
+        return completion(messages=messages, model=self.model, tools=self.tools)
