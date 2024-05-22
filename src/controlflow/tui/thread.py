@@ -1,14 +1,16 @@
 import datetime
 import inspect
-from typing import Literal
+from typing import Union
 
 from rich import box
+from rich.console import Group
 from rich.markdown import Markdown
 from rich.panel import Panel
 from textual.reactive import reactive
 from textual.widgets import Static
 
 from controlflow.core.task import TaskStatus
+from controlflow.utilities.types import AssistantMessage, ToolMessage, UserMessage
 
 
 def bool_to_emoji(value: bool) -> str:
@@ -33,20 +35,12 @@ def format_timestamp(timestamp: datetime.datetime) -> str:
 
 
 class TUIMessage(Static):
-    message: reactive[str] = reactive(None, always_update=True)
+    message: reactive[Union[UserMessage, AssistantMessage]] = reactive(
+        None, always_update=True
+    )
 
-    def __init__(
-        self,
-        message: str,
-        role: Literal["user", "assistant"] = "assistant",
-        timestamp: datetime.datetime = None,
-        **kwargs,
-    ):
+    def __init__(self, message: Union[UserMessage, AssistantMessage], **kwargs):
         super().__init__(**kwargs)
-        if timestamp is None:
-            timestamp = datetime.datetime.now()
-        self._timestamp = timestamp
-        self._role = role
         self.message = message
 
     def render(self):
@@ -54,13 +48,27 @@ class TUIMessage(Static):
             "user": "green",
             "assistant": "blue",
         }
+        if isinstance(self.message, AssistantMessage) and self.message.has_tool_calls():
+            content = Markdown(
+                inspect.cleandoc("""
+                :hammer_and_wrench: Calling `{name}` with the following arguments:
+                
+                ```json
+                {args}
+                ```
+                """).format(name=self.tool_name, args=self.tool_args)
+            )
+            title = "Tool Call"
+        else:
+            content = self.message.content
+            title = self.message.role.capitalize()
         return Panel(
-            self.message,
-            title=f"[bold]{self._role.capitalize()}[/]",
-            subtitle=f"[italic]{format_timestamp(self._timestamp)}[/]",
+            content,
+            title=f"[bold]{title}[/]",
+            subtitle=f"[italic]{format_timestamp(self.message.timestamp)}[/]",
             title_align="left",
             subtitle_align="right",
-            border_style=role_colors.get(self._role, "red"),
+            border_style=role_colors.get(self.message.role, "red"),
             box=box.ROUNDED,
             width=100,
             expand=True,
@@ -68,69 +76,21 @@ class TUIMessage(Static):
         )
 
 
-class TUIToolCall(Static):
-    tool_name: reactive[str] = reactive(None, always_update=True)
-    tool_args: reactive[str] = reactive(None, always_update=True)
+class TUIToolMessage(Static):
+    message: reactive[ToolMessage] = reactive(None, always_update=True)
 
-    def __init__(
-        self,
-        tool_name: str,
-        tool_args: str,
-        timestamp: datetime.datetime = None,
-        **kwargs,
-    ):
+    def __init__(self, message: ToolMessage, **kwargs):
         super().__init__(**kwargs)
-        if timestamp is None:
-            timestamp = datetime.datetime.now()
-        self._timestamp = timestamp
-        self.tool_name = tool_name
-        self.tool_args = tool_args
+        self.message = message
 
     def render(self):
-        content = inspect.cleandoc("""
-            :hammer_and_wrench: Calling `{name}` with the following arguments:
-            
-            ```json
-            {args}
-            ```
-            """).format(name=self.tool_name, args=self.tool_args)
-        return Panel(
-            Markdown(content),
-            title="Tool Call",
-            subtitle=f"[italic]{format_timestamp(self._timestamp)}[/]",
-            title_align="left",
-            subtitle_align="right",
-            border_style="blue",
-            box=box.ROUNDED,
-            width=100,
-            expand=True,
-            padding=(1, 2),
-        )
-
-
-class TUIToolResult(Static):
-    tool_name: reactive[str] = reactive(None, always_update=True)
-    tool_result: reactive[str] = reactive(None, always_update=True)
-
-    def __init__(
-        self,
-        tool_name: str,
-        tool_result: str,
-        timestamp: datetime.datetime = None,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-        if timestamp is None:
-            timestamp = datetime.datetime.now()
-        self._timestamp = timestamp
-        self.tool_name = tool_name
-        self.tool_result = tool_result
-
-    def render(self):
-        content = Markdown(
-            f":white_check_mark: Received output from the [markdown.code]{self.tool_name}[/] tool."
-            f"\n\n```json\n{self.tool_result}\n```",
-        )
+        if self.message.tool_failed:
+            content = f":x: The tool call to [markdown.code]{self.message.tool_name}[/] failed."
+        else:
+            content = Group(
+                f":white_check_mark: Received output from the [markdown.code]{self.message.tool_call.function.name}[/] tool.\n",
+                Markdown(f"```json\n{self.tool_result}\n```"),
+            )
 
         return Panel(
             content,

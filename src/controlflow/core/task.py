@@ -36,7 +36,6 @@ from controlflow.utilities.tasks import (
 from controlflow.utilities.types import (
     NOTSET,
     ControlFlowModel,
-    Message,
     PandasDataFrame,
     PandasSeries,
     ToolType,
@@ -56,54 +55,6 @@ class TaskStatus(Enum):
     SUCCESSFUL = "SUCCESSFUL"
     FAILED = "FAILED"
     SKIPPED = "SKIPPED"
-
-
-class LoadMessage(ControlFlowModel):
-    """
-    This special object can be used to indicate that a task result should be
-    loaded from a recent message posted to the flow's thread.
-    """
-
-    type: Literal["LoadMessage"] = Field(
-        'You must provide this value as "LoadMessage".'
-    )
-
-    num_messages_ago: int = Field(
-        1,
-        description="The number of messages ago to retrieve. Default is 1, or the most recent message.",
-    )
-
-    strip_prefix: str = Field(
-        None,
-        description="These characters will be removed from the start "
-        "of the message. For example, remove text like your name prefix.",
-    )
-
-    strip_suffix: Optional[str] = Field(
-        None,
-        description="These characters will be removed from the end of "
-        "the message. For example, remove comments like 'I'll mark the task complete now.'",
-    )
-
-    def trim_message(self, message: Message) -> str:
-        content = message.content[0].text.value
-        if self.strip_prefix:
-            if content.startswith(self.strip_prefix):
-                content = content[len(self.strip_prefix) :]
-            else:
-                raise ValueError(
-                    f'Invalid strip prefix "{self.strip_prefix}"; messages '
-                    f'starts with "{content[:len(self.strip_prefix) + 10]}"'
-                )
-        if self.strip_suffix:
-            if content.endswith(self.strip_suffix):
-                content = content[: -len(self.strip_suffix)]
-            else:
-                raise ValueError(
-                    f'Invalid strip suffix "{self.strip_suffix}"; messages '
-                    f'ends with "{content[-len(self.strip_suffix) - 10:]}"'
-                )
-        return content.strip()
 
 
 class Task(ControlFlowModel):

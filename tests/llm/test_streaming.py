@@ -4,7 +4,7 @@ import litellm
 from controlflow.llm.completions import completion_stream
 from controlflow.llm.handlers import StreamHandler
 from controlflow.llm.tools import ToolResult
-from controlflow.utilities.types import Message
+from controlflow.utilities.types import AssistantMessage
 from pydantic import BaseModel
 
 
@@ -30,7 +30,7 @@ class MockStreamHandler(StreamHandler):
             )
         )
 
-    def on_message_done(self, message: Message):
+    def on_message_done(self, message: AssistantMessage):
         self.calls.append(
             StreamCall(method="on_message_done", args=dict(message=message))
         )

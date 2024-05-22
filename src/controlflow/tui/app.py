@@ -1,7 +1,6 @@
 import asyncio
-import datetime
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from textual.app import App, ComposeResult
 from textual.containers import Container
@@ -10,10 +9,11 @@ from textual.reactive import reactive
 from textual.widgets import Footer, Header, Label
 
 import controlflow
+from controlflow.utilities.types import AssistantMessage, ToolMessage, UserMessage
 
 from .basic import Column, Row
 from .task import TUITask
-from .thread import TUIMessage, TUIToolCall, TUIToolResult
+from .thread import TUIMessage, TUIToolMessage
 
 if TYPE_CHECKING:
     import controlflow
@@ -108,54 +108,23 @@ class TUIApp(App):
             self.query_one("#tasks-container", Column).mount(new_task)
             new_task.scroll_visible()
 
-    def update_message(
-        self, m_id: str, message: str, role: str, timestamp: datetime.datetime = None
-    ):
+    def update_message(self, message: Union[UserMessage, AssistantMessage]):
         try:
-            component = self.query_one(f"#message-{m_id}", TUIMessage)
+            component = self.query_one(f"#message-{message.id}", TUIMessage)
             component.message = message
             component.scroll_visible()
         except NoMatches:
-            new_message = TUIMessage(
-                message=message,
-                role=role,
-                timestamp=timestamp,
-                id=f"message-{m_id}",
-            )
+            new_message = TUIMessage(message=message, id=f"message-{message.id}")
             self.query_one("#thread-container", Column).mount(new_message)
             new_message.scroll_visible()
 
-    def update_tool_call(
-        self, t_id: str, tool_name: str, tool_args: str, timestamp: datetime.datetime
-    ):
+    def update_tool_result(self, message: ToolMessage):
         try:
-            component = self.query_one(f"#tool-call-{t_id}", TUIToolCall)
-            component.tool_args = tool_args
+            component = self.query_one(f"#message-{message.id}", TUIToolMessage)
+            component.message = message
             component.scroll_visible()
         except NoMatches:
-            new_step = TUIToolCall(
-                tool_name=tool_name,
-                tool_args=tool_args,
-                timestamp=timestamp,
-                id=f"tool-call-{t_id}",
-            )
-            self.query_one("#thread-container", Column).mount(new_step)
-            new_step.scroll_visible()
-
-    def update_tool_result(
-        self, t_id: str, tool_name: str, tool_result: str, timestamp: datetime.datetime
-    ):
-        try:
-            component = self.query_one(f"#tool-result-{t_id}", TUIToolResult)
-            component.tool_result = tool_result
-            component.scroll_visible()
-        except NoMatches:
-            new_step = TUIToolResult(
-                tool_name=tool_name,
-                tool_result=tool_result,
-                timestamp=timestamp,
-                id=f"tool-result-{t_id}",
-            )
+            new_step = TUIToolMessage(message=message, id=f"message-{message.id}")
             self.query_one("#thread-container", Column).mount(new_step)
             new_step.scroll_visible()
 

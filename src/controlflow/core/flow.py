@@ -6,7 +6,7 @@ from pydantic import Field
 
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
-from controlflow.utilities.types import ControlFlowModel, Message
+from controlflow.utilities.types import ControlFlowModel, MessageType
 
 if TYPE_CHECKING:
     from controlflow.core.agent import Agent
@@ -68,7 +68,7 @@ def get_flow() -> Optional[Flow]:
     return flow
 
 
-def get_flow_messages(limit: int = None) -> list[Message]:
+def get_flow_messages(limit: int = None) -> list[MessageType]:
     """
     Loads messages from the flow's thread.
 
