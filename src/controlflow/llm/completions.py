@@ -57,11 +57,12 @@ def completion(
 
     counter = 0
     while not response_messages or get_tool_calls(response_messages):
+        completion_messages = trim_messages(
+            as_oai_messages(messages + new_messages), model=model
+        )
         response = litellm.completion(
             model=model,
-            messages=trim_messages(
-                messages + as_oai_messages(new_messages), model=model
-            ),
+            messages=completion_messages,
             tools=[t.model_dump() for t in tools] if tools else None,
             **kwargs,
         )
@@ -129,11 +130,12 @@ def completion_stream(
 
     counter = 0
     while not snapshot_message or get_tool_calls([snapshot_message]):
+        completion_messages = trim_messages(
+            as_oai_messages(messages + new_messages), model=model
+        )
         response = litellm.completion(
             model=model,
-            messages=trim_messages(
-                messages + as_oai_messages(new_messages), model=model
-            ),
+            messages=completion_messages,
             tools=[t.model_dump() for t in tools] if tools else None,
             stream=True,
             **kwargs,
@@ -217,11 +219,12 @@ async def completion_async(
 
     counter = 0
     while not response_messages or get_tool_calls(response_messages):
+        completion_messages = trim_messages(
+            as_oai_messages(messages + new_messages), model=model
+        )
         response = await litellm.acompletion(
             model=model,
-            messages=trim_messages(
-                messages + as_oai_messages(new_messages), model=model
-            ),
+            messages=completion_messages,
             tools=[t.model_dump() for t in tools] if tools else None,
             **kwargs,
         )
@@ -287,11 +290,12 @@ async def completion_stream_async(
 
     counter = 0
     while not snapshot_message or get_tool_calls([snapshot_message]):
+        completion_messages = trim_messages(
+            as_oai_messages(messages + new_messages), model=model
+        )
         response = await litellm.acompletion(
             model=model,
-            messages=trim_messages(
-                messages + as_oai_messages(new_messages), model=model
-            ),
+            messages=completion_messages,
             tools=[t.model_dump() for t in tools] if tools else None,
             stream=True,
             **kwargs,

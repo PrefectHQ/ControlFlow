@@ -130,7 +130,6 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             tools=tools,
             handlers=[TUIHandler()] if controlflow.settings.enable_tui else None,
             max_iterations=1,
-            yield_deltas=False,
         ):
             response_messages.append(msg)
 

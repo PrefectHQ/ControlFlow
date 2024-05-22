@@ -272,12 +272,12 @@ def as_cf_messages(
     return result
 
 
-def as_oai_messages(messages: list[Union[ControlFlowMessage, litellm.Message]]):
+def as_oai_messages(messages: list[Union[dict, ControlFlowMessage, litellm.Message]]):
     result = []
     for msg in messages:
         if isinstance(msg, ControlFlowMessage):
             result.append(msg.as_openai_message())
-        elif isinstance(msg, litellm.Message):
+        elif isinstance(msg, (dict, litellm.Message)):
             result.append(msg)
         else:
             raise ValueError(f"Invalid message type: {type(msg)}")
