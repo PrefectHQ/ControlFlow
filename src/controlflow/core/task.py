@@ -317,6 +317,7 @@ class Task(ControlFlowModel):
             yield self
 
     def __enter__(self):
+        # use stack so we can enter the context multiple times
         self.__cm_stack.append(self._context())
         return self.__cm_stack[-1].__enter__()
 
