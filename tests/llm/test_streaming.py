@@ -2,8 +2,8 @@ from collections import Counter
 
 import litellm
 from controlflow.llm.completions import completion_stream
-from controlflow.llm.streaming import StreamHandler
-from controlflow.llm.tools import ToolCall
+from controlflow.llm.handlers import StreamHandler
+from controlflow.llm.tools import ToolResult
 from controlflow.utilities.types import Message
 from pydantic import BaseModel
 
@@ -35,7 +35,7 @@ class MockStreamHandler(StreamHandler):
             StreamCall(method="on_message_done", args=dict(message=message))
         )
 
-    def on_tool_call(self, tool_call: ToolCall):
+    def on_tool_call(self, tool_call: ToolResult):
         self.calls.append(
             StreamCall(method="on_tool_call", args=dict(tool_call=tool_call))
         )

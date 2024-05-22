@@ -1,3 +1,4 @@
+import datetime
 import inspect
 import json
 from functools import partial, update_wrapper
@@ -9,7 +10,8 @@ from marvin.beta.assistants import Assistant, Thread
 from marvin.beta.assistants.assistants import AssistantTool
 from marvin.types import FunctionTool
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin
-from pydantic import BaseModel, PrivateAttr
+from pydantic import BaseModel, Field, PrivateAttr
+from traitlets import default
 
 # flag for unset defaults
 NOTSET = "__NOTSET__"
@@ -77,18 +79,25 @@ class Tool(ControlFlowModel):
         return self._fn(*args, **kwargs)
 
 
-class ToolCall(ControlFlowModel):
+class ToolResult(ControlFlowModel):
     model_config = dict(allow_arbitrary_types=True)
     tool_call_id: str
     tool_name: str
     tool: Tool
     args: dict
-    output: Any
+    result: Any = Field(None, exclude=True)
 
 
 class Message(litellm.Message):
-    _tool_call: ToolCall = PrivateAttr()
+    model_config = dict(validate_assignment=True)
+    timestamp: datetime.datetime = Field(
+        default_factory=lambda: datetime.datetime.now(datetime.timezone.utc)
+    )
 
-    def __init__(self, *args, tool_output: Any = None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._tool_output = tool_output
+    tool_result: Optional[ToolResult] = None
+
+    def __init__(
+        self, content: str, *, role: str = None, tool_result: Any = None, **kwargs
+    ):
+        super().__init__(content=content, role=role, **kwargs)
+        self.tool_result = tool_result

@@ -115,19 +115,7 @@ class TasksTemplate(Template):
         the correct types. For some, like a DataFrame, provide an appropriate
         kwargs dict. Results should never include your name prefix; that's only
         for messages.
-        
-        #### Using messages as results
-        
-        If you posted a message whose contents could be reused as the result of a
-        task, you can quickly load the contents by providing a `LoadMessage`
-        object when marking a task successful. In the LoadMessage, indicate
-        how many messages ago to load (defaults to 1), as well as any characters
-        to strip from the start or end of the message (for example, always
-        remove your name prefix and suffix comments like "I'll mark the task
-        complete now."). Note: the message content will be passed as a raw
-        string or JSON to the task result constructor, so make sure it is in
-        exactly the correct format. Otherwise, provide a result manually.
-        
+                
         """
     tasks: list[Task]
 
