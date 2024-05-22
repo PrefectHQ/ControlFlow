@@ -68,14 +68,20 @@ class Tool(ControlFlowModel):
     type: Literal["function"] = "function"
     function: ToolFunction
     _fn: Callable = PrivateAttr()
+    _metadata: dict = PrivateAttr(default_factory=dict)
 
-    def __init__(self, *, _fn: Callable, **kwargs):
+    def __init__(self, *, _fn: Callable, _metadata: dict = None, **kwargs):
         super().__init__(**kwargs)
         self._fn = _fn
+        self._metadata = _metadata or {}
 
     @classmethod
     def from_function(
-        cls, fn: Callable, name: Optional[str] = None, description: Optional[str] = None
+        cls,
+        fn: Callable,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        metadata: Optional[dict] = None,
     ):
         if name is None and fn.__name__ == "<lambda>":
             name = "__lambda__"
@@ -89,6 +95,7 @@ class Tool(ControlFlowModel):
                 ).json_schema(),
             ),
             _fn=fn,
+            _metadata=metadata or getattr(fn, "__metadata__", {}),
         )
 
     def __call__(self, *args, **kwargs):
@@ -215,9 +222,9 @@ class ToolMessage(ControlFlowMessage):
     _openai_fields = {"role", "content", "tool_call_id"}
     # ---- end openai fields
 
-    tool_call: "ToolCall" = Field(cf_field=True, repr=False)
-    tool_result: Any = Field(None, cf_field=True, exclude=True)
-    tool_failed: bool = Field(False, cf_field=True)
+    tool_call: "ToolCall" = Field(repr=False)
+    tool_result: Any = Field(None, exclude=True)
+    tool_metadata: dict = Field(default_factory=dict)
 
 
 MessageType = Union[SystemMessage, UserMessage, AssistantMessage, ToolMessage]

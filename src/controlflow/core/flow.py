@@ -30,6 +30,10 @@ class Flow(ControlFlowModel):
     _tasks: dict[str, "Task"] = {}
     context: dict[str, Any] = {}
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__cm_stack = []
+
     def add_task(self, task: "Task"):
         if self._tasks.get(task.id, task) is not task:
             raise ValueError(
@@ -43,11 +47,12 @@ class Flow(ControlFlowModel):
             yield self
 
     def __enter__(self):
-        self.__cm = self._context()
-        return self.__cm.__enter__()
+        # use stack so we can enter the context multiple times
+        self.__cm_stack.append(self._context())
+        return self.__cm_stack[-1].__enter__()
 
     def __exit__(self, *exc_info):
-        return self.__cm.__exit__(*exc_info)
+        return self.__cm_stack.pop().__exit__(*exc_info)
 
     def run(self):
         """

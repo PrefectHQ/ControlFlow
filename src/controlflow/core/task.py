@@ -122,6 +122,7 @@ class Task(ControlFlowModel):
             ).strip()
 
         super().__init__(**kwargs)
+        self.__cm_stack = []
 
     def __repr__(self):
         include_fields = [
@@ -316,11 +317,11 @@ class Task(ControlFlowModel):
             yield self
 
     def __enter__(self):
-        self.__cm = self._context()
-        return self.__cm.__enter__()
+        self.__cm_stack.append(self._context())
+        return self.__cm_stack[-1].__enter__()
 
     def __exit__(self, *exc_info):
-        return self.__cm.__exit__(*exc_info)
+        return self.__cm_stack.pop().__exit__(*exc_info)
 
     def is_incomplete(self) -> bool:
         return self.status == TaskStatus.INCOMPLETE
@@ -367,6 +368,7 @@ class Task(ControlFlowModel):
             succeed,
             name=f"mark_task_{self.id}_successful",
             description=f"Mark task {self.id} as successful.",
+            metadata=dict(is_task_status_tool=True),
         )
 
     def _create_fail_tool(self) -> Callable:
@@ -378,6 +380,7 @@ class Task(ControlFlowModel):
             self.mark_failed,
             name=f"mark_task_{self.id}_failed",
             description=f"Mark task {self.id} as failed. Only use when a technical issue like a broken tool or unresponsive human prevents completion.",
+            metadata=dict(is_task_status_tool=True),
         )
 
     def _create_skip_tool(self) -> Callable:
@@ -388,6 +391,7 @@ class Task(ControlFlowModel):
             self.mark_skipped,
             name=f"mark_task_{self.id}_skipped",
             description=f"Mark task {self.id} as skipped. Only use when completing its parent task early.",
+            metadata=dict(is_task_status_tool=True),
         )
 
     def get_agents(self) -> list["Agent"]:

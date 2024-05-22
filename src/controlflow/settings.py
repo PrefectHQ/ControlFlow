@@ -95,7 +95,7 @@ class Settings(ControlFlowSettings):
     # ------------ TUI settings ------------
 
     enable_tui: bool = Field(
-        True,
+        False,
         description="If True, the TUI will be enabled. If False, the TUI will be disabled.",
     )
     run_tui_headless: bool = Field(

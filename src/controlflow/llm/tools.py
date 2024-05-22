@@ -20,14 +20,18 @@ def tool(
     *,
     name: Optional[str] = None,
     description: Optional[str] = None,
+    metadata: Optional[dict] = None,
 ) -> Tool:
     if fn is None:
-        return partial(tool, name=name, description=description)
-    return Tool.from_function(fn, name=name, description=description)
+        return partial(tool, name=name, description=description, metadata=metadata)
+    return Tool.from_function(fn, name=name, description=description, metadata=metadata)
 
 
 def annotate_fn(
-    fn: Callable, name: Optional[str], description: Optional[str]
+    fn: Callable,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    metadata: Optional[dict] = None,
 ) -> Callable:
     """
     Annotate a function with a new name and description without modifying the
@@ -37,6 +41,7 @@ def annotate_fn(
     new_fn = functools.partial(fn)
     new_fn.__name__ = name or fn.__name__
     new_fn.__doc__ = description or fn.__doc__
+    new_fn.__metadata__ = getattr(fn, "__metadata__", {}) | metadata
     return new_fn
 
 
@@ -110,25 +115,26 @@ def get_tool_calls(
 def handle_tool_call(tool_call: ToolCall, tools: list[dict, Callable]) -> ToolMessage:
     tool_lookup = as_tool_lookup(tools)
     fn_name = tool_call.function.name
-    fn_args = (None,)
+    fn_args = None
+    metadata = {}
     try:
-        tool_failed = False
         if fn_name not in tool_lookup:
             fn_output = f'Function "{fn_name}" not found.'
-            tool_failed = True
+            metadata["is_failed"] = True
         else:
             tool = tool_lookup[fn_name]
+            metadata.update(tool._metadata)
             fn_args = json.loads(tool_call.function.arguments)
             fn_output = tool(**fn_args)
     except Exception as exc:
         fn_output = f'Error calling function "{fn_name}": {exc}'
-        tool_failed = True
+        metadata["is_failed"] = True
     return ToolMessage(
         content=output_to_string(fn_output),
         tool_call_id=tool_call.id,
         tool_call=tool_call,
         tool_result=fn_output,
-        tool_failed=tool_failed,
+        tool_metadata=metadata,
     )
 
 
@@ -137,25 +143,26 @@ async def handle_tool_call_async(
 ) -> ToolMessage:
     tool_lookup = as_tool_lookup(tools)
     fn_name = tool_call.function.name
-    fn_args = (None,)
+    fn_args = None
+    metadata = {}
     try:
-        tool_failed = False
         if fn_name not in tool_lookup:
             fn_output = f'Function "{fn_name}" not found.'
-            tool_failed = True
+            metadata["is_failed"] = True
         else:
             tool = tool_lookup[fn_name]
+            metadata = tool._metadata
             fn_args = json.loads(tool_call.function.arguments)
             fn_output = tool(**fn_args)
             if inspect.is_awaitable(fn_output):
                 fn_output = await fn_output
     except Exception as exc:
         fn_output = f'Error calling function "{fn_name}": {exc}'
-        tool_failed = True
+        metadata["is_failed"] = True
     return ToolMessage(
         content=output_to_string(fn_output),
         tool_call_id=tool_call.id,
         tool_call=tool_call,
         tool_result=fn_output,
-        tool_failed=tool_failed,
+        tool_metadata=metadata,
     )
