@@ -3,8 +3,6 @@ import datetime
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
-import openai.types.beta.threads
-import openai.types.beta.threads.runs.run_step
 from textual.app import App, ComposeResult
 from textual.containers import Container
 from textual.css.query import NoMatches
@@ -15,7 +13,7 @@ import controlflow
 
 from .basic import Column, Row
 from .task import TUITask
-from .thread import TUIMessage, TUIRunStep
+from .thread import TUIMessage, TUIToolCall, TUIToolResult
 
 if TYPE_CHECKING:
     import controlflow
@@ -44,7 +42,7 @@ class TUIApp(App):
         inline: bool = True,
         inline_stay_visible: bool = True,
         headless: bool = None,
-        hold: bool = False,
+        hold: bool = True,
     ):
         if headless is None:
             headless = controlflow.settings.run_tui_headless
@@ -73,6 +71,7 @@ class TUIApp(App):
                 self.exit()
 
     def exit(self, *args, **kwargs):
+        self.hold = False
         self._is_ready = False
         return super().exit(*args, **kwargs)
 
@@ -105,14 +104,9 @@ class TUIApp(App):
             component.task = task
             component.scroll_visible()
         except NoMatches:
-            self._add_task(task)
-
-    def _add_task(self, task: "controlflow.Task"):
-        if not self._is_ready:
-            return
-        new_task = TUITask(task=task, id=f"task-{task.id}")
-        self.query_one("#tasks-container", Column).mount(new_task)
-        new_task.scroll_visible()
+            new_task = TUITask(task=task, id=f"task-{task.id}")
+            self.query_one("#tasks-container", Column).mount(new_task)
+            new_task.scroll_visible()
 
     def update_message(
         self, m_id: str, message: str, role: str, timestamp: datetime.datetime = None
@@ -122,39 +116,48 @@ class TUIApp(App):
             component.message = message
             component.scroll_visible()
         except NoMatches:
-            self._add_message(
-                m_id=m_id, message=message, role=role, timestamp=timestamp
+            new_message = TUIMessage(
+                message=message,
+                role=role,
+                timestamp=timestamp,
+                id=f"message-{m_id}",
             )
+            self.query_one("#thread-container", Column).mount(new_message)
+            new_message.scroll_visible()
 
-    def _add_message(
-        self,
-        m_id: str,
-        message: str,
-        role: str,
-        timestamp: datetime.datetime = None,
+    def update_tool_call(
+        self, t_id: str, tool_name: str, tool_args: str, timestamp: datetime.datetime
     ):
-        if not self._is_ready:
-            return
-        new_message = TUIMessage(
-            message=message, role=role, timestamp=timestamp, id=f"message-{m_id}"
-        )
-        self.query_one("#thread-container", Column).mount(new_message)
-        new_message.scroll_visible()
-
-    def update_step(self, step: openai.types.beta.threads.runs.run_step.RunStep):
         try:
-            component = self.query_one(f"#step-{step.id}", TUIRunStep)
-            component.step = step
+            component = self.query_one(f"#tool-call-{t_id}", TUIToolCall)
+            component.tool_args = tool_args
             component.scroll_visible()
         except NoMatches:
-            self._add_step(step)
+            new_step = TUIToolCall(
+                tool_name=tool_name,
+                tool_args=tool_args,
+                timestamp=timestamp,
+                id=f"tool-call-{t_id}",
+            )
+            self.query_one("#thread-container", Column).mount(new_step)
+            new_step.scroll_visible()
 
-    def _add_step(self, step: openai.types.beta.threads.runs.run_step.RunStep):
-        if not self._is_ready:
-            return
-        new_step = TUIRunStep(step=step, id=f"step-{step.id}")
-        self.query_one("#thread-container", Column).mount(new_step)
-        new_step.scroll_visible()
+    def update_tool_result(
+        self, t_id: str, tool_name: str, tool_result: str, timestamp: datetime.datetime
+    ):
+        try:
+            component = self.query_one(f"#tool-result-{t_id}", TUIToolResult)
+            component.tool_result = tool_result
+            component.scroll_visible()
+        except NoMatches:
+            new_step = TUIToolResult(
+                tool_name=tool_name,
+                tool_result=tool_result,
+                timestamp=timestamp,
+                id=f"tool-result-{t_id}",
+            )
+            self.query_one("#thread-container", Column).mount(new_step)
+            new_step.scroll_visible()
 
     def set_agent(self, agent: "controlflow.Agent"):
         self.agent = agent

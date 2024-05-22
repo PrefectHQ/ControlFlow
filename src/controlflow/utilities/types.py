@@ -85,6 +85,7 @@ class ToolResult(ControlFlowModel):
     tool_name: str
     tool: Tool
     args: dict
+    is_error: bool
     result: Any = Field(None, exclude=True)
 
 

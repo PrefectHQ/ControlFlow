@@ -96,15 +96,15 @@ def completion(
 
         # on message done
         for h in handlers:
-            h.on_message_done(response.choices[0].message)
+            h.on_message_done(response)
         new_messages.append(response.choices[0].message)
 
         for tool_call in get_tool_calls(response):
             for h in handlers:
-                h.on_tool_call(tool_call=tool_call)
+                h.on_tool_call_done(tool_call=tool_call)
             tool_message = handle_tool_call(tool_call, tools)
             for h in handlers:
-                h.on_tool_result(tool_message.tool_result)
+                h.on_tool_result(tool_message)
             new_messages.append(tool_message)
 
         if len(responses) >= (max_iterations or math.inf):
@@ -156,6 +156,7 @@ def completion_stream(
 
     while not response or has_tool_calls(response):
         deltas = []
+        is_tool_call = False
         for delta in litellm.completion(
             model=model,
             messages=trim_messages(messages + new_messages, model=model),
@@ -163,19 +164,25 @@ def completion_stream(
             stream=True,
             **kwargs,
         ):
-            # on message created
-            if not deltas:
-                for h in handlers:
-                    h.on_message_created(delta=delta.choices[0].delta)
-
             deltas.append(delta)
             response = litellm.stream_chunk_builder(deltas)
 
+            # on message created
+            if len(deltas) == 1:
+                if get_tool_calls(response):
+                    is_tool_call = True
+                for h in handlers:
+                    if is_tool_call:
+                        h.on_tool_call_created(delta=delta)
+                    else:
+                        h.on_message_created(delta=delta)
+
             # on message delta
             for h in handlers:
-                h.on_message_delta(
-                    delta=delta.choices[0].delta, snapshot=response.choices[0].message
-                )
+                if is_tool_call:
+                    h.on_tool_call_delta(delta=delta, snapshot=response)
+                else:
+                    h.on_message_delta(delta=delta, snapshot=response)
 
             # yield
             yield delta, response
@@ -183,17 +190,18 @@ def completion_stream(
         responses.append(response)
 
         # on message done
-        for h in handlers:
-            h.on_message_done(response.choices[0].message)
+        if not is_tool_call:
+            for h in handlers:
+                h.on_message_done(response)
         new_messages.append(response.choices[0].message)
 
         # tool calls
         for tool_call in get_tool_calls(response):
             for h in handlers:
-                h.on_tool_call(tool_call=tool_call)
+                h.on_tool_call_done(tool_call=tool_call)
             tool_message = handle_tool_call(tool_call, tools)
             for h in handlers:
-                h.on_tool_result(tool_message.tool_result)
+                h.on_tool_result(tool_message)
             new_messages.append(tool_message)
 
             yield None, tool_message
@@ -250,15 +258,15 @@ async def completion_async(
 
         # on message done
         for h in handlers:
-            await maybe_coro(h.on_message_done(response.choices[0].message))
+            await maybe_coro(h.on_message_done(response))
         new_messages.append(response.choices[0].message)
 
         for tool_call in get_tool_calls(response):
             for h in handlers:
-                await maybe_coro(h.on_tool_call(tool_call=tool_call))
+                await maybe_coro(h.on_tool_call_done(tool_call=tool_call))
             tool_message = handle_tool_call(tool_call, tools)
             for h in handlers:
-                await maybe_coro(h.on_tool_result(tool_message.tool_result))
+                await maybe_coro(h.on_tool_result(tool_message))
             new_messages.append(tool_message)
 
         if len(responses) >= (max_iterations or math.inf):
@@ -310,6 +318,7 @@ async def completion_stream_async(
 
     while not response or has_tool_calls(response):
         deltas = []
+        is_tool_call = False
         async for delta in await litellm.acompletion(
             model=model,
             messages=trim_messages(messages + new_messages, model=model),
@@ -317,22 +326,27 @@ async def completion_stream_async(
             stream=True,
             **kwargs,
         ):
-            # on message created
-            if not deltas:
-                for h in handlers:
-                    await maybe_coro(h.on_message_created(delta=delta.choices[0].delta))
-
             deltas.append(delta)
             response = litellm.stream_chunk_builder(deltas)
 
-            # on message delta
+            # on message / tool call created
+            if len(deltas) == 1:
+                if get_tool_calls(response):
+                    is_tool_call = True
+                for h in handlers:
+                    if is_tool_call:
+                        await maybe_coro(h.on_tool_call_created(delta=delta))
+                    else:
+                        await maybe_coro(h.on_message_created(delta=delta))
+
+            # on message / tool call delta
             for h in handlers:
-                await maybe_coro(
-                    h.on_message_delta(
-                        delta=delta.choices[0].delta,
-                        snapshot=response.choices[0].message,
+                if is_tool_call:
+                    await maybe_coro(
+                        h.on_tool_call_delta(delta=delta, snapshot=response)
                     )
-                )
+                else:
+                    await maybe_coro(h.on_message_delta(delta=delta, snapshot=response))
 
             # yield
             yield delta, response
@@ -340,17 +354,18 @@ async def completion_stream_async(
         responses.append(response)
 
         # on message done
-        for h in handlers:
-            await maybe_coro(h.on_message_done(response.choices[0].message))
+        if not is_tool_call:
+            for h in handlers:
+                await maybe_coro(h.on_message_done(response))
         new_messages.append(response.choices[0].message)
 
         # tool calls
         for tool_call in get_tool_calls(response):
             for h in handlers:
-                await maybe_coro(h.on_tool_call(tool_call=tool_call))
+                await maybe_coro(h.on_tool_call_done(tool_call=tool_call))
             tool_message = handle_tool_call(tool_call, tools)
             for h in handlers:
-                await maybe_coro(h.on_tool_result(tool_message.tool_result))
+                await maybe_coro(h.on_tool_result(tool_message))
             new_messages.append(tool_message)
 
             yield None, tool_message

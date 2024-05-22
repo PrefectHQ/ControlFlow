@@ -2,7 +2,7 @@ import functools
 import inspect
 import json
 from functools import partial, update_wrapper
-from typing import Any, AsyncGenerator, Callable, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 import litellm
 import pydantic
@@ -109,58 +109,65 @@ def handle_tool_call(
 ) -> Message:
     tool_lookup = as_tool_lookup(tools)
     fn_name = tool_call.function.name
+    fn_args = (None,)
     try:
+        is_error = False
         if fn_name not in tool_lookup:
-            raise ValueError(f'Function "{fn_name}" not found.')
-        tool = tool_lookup[fn_name]
-        fn_args = json.loads(tool_call.function.arguments)
-        fn_output = tool(**fn_args)
-        tool_result = ToolResult(
-            tool_call_id=tool_call.id,
-            tool_name=fn_name,
-            tool=tool,
-            args=fn_args,
-            result=fn_output,
-        )
+            fn_output = f'Function "{fn_name}" not found.'
+            is_error = True
+        else:
+            tool = tool_lookup[fn_name]
+            fn_args = json.loads(tool_call.function.arguments)
+            fn_output = tool(**fn_args)
     except Exception as exc:
         fn_output = f'Error calling function "{fn_name}": {exc}'
-        tool_result = None
+        is_error = True
     return Message(
         role="tool",
         name=fn_name,
         content=output_to_string(fn_output),
         tool_call_id=tool_call.id,
-        tool_result=tool_result,
-    )
-
-
-async def handle_tool_call_async(
-    tool_call: litellm.utils.ChatCompletionMessageToolCall, tools: list[dict, Callable]
-) -> AsyncGenerator[Message, None]:
-    tool_lookup = as_tool_lookup(tools)
-    fn_name = tool_call.function.name
-    try:
-        if fn_name not in tool_lookup:
-            raise ValueError(f'Function "{fn_name}" not found.')
-        tool = tool_lookup[fn_name]
-        fn_args = json.loads(tool_call.function.arguments)
-        fn_output = tool(**fn_args)
-        if inspect.isawaitable(fn_output):
-            fn_output = await fn_output
-        tool_result = ToolResult(
+        tool_result=ToolResult(
             tool_call_id=tool_call.id,
             tool_name=fn_name,
             tool=tool,
             args=fn_args,
             result=fn_output,
-        )
+        ),
+    )
+
+
+async def handle_tool_call_async(
+    tool_call: litellm.utils.ChatCompletionMessageToolCall, tools: list[dict, Callable]
+) -> Message:
+    tool_lookup = as_tool_lookup(tools)
+    fn_name = tool_call.function.name
+    fn_args = (None,)
+    try:
+        is_error = False
+        if fn_name not in tool_lookup:
+            fn_output = f'Function "{fn_name}" not found.'
+            is_error = True
+        else:
+            tool = tool_lookup[fn_name]
+            fn_args = json.loads(tool_call.function.arguments)
+            fn_output = tool(**fn_args)
+            if inspect.is_awaitable(fn_output):
+                fn_output = await fn_output
     except Exception as exc:
         fn_output = f'Error calling function "{fn_name}": {exc}'
-        tool_result = None
-    yield Message(
+        is_error = True
+    return Message(
         role="tool",
         name=fn_name,
         content=output_to_string(fn_output),
         tool_call_id=tool_call.id,
-        tool_result=tool_result,
+        tool_result=ToolResult(
+            tool_call_id=tool_call.id,
+            tool_name=fn_name,
+            tool=tool,
+            args=fn_args,
+            is_error=is_error,
+            result=fn_output,
+        ),
     )
