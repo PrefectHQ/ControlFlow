@@ -1,6 +1,6 @@
 from controlflow.llm.tools import get_tool_calls
 from controlflow.utilities.context import ctx
-from controlflow.utilities.types import AssistantMessage, Message, ToolMessage
+from controlflow.utilities.types import AssistantMessage, ToolMessage
 
 
 class StreamHandler:
@@ -10,7 +10,7 @@ class StreamHandler:
     def on_message_delta(self, delta: AssistantMessage, snapshot: AssistantMessage):
         pass
 
-    def on_message_done(self, response: AssistantMessage):
+    def on_message_done(self, message: AssistantMessage):
         pass
 
     def on_tool_call_created(self, delta: AssistantMessage):
@@ -19,10 +19,10 @@ class StreamHandler:
     def on_tool_call_delta(self, delta: AssistantMessage, snapshot: AssistantMessage):
         pass
 
-    def on_tool_call_done(self, tool_call: AssistantMessage):
+    def on_tool_call_done(self, message: AssistantMessage):
         pass
 
-    def on_tool_result(self, tool_result: ToolMessage):
+    def on_tool_result(self, message: ToolMessage):
         pass
 
 
@@ -35,7 +35,7 @@ class AsyncStreamHandler(StreamHandler):
     ):
         pass
 
-    async def on_message_done(self, response: AssistantMessage):
+    async def on_message_done(self, message: AssistantMessage):
         pass
 
     async def on_tool_call_created(self, delta: AssistantMessage):
@@ -46,10 +46,10 @@ class AsyncStreamHandler(StreamHandler):
     ):
         pass
 
-    async def on_tool_call_done(self, tool_call: AssistantMessage):
+    async def on_tool_call_done(self, message: AssistantMessage):
         pass
 
-    async def on_tool_result(self, tool_result: ToolMessage):
+    async def on_tool_result(self, message: ToolMessage):
         pass
 
 
@@ -67,7 +67,7 @@ class TUIHandler(AsyncStreamHandler):
             for tool_call in get_tool_calls(snapshot):
                 tui.update_message(message=snapshot)
 
-    async def on_tool_result(self, message: Message):
+    async def on_tool_result(self, message: ToolMessage):
         if tui := ctx.get("tui"):
             tui.update_tool_result(message=message)
 
@@ -76,14 +76,14 @@ class PrintHandler(AsyncStreamHandler):
     def on_message_created(self, delta: AssistantMessage):
         print(f"Created: {delta}\n")
 
-    def on_message_done(self, response: AssistantMessage):
-        print(f"Done: {response}\n")
+    def on_message_done(self, message: AssistantMessage):
+        print(f"Done: {message}\n")
 
     def on_tool_call_created(self, delta: AssistantMessage):
         print(f"Tool call created: {delta}\n")
 
-    def on_tool_call_done(self, tool_call: AssistantMessage):
-        print(f"Tool call: {tool_call}\n")
+    def on_tool_call_done(self, message: AssistantMessage):
+        print(f"Tool call: {message}\n")
 
-    def on_tool_result(self, tool_result: ToolMessage):
-        print(f"Tool result: {tool_result}\n")
+    def on_tool_result(self, message: ToolMessage):
+        print(f"Tool result: {message}\n")

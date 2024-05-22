@@ -9,7 +9,7 @@ from litellm.utils import trim_messages
 from pydantic import Field, field_validator
 
 import controlflow
-from controlflow.utilities.types import ControlFlowModel, Message
+from controlflow.utilities.types import ControlFlowModel, MessageType
 
 
 def get_default_history() -> "History":
@@ -24,12 +24,12 @@ class History(ControlFlowModel, abc.ABC):
         limit: int = None,
         before: datetime.datetime = None,
         after: datetime.datetime = None,
-    ) -> list[Message]:
+    ) -> list[MessageType]:
         raise NotImplementedError()
 
     def load_messages_to_token_limit(
         self, thread_id: str, model: str = None
-    ) -> list[Message]:
+    ) -> list[MessageType]:
         messages = []
         # as long as the messages are not trimmed, keep loading more
         while messages == (trim := trim_messages(messages, model=model)):
@@ -42,12 +42,12 @@ class History(ControlFlowModel, abc.ABC):
         return trim
 
     @abc.abstractmethod
-    def save_messages(self, thread_id: str, messages: list[Message]):
+    def save_messages(self, thread_id: str, messages: list[MessageType]):
         raise NotImplementedError()
 
 
 class InMemoryHistory(History):
-    _history: ClassVar[dict[str, list[Message]]] = {}
+    _history: ClassVar[dict[str, list[MessageType]]] = {}
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -58,7 +58,7 @@ class InMemoryHistory(History):
         limit: int = None,
         before: datetime.datetime = None,
         after: datetime.datetime = None,
-    ) -> list[Message]:
+    ) -> list[MessageType]:
         messages = InMemoryHistory._history.get(thread_id, [])
         filtered_messages = [
             msg
@@ -69,7 +69,7 @@ class InMemoryHistory(History):
         ]
         return list(reversed(filtered_messages))
 
-    def save_messages(self, thread_id: str, messages: list[Message]):
+    def save_messages(self, thread_id: str, messages: list[MessageType]):
         InMemoryHistory._history.setdefault(thread_id, []).extend(messages)
 
 
@@ -94,7 +94,7 @@ class FileHistory(History):
         limit: int = None,
         before: datetime.datetime = None,
         after: datetime.datetime = None,
-    ) -> list[Message]:
+    ) -> list[MessageType]:
         if not self.path(thread_id).exists():
             return []
 
@@ -103,7 +103,7 @@ class FileHistory(History):
 
         messages = []
         for msg in reversed(all_messages):
-            message = Message.model_validate(msg)
+            message = MessageType.model_validate(msg)
             if before is None or message.timestamp < before:
                 if after is None or message.timestamp > after:
                     messages.append(message)
@@ -112,7 +112,7 @@ class FileHistory(History):
 
         return list(reversed(messages))
 
-    def save_messages(self, thread_id: str, messages: list[Message]):
+    def save_messages(self, thread_id: str, messages: list[MessageType]):
         if self.path(thread_id).exists():
             with open(self.path(thread_id), "r") as f:
                 all_messages = json.load(f)

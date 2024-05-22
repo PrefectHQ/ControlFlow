@@ -95,35 +95,8 @@ class Tool(ControlFlowModel):
         return self._fn(*args, **kwargs)
 
 
-class ToolResult(ControlFlowModel):
-    model_config = dict(allow_arbitrary_types=True)
-    tool_call_id: str
-    tool_name: str
-    tool: Tool
-    args: dict
-    is_error: bool
-    result: Any = Field(None, exclude=True)
-
-
-class Message(litellm.Message):
-    model_config = dict(validate_assignment=True)
-    timestamp: datetime.datetime = Field(
-        default_factory=lambda: datetime.datetime.now(datetime.timezone.utc)
-    )
-
-    tool_result: Optional[ToolResult] = None
-
-    def __init__(
-        self, content: str, *, role: str = None, tool_result: Any = None, **kwargs
-    ):
-        super().__init__(content=content, role=role, **kwargs)
-        self.tool_result = tool_result
-
-
 # -----------------------------------------------
-# -----------------------------------------------
-# -----------------------------------------------
-# -----------------------------------------------
+# Messages
 # -----------------------------------------------
 
 
@@ -245,6 +218,9 @@ class ToolMessage(ControlFlowMessage):
     tool_call: "ToolCall" = Field(cf_field=True, repr=False)
     tool_result: Any = Field(None, cf_field=True, exclude=True)
     tool_failed: bool = Field(False, cf_field=True)
+
+
+MessageType = Union[SystemMessage, UserMessage, AssistantMessage, ToolMessage]
 
 
 class ToolCallFunction(_OpenAIBaseType):

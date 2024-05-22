@@ -14,16 +14,9 @@ from controlflow.llm.tools import (
 )
 from controlflow.utilities.types import (
     ControlFlowMessage,
-    Message,
     as_cf_messages,
     as_oai_messages,
 )
-
-
-def as_cf_message(message: Union[Message, litellm.Message]) -> Message:
-    if isinstance(message, Message):
-        return message
-    return Message(**message.model_dump())
 
 
 async def maybe_coro(coro):

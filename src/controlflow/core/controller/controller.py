@@ -20,7 +20,7 @@ from controlflow.llm.history import History
 from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
 from controlflow.utilities.tasks import all_complete, any_incomplete
-from controlflow.utilities.types import FunctionTool, Message
+from controlflow.utilities.types import FunctionTool, SystemMessage
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +119,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         instructions = instructions_template.render()
 
         # prepare messages
-        system_message = Message(content=instructions, role="system")
+        system_message = SystemMessage(content=instructions)
         messages = self.history.load_messages(thread_id=self.flow.thread_id)
 
         # call llm
