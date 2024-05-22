@@ -1,13 +1,13 @@
-import datetime
+import functools
 import inspect
 import json
 from functools import partial, update_wrapper
-from typing import Any, AsyncGenerator, Callable, Generator, Optional, Union, cast
+from typing import Any, AsyncGenerator, Callable, Optional, Union
 
 import litellm
 import pydantic
 
-from controlflow.utilities.types import Message, Tool, ToolCall
+from controlflow.utilities.types import Message, Tool, ToolResult
 
 
 def tool(
@@ -19,6 +19,20 @@ def tool(
     if fn is None:
         return partial(tool, name=name, description=description)
     return Tool.from_function(fn, name=name, description=description)
+
+
+def annotate_fn(
+    fn: Callable, name: Optional[str], description: Optional[str]
+) -> Callable:
+    """
+    Annotate a function with a new name and description without modifying the
+    original. Useful when you want to provide a custom name and description for
+    a tool, but without creating a new tool object.
+    """
+    new_fn = functools.partial(fn)
+    new_fn.__name__ = name or fn.__name__
+    new_fn.__doc__ = description or fn.__doc__
+    return new_fn
 
 
 def as_tools(tools: list[Union[Tool, Callable]]) -> list[Tool]:
@@ -84,80 +98,69 @@ def output_to_string(output: Any) -> str:
     return output
 
 
-def handle_tool_calls_gen(
-    response: litellm.ModelResponse, tools: list[dict, Callable]
-) -> Generator[Message, None, None]:
+def get_tool_calls(
+    response: litellm.ModelResponse,
+) -> list[litellm.utils.ChatCompletionMessageToolCall]:
+    return response.choices[0].message.get("tool_calls", [])
+
+
+def handle_tool_call(
+    tool_call: litellm.utils.ChatCompletionMessageToolCall, tools: list[dict, Callable]
+) -> Message:
     tool_lookup = as_tool_lookup(tools)
-
-    for tool_call in response.choices[0].message.get("tool_calls", []):
-        tool_call = cast(litellm.utils.ChatCompletionMessageToolCall, tool_call)
-        fn_name = tool_call.function.name
-        try:
-            if fn_name not in tool_lookup:
-                raise ValueError(f'Function "{fn_name}" not found.')
-            tool = tool_lookup[fn_name]
-            fn_args = json.loads(tool_call.function.arguments)
-            fn_output = tool(**fn_args)
-        except Exception as exc:
-            fn_output = f'Error calling function "{fn_name}": {exc}'
-
-        yield Message(
-            role="tool",
-            name=fn_name,
-            content=output_to_string(fn_output),
+    fn_name = tool_call.function.name
+    try:
+        if fn_name not in tool_lookup:
+            raise ValueError(f'Function "{fn_name}" not found.')
+        tool = tool_lookup[fn_name]
+        fn_args = json.loads(tool_call.function.arguments)
+        fn_output = tool(**fn_args)
+        tool_result = ToolResult(
             tool_call_id=tool_call.id,
-            _tool_call=ToolCall(
-                tool_call_id=tool_call.id,
-                tool_name=fn_name,
-                tool=tool,
-                args=fn_args,
-                output=fn_output,
-                timestamp=datetime.datetime.now(datetime.timezone.utc),
-            ),
+            tool_name=fn_name,
+            tool=tool,
+            args=fn_args,
+            result=fn_output,
         )
+    except Exception as exc:
+        fn_output = f'Error calling function "{fn_name}": {exc}'
+        tool_result = None
+    return Message(
+        role="tool",
+        name=fn_name,
+        content=output_to_string(fn_output),
+        tool_call_id=tool_call.id,
+        tool_result=tool_result,
+    )
 
 
-def handle_tool_calls(
-    response: litellm.ModelResponse, tools: list[dict, Callable]
-) -> list[Message]:
-    return list(handle_tool_calls_gen(response, tools))
-
-
-async def handle_tool_calls_gen_async(
-    response: litellm.ModelResponse, tools: list[dict, Callable]
+async def handle_tool_call_async(
+    tool_call: litellm.utils.ChatCompletionMessageToolCall, tools: list[dict, Callable]
 ) -> AsyncGenerator[Message, None]:
     tool_lookup = as_tool_lookup(tools)
-
-    for tool_call in response.choices[0].message.get("tool_calls", []):
-        tool_call = cast(litellm.utils.ChatCompletionMessageToolCall, tool_call)
-        fn_name = tool_call.function.name
-        try:
-            if fn_name not in tool_lookup:
-                raise ValueError(f'Function "{fn_name}" not found.')
-            tool = tool_lookup[fn_name]
-            fn_args = json.loads(tool_call.function.arguments)
-            fn_output = tool(**fn_args)
-            if inspect.isawaitable(fn_output):
-                fn_output = await fn_output
-        except Exception as exc:
-            fn_output = f'Error calling function "{fn_name}": {exc}'
-        yield Message(
-            role="tool",
-            name=fn_name,
-            content=output_to_string(fn_output),
+    fn_name = tool_call.function.name
+    try:
+        if fn_name not in tool_lookup:
+            raise ValueError(f'Function "{fn_name}" not found.')
+        tool = tool_lookup[fn_name]
+        fn_args = json.loads(tool_call.function.arguments)
+        fn_output = tool(**fn_args)
+        if inspect.isawaitable(fn_output):
+            fn_output = await fn_output
+        tool_result = ToolResult(
             tool_call_id=tool_call.id,
-            _tool_call=ToolCall(
-                tool_call_id=tool_call.id,
-                tool_name=fn_name,
-                tool=tool,
-                args=fn_args,
-                output=fn_output,
-                timestamp=datetime.datetime.now(datetime.timezone.utc),
-            ),
+            tool_name=fn_name,
+            tool=tool,
+            args=fn_args,
+            result=fn_output,
         )
-
-
-async def handle_tool_calls_async(
-    response: litellm.ModelResponse, tools: list[dict, Callable]
-) -> list[Message]:
-    return [t async for t in handle_tool_calls_gen_async(response, tools)]
+    except Exception as exc:
+        fn_output = f'Error calling function "{fn_name}": {exc}'
+        tool_result = None
+    yield Message(
+        role="tool",
+        name=fn_name,
+        content=output_to_string(fn_output),
+        tool_call_id=tool_call.id,
+        tool_result=tool_result,
+    )

@@ -5,6 +5,7 @@ from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     GenericAlias,
     Literal,
     Optional,
@@ -13,10 +14,6 @@ from typing import (
     _LiteralGenericAlias,
 )
 
-import marvin
-import marvin.utilities.tools
-from marvin.types import BaseMessage
-from marvin.utilities.tools import FunctionTool
 from pydantic import (
     Field,
     PydanticSchemaGenerationError,
@@ -27,20 +24,19 @@ from pydantic import (
 )
 
 import controlflow
-from controlflow.core.flow import get_flow_messages
 from controlflow.instructions import get_instructions
+from controlflow.llm.tools import annotate_fn
 from controlflow.tools.talk_to_human import talk_to_human
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
-from controlflow.utilities.prefect import wrap_prefect_tool
 from controlflow.utilities.tasks import (
     collect_tasks,
     visit_task_collection,
 )
 from controlflow.utilities.types import (
     NOTSET,
-    AssistantTool,
     ControlFlowModel,
+    Message,
     PandasDataFrame,
     PandasSeries,
     ToolType,
@@ -89,7 +85,7 @@ class LoadMessage(ControlFlowModel):
         "the message. For example, remove comments like 'I'll mark the task complete now.'",
     )
 
-    def trim_message(self, message: BaseMessage) -> str:
+    def trim_message(self, message: Message) -> str:
         content = message.content[0].text.value
         if self.strip_prefix:
             if content.startswith(self.strip_prefix):
@@ -146,7 +142,10 @@ class Task(ControlFlowModel):
         ", generic alias, BaseModel subclass, pd.DataFrame, or pd.Series.",
     )
     error: Union[str, None] = None
-    tools: list[ToolType] = []
+    tools: list[Callable] = Field(
+        default_factory=list,
+        description="Tools available to every agent working on this task.",
+    )
     user_access: bool = False
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     _subtasks: set["Task"] = set()
@@ -202,7 +201,7 @@ class Task(ControlFlowModel):
         return v
 
     @field_validator("agents", mode="before")
-    def _default_agents(cls, v):
+    def _validate_agents(cls, v):
         if v == []:
             raise ValueError("At least one agent is required.")
         return v
@@ -267,17 +266,8 @@ class Task(ControlFlowModel):
 
     @field_serializer("tools")
     def _serialize_tools(self, tools: list[ToolType]):
-        serialized_tools = []
-        for tool in tools:
-            if not isinstance(tool, AssistantTool):
-                tool = marvin.utilities.tools.tool_from_function(tool)
-            if isinstance(tool, FunctionTool):
-                serialized_tools.append(
-                    tool.function.model_dump(include={"name", "description"})
-                )
-            else:
-                serialized_tools.append(tool)
-        return serialized_tools
+        tools = controlflow.llm.tools.as_tools(tools)
+        return [t.model_dump({"name", "description"}) for t in tools]
 
     def friendly_name(self):
         if len(self.objective) > 50:
@@ -405,7 +395,7 @@ class Task(ControlFlowModel):
     def __hash__(self):
         return id(self)
 
-    def _create_success_tool(self) -> FunctionTool:
+    def _create_success_tool(self) -> Callable:
         """
         Create an agent-compatible tool for marking this task as successful.
         """
@@ -419,47 +409,35 @@ class Task(ControlFlowModel):
         else:
             result_schema = generate_result_schema(self.result_type)
 
-            def succeed(result: Union[LoadMessage, result_schema]) -> str:  # type: ignore
-                # a shortcut for loading results from recent messages
-                if isinstance(result, dict) and result.get("type") == "LoadMessage":
-                    result = LoadMessage(**result)
-                    messages = get_flow_messages(limit=result.num_messages_ago)
-                    if messages:
-                        result = result.trim_message(messages[0])
-                    else:
-                        raise ValueError("Could not load last message.")
-
+            def succeed(result: result_schema) -> str:  # type: ignore
                 return self.mark_successful(result=result)
 
-        tool = marvin.utilities.tools.tool_from_function(
+        return annotate_fn(
             succeed,
             name=f"mark_task_{self.id}_successful",
             description=f"Mark task {self.id} as successful.",
         )
 
-        return tool
-
-    def _create_fail_tool(self) -> FunctionTool:
+    def _create_fail_tool(self) -> Callable:
         """
         Create an agent-compatible tool for failing this task.
         """
-        tool = marvin.utilities.tools.tool_from_function(
+
+        return annotate_fn(
             self.mark_failed,
             name=f"mark_task_{self.id}_failed",
             description=f"Mark task {self.id} as failed. Only use when a technical issue like a broken tool or unresponsive human prevents completion.",
         )
-        return tool
 
-    def _create_skip_tool(self) -> FunctionTool:
+    def _create_skip_tool(self) -> Callable:
         """
         Create an agent-compatible tool for skipping this task.
         """
-        tool = marvin.utilities.tools.tool_from_function(
+        return annotate_fn(
             self.mark_skipped,
             name=f"mark_task_{self.id}_skipped",
             description=f"Mark task {self.id} as skipped. Only use when completing its parent task early.",
         )
-        return tool
 
     def get_agents(self) -> list["Agent"]:
         if self.agents:
@@ -467,7 +445,7 @@ class Task(ControlFlowModel):
         elif self.parent:
             return self.parent.get_agents()
         else:
-            from controlflow.core.agent import default_agent
+            from controlflow.core.agent import get_default_agent
             from controlflow.core.flow import get_flow
 
             try:
@@ -477,9 +455,9 @@ class Task(ControlFlowModel):
             if flow and flow.agents:
                 return flow.agents
             else:
-                return [default_agent()]
+                return [get_default_agent()]
 
-    def get_tools(self) -> list[ToolType]:
+    def get_tools(self) -> list[Callable]:
         tools = self.tools.copy()
         if self.is_incomplete():
             tools.extend([self._create_fail_tool(), self._create_success_tool()])
@@ -488,7 +466,8 @@ class Task(ControlFlowModel):
                 tools.append(self._create_skip_tool())
         if self.user_access:
             tools.append(talk_to_human)
-        return [wrap_prefect_tool(t) for t in tools]
+        return tools
+        # return [wrap_prefect_tool(t) for t in tools]
 
     def set_status(self, status: TaskStatus):
         self.status = status

@@ -237,7 +237,7 @@ markupsafe==2.1.5
     # via mkdocs-autorefs
     # via mkdocstrings
     # via werkzeug
-marvin @ git+https://github.com/prefecthq/marvin@fbfa2e6d2f8f65d611f3519941966e7fc382a880
+marvin @ git+https://github.com/prefecthq/marvin@9ff559318af3dd1185ab7d6a1e85b39967915b81
     # via controlflow
 matplotlib-inline==0.1.6
     # via ipython
@@ -325,7 +325,7 @@ pluggy==1.4.0
     # via pytest
 pre-commit==3.7.0
     # via prefect
-prefect @ git+https://github.com/prefecthq/prefect@b7ce5ed9eb0cf813dfb20a9f1fe8815dd2008ca1
+prefect @ git+https://github.com/prefecthq/prefect@aad7f63ccfc7767729f65fe20b0defb208b2c451
     # via controlflow
 prompt-toolkit==3.0.43
     # via ipython

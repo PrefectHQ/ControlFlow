@@ -48,6 +48,7 @@
                 "concepts/tasks",
                 "concepts/flows",
                 "concepts/agents",
+                "concepts/workflow-design",
                 "concepts/execution"
             ]
         },

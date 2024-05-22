@@ -6,16 +6,14 @@ from contextlib import asynccontextmanager
 from functools import cached_property
 from typing import Union
 
-import marvin.utilities
-import marvin.utilities.tools
 import prefect
 from marvin.beta.assistants import EndRun, PrintHandler, Run
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
 from openai import AsyncAssistantEventHandler
-from openai.types.beta.threads import Message, MessageDelta
+from openai.types.beta.threads import Message as OAIMessage
+from openai.types.beta.threads import MessageDelta as OAIMessageDelta
 from openai.types.beta.threads.runs import RunStep, RunStepDelta, ToolCall
 from prefect import get_client as get_prefect_client
-from prefect import task as prefect_task
 from prefect.context import FlowRunContext
 from pydantic import BaseModel, Field, computed_field, model_validator
 
@@ -26,16 +24,17 @@ from controlflow.core.flow import Flow, get_flow
 from controlflow.core.graph import Graph
 from controlflow.core.task import Task
 from controlflow.instructions import get_instructions
-from controlflow.llm.history import BaseHistory
+from controlflow.llm.completions import completion_stream_async
+from controlflow.llm.handlers import PrintHandler
+from controlflow.llm.history import History
 from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
 from controlflow.utilities.prefect import (
     create_json_artifact,
     create_python_artifact,
-    wrap_prefect_tool,
 )
 from controlflow.utilities.tasks import all_complete, any_incomplete
-from controlflow.utilities.types import FunctionTool
+from controlflow.utilities.types import FunctionTool, Message
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +67,9 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         description="Tasks that the controller will complete.",
     )
     agents: Union[list[Agent], None] = None
-    history: BaseHistory = Field()
+    history: History = Field(
+        default_factory=controlflow.llm.history.get_default_history
+    )
     context: dict = {}
     model_config: dict = dict(extra="forbid")
     enable_tui: bool = Field(default_factory=lambda: controlflow.settings.enable_tui)
@@ -90,10 +91,12 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         return self
 
     def _create_help_tool(self) -> FunctionTool:
-        @marvin.utilities.tools.tool_from_function
         def help_im_stuck():
             """
-            If you are stuck because no tasks are ready to be worked on, you can call this tool to end your turn. A new agent (possibly you) will be selected to go next. If this tool is used 3 times, the workflow will be aborted automatically, so only use it if you are truly stuck.
+            If you are stuck because no tasks are ready to be worked on, you can
+            call this tool to end your turn. A new agent (possibly you) will be
+            selected to go next. If this tool is used 3 times, the workflow will
+            be aborted automatically, so only use it if you are truly stuck.
             """
             self._endrun_count += 1
             if self._endrun_count >= 3:
@@ -108,69 +111,58 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         Run a single agent.
         """
 
-        @prefect_task(task_run_name=f'Run Agent: "{agent.name}"')
-        async def _run_agent(controller: Controller, agent: Agent, tasks: list[Task]):
-            from controlflow.core.controller.instruction_template import MainTemplate
+        from controlflow.core.controller.instruction_template import MainTemplate
 
-            tasks = tasks or controller.tasks
+        tasks = tasks or self.tasks
 
-            tools = (
-                controller.flow.tools
-                + agent.get_tools()
-                + [controller._create_help_tool()]
-            )
+        tools = self.flow.tools + agent.get_tools() + [self._create_help_tool()]
 
-            # add tools for any inactive tasks that the agent is assigned to
-            for task in tasks:
-                if agent in task.get_agents():
-                    tools = tools + task.get_tools()
+        # add tools for any inactive tasks that the agent is assigned to
+        for task in tasks:
+            if agent in task.get_agents():
+                tools = tools + task.get_tools()
 
-            instructions_template = MainTemplate(
-                agent=agent,
-                controller=controller,
-                tasks=tasks,
-                context=controller.context,
-                instructions=get_instructions(),
-            )
-            instructions = instructions_template.render()
-
-            # filter tools because duplicate names are not allowed
-            final_tools = []
-            final_tool_names = set()
-            for tool in tools:
-                if isinstance(tool, FunctionTool):
-                    if tool.function.name in final_tool_names:
-                        continue
-                final_tool_names.add(tool.function.name)
-                final_tools.append(wrap_prefect_tool(tool))
-
-            handler = TUIHandler if controlflow.settings.enable_tui else AgentHandler
-
-            run = Run(
-                assistant=agent,
-                thread=thread or controller.flow.thread,
-                instructions=instructions,
-                tools=final_tools,
-                event_handler_class=handler,
-            )
-
-            await run.run_async()
-
-            create_json_artifact(
-                key="messages",
-                data=[m.model_dump() for m in run.messages],
-                description="All messages sent and received during the run.",
-            )
-            create_json_artifact(
-                key="actions",
-                data=[s.model_dump() for s in run.steps],
-                description="All actions taken by the assistant during the run.",
-            )
-            return run
-
-        return await _run_agent(
-            controller=self, agent=agent, tasks=tasks, thread=thread
+        instructions_template = MainTemplate(
+            agent=agent,
+            controller=self,
+            tasks=tasks,
+            context=self.context,
+            instructions=get_instructions(),
         )
+        instructions = instructions_template.render()
+
+        # prepare messages
+        system_message = Message(content=instructions, role="system")
+        messages = self.history.load_messages(thread_id=self.flow.thread_id)
+
+        # call llm
+        r = []
+        async for _ in completion_stream_async(
+            messages=[system_message] + messages,
+            model=agent.model,
+            tools=tools,
+            handlers=[PrintHandler()],
+            max_iterations=1,
+            response_callback=r.append,
+        ):
+            pass
+        response = r[0]
+
+        # save history
+        self.history.save_messages(
+            thread_id=self.flow.thread_id, messages=response.messages
+        )
+
+        # create_json_artifact(
+        #     key="messages",
+        #     data=[m.model_dump() for m in run.messages],
+        #     description="All messages sent and received during the run.",
+        # )
+        # create_json_artifact(
+        #     key="actions",
+        #     data=[s.model_dump() for s in run.steps],
+        #     description="All actions taken by the assistant during the run.",
+        # )
 
     def choose_agent(self, agents: list[Agent], tasks: list[Task]) -> Agent:
         return marvin_moderator(
@@ -195,24 +187,28 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         Run the controller for a single iteration of the provided tasks. An agent will be selected to run the tasks.
         """
         async with self.tui():
+            # put the flow in context
             with self.flow:
                 # get the tasks to run
                 ready_tasks = {t for t in self.tasks if t.is_ready()}
                 upstreams = {d for t in ready_tasks for d in t.depends_on}
                 tasks = list(ready_tasks.union(upstreams))
-                # tasks = self.graph.upstream_dependencies(self.tasks, include_tasks=True)
 
                 if all(t.is_complete() for t in tasks):
                     return
 
                 # get the agents
-                agent_candidates = {
+                agent_candidates = [
                     a for t in tasks for a in t.get_agents() if t.is_ready()
-                }
+                ]
+                if len({a.name for a in agent_candidates}) != len(agent_candidates):
+                    raise ValueError(
+                        "Multiple agents with the same name were found. Agents must have unique names."
+                    )
                 if self.agents:
-                    agents = list(agent_candidates.intersection(self.agents))
+                    agents = [a for a in agent_candidates if a in self.agents]
                 else:
-                    agents = list(agent_candidates)
+                    agents = agent_candidates
 
                 # select the next agent
                 if len(agents) == 0:
@@ -222,6 +218,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
                 elif len(agents) == 1:
                     agent = agents[0]
                 else:
+                    raise NotImplementedError("Need to reimplement multi-agent")
                     agent = self.choose_agent(agents=agents, tasks=tasks)
 
                 await self._run_agent(agent, tasks=tasks)
@@ -249,7 +246,9 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
 
 class TUIHandler(AsyncAssistantEventHandler):
-    async def on_message_delta(self, delta: MessageDelta, snapshot: Message) -> None:
+    async def on_message_delta(
+        self, delta: OAIMessageDelta, snapshot: OAIMessage
+    ) -> None:
         if tui := ctx.get("tui"):
             content = []
             for item in snapshot.content:
@@ -302,6 +301,7 @@ class AgentHandler(PrintHandler):
 
         client = get_prefect_client()
         task_run = self.tool_calls.get(tool_call.id)
+
         if not task_run:
             return
         await client.set_task_run_state(

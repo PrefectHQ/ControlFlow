@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from controlflow.core.agent import Agent, default_agent
+from controlflow.core.agent import Agent, get_default_agent
 from controlflow.core.flow import Flow
 from controlflow.core.graph import EdgeType
 from controlflow.core.task import Task, TaskStatus
@@ -76,7 +76,7 @@ def test_task_loads_agent_from_parent():
 
 
 def test_task_loads_agent_from_flow():
-    def_agent = default_agent()
+    def_agent = get_default_agent()
     agent = Agent(name="Test Agent")
     with Flow(agents=[agent]):
         task = Task("task")
@@ -89,7 +89,7 @@ def test_task_loads_agent_from_flow():
 
 
 def test_task_loads_agent_from_default_if_none_otherwise():
-    agent = default_agent()
+    agent = get_default_agent()
     task = Task("task")
 
     assert task.agents is None

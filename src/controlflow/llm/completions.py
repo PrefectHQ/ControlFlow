@@ -1,32 +1,48 @@
+import inspect
 import math
 from typing import AsyncGenerator, Callable, Generator, Optional, Tuple, Union
 
 import litellm
 from litellm.utils import trim_messages
+from pydantic import field_validator
 
 import controlflow
+from controlflow.llm.handlers import AsyncStreamHandler, StreamHandler
 from controlflow.llm.tools import (
     as_tools,
-    handle_tool_calls,
-    handle_tool_calls_async,
-    handle_tool_calls_gen,
-    handle_tool_calls_gen_async,
+    get_tool_calls,
+    handle_tool_call,
     has_tool_calls,
 )
-from controlflow.utilities.types import ControlFlowModel, ToolCall
+from controlflow.utilities.types import ControlFlowModel, Message, ToolResult
+
+
+def as_cf_message(message: Union[Message, litellm.Message]) -> Message:
+    if isinstance(message, Message):
+        return message
+    return Message(**message.model_dump())
+
+
+async def maybe_coro(coro):
+    if inspect.isawaitable(coro):
+        await coro
 
 
 class Response(ControlFlowModel):
-    messages: list[litellm.Message] = []
+    messages: list[Message] = []
     responses: list[litellm.ModelResponse] = []
 
-    def last_message(self) -> Optional[litellm.Message]:
+    @field_validator("messages", mode="before")
+    def _validate_messages(cls, v):
+        return [as_cf_message(m) for m in v]
+
+    def last_message(self) -> Optional[Message]:
         return self.messages[-1] if self.messages else None
 
     def last_response(self) -> Optional[litellm.ModelResponse]:
         return self.responses[-1] if self.responses else None
 
-    def tool_calls(self) -> list[ToolCall]:
+    def tool_calls(self) -> list[ToolResult]:
         return [
             m["_tool_call"]
             for m in self.messages
@@ -35,10 +51,11 @@ class Response(ControlFlowModel):
 
 
 def completion(
-    messages: list[Union[dict, litellm.Message]],
+    messages: list[Union[dict, Message]],
     model=None,
     tools: list[Callable] = None,
     max_iterations=None,
+    handlers: list[StreamHandler] = None,
     **kwargs,
 ) -> Response:
     """
@@ -59,6 +76,9 @@ def completion(
     responses = []
     new_messages = []
 
+    if handlers is None:
+        handlers = []
+
     if model is None:
         model = controlflow.settings.model
 
@@ -73,8 +93,19 @@ def completion(
         )
 
         responses.append(response)
+
+        # on message done
+        for h in handlers:
+            h.on_message_done(response.choices[0].message)
         new_messages.append(response.choices[0].message)
-        new_messages.extend(handle_tool_calls(response, tools))
+
+        for tool_call in get_tool_calls(response):
+            for h in handlers:
+                h.on_tool_call(tool_call=tool_call)
+            tool_message = handle_tool_call(tool_call, tools)
+            for h in handlers:
+                h.on_tool_result(tool_message.tool_result)
+            new_messages.append(tool_message)
 
         if len(responses) >= (max_iterations or math.inf):
             break
@@ -86,10 +117,12 @@ def completion(
 
 
 def completion_stream(
-    messages: list[Union[dict, litellm.Message]],
+    messages: list[Union[dict, Message]],
     model=None,
     tools: list[Callable] = None,
     max_iterations: int = None,
+    handlers: list[StreamHandler] = None,
+    response_callback: Callable[[Response], None] = None,
     **kwargs,
 ) -> Generator[Tuple[litellm.ModelResponse, litellm.ModelResponse], None, None]:
     """
@@ -108,45 +141,76 @@ def completion_stream(
     Returns:
         The final completion response as a litellm.ModelResponse object.
     """
+
     response = None
-    messages = messages.copy()
+    responses = []
+    new_messages = []
+
+    if handlers is None:
+        handlers = []
 
     if model is None:
         model = controlflow.settings.model
 
     tools = as_tools(tools or [])
 
-    i = 0
     while not response or has_tool_calls(response):
         deltas = []
-
         for delta in litellm.completion(
             model=model,
-            messages=trim_messages(messages, model=model),
+            messages=trim_messages(messages + new_messages, model=model),
             tools=[t.model_dump() for t in tools] if tools else None,
             stream=True,
             **kwargs,
         ):
+            # on message created
+            if not deltas:
+                for h in handlers:
+                    h.on_message_created(delta=delta.choices[0].delta)
+
             deltas.append(delta)
             response = litellm.stream_chunk_builder(deltas)
+
+            # on message delta
+            for h in handlers:
+                h.on_message_delta(
+                    delta=delta.choices[0].delta, snapshot=response.choices[0].message
+                )
+
+            # yield
             yield delta, response
 
-        for tool_msg in handle_tool_calls_gen(response, tools):
-            messages.append(tool_msg)
-            yield None, tool_msg
+        responses.append(response)
 
-        messages.append(response.choices[0].message)
+        # on message done
+        for h in handlers:
+            h.on_message_done(response.choices[0].message)
+        new_messages.append(response.choices[0].message)
 
-        i += 1
-        if i >= (max_iterations or math.inf):
+        # tool calls
+        for tool_call in get_tool_calls(response):
+            for h in handlers:
+                h.on_tool_call(tool_call=tool_call)
+            tool_message = handle_tool_call(tool_call, tools)
+            for h in handlers:
+                h.on_tool_result(tool_message.tool_result)
+            new_messages.append(tool_message)
+
+            yield None, tool_message
+
+        if len(responses) >= (max_iterations or math.inf):
             break
+
+    if response_callback:
+        response_callback(Response(messages=new_messages, responses=responses))
 
 
 async def completion_async(
-    messages: list[Union[dict, litellm.Message]],
+    messages: list[Union[dict, Message]],
     model=None,
     tools: list[Callable] = None,
     max_iterations=None,
+    handlers: list[Union[AsyncStreamHandler, StreamHandler]] = None,
     **kwargs,
 ) -> Response:
     """
@@ -166,6 +230,9 @@ async def completion_async(
     responses = []
     new_messages = []
 
+    if handlers is None:
+        handlers = []
+
     if model is None:
         model = controlflow.settings.model
 
@@ -180,8 +247,22 @@ async def completion_async(
         )
 
         responses.append(response)
+
+        # on message done
+        for h in handlers:
+            await maybe_coro(h.on_message_done(response.choices[0].message))
         new_messages.append(response.choices[0].message)
-        new_messages.extend(await handle_tool_calls_async(response, tools))
+
+        for tool_call in get_tool_calls(response):
+            for h in handlers:
+                await maybe_coro(h.on_tool_call(tool_call=tool_call))
+            tool_message = handle_tool_call(tool_call, tools)
+            for h in handlers:
+                await maybe_coro(h.on_tool_result(tool_message.tool_result))
+            new_messages.append(tool_message)
+
+        if len(responses) >= (max_iterations or math.inf):
+            break
 
     return Response(
         messages=new_messages,
@@ -190,10 +271,12 @@ async def completion_async(
 
 
 async def completion_stream_async(
-    messages: list[Union[dict, litellm.Message]],
+    messages: list[Union[dict, Message]],
     model=None,
     tools: list[Callable] = None,
     max_iterations: int = None,
+    handlers: list[Union[AsyncStreamHandler, StreamHandler]] = None,
+    response_callback: Callable[[Response], None] = None,
     **kwargs,
 ) -> AsyncGenerator[Tuple[litellm.ModelResponse, litellm.ModelResponse], None]:
     """
@@ -212,34 +295,68 @@ async def completion_stream_async(
     Returns:
         The final completion response as a litellm.ModelResponse object.
     """
+
     response = None
-    messages = messages.copy()
+    responses = []
+    new_messages = []
+
+    if handlers is None:
+        handlers = []
 
     if model is None:
         model = controlflow.settings.model
 
     tools = as_tools(tools or [])
 
-    i = 0
     while not response or has_tool_calls(response):
         deltas = []
-
-        async for delta in litellm.acompletion(
+        async for delta in await litellm.acompletion(
             model=model,
-            messages=trim_messages(messages, model=model),
+            messages=trim_messages(messages + new_messages, model=model),
             tools=[t.model_dump() for t in tools] if tools else None,
             stream=True,
             **kwargs,
         ):
+            # on message created
+            if not deltas:
+                for h in handlers:
+                    await maybe_coro(h.on_message_created(delta=delta.choices[0].delta))
+
             deltas.append(delta)
             response = litellm.stream_chunk_builder(deltas)
+
+            # on message delta
+            for h in handlers:
+                await maybe_coro(
+                    h.on_message_delta(
+                        delta=delta.choices[0].delta,
+                        snapshot=response.choices[0].message,
+                    )
+                )
+
+            # yield
             yield delta, response
 
-        async for tool_msg in handle_tool_calls_gen_async(response, tools):
-            messages.append(tool_msg)
-            yield None, tool_msg
-        messages.append(response.choices[0].message)
+        responses.append(response)
 
-        i += 1
-        if i >= (max_iterations or math.inf):
+        # on message done
+        for h in handlers:
+            await maybe_coro(h.on_message_done(response.choices[0].message))
+        new_messages.append(response.choices[0].message)
+
+        # tool calls
+        for tool_call in get_tool_calls(response):
+            for h in handlers:
+                await maybe_coro(h.on_tool_call(tool_call=tool_call))
+            tool_message = handle_tool_call(tool_call, tools)
+            for h in handlers:
+                await maybe_coro(h.on_tool_result(tool_message.tool_result))
+            new_messages.append(tool_message)
+
+            yield None, tool_message
+
+        if len(responses) >= (max_iterations or math.inf):
             break
+
+    if response_callback:
+        response_callback(Response(messages=new_messages, responses=responses))

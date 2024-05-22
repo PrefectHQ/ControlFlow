@@ -1,13 +1,12 @@
+import uuid
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
-from marvin.beta.assistants import Thread
-from openai.types.beta.threads import Message
-from pydantic import Field, field_validator
+from pydantic import Field
 
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
-from controlflow.utilities.types import ControlFlowModel, ToolType
+from controlflow.utilities.types import ControlFlowModel, Message
 
 if TYPE_CHECKING:
     from controlflow.core.agent import Agent
@@ -18,8 +17,8 @@ logger = get_logger(__name__)
 class Flow(ControlFlowModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    thread: Thread = Field(None, validate_default=True)
-    tools: list[ToolType] = Field(
+    thread_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
+    tools: list[Callable] = Field(
         default_factory=list,
         description="Tools that will be available to every agent in the flow",
     )
@@ -30,15 +29,6 @@ class Flow(ControlFlowModel):
     )
     _tasks: dict[str, "Task"] = {}
     context: dict[str, Any] = {}
-
-    @field_validator("thread", mode="before")
-    def _load_thread_from_ctx(cls, v):
-        if v is None:
-            v = ctx.get("thread", None)
-            if v is None:
-                v = Thread()
-
-        return v
 
     def add_task(self, task: "Task"):
         if self._tasks.get(task.id, task) is not task:
