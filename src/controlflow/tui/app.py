@@ -39,7 +39,7 @@ class TUIApp(App):
     async def run_context(
         self,
         run: bool = True,
-        inline: bool = True,
+        inline: bool = False,
         inline_stay_visible: bool = True,
         headless: bool = None,
         hold: bool = True,
@@ -64,6 +64,9 @@ class TUIApp(App):
 
         try:
             yield self
+        except Exception:
+            self.hold = False
+            raise
         finally:
             if run:
                 while self.hold:
@@ -79,10 +82,13 @@ class TUIApp(App):
         self.hold = not self.hold
 
     def watch_hold(self, hold: bool):
-        if hold:
-            self.query_one("#hold-banner").display = "block"
-        else:
-            self.query_one("#hold-banner").display = "none"
+        try:
+            if hold:
+                self.query_one("#hold-banner").display = "block"
+            else:
+                self.query_one("#hold-banner").display = "none"
+        except NoMatches:
+            pass
 
     def on_mount(self):
         if self._flow.name:

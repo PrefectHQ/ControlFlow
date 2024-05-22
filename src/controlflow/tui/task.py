@@ -63,11 +63,12 @@ class TUITask(Static):
             self.status = task.status.value
 
         self.result = task.result
-        if self.result is not None:
-            self.query_one(".result-collapsible", Collapsible).display = "block"
         self.error_msg = task.error
-        if self.error_msg is not None:
-            self.query_one(".error-collapsible", Collapsible).display = "block"
+        if self.is_mounted:
+            if self.result is not None:
+                self.query_one(".result-collapsible", Collapsible).display = "block"
+            if self.error_msg is not None:
+                self.query_one(".error-collapsible", Collapsible).display = "block"
 
     def compose(self):
         self.border_title = f"Task {self.task.id}"
@@ -78,19 +79,14 @@ class TUITask(Static):
             yield Label(self.task.objective, classes="objective task-info")
 
         with Vertical(classes="task-info-row"):
-            # yield Label(
-            #     f"ID: {self.task.id}",
-            #     classes="task-info",
-            # )
             yield Label(
                 f"Agents: {', '.join(a.name for a in self.task.get_agents())}",
                 classes="user-access task-info",
             )
-            # yield Rule(orientation="vertical")
-            yield Label(
-                f"User access: {self.task.user_access}",
-                classes="user-access task-info",
-            )
+            # yield Label(
+            #     f"User access: {self.task.user_access}",
+            #     classes="user-access task-info",
+            # )
 
             # ------------------ success
 

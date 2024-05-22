@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from controlflow import Task
 from controlflow.core.flow import Flow
 from controlflow.tui.app import TUIApp
+from controlflow.utilities.types import AssistantMessage
 
 
 class Name(BaseModel):
@@ -49,13 +50,13 @@ async def run():
         )
         await asyncio.sleep(1)
         t0.mark_failed(message="this is my result")
-        app.update_message(m_id="1", message="hello there", role="assistant")
+        app.update_message(AssistantMessage(content="hello there"))
         await asyncio.sleep(1)
-        app.update_message(m_id="2", message="hello there" * 50, role="assistant")
+        app.update_message(AssistantMessage(content="hello there"))
         await asyncio.sleep(1)
-        app.update_message(m_id="3", message="hello there", role="user")
+        app.update_message(AssistantMessage(content="hello there" * 50))
         await asyncio.sleep(1)
-        app.update_message(m_id="4", message="hello there", role="assistant")
+        app.update_message(AssistantMessage(content="hello there"))
         await asyncio.sleep(1)
 
         await asyncio.sleep(inf)

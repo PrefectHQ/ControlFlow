@@ -73,7 +73,7 @@ TUITask {
 .task-info-row {
     height: auto;
     width: 1fr;
-    margin-top: 1;
+    margin-top: 0;
     # margin-left: 4;
 
 }

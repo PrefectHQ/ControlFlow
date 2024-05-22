@@ -10,6 +10,7 @@ from textual.reactive import reactive
 from textual.widgets import Static
 
 from controlflow.core.task import TaskStatus
+from controlflow.llm.tools import get_tool_calls
 from controlflow.utilities.types import AssistantMessage, ToolMessage, UserMessage
 
 
@@ -48,32 +49,53 @@ class TUIMessage(Static):
             "user": "green",
             "assistant": "blue",
         }
-        if isinstance(self.message, AssistantMessage) and self.message.has_tool_calls():
-            content = Markdown(
-                inspect.cleandoc("""
-                :hammer_and_wrench: Calling `{name}` with the following arguments:
-                
-                ```json
-                {args}
-                ```
-                """).format(name=self.tool_name, args=self.tool_args)
-            )
-            title = "Tool Call"
+        panels = []
+        if tool_calls := get_tool_calls(self.message):
+            for tool_call in tool_calls:
+                content = Markdown(
+                    inspect.cleandoc("""
+                    :hammer_and_wrench: Calling `{name}` with the following arguments:
+                    
+                    ```json
+                    {args}
+                    ```
+                    """).format(
+                        name=tool_call.function.name, args=tool_call.function.arguments
+                    )
+                )
+                panels.append(
+                    Panel(
+                        content,
+                        title="[bold]Tool Call[/]",
+                        subtitle=f"[italic]{format_timestamp(self.message.timestamp)}[/]",
+                        title_align="left",
+                        subtitle_align="right",
+                        border_style=role_colors.get(self.message.role, "red"),
+                        box=box.ROUNDED,
+                        width=100,
+                        expand=True,
+                        padding=(1, 2),
+                    )
+                )
         else:
-            content = self.message.content
-            title = self.message.role.capitalize()
-        return Panel(
-            content,
-            title=f"[bold]{title}[/]",
-            subtitle=f"[italic]{format_timestamp(self.message.timestamp)}[/]",
-            title_align="left",
-            subtitle_align="right",
-            border_style=role_colors.get(self.message.role, "red"),
-            box=box.ROUNDED,
-            width=100,
-            expand=True,
-            padding=(1, 2),
-        )
+            panels.append(
+                Panel(
+                    Markdown(self.message.content),
+                    title=f"[bold]{self.message.role.capitalize()}[/]",
+                    subtitle=f"[italic]{format_timestamp(self.message.timestamp)}[/]",
+                    title_align="left",
+                    subtitle_align="right",
+                    border_style=role_colors.get(self.message.role, "red"),
+                    box=box.ROUNDED,
+                    width=100,
+                    expand=True,
+                    padding=(1, 2),
+                )
+            )
+        if len(panels) == 1:
+            return panels[0]
+        else:
+            return Group(*panels)
 
 
 class TUIToolMessage(Static):
@@ -84,18 +106,24 @@ class TUIToolMessage(Static):
         self.message = message
 
     def render(self):
-        if self.message.tool_failed:
-            content = f":x: The tool call to [markdown.code]{self.message.tool_name}[/] failed."
-        else:
+        if self.message.tool_metadata.get("is_failed"):
+            content = f":x: The tool call to [markdown.code]{self.message.tool_call.function.name}[/] failed."
+        elif not self.message.tool_metadata.get("is_task_status_tool"):
+            content_type = (
+                "json" if isinstance(self.message.tool_result, (dict, list)) else ""
+            )
             content = Group(
                 f":white_check_mark: Received output from the [markdown.code]{self.message.tool_call.function.name}[/] tool.\n",
-                Markdown(f"```json\n{self.tool_result}\n```"),
+                Markdown(f"```{content_type}\n{self.message.content}\n```"),
             )
+        else:
+            self.display = False
+            return ""
 
         return Panel(
             content,
             title="Tool Call Result",
-            subtitle=f"[italic]{format_timestamp(self._timestamp)}[/]",
+            subtitle=f"[italic]{format_timestamp(self.message.timestamp)}[/]",
             title_align="left",
             subtitle_align="right",
             border_style="blue",
