@@ -35,7 +35,7 @@ class MockStreamHandler(StreamHandler):
             StreamCall(method="on_message_done", args=dict(message=message))
         )
 
-    def on_tool_call(self, tool_call: ToolResult):
+    def on_tool_call_done(self, tool_call: ToolResult):
         self.calls.append(
             StreamCall(method="on_tool_call", args=dict(tool_call=tool_call))
         )

@@ -1,20 +1,10 @@
-import datetime
-import json
 import logging
 import math
 from contextlib import asynccontextmanager
 from functools import cached_property
 from typing import Union
 
-import prefect
-from marvin.beta.assistants import EndRun, PrintHandler, Run
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
-from openai import AsyncAssistantEventHandler
-from openai.types.beta.threads import Message as OAIMessage
-from openai.types.beta.threads import MessageDelta as OAIMessageDelta
-from openai.types.beta.threads.runs import RunStep, RunStepDelta, ToolCall
-from prefect import get_client as get_prefect_client
-from prefect.context import FlowRunContext
 from pydantic import BaseModel, Field, computed_field, model_validator
 
 import controlflow
@@ -25,14 +15,10 @@ from controlflow.core.graph import Graph
 from controlflow.core.task import Task
 from controlflow.instructions import get_instructions
 from controlflow.llm.completions import completion_stream_async
-from controlflow.llm.handlers import PrintHandler
+from controlflow.llm.handlers import TUIHandler
 from controlflow.llm.history import History
 from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
-from controlflow.utilities.prefect import (
-    create_json_artifact,
-    create_python_artifact,
-)
 from controlflow.utilities.tasks import all_complete, any_incomplete
 from controlflow.utilities.types import FunctionTool, Message
 
@@ -102,11 +88,12 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             if self._endrun_count >= 3:
                 self._should_abort = True
                 self._endrun_count = 0
-            return EndRun()
+
+            return f"Ending turn. {3 - self._endrun_count} more uses will abort the workflow."
 
         return help_im_stuck
 
-    async def _run_agent(self, agent: Agent, tasks: list[Task] = None) -> Run:
+    async def _run_agent(self, agent: Agent, tasks: list[Task] = None):
         """
         Run a single agent.
         """
@@ -141,7 +128,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             messages=[system_message] + messages,
             model=agent.model,
             tools=tools,
-            handlers=[PrintHandler()],
+            handlers=[TUIHandler()] if controlflow.settings.enable_tui else None,
             max_iterations=1,
             response_callback=r.append,
         ):
@@ -243,96 +230,3 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
                         f"Task iterations exceeded maximum of {max_task_iterations} for each task."
                     )
             self._should_abort = False
-
-
-class TUIHandler(AsyncAssistantEventHandler):
-    async def on_message_delta(
-        self, delta: OAIMessageDelta, snapshot: OAIMessage
-    ) -> None:
-        if tui := ctx.get("tui"):
-            content = []
-            for item in snapshot.content:
-                if item.type == "text":
-                    content.append(item.text.value)
-
-            tui.update_message(
-                m_id=snapshot.id,
-                message="\n\n".join(content),
-                role=snapshot.role,
-                timestamp=datetime.datetime.fromtimestamp(snapshot.created_at),
-            )
-
-    async def on_run_step_delta(self, delta: RunStepDelta, snapshot: RunStep) -> None:
-        if tui := ctx.get("tui"):
-            tui.update_step(snapshot)
-
-
-class AgentHandler(PrintHandler):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.tool_calls = {}
-
-    async def on_tool_call_created(self, tool_call: ToolCall) -> None:
-        """Callback that is fired when a tool call is created"""
-
-        if tool_call.type == "function":
-            task_run_name = "Prepare arguments for tool call"
-        else:
-            task_run_name = f"Tool call: {tool_call.type}"
-
-        client = get_prefect_client()
-        engine_context = FlowRunContext.get()
-        if not engine_context:
-            return
-
-        task_run = await client.create_task_run(
-            task=prefect.Task(fn=lambda: None),
-            name=task_run_name,
-            extra_tags=["tool-call"],
-            flow_run_id=engine_context.flow_run.id,
-            dynamic_key=tool_call.id,
-            state=prefect.states.Running(),
-        )
-
-        self.tool_calls[tool_call.id] = task_run
-
-    async def on_tool_call_done(self, tool_call: ToolCall) -> None:
-        """Callback that is fired when a tool call is done"""
-
-        client = get_prefect_client()
-        task_run = self.tool_calls.get(tool_call.id)
-
-        if not task_run:
-            return
-        await client.set_task_run_state(
-            task_run_id=task_run.id, state=prefect.states.Completed(), force=True
-        )
-
-        # code interpreter is run as a single call, so we can publish a result artifact
-        if tool_call.type == "code_interpreter":
-            # images = []
-            # for output in tool_call.code_interpreter.outputs:
-            #     if output.type == "image":
-            #         image_path = download_temp_file(output.image.file_id)
-            #         images.append(image_path)
-
-            create_python_artifact(
-                key="code",
-                code=tool_call.code_interpreter.input,
-                description="Code executed in the code interpreter",
-                task_run_id=task_run.id,
-            )
-            create_json_artifact(
-                key="output",
-                data=tool_call.code_interpreter.outputs,
-                description="Output from the code interpreter",
-                task_run_id=task_run.id,
-            )
-
-        elif tool_call.type == "function":
-            create_json_artifact(
-                key="arguments",
-                data=json.dumps(json.loads(tool_call.function.arguments), indent=2),
-                description=f"Arguments for the `{tool_call.function.name}` tool",
-                task_run_id=task_run.id,
-            )

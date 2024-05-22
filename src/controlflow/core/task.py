@@ -492,16 +492,16 @@ class Task(ControlFlowModel):
         self.result = validate_result(result, self.result_type)
         self.set_status(TaskStatus.SUCCESSFUL)
 
-        return f"{self.friendly_name()} marked successful. Updated task definition: {self.model_dump()}"
+        return f"{self.friendly_name()} marked successful."
 
     def mark_failed(self, message: Union[str, None] = None):
         self.error = message
         self.set_status(TaskStatus.FAILED)
-        return f"{self.friendly_name()} marked failed. Updated task definition: {self.model_dump()}"
+        return f"{self.friendly_name()} marked failed."
 
     def mark_skipped(self):
         self.set_status(TaskStatus.SKIPPED)
-        return f"{self.friendly_name()} marked skipped. Updated task definition: {self.model_dump()}"
+        return f"{self.friendly_name()} marked skipped."
 
 
 def generate_result_schema(result_type: type[T]) -> type[T]:
