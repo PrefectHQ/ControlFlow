@@ -1,112 +1,89 @@
-import datetime
-
-import litellm
-
-from controlflow.llm.tools import ToolResult, get_tool_calls
+from controlflow.llm.tools import get_tool_calls
 from controlflow.utilities.context import ctx
-from controlflow.utilities.types import Message
+from controlflow.utilities.types import AssistantMessage, Message, ToolMessage
 
 
 class StreamHandler:
-    def on_message_created(self, delta: litellm.ModelResponse):
+    def on_message_created(self, delta: AssistantMessage):
         pass
 
-    def on_message_delta(
-        self, delta: litellm.ModelResponse, snapshot: litellm.ModelResponse
-    ):
+    def on_message_delta(self, delta: AssistantMessage, snapshot: AssistantMessage):
         pass
 
-    def on_message_done(self, response: litellm.ModelResponse):
+    def on_message_done(self, response: AssistantMessage):
         pass
 
-    def on_tool_call_created(self, delta: litellm.ModelResponse):
+    def on_tool_call_created(self, delta: AssistantMessage):
         pass
 
-    def on_tool_call_delta(
-        self, delta: litellm.ModelResponse, snapshot: litellm.ModelResponse
-    ):
+    def on_tool_call_delta(self, delta: AssistantMessage, snapshot: AssistantMessage):
         pass
 
-    def on_tool_call_done(self, tool_call: Message):
+    def on_tool_call_done(self, tool_call: AssistantMessage):
         pass
 
-    def on_tool_result(self, tool_result: ToolResult):
+    def on_tool_result(self, tool_result: ToolMessage):
         pass
 
 
 class AsyncStreamHandler(StreamHandler):
-    async def on_message_created(self, delta: litellm.ModelResponse):
+    async def on_message_created(self, delta: AssistantMessage):
         pass
 
     async def on_message_delta(
-        self, delta: litellm.ModelResponse, snapshot: litellm.ModelResponse
+        self, delta: AssistantMessage, snapshot: AssistantMessage
     ):
         pass
 
-    async def on_message_done(self, response: litellm.ModelResponse):
+    async def on_message_done(self, response: AssistantMessage):
         pass
 
-    async def on_tool_call_created(self, delta: litellm.ModelResponse):
+    async def on_tool_call_created(self, delta: AssistantMessage):
         pass
 
     async def on_tool_call_delta(
-        self, delta: litellm.ModelResponse, snapshot: litellm.ModelResponse
+        self, delta: AssistantMessage, snapshot: AssistantMessage
     ):
         pass
 
-    async def on_tool_call_done(self, tool_call: Message):
+    async def on_tool_call_done(self, tool_call: AssistantMessage):
         pass
 
-    async def on_tool_result(self, tool_result: ToolResult):
+    async def on_tool_result(self, tool_result: ToolMessage):
         pass
 
 
 class TUIHandler(AsyncStreamHandler):
     async def on_message_delta(
-        self, delta: litellm.ModelResponse, snapshot: litellm.ModelResponse
+        self, delta: AssistantMessage, snapshot: AssistantMessage
     ) -> None:
         if tui := ctx.get("tui"):
-            tui.update_message(
-                m_id=snapshot.id,
-                message=snapshot.choices[0].message.content,
-                role=snapshot.choices[0].message.role,
-                timestamp=datetime.datetime.fromtimestamp(snapshot.created),
-            )
+            tui.update_message(message=snapshot)
 
     async def on_tool_call_delta(
-        self, delta: litellm.ModelResponse, snapshot: litellm.ModelResponse
+        self, delta: AssistantMessage, snapshot: AssistantMessage
     ):
         if tui := ctx.get("tui"):
             for tool_call in get_tool_calls(snapshot):
-                tui.update_tool_call(
-                    t_id=snapshot.id,
-                    tool_name=tool_call.function.name,
-                    tool_args=tool_call.function.arguments,
-                    timestamp=datetime.datetime.fromtimestamp(snapshot.created),
-                )
+                tui.update_message(message=snapshot)
 
     async def on_tool_result(self, message: Message):
         if tui := ctx.get("tui"):
-            tui.update_tool_result(
-                t_id=message.tool_result.tool_call_id,
-                tool_name=message.tool_result.tool_name,
-                tool_result=message.content,
-                timestamp=datetime.datetime.now(),
-            )
+            tui.update_tool_result(message=message)
 
 
 class PrintHandler(AsyncStreamHandler):
-    def on_message_created(self, delta: litellm.ModelResponse):
+    def on_message_created(self, delta: AssistantMessage):
         print(f"Created: {delta}\n")
 
-    def on_message_done(self, response: litellm.ModelResponse):
+    def on_message_done(self, response: AssistantMessage):
         print(f"Done: {response}\n")
 
-    def on_tool_call_created(self, delta: litellm.ModelResponse):
+    def on_tool_call_created(self, delta: AssistantMessage):
         print(f"Tool call created: {delta}\n")
 
-    def on_tool_call_done(self, tool_call: Message):
+    def on_tool_call_done(self, tool_call: AssistantMessage):
         print(f"Tool call: {tool_call}\n")
 
-    def on_tool_result(self, tool_result: ToolResult):
+    def on_tool_result(self, tool_result: ToolMessage):
         print(f"Tool result: {tool_result}\n")

@@ -123,21 +123,20 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         messages = self.history.load_messages(thread_id=self.flow.thread_id)
 
         # call llm
-        r = []
-        async for _ in completion_stream_async(
+        response_messages = []
+        async for msg in completion_stream_async(
             messages=[system_message] + messages,
             model=agent.model,
             tools=tools,
             handlers=[TUIHandler()] if controlflow.settings.enable_tui else None,
             max_iterations=1,
-            response_callback=r.append,
+            yield_deltas=False,
         ):
-            pass
-        response = r[0]
+            response_messages.append(msg)
 
         # save history
         self.history.save_messages(
-            thread_id=self.flow.thread_id, messages=response.messages
+            thread_id=self.flow.thread_id, messages=response_messages
         )
 
         # create_json_artifact(
