@@ -39,10 +39,10 @@ class TUIApp(App):
     async def run_context(
         self,
         run: bool = True,
-        inline: bool = False,
+        inline: bool = True,
         inline_stay_visible: bool = True,
         headless: bool = None,
-        hold: bool = True,
+        hold: bool = False,
     ):
         if headless is None:
             headless = controlflow.settings.run_tui_headless

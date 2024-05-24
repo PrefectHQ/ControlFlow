@@ -2,7 +2,7 @@ from textual.containers import Vertical
 from textual.reactive import reactive
 from textual.widgets import Collapsible, Label, Static
 
-from controlflow.core.task import Task
+from controlflow.core.task import Task, TaskStatus
 
 from .basic import ReactiveLabel, Row
 
@@ -12,33 +12,25 @@ def bool_to_emoji(value: bool) -> str:
 
 
 class EmojiStatus(Label):
-    status: str = reactive(None)
+    task: Task = reactive(None, always_update=True)
 
     def render(self) -> str:
-        if self.status == "READY":
+        if self.task.is_ready:
             return "🔜"
-        elif self.status == "INCOMPLETE":
+        elif self.task.status == TaskStatus.INCOMPLETE:
             return "⏳"
-        elif self.status == "SUCCESSFUL":
+        elif self.task.status == TaskStatus.SUCCESSFUL:
             return "✅"
-        elif self.status == "FAILED":
+        elif self.task.status == TaskStatus.FAILED:
             return "❌"
-        elif self.status == "SKIPPED":
+        elif self.task.status == TaskStatus.SKIPPED:
             return "⏭️"
         else:
             return "❓"
 
 
-class TaskResult(Label):
-    result: str = reactive(None)
-
-    def render(self) -> str:
-        return str(self.result)
-
-
 class TUITask(Static):
     task: Task = reactive(None, always_update=True)
-    status: str = reactive(None)
     result: str = reactive(None)
     error_msg: str = reactive(None)
 
@@ -57,7 +49,7 @@ class TUITask(Static):
         if task is None:
             return
 
-        if task.is_ready():
+        if task.is_ready:
             self.status = "READY"
         else:
             self.status = task.status.value
@@ -73,9 +65,7 @@ class TUITask(Static):
     def compose(self):
         self.border_title = f"Task {self.task.id}"
         with Row(classes="task-status-row"):
-            yield (
-                EmojiStatus(classes="status task-info").data_bind(status=TUITask.status)
-            )
+            yield (EmojiStatus(classes="status task-info").data_bind(TUITask.task))
             yield Label(self.task.objective, classes="objective task-info")
 
         with Vertical(classes="task-info-row"):
