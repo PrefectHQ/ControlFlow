@@ -1,6 +1,6 @@
 import functools
 import inspect
-from functools import PrivateAttr, partial, update_wrapper
+from functools import partial, update_wrapper
 from typing import Any, Callable, Literal, Optional, Union
 
 import pydantic
@@ -23,8 +23,8 @@ class ToolFunction(ControlFlowModel):
 class Tool(ControlFlowModel):
     type: Literal["function"] = "function"
     function: ToolFunction
-    _fn: Callable = PrivateAttr()
-    _metadata: dict = PrivateAttr(default_factory=dict)
+    _fn: Callable = pydantic.PrivateAttr()
+    _metadata: dict = pydantic.PrivateAttr(default_factory=dict)
 
     def __init__(self, *, _fn: Callable, _metadata: dict = None, **kwargs):
         super().__init__(**kwargs)

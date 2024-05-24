@@ -17,7 +17,7 @@ async def test_mock_completion_async(mock_completion_async):
 
 def test_mock_completion_stream(mock_completion_stream):
     mock_completion_stream.set_response("Hello, world! xyz")
-    response = controlflow.llm.completions.completion_stream(
+    response = controlflow.llm.completions._completion_stream(
         messages=[{"content": "Hello"}],
     )
     deltas = []
@@ -29,7 +29,7 @@ def test_mock_completion_stream(mock_completion_stream):
 
 async def test_mock_completion_stream_async(mock_completion_stream_async):
     mock_completion_stream_async.set_response("Hello, world! xyz")
-    response = controlflow.llm.completions.completion_stream_async(
+    response = controlflow.llm.completions._completion_stream_async(
         messages=[{"content": "Hello"}], stream=True
     )
     deltas = []

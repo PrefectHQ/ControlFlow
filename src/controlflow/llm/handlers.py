@@ -1,8 +1,8 @@
-from controlflow.llm.types import AssistantMessage, ToolMessage
+from controlflow.llm.messages import AssistantMessage, ToolMessage
 from controlflow.utilities.context import ctx
 
 
-class StreamHandler:
+class CompletionHandler:
     def on_message_created(self, delta: AssistantMessage):
         pass
 
@@ -25,8 +25,8 @@ class StreamHandler:
         pass
 
 
-class CompoundHandler(StreamHandler):
-    def __init__(self, handlers: list[StreamHandler]):
+class CompoundHandler(CompletionHandler):
+    def __init__(self, handlers: list[CompletionHandler]):
         self.handlers = handlers
 
     def on_message_created(self, delta: AssistantMessage):
@@ -58,7 +58,7 @@ class CompoundHandler(StreamHandler):
             handler.on_tool_result(message)
 
 
-class TUIHandler(StreamHandler):
+class TUIHandler(CompletionHandler):
     def on_message_delta(
         self, delta: AssistantMessage, snapshot: AssistantMessage
     ) -> None:
@@ -74,18 +74,24 @@ class TUIHandler(StreamHandler):
             tui.update_tool_result(message=message)
 
 
-class PrintHandler(StreamHandler):
+class PrintHandler(CompletionHandler):
     def on_message_created(self, delta: AssistantMessage):
-        print(f"Created: {delta}\n")
+        print(f"Message created: {delta}\n")
+
+    def on_message_delta(self, delta: AssistantMessage, snapshot: AssistantMessage):
+        print(f"Message delta: {delta}\n")
 
     def on_message_done(self, message: AssistantMessage):
-        print(f"Done: {message}\n")
+        print(f"Message done: {message}\n")
 
     def on_tool_call_created(self, delta: AssistantMessage):
         print(f"Tool call created: {delta}\n")
 
+    def on_tool_call_delta(self, delta: AssistantMessage, snapshot: AssistantMessage):
+        print(f"Tool call delta: {delta}\n")
+
     def on_tool_call_done(self, message: AssistantMessage):
-        print(f"Tool call: {message}\n")
+        print(f"Tool call done: {message}\n")
 
     def on_tool_result(self, message: ToolMessage):
         print(f"Tool result: {message}\n")

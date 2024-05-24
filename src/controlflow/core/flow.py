@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from pydantic import Field
 
-from controlflow.llm.types import MessageType
+from controlflow.llm.messages import MessageType
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.types import ControlFlowModel

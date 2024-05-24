@@ -14,16 +14,22 @@ from controlflow.core.flow import Flow, get_flow
 from controlflow.core.graph import Graph
 from controlflow.core.task import Task
 from controlflow.instructions import get_instructions
-from controlflow.llm.completions import completion_stream_async
+from controlflow.llm.completions import completion_async
 from controlflow.llm.handlers import TUIHandler
 from controlflow.llm.history import History
-from controlflow.llm.types import SystemMessage
+from controlflow.llm.messages import AssistantMessage, ControlFlowMessage, SystemMessage
 from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
 from controlflow.utilities.tasks import all_complete, any_incomplete
 from controlflow.utilities.types import FunctionTool
 
 logger = logging.getLogger(__name__)
+
+
+def add_agent_name_to_message(msg: ControlFlowMessage):
+    if isinstance(msg, AssistantMessage) and msg.name:
+        msg = msg.copy
+        pass
 
 
 class Controller(BaseModel, ExposeSyncMethodsMixin):
@@ -123,12 +129,13 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
         # call llm
         response_messages = []
-        async for msg in completion_stream_async(
+        async for msg in await completion_async(
             messages=[system_message] + messages,
             model=agent.model,
             tools=tools,
             handlers=[TUIHandler()] if controlflow.settings.enable_tui else None,
             max_iterations=1,
+            stream=True,
         ):
             response_messages.append(msg)
 

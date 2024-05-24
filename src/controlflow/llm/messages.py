@@ -40,6 +40,7 @@ class ImageContent(_OpenAIBaseType):
 class ControlFlowMessage(_OpenAIBaseType):
     # ---- begin openai fields
     role: Role = Field(openai_field=True)
+    content: Optional[Union[str, List[Union[TextContent, ImageContent]]]] = None
     _openai_fields: set[str] = {"role"}
     # ---- end openai fields
 
@@ -48,6 +49,14 @@ class ControlFlowMessage(_OpenAIBaseType):
         default_factory=lambda: datetime.datetime.now(datetime.timezone.utc),
     )
     llm_response: Optional[litellm.ModelResponse] = Field(None, repr=False)
+
+    def __init__(
+        self,
+        content: Optional[Union[str, List[Union[TextContent, ImageContent]]]] = None,
+        **kwargs,
+    ):
+        # allow content to be passed as a positional argument
+        super().__init__(content=content, **kwargs)
 
     @field_validator("role", mode="before")
     def _lowercase_role(cls, v):
@@ -83,6 +92,7 @@ class SystemMessage(ControlFlowMessage):
     content: str
     name: Optional[str] = None
     _openai_fields = {"role", "content", "name"}
+    # ---- end openai fields
 
 
 class UserMessage(ControlFlowMessage):
@@ -106,8 +116,9 @@ class AssistantMessage(ControlFlowMessage):
     # ---- begin openai fields
     role: Literal["assistant"] = "assistant"
     content: Optional[str] = None
+    name: Optional[str] = None
     tool_calls: Optional[List["ToolCall"]] = None
-    _openai_fields = {"role", "content", "tool_calls"}
+    _openai_fields = {"role", "content", "name", "tool_calls"}
     # ---- end openai fields
 
     is_delta: bool = Field(
@@ -167,14 +178,14 @@ def as_cf_messages(
             result.append(new_msg)
         elif isinstance(msg, litellm.ModelResponse):
             for i, choice in enumerate(msg.choices):
-                # handle delta messages streaming from the assistant
+                # handle delta messages streaming from the assistant; sometimes these are not fully populated
                 if hasattr(choice, "delta"):
-                    if choice.delta.role is None:
-                        new_msg = AssistantMessage(is_delta=True)
-                    else:
-                        new_msg = AssistantMessage(
-                            **choice.delta.model_dump(), is_delta=True
-                        )
+                    values = choice.delta.model_dump()
+                    if values["content"] is None:
+                        values["content"] = ""
+                    if values["role"] is None:
+                        values["role"] = "assistant"
+                    new_msg = AssistantMessage(**values, is_delta=True)
                 else:
                     new_msg = message_ta.validate_python(choice.message.model_dump())
                 new_msg.id = f"{msg.id}-{i}"

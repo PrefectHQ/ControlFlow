@@ -9,7 +9,7 @@ from litellm.utils import trim_messages
 from pydantic import Field, field_validator
 
 import controlflow
-from controlflow.llm.types import MessageType
+from controlflow.llm.messages import MessageType
 from controlflow.utilities.types import ControlFlowModel
 
 

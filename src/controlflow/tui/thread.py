@@ -10,8 +10,8 @@ from textual.reactive import reactive
 from textual.widgets import Static
 
 from controlflow.core.task import TaskStatus
+from controlflow.llm.messages import AssistantMessage, ToolMessage, UserMessage
 from controlflow.llm.tools import get_tool_calls
-from controlflow.llm.types import AssistantMessage, ToolMessage, UserMessage
 
 
 def bool_to_emoji(value: bool) -> str:
