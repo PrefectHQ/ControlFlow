@@ -9,7 +9,8 @@ from litellm.utils import trim_messages
 from pydantic import Field, field_validator
 
 import controlflow
-from controlflow.utilities.types import ControlFlowModel, MessageType
+from controlflow.llm.types import MessageType
+from controlflow.utilities.types import ControlFlowModel
 
 
 def get_default_history() -> "History":

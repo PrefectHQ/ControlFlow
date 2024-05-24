@@ -4,7 +4,7 @@ import litellm
 from controlflow.llm.completions import completion_stream
 from controlflow.llm.handlers import StreamHandler
 from controlflow.llm.tools import ToolResult
-from controlflow.utilities.types import AssistantMessage
+from controlflow.llm.types import AssistantMessage
 from pydantic import BaseModel
 
 

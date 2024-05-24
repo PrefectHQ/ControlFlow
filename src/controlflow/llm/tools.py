@@ -1,18 +1,61 @@
 import functools
 import inspect
-import json
-from functools import partial, update_wrapper
-from typing import Any, Callable, Optional, Union
+from functools import PrivateAttr, partial, update_wrapper
+from typing import Any, Callable, Literal, Optional, Union
 
 import pydantic
 
-from controlflow.utilities.types import (
+from controlflow.llm.messages import (
     AssistantMessage,
     ControlFlowMessage,
-    Tool,
     ToolCall,
     ToolMessage,
 )
+from controlflow.utilities.types import ControlFlowModel
+
+
+class ToolFunction(ControlFlowModel):
+    name: str
+    parameters: dict
+    description: str = ""
+
+
+class Tool(ControlFlowModel):
+    type: Literal["function"] = "function"
+    function: ToolFunction
+    _fn: Callable = PrivateAttr()
+    _metadata: dict = PrivateAttr(default_factory=dict)
+
+    def __init__(self, *, _fn: Callable, _metadata: dict = None, **kwargs):
+        super().__init__(**kwargs)
+        self._fn = _fn
+        self._metadata = _metadata or {}
+
+    @classmethod
+    def from_function(
+        cls,
+        fn: Callable,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        metadata: Optional[dict] = None,
+    ):
+        if name is None and fn.__name__ == "<lambda>":
+            name = "__lambda__"
+
+        return cls(
+            function=ToolFunction(
+                name=name or fn.__name__,
+                description=inspect.cleandoc(description or fn.__doc__ or ""),
+                parameters=pydantic.TypeAdapter(
+                    fn, config=pydantic.ConfigDict(arbitrary_types_allowed=True)
+                ).json_schema(),
+            ),
+            _fn=fn,
+            _metadata=metadata or getattr(fn, "__metadata__", {}),
+        )
+
+    def __call__(self, *args, **kwargs):
+        return self._fn(*args, **kwargs)
 
 
 def tool(
@@ -104,6 +147,8 @@ def output_to_string(output: Any) -> str:
 def get_tool_calls(
     messages: list[ControlFlowMessage],
 ) -> list[ToolCall]:
+    if not isinstance(messages, list):
+        messages = [messages]
     return [
         tc
         for m in messages
@@ -124,7 +169,7 @@ def handle_tool_call(tool_call: ToolCall, tools: list[dict, Callable]) -> ToolMe
         else:
             tool = tool_lookup[fn_name]
             metadata.update(tool._metadata)
-            fn_args = json.loads(tool_call.function.arguments)
+            fn_args = tool_call.function.json_arguments()
             fn_output = tool(**fn_args)
     except Exception as exc:
         fn_output = f'Error calling function "{fn_name}": {exc}'
@@ -152,7 +197,7 @@ async def handle_tool_call_async(
         else:
             tool = tool_lookup[fn_name]
             metadata = tool._metadata
-            fn_args = json.loads(tool_call.function.arguments)
+            fn_args = tool_call.function.json_arguments()
             fn_output = tool(**fn_args)
             if inspect.is_awaitable(fn_output):
                 fn_output = await fn_output

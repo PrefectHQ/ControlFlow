@@ -1,5 +1,5 @@
+from controlflow.llm.types import AssistantMessage, ToolMessage
 from controlflow.utilities.context import ctx
-from controlflow.utilities.types import AssistantMessage, ToolMessage
 
 
 class StreamHandler:

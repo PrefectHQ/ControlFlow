@@ -171,7 +171,7 @@ class Graph(BaseModel):
         else:
             candidates = self.upstream_dependencies(tasks, include_tasks=True)
         return sorted(
-            [task for task in candidates if task.is_ready()], key=lambda t: t.created_at
+            [task for task in candidates if task.is_ready], key=lambda t: t.created_at
         )
 
 

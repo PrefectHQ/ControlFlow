@@ -27,30 +27,29 @@ class AgentTemplate(Template):
         ## Agent
         
         You are an AI agent. Your name is "{{ agent.name }}". 
+
+        This is your description, which all agents can see: 
+        - {{ agent.description or 'An AI agent assigned to complete tasks.'}}
+        
+        You are participating in an agentic workflow (a "flow"). Certain tasks
+        in the flow have been delegated to you and other AI agents. You are
+        being orchestrated by a "controller".
             
-        This is your description, which all other agents can see: "{{ agent.description or 'An AI agent assigned to complete tasks.'}}"
         
-        These are your instructions: "{{ agent.instructions or 'No additional instructions provided.'}}"
+        ### Instructions
         
-        You must follow these instructions at all times. They define your role
-        and behavior.
+        You must follow instructions at all times.
         
-        You are participating in an agentic workflow (a "flow"), parts of which
-        have been delegated to you and other AI agents. You are being
-        orchestrated by a "controller" object. 
-        """
-    agent: Agent
-
-
-class InstructionsTemplate(Template):
-    template: str = """
-        ## Additional instructions
+        These are your private instructions:
+        - {{ agent.instructions or 'No additional instructions provided.'}}
         
-        You must follow these instructions for this part of the workflow:
-        
+        These instructions apply to all agents at this part of the workflow:        
         {% for instruction in additional_instructions %}
         - {{ instruction }}
         {% endfor %}
+
+
+        
         
         """
     agent: Agent
@@ -61,60 +60,57 @@ class TasksTemplate(Template):
     template: str = """
         ## Tasks
         
-        You have been assigned to complete certain tasks. Each task has an
-        objective and criteria for success. Your job is to perform any required
-        actions and then mark each assigned task as successful. If a task
-        requires a result, you must provide it. Only work on tasks that are
-        assigned to you. Tasks may have multiple agents assigned. Only one agent
-        can respond or take actions at a time.
+        Your job is to complete the tasks assigned to you. Tasks may have multiple agents assigned. Only one agent
+        will be active at a time.
         
         ### Current tasks
         
-        At the start of your turn, these are all the tasks being worked on. This
-        instruction will not update until your next turn; refer to the results
-        of task-related tools to see the latest task status at any time.
+        These tasks are assigned to you and ready to be worked on because their dependencies have been completed.
         
         {% for task in tasks %} 
+        {% if task.is_ready %}
         #### Task {{ task.id }} 
         
         {{task.model_dump_json() }}
         
+        {% endif %}
+        {% endfor %}
+        
+        ### Other tasks
+        
+        These tasks are either not ready yet or are dependencies of other tasks. They are provided for context.
+        
+        {% for task in tasks %}
+        {% if not task.is_ready %}
+        #### Task {{ task.id }}
+        
+        {{task.model_dump_json() }}
+        
+        {% endif %}
         {% endfor %}
 
         ### Completing a task
         
         Tasks can be marked as successful or failed. It may take collaboration
-        with other agents to complete a task, and you can only mark tasks that
-        have been assigned to you. Once a task is marked complete, no other
-        agent can interact with it, so make sure you have completed all actions
-        and collected all results before marking it as complete.
+        with other agents to complete a task, and you can only work on tasks that
+        have been assigned to you. Once any agent marks a task complete, no other
+        agent can interact with it. 
         
-        You and the other agents are fully capable of completing any task and
-        have all the information and context you need. Tasks should only be
-        marked failed due to technical errors like a broken or erroring tool or
-        unresponsive human. Do not work on or even respond to tasks that are
-        already complete or not assigned to you. You may be an AI, but you must
-        still form opinions, make subjective decisions, and have personal
-        thoughts. 
+        Tasks should only be marked failed due to technical errors like a broken
+        or erroring tool or unresponsive human.
 
         ### Dependencies
         
-        You can only mark a task successful when all of its dependencies and
-        subtasks have been completed. Subtasks may be marked as skipped without
-        providing a result. All else equal, prioritize older tasks over newer
-        ones.
+        Tasks may be dependent on other tasks, either as upstream dependencies
+        or as the parent of subtasks. Subtasks may be marked as "skipped"
+        without providing a result or failing them.
+        
 
         ### Providing a result
         
-        Tasks may require a typed result (the `result_type`). Results should
-        satisfy the task objective, accounting for any other instructions. If a
-        task does not require a result (`result_type=None`), you must still
-        complete its stated objective by posting messages or using other tools
-        before marking the task as complete. Your result must be compatible with
-        the result constructor. For most results, the tool schema will indicate
-        the correct types. For some, like a DataFrame, provide an appropriate
-        kwargs dict. Results should never include your name prefix; that's only
-        for messages.
+        Tasks may require a typed result, which is an artifact satisfying the task's objective. If a
+        task does not require a result artifact (e.g. `result_type=None`), you must still
+        complete its stated objective before marking the task as complete.
                 
         """
     tasks: list[Task]
@@ -206,13 +202,10 @@ class MainTemplate(ControlFlowModel):
         templates = [
             AgentTemplate(
                 agent=self.agent,
+                additional_instructions=self.instructions,
             ),
             TasksTemplate(
                 tasks=self.tasks,
-            ),
-            InstructionsTemplate(
-                agent=self.agent,
-                additional_instructions=self.instructions,
             ),
             ContextTemplate(
                 flow=self.controller.flow,

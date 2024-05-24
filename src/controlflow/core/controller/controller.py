@@ -17,10 +17,11 @@ from controlflow.instructions import get_instructions
 from controlflow.llm.completions import completion_stream_async
 from controlflow.llm.handlers import TUIHandler
 from controlflow.llm.history import History
+from controlflow.llm.types import SystemMessage
 from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
 from controlflow.utilities.tasks import all_complete, any_incomplete
-from controlflow.utilities.types import FunctionTool, SystemMessage
+from controlflow.utilities.types import FunctionTool
 
 logger = logging.getLogger(__name__)
 
@@ -93,14 +94,12 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
         return help_im_stuck
 
-    async def _run_agent(self, agent: Agent, tasks: list[Task] = None):
+    async def _run_agent(self, agent: Agent, tasks: list[Task]):
         """
         Run a single agent.
         """
 
         from controlflow.core.controller.instruction_template import MainTemplate
-
-        tasks = tasks or self.tasks
 
         tools = self.flow.tools + agent.get_tools() + [self._create_help_tool()]
 
@@ -175,16 +174,18 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             # put the flow in context
             with self.flow:
                 # get the tasks to run
-                ready_tasks = {t for t in self.tasks if t.is_ready()}
+                ready_tasks = {t for t in self.tasks if t.is_ready}
                 upstreams = {d for t in ready_tasks for d in t.depends_on}
                 tasks = list(ready_tasks.union(upstreams))
+
+                # TODO: show the agent the entire graph, not just immediate upstreams
 
                 if all(t.is_complete() for t in tasks):
                     return
 
                 # get the agents
                 agent_candidates = [
-                    a for t in tasks for a in t.get_agents() if t.is_ready()
+                    a for t in tasks for a in t.get_agents() if t.is_ready
                 ]
                 if len({a.name for a in agent_candidates}) != len(agent_candidates):
                     raise ValueError(

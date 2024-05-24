@@ -11,7 +11,7 @@ from textual.widgets import Static
 
 from controlflow.core.task import TaskStatus
 from controlflow.llm.tools import get_tool_calls
-from controlflow.utilities.types import AssistantMessage, ToolMessage, UserMessage
+from controlflow.llm.types import AssistantMessage, ToolMessage, UserMessage
 
 
 def bool_to_emoji(value: bool) -> str:

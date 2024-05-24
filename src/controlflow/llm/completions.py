@@ -11,7 +11,7 @@ from controlflow.llm.tools import (
     get_tool_calls,
     handle_tool_call,
 )
-from controlflow.utilities.types import (
+from controlflow.llm.types import (
     ControlFlowMessage,
     as_cf_messages,
     as_oai_messages,
@@ -22,6 +22,7 @@ def completion(
     messages: list[Union[dict, ControlFlowMessage]],
     model=None,
     tools: list[Callable] = None,
+    assistant_name: str = None,
     max_iterations=None,
     handlers: list[StreamHandler] = None,
     **kwargs,
@@ -64,6 +65,7 @@ def completion(
 
         # on message done
         for msg in response_messages:
+            msg.name = assistant_name
             new_messages.append(msg)
             if msg.has_tool_calls():
                 handler.on_tool_call_done(msg)
@@ -87,6 +89,7 @@ def completion_stream(
     messages: list[Union[dict, ControlFlowMessage]],
     model=None,
     tools: list[Callable] = None,
+    name: str = None,
     max_iterations: int = None,
     handlers: list[StreamHandler] = None,
     **kwargs,
@@ -117,7 +120,7 @@ def completion_stream(
     tools = as_tools(tools or [])
 
     counter = 0
-    while not snapshot_message or get_tool_calls([snapshot_message]):
+    while not snapshot_message or get_tool_calls(snapshot_message):
         completion_messages = trim_messages(
             as_oai_messages(messages + new_messages), model=model
         )
@@ -161,7 +164,7 @@ def completion_stream(
             handler.on_message_done(snapshot_message)
 
         # tool calls
-        for tool_call in get_tool_calls([snapshot_message]):
+        for tool_call in get_tool_calls(snapshot_message):
             tool_message = handle_tool_call(tool_call, tools)
             handler.on_tool_result(tool_message)
             new_messages.append(tool_message)
@@ -270,7 +273,7 @@ async def completion_stream_async(
     tools = as_tools(tools or [])
 
     counter = 0
-    while not snapshot_message or get_tool_calls([snapshot_message]):
+    while not snapshot_message or get_tool_calls(snapshot_message):
         completion_messages = trim_messages(
             as_oai_messages(messages + new_messages), model=model
         )
@@ -313,7 +316,7 @@ async def completion_stream_async(
         yield snapshot_message
 
         # tool calls
-        for tool_call in get_tool_calls([snapshot_message]):
+        for tool_call in get_tool_calls(snapshot_message):
             tool_message = handle_tool_call(tool_call, tools)
             handler.on_tool_result(tool_message)
             new_messages.append(tool_message)
