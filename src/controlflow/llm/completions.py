@@ -1,4 +1,3 @@
-import inspect
 import math
 from typing import AsyncGenerator, Callable, Generator, Tuple, Union
 
@@ -6,7 +5,7 @@ import litellm
 from litellm.utils import trim_messages
 
 import controlflow
-from controlflow.llm.handlers import AsyncStreamHandler, StreamHandler
+from controlflow.llm.handlers import CompoundHandler, StreamHandler
 from controlflow.llm.tools import (
     as_tools,
     get_tool_calls,
@@ -17,11 +16,6 @@ from controlflow.utilities.types import (
     as_cf_messages,
     as_oai_messages,
 )
-
-
-async def maybe_coro(coro):
-    if inspect.isawaitable(coro):
-        await coro
 
 
 def completion(
@@ -47,8 +41,7 @@ def completion(
     response_messages = []
     new_messages = []
 
-    if handlers is None:
-        handlers = []
+    handler = CompoundHandler(handlers=handlers or [])
 
     if model is None:
         model = controlflow.settings.model
@@ -70,20 +63,17 @@ def completion(
         response_messages = as_cf_messages([response])
 
         # on message done
-        for h in handlers:
-            for msg in response_messages:
-                if msg.has_tool_calls():
-                    h.on_tool_call_done(msg)
-                else:
-                    h.on_message_done(msg)
+        for msg in response_messages:
+            new_messages.append(msg)
+            if msg.has_tool_calls():
+                handler.on_tool_call_done(msg)
+            else:
+                handler.on_message_done(msg)
 
-        new_messages.extend(response_messages)
+        # tool calls
         for tool_call in get_tool_calls(response_messages):
             tool_message = handle_tool_call(tool_call, tools)
-
-            # on tool result
-            for h in handlers:
-                h.on_tool_result(tool_message)
+            handler.on_tool_result(tool_message)
             new_messages.append(tool_message)
 
         counter += 1
@@ -120,9 +110,7 @@ def completion_stream(
     snapshot_message = None
     new_messages = []
 
-    if handlers is None:
-        handlers = []
-
+    handler = CompoundHandler(handlers=handlers or [])
     if model is None:
         model = controlflow.settings.model
 
@@ -149,35 +137,33 @@ def completion_stream(
 
             # on message created
             if len(deltas) == 1:
-                for h in handlers:
-                    if snapshot_message.has_tool_calls():
-                        h.on_tool_call_created(delta=delta_message)
-                    else:
-                        h.on_message_created(delta=delta_message)
+                if snapshot_message.has_tool_calls():
+                    handler.on_tool_call_created(delta=delta_message)
+                else:
+                    handler.on_message_created(delta=delta_message)
 
             # on message delta
-            for h in handlers:
-                if snapshot_message.has_tool_calls():
-                    h.on_tool_call_delta(delta=delta_message, snapshot=snapshot_message)
-                else:
-                    h.on_message_delta(delta=delta_message, snapshot=snapshot_message)
+            if snapshot_message.has_tool_calls():
+                handler.on_tool_call_delta(
+                    delta=delta_message, snapshot=snapshot_message
+                )
+            else:
+                handler.on_message_delta(delta=delta_message, snapshot=snapshot_message)
 
         yield snapshot_message
 
         new_messages.append(snapshot_message)
 
         # on message done
-        for h in handlers:
-            if snapshot_message.has_tool_calls():
-                h.on_tool_call_done(snapshot_message)
-            else:
-                h.on_message_done(snapshot_message)
+        if snapshot_message.has_tool_calls():
+            handler.on_tool_call_done(snapshot_message)
+        else:
+            handler.on_message_done(snapshot_message)
 
         # tool calls
         for tool_call in get_tool_calls([snapshot_message]):
             tool_message = handle_tool_call(tool_call, tools)
-            for h in handlers:
-                h.on_tool_result(tool_message)
+            handler.on_tool_result(tool_message)
             new_messages.append(tool_message)
             yield tool_message
 
@@ -191,7 +177,7 @@ async def completion_async(
     model=None,
     tools: list[Callable] = None,
     max_iterations=None,
-    handlers: list[Union[AsyncStreamHandler, StreamHandler]] = None,
+    handlers: list[StreamHandler] = None,
     **kwargs,
 ) -> list[ControlFlowMessage]:
     """
@@ -209,9 +195,7 @@ async def completion_async(
     response_messages = []
     new_messages = []
 
-    if handlers is None:
-        handlers = []
-
+    handler = CompoundHandler(handlers=handlers or [])
     if model is None:
         model = controlflow.settings.model
 
@@ -231,19 +215,18 @@ async def completion_async(
 
         response_messages = as_cf_messages([response])
 
-        # on message done
-        for h in handlers:
-            for msg in response_messages:
-                if msg.has_tool_calls():
-                    await maybe_coro(h.on_tool_call_done(msg))
-                else:
-                    await maybe_coro(h.on_message_done(msg))
+        # on done
+        for msg in response_messages:
+            new_messages.append(msg)
+            if msg.has_tool_calls():
+                handler.on_tool_call_done(msg)
+            else:
+                handler.on_message_done(msg)
 
-        new_messages.extend(response_messages)
+        # tool calls
         for tool_call in get_tool_calls(response_messages):
             tool_message = handle_tool_call(tool_call, tools)
-            for h in handlers:
-                await maybe_coro(h.on_tool_result(tool_message))
+            handler.on_tool_result(tool_message)
             new_messages.append(tool_message)
 
         counter += 1
@@ -258,7 +241,7 @@ async def completion_stream_async(
     model=None,
     tools: list[Callable] = None,
     max_iterations: int = None,
-    handlers: list[Union[AsyncStreamHandler, StreamHandler]] = None,
+    handlers: list[StreamHandler] = None,
     **kwargs,
 ) -> AsyncGenerator[ControlFlowMessage, None]:
     """
@@ -280,9 +263,7 @@ async def completion_stream_async(
     snapshot_message = None
     new_messages = []
 
-    if handlers is None:
-        handlers = []
-
+    handler = CompoundHandler(handlers=handlers or [])
     if model is None:
         model = controlflow.settings.model
 
@@ -309,43 +290,32 @@ async def completion_stream_async(
 
             # on message created
             if len(deltas) == 1:
-                for h in handlers:
-                    if snapshot_message.has_tool_calls():
-                        await maybe_coro(h.on_tool_call_created(delta=delta_message))
-                    else:
-                        await maybe_coro(h.on_message_created(delta=delta_message))
+                if snapshot_message.has_tool_calls():
+                    handler.on_tool_call_created(delta=delta_message)
+                else:
+                    handler.on_message_created(delta=delta_message)
 
             # on message delta
-            for h in handlers:
-                if snapshot_message.has_tool_calls():
-                    await maybe_coro(
-                        h.on_tool_call_delta(
-                            delta=delta_message, snapshot=snapshot_message
-                        )
-                    )
-                else:
-                    await maybe_coro(
-                        h.on_message_delta(
-                            delta=delta_message, snapshot=snapshot_message
-                        )
-                    )
-
-        yield snapshot_message
-
-        new_messages.append(snapshot_message)
+            if snapshot_message.has_tool_calls():
+                handler.on_tool_call_delta(
+                    delta=delta_message, snapshot=snapshot_message
+                )
+            else:
+                handler.on_message_delta(delta=delta_message, snapshot=snapshot_message)
 
         # on message done
-        for h in handlers:
-            if snapshot_message.has_tool_calls():
-                await maybe_coro(h.on_tool_call_done(snapshot_message))
-            else:
-                await maybe_coro(h.on_message_done(snapshot_message))
+        if snapshot_message.has_tool_calls():
+            handler.on_tool_call_done(snapshot_message)
+        else:
+            handler.on_message_done(snapshot_message)
+
+        new_messages.append(snapshot_message)
+        yield snapshot_message
 
         # tool calls
         for tool_call in get_tool_calls([snapshot_message]):
             tool_message = handle_tool_call(tool_call, tools)
-            for h in handlers:
-                await maybe_coro(h.on_tool_result(tool_message))
+            handler.on_tool_result(tool_message)
             new_messages.append(tool_message)
             yield tool_message
 
