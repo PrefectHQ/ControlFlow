@@ -37,7 +37,7 @@ def format_timestamp(timestamp: datetime.datetime) -> str:
 
 class TUIMessage(Static):
     message: reactive[Union[UserMessage, AssistantMessage]] = reactive(
-        None, always_update=True
+        None, always_update=True, layout=True
     )
 
     def __init__(self, message: Union[UserMessage, AssistantMessage], **kwargs):
@@ -78,10 +78,12 @@ class TUIMessage(Static):
                     )
                 )
         else:
+            role = {"assistant": "Agent", "user": "User"}
+
             panels.append(
                 Panel(
-                    Markdown(self.message.content),
-                    title=f"[bold]{self.message.role.capitalize()}[/]",
+                    Markdown(self.message.content or ""),
+                    title=f"[bold]{role.get(self.message.role, 'Agent')}[/]",
                     subtitle=f"[italic]{format_timestamp(self.message.timestamp)}[/]",
                     title_align="left",
                     subtitle_align="right",
@@ -99,7 +101,7 @@ class TUIMessage(Static):
 
 
 class TUIToolMessage(Static):
-    message: reactive[ToolMessage] = reactive(None, always_update=True)
+    message: reactive[ToolMessage] = reactive(None, always_update=True, layout=True)
 
     def __init__(self, message: ToolMessage, **kwargs):
         super().__init__(**kwargs)
@@ -114,7 +116,7 @@ class TUIToolMessage(Static):
             )
             content = Group(
                 f":white_check_mark: Received output from the [markdown.code]{self.message.tool_call.function.name}[/] tool.\n",
-                Markdown(f"```{content_type}\n{self.message.content}\n```"),
+                Markdown(f"```{content_type}\n{self.message.content or ''}\n```"),
             )
         else:
             self.display = False
