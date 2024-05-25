@@ -491,7 +491,8 @@ text-unidecode==1.3
     # via python-slugify
 textual==0.61.1
     # via controlflow
-tiktoken==0.6.0
+tiktoken==0.7.0
+    # via controlflow
     # via litellm
 time-machine==2.14.1
     # via pendulum
