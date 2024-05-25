@@ -92,7 +92,12 @@ class Settings(ControlFlowSettings):
 
     model: str = Field("gpt-4o", description="The LLM model to use.")
 
-    # ------------ TUI settings ------------
+    # ------------ Flow visualization settings ------------
+
+    enable_print_handler: bool = Field(
+        True,
+        description="If True, the PrintHandler will be enabled. Superseded by the enable_tui setting.",
+    )
 
     enable_tui: bool = Field(
         False,

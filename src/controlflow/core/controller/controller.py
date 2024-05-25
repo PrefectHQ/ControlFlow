@@ -135,15 +135,21 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         system_message = SystemMessage(content=instructions)
         messages = self.history.load_messages(thread_id=self.flow.thread_id)
 
+        # setup handler
+        if controlflow.settings.enable_tui:
+            handlers = [TUIHandler()]
+        elif controlflow.settings.enable_print_handler:
+            handlers = [PrintHandler()]
+        else:
+            handlers = []
+
         # call llm
         response_messages = []
         async for msg in await completion_async(
             messages=[system_message] + messages,
             model=agent.model,
             tools=tools,
-            handlers=[TUIHandler()]
-            if controlflow.settings.enable_tui
-            else [PrintHandler()],
+            handlers=handlers,
             max_iterations=1,
             stream=True,
             message_preprocessor=add_agent_name_to_message,
