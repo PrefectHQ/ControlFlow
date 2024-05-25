@@ -89,7 +89,14 @@ class Settings(ControlFlowSettings):
 
     # ------------ LLM settings ------------
 
-    model: str = Field("gpt-4o", description="The LLM model to use.")
+    llm_model: str = Field("gpt-4o", description="The LLM model to use.")
+    llm_api_key: Optional[str] = Field(None, description="The LLM API key to use.")
+    llm_api_base: Optional[str] = Field(
+        None, description="The LLM API base URL to use."
+    )
+    llm_api_version: Optional[str] = Field(
+        None, description="The LLM API version to use."
+    )
 
     # ------------ Flow visualization settings ------------
 
