@@ -1,3 +1,5 @@
+import litellm
+import tiktoken
 from pydantic import TypeAdapter
 
 import controlflow
@@ -32,7 +34,7 @@ def classify(
             the label number only.
             
             {% for label in labels %}
-            - Label #{{ loop.index0 }}: {{ label }}
+            - Label {{ loop.index0 }}: {{ label }}
             {% endfor %}
             """
         ).render(labels=label_strings),
@@ -60,31 +62,40 @@ def classify(
             """
         ).render(data=data, instructions=instructions, context=context),
         AssistantMessage("""
-            The best label for the data is Label #
+            The best label for the data is Label number
             """),
     ]
+
+    model = model or controlflow.settings.llm_model
+
+    kwargs = {}
+    if model in litellm.models_by_provider["openai"]:
+        openai_kwargs = _openai_kwargs(model=model, n_labels=len(labels))
+        kwargs.update(openai_kwargs)
+    else:
+        messages.append(
+            SystemMessage(
+                "Return only the label number, no other information or tokens."
+            )
+        )
 
     result = controlflow.llm.completions.completion(
         messages=messages,
         model=model,
         max_tokens=1,
-        logit_bias={
-            str(encoding): 100
-            for i in range(len(labels))
-            for encoding in _encoder(model)(str(i))
-        },
+        **kwargs,
     )
 
     index = int(result[0].content)
     return labels[index]
 
 
-def _encoder(model: str):
-    import tiktoken
+def _openai_kwargs(model: str, n_labels: int):
+    encoding = tiktoken.encoding_for_model(model)
 
-    try:
-        encoding = tiktoken.encoding_for_model(model)
-    except (KeyError, AttributeError):
-        encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+    logit_bias = {}
+    for i in range(n_labels):
+        for token in encoding.encode(str(i)):
+            logit_bias[token] = 100
 
-    return encoding.encode
+    return dict(logit_bias=logit_bias)
