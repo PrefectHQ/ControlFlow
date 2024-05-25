@@ -1,4 +1,5 @@
 import datetime
+import inspect
 import json
 import uuid
 from typing import Any, List, Literal, Optional, Union
@@ -12,6 +13,7 @@ from pydantic import (
     model_validator,
 )
 
+from controlflow.utilities.jinja import jinja_env
 from controlflow.utilities.types import _OpenAIBaseType
 
 # -----------------------------------------------
@@ -67,7 +69,7 @@ class ControlFlowMessage(_OpenAIBaseType):
     @field_validator("timestamp", mode="before")
     def _validate_timestamp(cls, v):
         if isinstance(v, int):
-            v = datetime.datetime.fromtimestamp(v)
+            v = datetime.datetime.fromtimestamp(v, tz=datetime.timezone.utc)
         return v
 
     @model_validator(mode="after")
@@ -94,6 +96,20 @@ class SystemMessage(ControlFlowMessage):
     _openai_fields = {"role", "content", "name"}
     # ---- end openai fields
 
+    @field_validator("content", mode="before")
+    def _validate_content(cls, v):
+        if isinstance(v, str):
+            v = inspect.cleandoc(v)
+        return v
+
+    def render(self, **kwargs) -> "SystemMessage":
+        """
+        Renders the content as a jinja template with the given keyword arguments
+        and returns a new SystemMessage.
+        """
+        content = jinja_env.from_string(self.content).render(**kwargs)
+        return self.model_copy(update=dict(content=content))
+
 
 class UserMessage(ControlFlowMessage):
     # ---- begin openai fields
@@ -106,8 +122,23 @@ class UserMessage(ControlFlowMessage):
     @field_validator("content", mode="before")
     def _validate_content(cls, v):
         if isinstance(v, str):
+            v = inspect.cleandoc(v)
             v = [TextContent(text=v)]
         return v
+
+    def render(self, **kwargs) -> "UserMessage":
+        """
+        Renders the content as a jinja template with the given keyword arguments
+        and returns a new SystemMessage.
+        """
+        content = []
+        for c in self.content:
+            if isinstance(c, TextContent):
+                text = jinja_env.from_string(c.text).render(**kwargs)
+                content.append(TextContent(text=text))
+            else:
+                content.append(c)
+        return self.model_copy(update=dict(content=content))
 
 
 class AssistantMessage(ControlFlowMessage):
@@ -126,8 +157,25 @@ class AssistantMessage(ControlFlowMessage):
         description="If True, this message is a streamed delta, or chunk, of a full message.",
     )
 
+    @field_validator("content", mode="before")
+    def _validate_content(cls, v):
+        if isinstance(v, str):
+            v = inspect.cleandoc(v)
+        return v
+
     def has_tool_calls(self):
         return bool(self.tool_calls)
+
+    def render(self, **kwargs) -> "AssistantMessage":
+        """
+        Renders the content as a jinja template with the given keyword arguments
+        and returns a new AssistantMessage.
+        """
+        if self.content is None:
+            content = self.content
+        else:
+            content = jinja_env.from_string(self.content).render(**kwargs)
+        return self.model_copy(update=dict(content=content))
 
 
 class ToolMessage(ControlFlowMessage):
@@ -143,6 +191,12 @@ class ToolMessage(ControlFlowMessage):
     tool_call: "ToolCall" = Field(repr=False)
     tool_result: Any = Field(None, exclude=True)
     tool_metadata: dict = Field(default_factory=dict)
+
+    @field_validator("content", mode="before")
+    def _validate_content(cls, v):
+        if isinstance(v, str):
+            v = inspect.cleandoc(v)
+        return v
 
 
 MessageType = Union[SystemMessage, UserMessage, AssistantMessage, ToolMessage]

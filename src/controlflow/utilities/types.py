@@ -1,21 +1,11 @@
-from enum import Enum
-from functools import partial, update_wrapper
-from typing import Callable, Optional, Union
+from typing import Union
 
-from marvin.beta.assistants import Assistant, Thread
-from marvin.beta.assistants.assistants import AssistantTool
-from marvin.types import FunctionTool
-from marvin.utilities.asyncio import ExposeSyncMethodsMixin
 from pydantic import (
     BaseModel,
-    computed_field,
 )
 
 # flag for unset defaults
 NOTSET = "__NOTSET__"
-
-
-ToolType = Union[FunctionTool, AssistantTool, Callable]
 
 
 class ControlFlowModel(BaseModel):

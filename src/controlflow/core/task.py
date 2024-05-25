@@ -39,7 +39,6 @@ from controlflow.utilities.types import (
     ControlFlowModel,
     PandasDataFrame,
     PandasSeries,
-    ToolType,
 )
 
 if TYPE_CHECKING:
@@ -219,7 +218,7 @@ class Task(ControlFlowModel):
         ]
 
     @field_serializer("tools")
-    def _serialize_tools(self, tools: list[ToolType]):
+    def _serialize_tools(self, tools: list[Callable]):
         tools = controlflow.llm.tools.as_tools(tools)
         return [t.model_dump({"name", "description"}) for t in tools]
 

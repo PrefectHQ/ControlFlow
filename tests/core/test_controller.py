@@ -67,9 +67,9 @@ class TestController:
         agent2 = Agent(name="Agent 2")
         task = Task(objective="Test Task", agents=[agent1, agent2])
         controller = Controller(flow=flow, tasks=[task], agents=[agent1, agent2])
-        mocked_marvin_moderator = AsyncMock(return_value=agent1)
+        mocked_classify_moderator = AsyncMock(return_value=agent1)
         monkeypatch.setattr(
-            "controlflow.core.controller.moderators.marvin_moderator",
-            mocked_marvin_moderator,
+            "controlflow.core.controller.moderators.classify_moderator",
+            mocked_classify_moderator,
         )
         assert controller.agents == [agent1, agent2]

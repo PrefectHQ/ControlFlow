@@ -19,7 +19,9 @@ class Template(ControlFlowModel):
         if self.should_render():
             render_kwargs = dict(self)
             render_kwargs.pop("template")
-            return jinja_env.render(inspect.cleandoc(self.template), **render_kwargs)
+            return jinja_env.from_string(inspect.cleandoc(self.template)).render(
+                **render_kwargs
+            )
 
 
 class AgentTemplate(Template):

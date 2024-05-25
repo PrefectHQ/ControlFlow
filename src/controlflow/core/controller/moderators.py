@@ -1,9 +1,8 @@
-import marvin
-
 from controlflow.core.agent import Agent
 from controlflow.core.flow import get_flow_messages
 from controlflow.core.task import Task
 from controlflow.instructions import get_instructions
+from controlflow.llm.classify import classify
 
 
 def round_robin(
@@ -15,7 +14,7 @@ def round_robin(
     return agents[iteration % len(agents)]
 
 
-def marvin_moderator(
+def classify_moderator(
     agents: list[Agent],
     tasks: list[Task],
     context: dict = None,
@@ -26,9 +25,9 @@ def marvin_moderator(
     instructions = get_instructions()
     context = context or {}
     context.update(tasks=tasks, history=history, instructions=instructions)
-    agent = marvin.classify(
+    agent = classify(
         context,
-        agents,
+        labels=agents,
         instructions="""
             Given the context, choose the AI agent best suited to take the
             next turn at completing the tasks in the task graph. Take into account
@@ -37,6 +36,6 @@ def marvin_moderator(
             completed before their downstream/parents can be completed. An agent
             can only work on a task that it is assigned to.
             """,
-        model_kwargs=dict(model=model) if model else None,
+        model=model,
     )
     return agent
