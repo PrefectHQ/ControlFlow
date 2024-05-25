@@ -64,7 +64,13 @@ def completion(
     handler = CompoundHandler(handlers=handlers or [])
 
     if model is None:
-        model = controlflow.settings.model
+        model = controlflow.settings.llm_model
+    if "api_key" not in kwargs:
+        kwargs["api_key"] = controlflow.settings.llm_api_key
+    if "api_version" not in kwargs:
+        kwargs["api_version"] = controlflow.settings.llm_api_version
+    if "api_base" not in kwargs:
+        kwargs["api_base"] = controlflow.settings.llm_api_base
 
     tools = as_tools(tools or [])
 
@@ -151,7 +157,13 @@ def _completion_stream(
 
     handler = CompoundHandler(handlers=handlers or [])
     if model is None:
-        model = controlflow.settings.model
+        model = controlflow.settings.llm_model
+    if "api_key" not in kwargs:
+        kwargs["api_key"] = controlflow.settings.llm_api_key
+    if "api_version" not in kwargs:
+        kwargs["api_version"] = controlflow.settings.llm_api_version
+    if "api_base" not in kwargs:
+        kwargs["api_base"] = controlflow.settings.llm_api_base
 
     tools = as_tools(tools or [])
 
@@ -273,7 +285,13 @@ async def completion_async(
 
     handler = CompoundHandler(handlers=handlers or [])
     if model is None:
-        model = controlflow.settings.model
+        model = controlflow.settings.llm_model
+    if "api_key" not in kwargs:
+        kwargs["api_key"] = controlflow.settings.llm_api_key
+    if "api_version" not in kwargs:
+        kwargs["api_version"] = controlflow.settings.llm_api_version
+    if "api_base" not in kwargs:
+        kwargs["api_base"] = controlflow.settings.llm_api_base
 
     tools = as_tools(tools or [])
 
@@ -379,7 +397,13 @@ async def _completion_stream_async(
 
     handler = CompoundHandler(handlers=handlers or [])
     if model is None:
-        model = controlflow.settings.model
+        model = controlflow.settings.llm_model
+    if "api_key" not in kwargs:
+        kwargs["api_key"] = controlflow.settings.llm_api_key
+    if "api_version" not in kwargs:
+        kwargs["api_version"] = controlflow.settings.llm_api_version
+    if "api_base" not in kwargs:
+        kwargs["api_base"] = controlflow.settings.llm_api_base
 
     tools = as_tools(tools or [])
 
