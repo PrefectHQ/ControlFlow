@@ -76,7 +76,7 @@ class Agent(ControlFlowModel, ExposeSyncMethodsMixin):
     )
     model: str = Field(
         description="The model used by the agent. If not provided, the default model will be used.",
-        default_factory=lambda: controlflow.settings.model,
+        default_factory=lambda: controlflow.settings.llm_model,
     )
 
     def __init__(self, name, **kwargs):
