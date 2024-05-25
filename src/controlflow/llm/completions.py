@@ -237,7 +237,7 @@ async def completion_async(
         list[ControlFlowMessage]: A list of ControlFlowMessage objects representing the completion response.
     """
     if stream:
-        return await _completion_stream_async(
+        return _completion_stream_async(
             messages=messages,
             model=model,
             tools=tools,

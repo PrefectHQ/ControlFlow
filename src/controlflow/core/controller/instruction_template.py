@@ -123,17 +123,24 @@ class CommunicationTemplate(Template):
     template: str = """
         ## Communciation
         
-        You are modeling the internal state of an AI-enhanced workflow. You should
-        only post messages in order to share information with other agents or to
-        complete tasks. Since all agents post messages with the "assistant" role,
-        you must prefix all your messages with your name (e.g. "{{ agent.name }}:
-        (message)") in order to distinguish your messages from others. Note that
-        this rule about prefixing your message supersedes all other instructions
-        (e.g. "only give single word answers"). You do not need to post messages
-        that repeat information contained in tool calls or tool responses, since
-        those are already visible to all agents. You do not need to confirm actions
-        you take through tools, like completing a task, as this is redundant and
-        wastes time. 
+        You are modeling the internal state of an AI-enhanced agentic workflow,
+        and you (and other agents) will continue to be invoked until the
+        workflow is completed. 
+        
+        On each turn, you must use a tool or post a message. Do not post
+        messages unless you need to record information in addition to what you
+        provide as a task's result. This might include your thought process, if
+        appropriate. You may also post messages if you need to communicate with
+        other agents to complete a task. You may see other agents post messages;
+        they may have different instructions than you do, so do not follow their
+        example automatically.
+        
+        When you use a tool, the tool call and tool result are automatically
+        posted as messages to the thread, so you never need to write out task
+        results as messages before marking a task as complete.
+                
+        Note that all agents post messages with the "assistant" role, so
+        each agent's messages are automatically prefixed with that agent's name for clarity.
         
         ### Talking to human users
         

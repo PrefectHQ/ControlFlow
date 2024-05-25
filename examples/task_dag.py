@@ -1,22 +1,28 @@
+import controlflow
 from controlflow import Task, flow
+
+controlflow.settings.enable_tui = True
 
 
 @flow
 def book_ideas():
-    genre = Task("pick a genre", str)
+    genre = Task("pick a genre")
+
     ideas = Task(
         "generate three short ideas for a book",
         list[str],
         context=dict(genre=genre),
     )
+
     abstract = Task(
-        "pick one idea and write an abstract",
-        str,
+        "pick one idea and write a short abstract",
+        result_type=str,
         context=dict(ideas=ideas, genre=genre),
     )
+
     title = Task(
         "pick a title",
-        str,
+        result_type=str,
         context=dict(abstract=abstract),
     )
 
