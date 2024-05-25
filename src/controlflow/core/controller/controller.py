@@ -3,14 +3,13 @@ import math
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from functools import cached_property
-from typing import Union
+from typing import Callable, Union
 
-from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
 from pydantic import BaseModel, Field, PrivateAttr, computed_field, model_validator
 
 import controlflow
 from controlflow.core.agent import Agent
-from controlflow.core.controller.moderators import marvin_moderator
+from controlflow.core.controller.moderators import classify_moderator
 from controlflow.core.flow import Flow, get_flow
 from controlflow.core.graph import Graph
 from controlflow.core.task import Task
@@ -20,9 +19,9 @@ from controlflow.llm.handlers import PrintHandler, TUIHandler
 from controlflow.llm.history import History
 from controlflow.llm.messages import AssistantMessage, ControlFlowMessage, SystemMessage
 from controlflow.tui.app import TUIApp as TUI
+from controlflow.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
 from controlflow.utilities.context import ctx
 from controlflow.utilities.tasks import all_complete, any_incomplete
-from controlflow.utilities.types import FunctionTool
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +86,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             self.flow.add_task(task)
         return self
 
-    def _create_end_turn_tool(self) -> FunctionTool:
+    def _create_end_turn_tool(self) -> Callable:
         def end_turn():
             """
             Call this tool to skip your turn and let another agent go next. This
@@ -96,13 +95,17 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             automatically, so only use it if you are truly stuck and unable to
             proceed.
             """
-            self._end_run_counts[ctx.get("controller_agent")] += 1
-            if self._end_run_counts[ctx.get("controller_agent")] >= 3:
+
+            # the agent's name is used as the key to track the number of times
+            key = getattr(ctx.get("controller_agent", None), "name", None)
+
+            self._end_run_counts[key] += 1
+            if self._end_run_counts[key] >= 3:
                 self._should_abort = True
-                self._end_run_counts[ctx.get("controller_agent")] = 0
+                self._end_run_counts[key] = 0
 
             return (
-                f"Ending turn. {3 - self._end_run_counts[ctx.get('controller_agent')]}"
+                f"Ending turn. {3 - self._end_run_counts[key]}"
                 " more uses will abort the workflow."
             )
 
@@ -151,6 +154,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             tools=tools,
             handlers=handlers,
             max_iterations=1,
+            assistant_name=agent.name,
             stream=True,
             message_preprocessor=add_agent_name_to_message,
         ):
@@ -173,7 +177,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         # )
 
     def choose_agent(self, agents: list[Agent], tasks: list[Task]) -> Agent:
-        return marvin_moderator(
+        return classify_moderator(
             agents=agents,
             tasks=tasks,
             iteration=self._iteration,
@@ -183,11 +187,13 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
     async def tui(self):
         if tui := ctx.get("tui"):
             yield tui
-        else:
+        elif controlflow.settings.enable_tui:
             tui = TUI(flow=self.flow)
             with ctx(tui=tui):
-                async with tui.run_context(run=controlflow.settings.enable_tui):
+                async with tui.run_context():
                     yield tui
+        else:
+            yield
 
     @expose_sync_method("run_once")
     async def run_once_async(self):
@@ -228,7 +234,6 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
                 elif len(agents) == 1:
                     agent = agents[0]
                 else:
-                    raise NotImplementedError("Need to reimplement multi-agent")
                     agent = self.choose_agent(agents=agents, tasks=tasks)
 
                 with ctx(controller_agent=agent):

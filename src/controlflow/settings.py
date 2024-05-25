@@ -60,7 +60,6 @@ class Settings(ControlFlowSettings):
         "on a task.",
     )
     prefect: PrefectSettings = Field(default_factory=PrefectSettings)
-    openai_api_key: Optional[str] = Field(None, validate_assignment=True)
 
     # ------------ home settings ------------
 
@@ -118,14 +117,6 @@ class Settings(ControlFlowSettings):
     def __init__(self, **data):
         super().__init__(**data)
         self.prefect.apply()
-
-    @field_validator("openai_api_key", mode="after")
-    def _apply_api_key(cls, v):
-        if v is not None:
-            import marvin
-
-            marvin.settings.openai.api_key = v
-        return v
 
     @field_validator("home_path", mode="before")
     def _validate_home_path(cls, v):

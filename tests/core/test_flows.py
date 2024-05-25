@@ -6,7 +6,7 @@ from controlflow.utilities.context import ctx
 class TestFlow:
     def test_flow_initialization(self):
         flow = Flow()
-        assert flow.thread is not None
+        assert flow.thread_id is not None
         assert len(flow.tools) == 0
         assert len(flow.agents) == 0
         assert len(flow.context) == 0

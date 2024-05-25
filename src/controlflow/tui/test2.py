@@ -1,12 +1,9 @@
 import asyncio
 
-from marvin.utilities.asyncio import run_sync
-
 from controlflow import Task
 from controlflow.core.flow import Flow
 from controlflow.tui.app import TUIApp
 
-run_sync
 asyncio
 with Flow() as flow:
     t = Task("get the user name", user_access=True)

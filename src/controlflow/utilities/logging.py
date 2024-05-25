@@ -2,8 +2,6 @@ import logging
 from functools import lru_cache
 from typing import Optional
 
-from marvin.utilities.logging import add_logging_methods
-
 
 @lru_cache()
 def get_logger(name: Optional[str] = None) -> logging.Logger:
@@ -40,5 +38,4 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
     else:
         logger = parent_logger
 
-    add_logging_methods(logger)
     return logger

@@ -22,7 +22,6 @@ anyio==3.7.1
     # via httpx
     # via openai
     # via prefect
-    # via starlette
     # via watchfiles
 apprise==1.7.5
     # via prefect
@@ -50,7 +49,6 @@ bytecode==0.15.1
     # via ddtrace
 cachetools==5.3.3
     # via google-auth
-    # via marvin
     # via prefect
 cairocffi==1.7.0
     # via cairosvg
@@ -121,8 +119,6 @@ execnet==2.1.1
     # via pytest-xdist
 executing==2.0.1
     # via stack-data
-fastapi==0.110.0
-    # via marvin
 filelock==3.13.3
     # via huggingface-hub
     # via virtualenv
@@ -154,7 +150,6 @@ httpcore==1.0.5
     # via httpx
     # via prefect
 httpx==0.27.0
-    # via marvin
     # via openai
     # via prefect
     # via respx
@@ -187,10 +182,10 @@ itsdangerous==2.1.2
     # via prefect
 jedi==0.19.1
     # via ipython
-jinja2==3.1.3
+jinja2==3.1.4
+    # via controlflow
     # via jinja2-humanize-extension
     # via litellm
-    # via marvin
     # via mike
     # via mkdocs
     # via mkdocs-material
@@ -203,7 +198,6 @@ jmespath==1.0.1
     # via boto3
     # via botocore
 jsonpatch==1.33
-    # via marvin
     # via prefect
 jsonpointer==2.4
     # via jsonpatch
@@ -237,8 +231,6 @@ markupsafe==2.1.5
     # via mkdocs-autorefs
     # via mkdocstrings
     # via werkzeug
-marvin @ git+https://github.com/prefecthq/marvin@9ff559318af3dd1185ab7d6a1e85b39967915b81
-    # via controlflow
 matplotlib-inline==0.1.6
     # via ipython
 mdit-py-plugins==0.4.1
@@ -289,7 +281,6 @@ oauthlib==3.2.2
     # via requests-oauthlib
 openai==1.28.1
     # via litellm
-    # via marvin
 opentelemetry-api==1.24.0
     # via ddtrace
 orjson==3.10.0
@@ -304,8 +295,6 @@ paginate==0.5.6
     # via mkdocs-material
 parso==0.8.3
     # via jedi
-partialjson==0.0.7
-    # via marvin
 pathspec==0.12.1
     # via mkdocs
     # via prefect
@@ -325,11 +314,10 @@ pluggy==1.4.0
     # via pytest
 pre-commit==3.7.0
     # via prefect
-prefect @ git+https://github.com/prefecthq/prefect@aad7f63ccfc7767729f65fe20b0defb208b2c451
+prefect @ git+https://github.com/prefecthq/prefect@fa0ffc96b9740b6ab00a81b14b50b17285abdefb
     # via controlflow
 prompt-toolkit==3.0.43
     # via ipython
-    # via marvin
 protobuf==5.26.1
     # via ddtrace
 ptyprocess==0.7.0
@@ -347,8 +335,6 @@ pycparser==2.22
     # via cffi
 pydantic==2.6.4
     # via controlflow
-    # via fastapi
-    # via marvin
     # via openai
     # via prefect
     # via pydantic-settings
@@ -356,7 +342,7 @@ pydantic-core==2.16.3
     # via prefect
     # via pydantic
 pydantic-settings==2.2.1
-    # via marvin
+    # via controlflow
 pygments==2.17.2
     # via ipython
     # via mkdocs-material
@@ -458,7 +444,6 @@ respx==0.21.1
 rfc3339-validator==0.1.4
     # via prefect
 rich==13.7.1
-    # via marvin
     # via prefect
     # via textual
     # via typer-slim
@@ -502,15 +487,12 @@ sqlparse==0.5.0
     # via ddtrace
 stack-data==0.6.3
     # via ipython
-starlette==0.36.3
-    # via fastapi
 text-unidecode==1.3
     # via python-slugify
 textual==0.61.1
     # via controlflow
 tiktoken==0.6.0
     # via litellm
-    # via marvin
 time-machine==2.14.1
     # via pendulum
 tinycss2==1.3.0
@@ -527,7 +509,6 @@ traitlets==5.14.2
     # via ipython
     # via matplotlib-inline
 typer==0.12.0
-    # via marvin
     # via prefect
 typer-cli==0.12.0
     # via typer
@@ -542,9 +523,7 @@ typing-extensions==4.10.0
     # via aiosqlite
     # via alembic
     # via ddtrace
-    # via fastapi
     # via huggingface-hub
-    # via marvin
     # via mypy
     # via openai
     # via prefect
@@ -554,7 +533,6 @@ typing-extensions==4.10.0
     # via textual
     # via typer-slim
 tzdata==2024.1
-    # via marvin
     # via pendulum
 tzlocal==5.2
     # via dateparser
@@ -569,7 +547,6 @@ urllib3==2.2.1
     # via requests
     # via responses
 uvicorn==0.28.1
-    # via marvin
     # via prefect
 vermin==1.6.0
     # via prefect

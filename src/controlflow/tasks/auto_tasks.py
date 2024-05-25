@@ -5,7 +5,7 @@ from pydantic import Field
 
 from controlflow.core.agent import Agent
 from controlflow.core.task import Task
-from controlflow.utilities.types import AssistantTool, ControlFlowModel, FunctionTool
+from controlflow.utilities.types import AssistantTool, ControlFlowModel
 
 ToolLiteral = TypeVar("ToolLiteral", bound=str)
 
@@ -176,12 +176,7 @@ def auto_tasks(
 ) -> list[Task]:
     tool_names = []
     for tool in available_tools or []:
-        if isinstance(tool, FunctionTool):
-            tool_names.append(tool.function.name)
-        elif isinstance(tool, AssistantTool):
-            tool_names.append(tool.type)
-        else:
-            tool_names.append(tool.__name__)
+        tool_names.append(tool.__name__)
 
     if tool_names:
         literal_tool_names = Literal[*tool_names]  # type: ignore

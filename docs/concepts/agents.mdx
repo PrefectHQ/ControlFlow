@@ -25,7 +25,7 @@ An agent has the following key properties:
 - `name` (str): The name of the agent, which serves as an identifier and is visible to other agents in the workflow.
 - `description` (str, optional): A brief description of the agent's role or specialization, which is also visible to other agents.
 - `instructions` (str, optional): Specific instructions or guidelines for the agent to follow during task execution. These instructions are private to the agent and not visible to other agents.
-- `tools` (List[ToolType], optional): A list of tools available to the agent. Tools are Python functions that the agent can call to perform specific actions or computations.
+- `tools` (List[Callable], optional): A list of tools available to the agent. Tools are Python functions that the agent can call to perform specific actions or computations.
 - `user_access` (bool, default=False): Indicates whether the agent has access to user interactions. If set to `True`, the agent will be provided with the `talk_to_human` tool to communicate with users.
 
 These properties help define the agent's characteristics, behavior, and capabilities within the flow.

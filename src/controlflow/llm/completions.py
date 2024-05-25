@@ -20,10 +20,10 @@ from controlflow.llm.tools import (
 
 def completion(
     messages: list[Union[dict, ControlFlowMessage]],
-    model=None,
+    model: str = None,
     tools: list[Callable] = None,
     assistant_name: str = None,
-    max_iterations=None,
+    max_iterations: int = None,
     handlers: list[CompletionHandler] = None,
     message_preprocessor: Callable[[ControlFlowMessage], ControlFlowMessage] = None,
     stream: bool = False,
@@ -124,7 +124,7 @@ def completion(
 
 def _completion_stream(
     messages: list[Union[dict, ControlFlowMessage]],
-    model=None,
+    model: str = None,
     tools: list[Callable] = None,
     assistant_name: str = None,
     max_iterations: int = None,
@@ -243,10 +243,10 @@ def _completion_stream(
 
 async def completion_async(
     messages: list[Union[dict, ControlFlowMessage]],
-    model=None,
+    model: str = None,
     tools: list[Callable] = None,
     assistant_name: str = None,
-    max_iterations=None,
+    max_iterations: int = None,
     handlers: list[CompletionHandler] = None,
     message_preprocessor: Callable[[ControlFlowMessage], ControlFlowMessage] = None,
     stream: bool = False,
@@ -344,30 +344,9 @@ async def completion_async(
         handler.on_end()
 
 
-"""
-Perform asynchronous streaming completion using the LLM model.
-
-Args:
-    messages: A list of messages to be used for completion.
-    model: The LLM model to be used for completion. If not provided, the default model from controlflow.settings will be used.
-    tools: A list of callable tools to be used during completion.
-    assistant_name: The name of the assistant, which will be set as the `name` attribute of any messages it generates.
-    max_iterations: The maximum number of iterations to perform completion. If not provided, it will continue until completion is done.
-    handlers: A list of CompletionHandler objects to handle completion events.
-    message_preprocessor: A callable function to preprocess each ControlFlowMessage before completion.
-    **kwargs: Additional keyword arguments to be passed to the litellm.acompletion function.
-
-Yields:
-    Each ControlFlowMessage generated during completion.
-
-Returns:
-    The final completion response as a list of ControlFlowMessage objects.
-"""
-
-
 async def _completion_stream_async(
     messages: list[Union[dict, ControlFlowMessage]],
-    model=None,
+    model: str = None,
     tools: list[Callable] = None,
     assistant_name: str = None,
     max_iterations: int = None,
@@ -383,10 +362,13 @@ async def _completion_stream_async(
         model: The LLM model to be used for completion. If not provided, the default model from controlflow.settings will be used.
         tools: A list of callable tools to be used during completion.
         assistant_name: The name of the assistant, which will be set as the `name` attribute of any messages it generates.
+        max_iterations: The maximum number of iterations to perform completion. If not provided, it will continue until completion is done.
+        handlers: A list of CompletionHandler objects to handle completion events.
+        message_preprocessor: A callable function to preprocess each ControlFlowMessage before completion.
         **kwargs: Additional keyword arguments to be passed to the litellm.acompletion function.
 
     Yields:
-        Each message
+        Each ControlFlowMessage generated during completion.
 
     Returns:
         The final completion response as a list of ControlFlowMessage objects.
@@ -476,5 +458,6 @@ async def _completion_stream_async(
                 break
     except Exception as exc:
         handler.on_exception(exc)
+        raise
     finally:
         handler.on_end()

@@ -1,19 +1,12 @@
 import inspect
-import json
-from typing import Any, Callable
+from typing import Any
 from uuid import UUID
 
-import prefect
-from marvin.types import FunctionTool
-from marvin.utilities.asyncio import run_sync
-from marvin.utilities.tools import tool_from_function
 from prefect import get_client as get_prefect_client
-from prefect import task as prefect_task
 from prefect.artifacts import ArtifactRequest
 from prefect.context import FlowRunContext, TaskRunContext
+from prefect.utilities.asyncutils import run_sync
 from pydantic import TypeAdapter
-
-from controlflow.utilities.types import AssistantTool, ToolType
 
 
 def create_markdown_artifact(
@@ -117,66 +110,49 @@ TOOL_CALL_FUNCTION_RESULT_TEMPLATE = inspect.cleandoc(
 )
 
 
-def safe_isinstance(obj, type_) -> bool:
-    # FunctionTool objects are typed generics, and
-    # Python 3.9 will raise an error if you try to isinstance a typed generic...
-    try:
-        return isinstance(obj, type_)
-    except TypeError:
-        try:
-            return issubclass(type(obj), type_)
-        except TypeError:
-            return False
+# def wrap_prefect_tool(tool: ToolType) -> AssistantTool:
+#     if not (isinstance(tool, AssistantTool) or isinstance(tool, ToolFunction)):
+#         tool = tool(tool)
 
+#     if isinstance(tool, ToolFunction):
+#         # for functions, we modify the function to become a Prefect task and
+#         # publish an artifact that contains details about the function call
 
-def wrap_prefect_tool(tool: ToolType) -> AssistantTool:
-    """
-    Wraps a Marvin tool in a prefect task
-    """
-    if not (
-        safe_isinstance(tool, AssistantTool) or safe_isinstance(tool, FunctionTool)
-    ):
-        tool = tool_from_function(tool)
+#         if isinstance(tool.function._python_fn, prefect.tasks.Task):
+#             return tool
 
-    if safe_isinstance(tool, FunctionTool):
-        # for functions, we modify the function to become a Prefect task and
-        # publish an artifact that contains details about the function call
+#         def modified_fn(
+#             # provide default args to avoid a late-binding issue
+#             original_fn: Callable = tool.function._python_fn,
+#             tool: ToolFunction = tool,
+#             **kwargs,
+#         ):
+#             # call fn
+#             result = original_fn(**kwargs)
 
-        if isinstance(tool.function._python_fn, prefect.tasks.Task):
-            return tool
+#             # prepare artifact
+#             passed_args = inspect.signature(original_fn).bind(**kwargs).arguments
+#             try:
+#                 passed_args = json.dumps(passed_args, indent=2)
+#             except Exception:
+#                 pass
+#             create_markdown_artifact(
+#                 markdown=TOOL_CALL_FUNCTION_RESULT_TEMPLATE.format(
+#                     name=tool.function.name,
+#                     description=tool.function.description or "(none provided)",
+#                     args=passed_args,
+#                     result=result,
+#                 ),
+#                 key="result",
+#             )
 
-        def modified_fn(
-            # provide default args to avoid a late-binding issue
-            original_fn: Callable = tool.function._python_fn,
-            tool: FunctionTool = tool,
-            **kwargs,
-        ):
-            # call fn
-            result = original_fn(**kwargs)
+#             # return result
+#             return result
 
-            # prepare artifact
-            passed_args = inspect.signature(original_fn).bind(**kwargs).arguments
-            try:
-                passed_args = json.dumps(passed_args, indent=2)
-            except Exception:
-                pass
-            create_markdown_artifact(
-                markdown=TOOL_CALL_FUNCTION_RESULT_TEMPLATE.format(
-                    name=tool.function.name,
-                    description=tool.function.description or "(none provided)",
-                    args=passed_args,
-                    result=result,
-                ),
-                key="result",
-            )
+#         # replace the function with the modified version
+#         tool.function._python_fn = prefect_task(
+#             modified_fn,
+#             task_run_name=f"Tool call: {tool.function.name}",
+#         )
 
-            # return result
-            return result
-
-        # replace the function with the modified version
-        tool.function._python_fn = prefect_task(
-            modified_fn,
-            task_run_name=f"Tool call: {tool.function.name}",
-        )
-
-    return tool
+#     return tool

@@ -6,7 +6,7 @@ import pytest
 from controlflow.core.agent import Agent
 from controlflow.core.task import Task, TaskStatus
 from controlflow.llm.completions import Response
-from marvin.settings import temporary_settings as temporary_marvin_settings
+from controlflow.settings import temporary_settings
 
 
 def new_chunk():
@@ -18,33 +18,8 @@ def new_chunk():
 @pytest.fixture
 def prevent_openai_calls():
     """Prevent any calls to the OpenAI API from being made."""
-    with temporary_marvin_settings(openai__api_key="unset"):
+    with temporary_settings(llm_api_key="unset"):
         yield
-
-
-@pytest.fixture
-def mock_run(monkeypatch, prevent_openai_calls):
-    """
-    This fixture mocks the calls to the OpenAI Assistants API. Use it in a test
-    and assign any desired side effects (like completing a task) to the mock
-    object's `.side_effect` attribute.
-
-    For example:
-
-    def test_example(mock_run):
-        task = Task(objective="Say hello")
-
-        def side_effect():
-            task.mark_complete()
-
-        mock_run.side_effect = side_effect
-
-        task.run()
-
-    """
-    MockRun = AsyncMock()
-    monkeypatch.setattr("controlflow.core.controller.controller.Run.run_async", MockRun)
-    yield MockRun
 
 
 @pytest.fixture
@@ -67,9 +42,6 @@ def mock_controller_run_agent(monkeypatch, prevent_openai_calls):
 
     monkeypatch.setattr(
         "controlflow.core.controller.controller.Controller._run_agent", MockRunAgent
-    )
-    monkeypatch.setattr(
-        "marvin.beta.assistants.Thread.get_messages", MockThreadGetMessages
     )
     yield MockRunAgent
 

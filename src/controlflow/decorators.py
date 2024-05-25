@@ -1,17 +1,17 @@
 import functools
 import inspect
+from typing import Callable
 
 import prefect
-from marvin.beta.assistants import Thread
 
 import controlflow
 from controlflow.core.agent import Agent
 from controlflow.core.flow import Flow
 from controlflow.core.task import Task
 from controlflow.utilities.logging import get_logger
-from controlflow.utilities.marvin import patch_marvin
+
+# from controlflow.utilities.marvin import patch_marvin
 from controlflow.utilities.tasks import resolve_tasks
-from controlflow.utilities.types import ToolType
 
 logger = get_logger(__name__)
 
@@ -19,9 +19,9 @@ logger = get_logger(__name__)
 def flow(
     fn=None,
     *,
-    thread: Thread = None,
+    thread: str = None,
     instructions: str = None,
-    tools: list[ToolType] = None,
+    tools: list[Callable] = None,
     agents: list["Agent"] = None,
     lazy: bool = None,
 ):
@@ -38,9 +38,9 @@ def flow(
     Args:
         fn (callable, optional): The function to be wrapped as a flow. If not provided,
             the decorator will act as a partial function and return a new flow decorator.
-        thread (Thread, optional): The thread to execute the flow on. Defaults to None.
+        thread (str, optional): The thread to execute the flow on. Defaults to None.
         instructions (str, optional): Instructions for the flow. Defaults to None.
-        tools (list[ToolType], optional): List of tools to be used in the flow. Defaults to None.
+        tools (list[Callable], optional): List of tools to be used in the flow. Defaults to None.
         agents (list[Agent], optional): List of agents to be used in the flow. Defaults to None.
         lazy (bool, optional): Whether the flow should be run lazily. If not
             set, behavior is determined by the global `eager_mode` setting. Lazy execution means
@@ -92,7 +92,7 @@ def flow(
         # create a function to wrap as a Prefect flow
         @prefect.flow
         def wrapped_flow(*args, lazy_=None, **kwargs):
-            with flow_obj, patch_marvin():
+            with flow_obj:
                 with controlflow.instructions(instructions):
                     result = fn(*args, **kwargs)
 
@@ -126,7 +126,7 @@ def task(
     objective: str = None,
     instructions: str = None,
     agents: list["Agent"] = None,
-    tools: list[ToolType] = None,
+    tools: list[Callable] = None,
     user_access: bool = None,
     lazy: bool = None,
 ):
@@ -147,7 +147,7 @@ def task(
         instructions (str, optional): Instructions for the task. Defaults to None, in which
             case the function docstring is used as the instructions.
         agents (list[Agent], optional): List of agents to be used in the task. Defaults to None.
-        tools (list[ToolType], optional): List of tools to be used in the task. Defaults to None.
+        tools (list[Callable], optional): List of tools to be used in the task. Defaults to None.
         user_access (bool, optional): Whether the task requires user access. Defaults to None,
             in which case it is set to False.
         lazy (bool, optional): Whether the task should be run lazily. If not

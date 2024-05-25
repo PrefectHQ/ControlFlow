@@ -6,12 +6,13 @@ authors = [
     { name = "Jeremiah Lowin", email = "153965+jlowin@users.noreply.github.com" },
 ]
 dependencies = [
-    "marvin @ git+https://github.com/prefecthq/marvin@main",
     "prefect[dev] @ git+https://github.com/prefecthq/prefect@main",
     # can remove when prefect fully migrates to pydantic 2
     "pydantic>=2",
     "textual>=0.61.1",
     "litellm>=1.37.17",
+    "jinja2>=3.1.4",
+    "pydantic-settings>=2.2.1",
 ]
 readme = "README.md"
 requires-python = ">= 3.9"
@@ -79,7 +80,7 @@ skip-magic-trailing-comma = false
 "__init__.py" = ['I', 'F401', 'E402']
 "conftest.py" = ["F401", "F403"]
 'tests/fixtures/*.py' = ['F401', 'F403']
-"src/controlflow/utilities/types.py" = ['F401']
+# "src/controlflow/utilities/types.py" = ['F401']
 
 [tool.pytest.ini_options]
 timeout = 120

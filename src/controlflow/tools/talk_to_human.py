@@ -2,11 +2,11 @@ import asyncio
 import contextlib
 from typing import TYPE_CHECKING
 
-from marvin.utilities.tools import tool_from_function
 from prefect.context import FlowRunContext
 from prefect.input.run_input import receive_input
 
 import controlflow
+from controlflow.llm.tools import tool
 from controlflow.utilities.context import ctx
 
 if TYPE_CHECKING:
@@ -36,7 +36,7 @@ async def listen_for_response():
         return response
 
 
-@tool_from_function
+@tool
 async def talk_to_human(message: str, get_response: bool = True) -> str:
     """
     Send a message to the human user and optionally wait for a response.
