@@ -134,7 +134,7 @@ class Settings(ControlFlowSettings):
             v.mkdir(parents=True, exist_ok=True)
         return v
 
-    @field_validator("model", mode="before")
+    @field_validator("llm_model", mode="before")
     def _validate_model(cls, v):
         if not litellm.supports_function_calling(model=v):
             raise ValueError(f"Model '{v}' does not support function calling.")
