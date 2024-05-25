@@ -173,10 +173,10 @@ def test_validate_subtask_dependencies_on_success():
 def test_task_ready():
     task1 = Task(objective="Task 1")
     task2 = Task(objective="Task 2", depends_on=[task1])
-    assert not task2.is_ready()
+    assert not task2.is_ready
 
     task1.mark_successful()
-    assert task2.is_ready()
+    assert task2.is_ready
 
 
 def test_task_hash():

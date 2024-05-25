@@ -5,8 +5,8 @@ from pydantic import BaseModel
 
 from controlflow import Task
 from controlflow.core.flow import Flow
+from controlflow.llm.messages import AssistantMessage
 from controlflow.tui.app import TUIApp
-from controlflow.utilities.types import AssistantMessage
 
 
 class Name(BaseModel):

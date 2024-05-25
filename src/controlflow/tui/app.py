@@ -9,7 +9,7 @@ from textual.reactive import reactive
 from textual.widgets import Footer, Header, Label
 
 import controlflow
-from controlflow.utilities.types import AssistantMessage, ToolMessage, UserMessage
+from controlflow.llm.messages import AssistantMessage, ToolMessage, UserMessage
 
 from .basic import Column, Row
 from .task import TUITask

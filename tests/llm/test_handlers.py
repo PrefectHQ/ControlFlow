@@ -1,10 +1,10 @@
 from collections import Counter
 
 import litellm
-from controlflow.llm.completions import completion_stream
-from controlflow.llm.handlers import StreamHandler
+from controlflow.llm.completions import _completion_stream
+from controlflow.llm.handlers import CompletionHandler
+from controlflow.llm.messages import AssistantMessage
 from controlflow.llm.tools import ToolResult
-from controlflow.utilities.types import AssistantMessage
 from pydantic import BaseModel
 
 
@@ -13,7 +13,7 @@ class StreamCall(BaseModel):
     args: dict
 
 
-class MockStreamHandler(StreamHandler):
+class MockCompletionHandler(CompletionHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.calls: list[StreamCall] = []
@@ -41,10 +41,10 @@ class MockStreamHandler(StreamHandler):
         )
 
 
-class TestStreamHandler:
+class TestCompletionHandler:
     def test_stream(self):
-        handler = MockStreamHandler()
-        gen = completion_stream(messages=[{"text": "Hello"}])
+        handler = MockCompletionHandler()
+        gen = _completion_stream(messages=[{"text": "Hello"}])
         handler.stream(gen)
 
         method_counts = Counter(call.method for call in handler.calls)

@@ -5,16 +5,16 @@ import litellm
 from litellm.utils import trim_messages
 
 import controlflow
-from controlflow.llm.handlers import CompoundHandler, StreamHandler
+from controlflow.llm.handlers import CompletionHandler, CompoundHandler
+from controlflow.llm.messages import (
+    ControlFlowMessage,
+    as_cf_messages,
+    as_oai_messages,
+)
 from controlflow.llm.tools import (
     as_tools,
     get_tool_calls,
     handle_tool_call,
-)
-from controlflow.utilities.types import (
-    ControlFlowMessage,
-    as_cf_messages,
-    as_oai_messages,
 )
 
 
@@ -22,22 +22,42 @@ def completion(
     messages: list[Union[dict, ControlFlowMessage]],
     model=None,
     tools: list[Callable] = None,
+    assistant_name: str = None,
     max_iterations=None,
-    handlers: list[StreamHandler] = None,
+    handlers: list[CompletionHandler] = None,
+    message_preprocessor: Callable[[ControlFlowMessage], ControlFlowMessage] = None,
+    stream: bool = False,
     **kwargs,
 ) -> list[ControlFlowMessage]:
     """
     Perform completion using the LLM model.
 
     Args:
-        messages: A list of messages to be used for completion.
+        messages (list[Union[dict, ControlFlowMessage]]): A list of messages to be used for completion.
         model: The LLM model to be used for completion. If not provided, the default model from controlflow.settings will be used.
-        tools: A list of callable tools to be used during completion.
+        tools (list[Callable]): A list of callable tools to be used during completion.
+        assistant_name (str): The name of the assistant, which will be set as the `name` attribute of any messages it generates.
+        max_iterations: The maximum number of iterations to perform completion. If not provided, it will continue until there are no more response messages or tool calls.
+        handlers (list[CompletionHandler]): A list of completion handlers to be used during completion.
+        message_preprocessor (Callable[[ControlFlowMessage], ControlFlowMessage]): A callable function to preprocess the completion messages before sending them to the LLM model.
+        stream (bool): If True, stream the completion response. Deltas will be passed to the handler as they are received; complete messages will be yielded as well.
         **kwargs: Additional keyword arguments to be passed to the litellm.completion function.
 
     Returns:
-        A list of ControlFlowMessage objects representing the completion response.
+        list[ControlFlowMessage]: A list of ControlFlowMessage objects representing the completion response.
     """
+    if stream:
+        return _completion_stream(
+            messages=messages,
+            model=model,
+            tools=tools,
+            assistant_name=assistant_name,
+            max_iterations=max_iterations,
+            handlers=handlers,
+            message_preprocessor=message_preprocessor,
+            **kwargs,
+        )
+
     response_messages = []
     new_messages = []
 
@@ -50,12 +70,16 @@ def completion(
 
     counter = 0
     while not response_messages or get_tool_calls(response_messages):
-        completion_messages = trim_messages(
-            as_oai_messages(messages + new_messages), model=model
-        )
+        completion_messages = as_oai_messages(messages + new_messages)
+        if message_preprocessor:
+            completion_messages = [
+                m
+                for msg in completion_messages
+                if (m := message_preprocessor(msg)) is not None
+            ]
         response = litellm.completion(
             model=model,
-            messages=completion_messages,
+            messages=trim_messages(completion_messages, model=model),
             tools=[t.model_dump() for t in tools] if tools else None,
             **kwargs,
         )
@@ -64,6 +88,7 @@ def completion(
 
         # on message done
         for msg in response_messages:
+            msg.name = assistant_name
             new_messages.append(msg)
             if msg.has_tool_calls():
                 handler.on_tool_call_done(msg)
@@ -83,25 +108,31 @@ def completion(
     return new_messages
 
 
-def completion_stream(
+def _completion_stream(
     messages: list[Union[dict, ControlFlowMessage]],
     model=None,
     tools: list[Callable] = None,
+    assistant_name: str = None,
     max_iterations: int = None,
-    handlers: list[StreamHandler] = None,
+    handlers: list[CompletionHandler] = None,
+    message_preprocessor: Callable[[ControlFlowMessage], ControlFlowMessage] = None,
     **kwargs,
 ) -> Generator[Tuple[litellm.ModelResponse, litellm.ModelResponse], None, None]:
     """
     Perform streaming completion using the LLM model.
 
     Args:
-        messages: A list of messages to be used for completion.
-        model: The LLM model to be used for completion. If not provided, the default model from controlflow.settings will be used.
-        tools: A list of callable tools to be used during completion.
+        messages (list[Union[dict, ControlFlowMessage]]): A list of messages to be used for completion.
+        model (optional): The LLM model to be used for completion. If not provided, the default model from controlflow.settings will be used.
+        tools (optional): A list of callable tools to be used during completion.
+        assistant_name (optional): The name of the assistant, which will be set as the `name` attribute of any messages it generates.
+        max_iterations (optional): The maximum number of iterations to perform. If not provided, it will iterate indefinitely.
+        handlers (optional): A list of completion handlers to be used during completion.
+        message_preprocessor (optional): A callable function to preprocess each message before completion.
         **kwargs: Additional keyword arguments to be passed to the litellm.completion function.
 
     Yields:
-        Each message
+        Each message generated during completion.
 
     Returns:
         The final completion response as a litellm.ModelResponse object.
@@ -117,13 +148,18 @@ def completion_stream(
     tools = as_tools(tools or [])
 
     counter = 0
-    while not snapshot_message or get_tool_calls([snapshot_message]):
-        completion_messages = trim_messages(
-            as_oai_messages(messages + new_messages), model=model
-        )
+    while not snapshot_message or get_tool_calls(snapshot_message):
+        completion_messages = as_oai_messages(messages + new_messages)
+        if message_preprocessor:
+            completion_messages = [
+                m
+                for msg in completion_messages
+                if (m := message_preprocessor(msg)) is not None
+            ]
+
         response = litellm.completion(
             model=model,
-            messages=completion_messages,
+            messages=trim_messages(completion_messages, model=model),
             tools=[t.model_dump() for t in tools] if tools else None,
             stream=True,
             **kwargs,
@@ -134,6 +170,7 @@ def completion_stream(
             deltas.append(delta)
             snapshot = litellm.stream_chunk_builder(deltas)
             delta_message, snapshot_message = as_cf_messages([delta, snapshot])
+            delta_message.name, snapshot_message.name = assistant_name, assistant_name
 
             # on message created
             if len(deltas) == 1:
@@ -150,9 +187,8 @@ def completion_stream(
             else:
                 handler.on_message_delta(delta=delta_message, snapshot=snapshot_message)
 
-        yield snapshot_message
-
         new_messages.append(snapshot_message)
+        yield snapshot_message
 
         # on message done
         if snapshot_message.has_tool_calls():
@@ -161,7 +197,7 @@ def completion_stream(
             handler.on_message_done(snapshot_message)
 
         # tool calls
-        for tool_call in get_tool_calls([snapshot_message]):
+        for tool_call in get_tool_calls(snapshot_message):
             tool_message = handle_tool_call(tool_call, tools)
             handler.on_tool_result(tool_message)
             new_messages.append(tool_message)
@@ -176,22 +212,41 @@ async def completion_async(
     messages: list[Union[dict, ControlFlowMessage]],
     model=None,
     tools: list[Callable] = None,
+    assistant_name: str = None,
     max_iterations=None,
-    handlers: list[StreamHandler] = None,
+    handlers: list[CompletionHandler] = None,
+    message_preprocessor: Callable[[ControlFlowMessage], ControlFlowMessage] = None,
+    stream: bool = False,
     **kwargs,
 ) -> list[ControlFlowMessage]:
     """
     Perform asynchronous completion using the LLM model.
 
     Args:
-        messages: A list of messages to be used for completion.
+        messages (list[Union[dict, ControlFlowMessage]]): A list of messages to be used for completion.
         model: The LLM model to be used for completion. If not provided, the default model from controlflow.settings will be used.
-        tools: A list of callable tools to be used during completion.
+        tools (list[Callable]): A list of callable tools to be used during completion.
+        assistant_name (str): The name of the assistant, which will be set as the `name` attribute of any messages it generates.
+        max_iterations: The maximum number of iterations to perform. If not provided, it will iterate until completion is done.
+        handlers (list[CompletionHandler]): A list of completion handlers to be used during completion.
+        message_preprocessor (Callable[[ControlFlowMessage], ControlFlowMessage]): A callable function to preprocess the completion messages.
+        stream (bool): If True, stream the completion response. Deltas will be passed to the handler as they are received; complete messages will be yielded as well.
         **kwargs: Additional keyword arguments to be passed to the litellm.acompletion function.
 
     Returns:
-        A list of ControlFlowMessage objects representing the completion response.
+        list[ControlFlowMessage]: A list of ControlFlowMessage objects representing the completion response.
     """
+    if stream:
+        return _completion_stream_async(
+            messages=messages,
+            model=model,
+            tools=tools,
+            assistant_name=assistant_name,
+            max_iterations=max_iterations,
+            handlers=handlers,
+            message_preprocessor=message_preprocessor,
+            **kwargs,
+        )
     response_messages = []
     new_messages = []
 
@@ -203,12 +258,17 @@ async def completion_async(
 
     counter = 0
     while not response_messages or get_tool_calls(response_messages):
-        completion_messages = trim_messages(
-            as_oai_messages(messages + new_messages), model=model
-        )
+        completion_messages = as_oai_messages(messages + new_messages)
+        if message_preprocessor:
+            completion_messages = [
+                m
+                for msg in completion_messages
+                if (m := message_preprocessor(msg)) is not None
+            ]
+
         response = await litellm.acompletion(
             model=model,
-            messages=completion_messages,
+            messages=trim_messages(completion_messages, model=model),
             tools=[t.model_dump() for t in tools] if tools else None,
             **kwargs,
         )
@@ -217,6 +277,7 @@ async def completion_async(
 
         # on done
         for msg in response_messages:
+            msg.name = assistant_name
             new_messages.append(msg)
             if msg.has_tool_calls():
                 handler.on_tool_call_done(msg)
@@ -236,12 +297,35 @@ async def completion_async(
     return new_messages
 
 
-async def completion_stream_async(
+"""
+Perform asynchronous streaming completion using the LLM model.
+
+Args:
+    messages: A list of messages to be used for completion.
+    model: The LLM model to be used for completion. If not provided, the default model from controlflow.settings will be used.
+    tools: A list of callable tools to be used during completion.
+    assistant_name: The name of the assistant, which will be set as the `name` attribute of any messages it generates.
+    max_iterations: The maximum number of iterations to perform completion. If not provided, it will continue until completion is done.
+    handlers: A list of CompletionHandler objects to handle completion events.
+    message_preprocessor: A callable function to preprocess each ControlFlowMessage before completion.
+    **kwargs: Additional keyword arguments to be passed to the litellm.acompletion function.
+
+Yields:
+    Each ControlFlowMessage generated during completion.
+
+Returns:
+    The final completion response as a list of ControlFlowMessage objects.
+"""
+
+
+async def _completion_stream_async(
     messages: list[Union[dict, ControlFlowMessage]],
     model=None,
     tools: list[Callable] = None,
+    assistant_name: str = None,
     max_iterations: int = None,
-    handlers: list[StreamHandler] = None,
+    handlers: list[CompletionHandler] = None,
+    message_preprocessor: Callable[[ControlFlowMessage], ControlFlowMessage] = None,
     **kwargs,
 ) -> AsyncGenerator[ControlFlowMessage, None]:
     """
@@ -251,6 +335,7 @@ async def completion_stream_async(
         messages: A list of messages to be used for completion.
         model: The LLM model to be used for completion. If not provided, the default model from controlflow.settings will be used.
         tools: A list of callable tools to be used during completion.
+        assistant_name: The name of the assistant, which will be set as the `name` attribute of any messages it generates.
         **kwargs: Additional keyword arguments to be passed to the litellm.acompletion function.
 
     Yields:
@@ -270,13 +355,18 @@ async def completion_stream_async(
     tools = as_tools(tools or [])
 
     counter = 0
-    while not snapshot_message or get_tool_calls([snapshot_message]):
-        completion_messages = trim_messages(
-            as_oai_messages(messages + new_messages), model=model
-        )
+    while not snapshot_message or get_tool_calls(snapshot_message):
+        completion_messages = as_oai_messages(messages + new_messages)
+        if message_preprocessor:
+            completion_messages = [
+                m
+                for msg in completion_messages
+                if (m := message_preprocessor(msg)) is not None
+            ]
+
         response = await litellm.acompletion(
             model=model,
-            messages=completion_messages,
+            messages=trim_messages(completion_messages, model=model),
             tools=[t.model_dump() for t in tools] if tools else None,
             stream=True,
             **kwargs,
@@ -287,6 +377,7 @@ async def completion_stream_async(
             deltas.append(delta)
             snapshot = litellm.stream_chunk_builder(deltas)
             delta_message, snapshot_message = as_cf_messages([delta, snapshot])
+            delta_message.name, snapshot_message.name = assistant_name, assistant_name
 
             # on message created
             if len(deltas) == 1:
@@ -313,7 +404,7 @@ async def completion_stream_async(
         yield snapshot_message
 
         # tool calls
-        for tool_call in get_tool_calls([snapshot_message]):
+        for tool_call in get_tool_calls(snapshot_message):
             tool_message = handle_tool_call(tool_call, tools)
             handler.on_tool_result(tool_message)
             new_messages.append(tool_message)

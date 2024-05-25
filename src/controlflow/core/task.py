@@ -18,6 +18,7 @@ from pydantic import (
     Field,
     PydanticSchemaGenerationError,
     TypeAdapter,
+    computed_field,
     field_serializer,
     field_validator,
     model_validator,
@@ -129,6 +130,7 @@ class Task(ControlFlowModel):
             "id",
             "objective",
             "status",
+            "is_ready",
             "result_type",
             "agents",
             "context",
@@ -339,6 +341,8 @@ class Task(ControlFlowModel):
     def is_skipped(self) -> bool:
         return self.status == TaskStatus.SKIPPED
 
+    @computed_field
+    @property
     def is_ready(self) -> bool:
         """
         Returns True if all dependencies are complete and this task is incomplete.

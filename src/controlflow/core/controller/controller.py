@@ -1,11 +1,12 @@
 import logging
 import math
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from functools import cached_property
 from typing import Union
 
 from marvin.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
-from pydantic import BaseModel, Field, computed_field, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, computed_field, model_validator
 
 import controlflow
 from controlflow.core.agent import Agent
@@ -14,15 +15,25 @@ from controlflow.core.flow import Flow, get_flow
 from controlflow.core.graph import Graph
 from controlflow.core.task import Task
 from controlflow.instructions import get_instructions
-from controlflow.llm.completions import completion_stream_async
-from controlflow.llm.handlers import TUIHandler
+from controlflow.llm.completions import completion_async
+from controlflow.llm.handlers import PrintHandler, TUIHandler
 from controlflow.llm.history import History
+from controlflow.llm.messages import AssistantMessage, ControlFlowMessage, SystemMessage
 from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
 from controlflow.utilities.tasks import all_complete, any_incomplete
-from controlflow.utilities.types import FunctionTool, SystemMessage
+from controlflow.utilities.types import FunctionTool
 
 logger = logging.getLogger(__name__)
+
+
+def add_agent_name_to_message(msg: ControlFlowMessage):
+    """
+    If the message is from a named assistant, prefix the message with the assistant's name.
+    """
+    if isinstance(msg, AssistantMessage) and msg.name:
+        msg = msg.model_copy(update={"content": f"{msg.name}: {msg.content}"})
+    return msg
 
 
 class Controller(BaseModel, ExposeSyncMethodsMixin):
@@ -61,7 +72,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
     enable_tui: bool = Field(default_factory=lambda: controlflow.settings.enable_tui)
     _iteration: int = 0
     _should_abort: bool = False
-    _endrun_count: int = 0
+    _end_run_counts: dict = PrivateAttr(default_factory=lambda: defaultdict(int))
 
     @computed_field
     @cached_property
@@ -76,33 +87,35 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             self.flow.add_task(task)
         return self
 
-    def _create_help_tool(self) -> FunctionTool:
-        def help_im_stuck():
+    def _create_end_turn_tool(self) -> FunctionTool:
+        def end_turn():
             """
-            If you are stuck because no tasks are ready to be worked on, you can
-            call this tool to end your turn. A new agent (possibly you) will be
-            selected to go next. If this tool is used 3 times, the workflow will
-            be aborted automatically, so only use it if you are truly stuck.
+            Call this tool to skip your turn and let another agent go next. This
+            is useful if you are stuck and can not complete any tasks. If this
+            tool is used 3 times by any agent the workflow will be aborted
+            automatically, so only use it if you are truly stuck and unable to
+            proceed.
             """
-            self._endrun_count += 1
-            if self._endrun_count >= 3:
+            self._end_run_counts[ctx.get("controller_agent")] += 1
+            if self._end_run_counts[ctx.get("controller_agent")] >= 3:
                 self._should_abort = True
-                self._endrun_count = 0
+                self._end_run_counts[ctx.get("controller_agent")] = 0
 
-            return f"Ending turn. {3 - self._endrun_count} more uses will abort the workflow."
+            return (
+                f"Ending turn. {3 - self._end_run_counts[ctx.get('controller_agent')]}"
+                " more uses will abort the workflow."
+            )
 
-        return help_im_stuck
+        return end_turn
 
-    async def _run_agent(self, agent: Agent, tasks: list[Task] = None):
+    async def _run_agent(self, agent: Agent, tasks: list[Task]):
         """
         Run a single agent.
         """
 
         from controlflow.core.controller.instruction_template import MainTemplate
 
-        tasks = tasks or self.tasks
-
-        tools = self.flow.tools + agent.get_tools() + [self._create_help_tool()]
+        tools = self.flow.tools + agent.get_tools() + [self._create_end_turn_tool()]
 
         # add tools for any inactive tasks that the agent is assigned to
         for task in tasks:
@@ -124,12 +137,16 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
         # call llm
         response_messages = []
-        async for msg in completion_stream_async(
+        async for msg in await completion_async(
             messages=[system_message] + messages,
             model=agent.model,
             tools=tools,
-            handlers=[TUIHandler()] if controlflow.settings.enable_tui else None,
+            handlers=[TUIHandler()]
+            if controlflow.settings.enable_tui
+            else [PrintHandler()],
             max_iterations=1,
+            stream=True,
+            message_preprocessor=add_agent_name_to_message,
         ):
             response_messages.append(msg)
 
@@ -175,16 +192,18 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             # put the flow in context
             with self.flow:
                 # get the tasks to run
-                ready_tasks = {t for t in self.tasks if t.is_ready()}
+                ready_tasks = {t for t in self.tasks if t.is_ready}
                 upstreams = {d for t in ready_tasks for d in t.depends_on}
                 tasks = list(ready_tasks.union(upstreams))
+
+                # TODO: show the agent the entire graph, not just immediate upstreams
 
                 if all(t.is_complete() for t in tasks):
                     return
 
                 # get the agents
                 agent_candidates = [
-                    a for t in tasks for a in t.get_agents() if t.is_ready()
+                    a for t in tasks for a in t.get_agents() if t.is_ready
                 ]
                 if len({a.name for a in agent_candidates}) != len(agent_candidates):
                     raise ValueError(
@@ -206,7 +225,9 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
                     raise NotImplementedError("Need to reimplement multi-agent")
                     agent = self.choose_agent(agents=agents, tasks=tasks)
 
-                await self._run_agent(agent, tasks=tasks)
+                with ctx(controller_agent=agent):
+                    await self._run_agent(agent, tasks=tasks)
+
                 self._iteration += 1
 
     @expose_sync_method("run")
