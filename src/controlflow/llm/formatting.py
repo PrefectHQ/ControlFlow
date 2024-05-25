@@ -41,9 +41,14 @@ def format_message(
 
 
 def format_text_message(message: MessageType) -> Panel:
+    if message.role == "assistant" and message.name:
+        title = f"Agent: {message.name}"
+    else:
+        title = ROLE_NAMES.get(message.role, "Agent")
+
     return Panel(
         Markdown(message.content or ""),
-        title=f"[bold]{ROLE_NAMES.get(message.role, 'Agent')}[/]",
+        title=f"[bold]{title}[/]",
         subtitle=f"[italic]{format_timestamp(message.timestamp)}[/]",
         title_align="left",
         subtitle_align="right",

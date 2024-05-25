@@ -133,9 +133,13 @@ class CommunicationTemplate(Template):
         messages unless you need to record information in addition to what you
         provide as a task's result, or for the following reasons:
         
-        - You need to post a message or otherwise communicate to complete a task.
+        - You need to post a message or otherwise communicate to complete a
+          task. For example, the task instructs you to write, discuss, or
+          otherwise produce content (and does not accept a result, or the result
+          that meets the objective is different than the instructed actions).
         - You need to communicate with other agents to complete a task.
         - You want to write your thought process for future reference.
+        
         
         Note that You may see other agents post messages; they may have
         different instructions than you do, so do not follow their example

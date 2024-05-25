@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from pydantic import Field
 
+from controlflow.llm.history import get_default_history
 from controlflow.llm.messages import MessageType
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
@@ -82,6 +83,6 @@ def get_flow_messages(limit: int = None) -> list[MessageType]:
     """
     flow = get_flow()
     if flow:
-        return flow.thread.get_messages(limit=limit)
+        get_default_history().load_messages(flow.thread_id, limit=limit)
     else:
         return []

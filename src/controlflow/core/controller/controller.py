@@ -95,13 +95,17 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             automatically, so only use it if you are truly stuck and unable to
             proceed.
             """
-            self._end_run_counts[ctx.get("controller_agent")] += 1
-            if self._end_run_counts[ctx.get("controller_agent")] >= 3:
+
+            # the agent's name is used as the key to track the number of times
+            key = getattr(ctx.get("controller_agent", None), "name", None)
+
+            self._end_run_counts[key] += 1
+            if self._end_run_counts[key] >= 3:
                 self._should_abort = True
-                self._end_run_counts[ctx.get("controller_agent")] = 0
+                self._end_run_counts[key] = 0
 
             return (
-                f"Ending turn. {3 - self._end_run_counts[ctx.get('controller_agent')]}"
+                f"Ending turn. {3 - self._end_run_counts[key]}"
                 " more uses will abort the workflow."
             )
 
@@ -150,6 +154,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
             tools=tools,
             handlers=handlers,
             max_iterations=1,
+            assistant_name=agent.name,
             stream=True,
             message_preprocessor=add_agent_name_to_message,
         ):
