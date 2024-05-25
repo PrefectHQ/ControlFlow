@@ -129,11 +129,15 @@ class CommunicationTemplate(Template):
         
         On each turn, you must use a tool or post a message. Do not post
         messages unless you need to record information in addition to what you
-        provide as a task's result. This might include your thought process, if
-        appropriate. You may also post messages if you need to communicate with
-        other agents to complete a task. You may see other agents post messages;
-        they may have different instructions than you do, so do not follow their
-        example automatically.
+        provide as a task's result, or for the following reasons:
+        
+        - You need to post a message or otherwise communicate to complete a task.
+        - You need to communicate with other agents to complete a task.
+        - You want to write your thought process for future reference.
+        
+        Note that You may see other agents post messages; they may have
+        different instructions than you do, so do not follow their example
+        automatically.
         
         When you use a tool, the tool call and tool result are automatically
         posted as messages to the thread, so you never need to write out task

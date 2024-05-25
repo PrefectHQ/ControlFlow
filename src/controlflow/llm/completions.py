@@ -68,44 +68,52 @@ def completion(
 
     tools = as_tools(tools or [])
 
+    handler.on_start()
+
     counter = 0
-    while not response_messages or get_tool_calls(response_messages):
-        completion_messages = as_oai_messages(messages + new_messages)
-        if message_preprocessor:
-            completion_messages = [
-                m
-                for msg in completion_messages
-                if (m := message_preprocessor(msg)) is not None
-            ]
-        response = litellm.completion(
-            model=model,
-            messages=trim_messages(completion_messages, model=model),
-            tools=[t.model_dump() for t in tools] if tools else None,
-            **kwargs,
-        )
+    try:
+        while not response_messages or get_tool_calls(response_messages):
+            completion_messages = as_oai_messages(messages + new_messages)
+            if message_preprocessor:
+                completion_messages = [
+                    m
+                    for msg in completion_messages
+                    if (m := message_preprocessor(msg)) is not None
+                ]
+            response = litellm.completion(
+                model=model,
+                messages=trim_messages(completion_messages, model=model),
+                tools=[t.model_dump() for t in tools] if tools else None,
+                **kwargs,
+            )
 
-        response_messages = as_cf_messages([response])
+            response_messages = as_cf_messages([response])
 
-        # on message done
-        for msg in response_messages:
-            msg.name = assistant_name
-            new_messages.append(msg)
-            if msg.has_tool_calls():
-                handler.on_tool_call_done(msg)
-            else:
-                handler.on_message_done(msg)
+            # on message done
+            for msg in response_messages:
+                msg.name = assistant_name
+                new_messages.append(msg)
+                if msg.has_tool_calls():
+                    handler.on_tool_call_done(msg)
+                else:
+                    handler.on_message_done(msg)
 
-        # tool calls
-        for tool_call in get_tool_calls(response_messages):
-            tool_message = handle_tool_call(tool_call, tools)
-            handler.on_tool_result(tool_message)
-            new_messages.append(tool_message)
+            # tool calls
+            for tool_call in get_tool_calls(response_messages):
+                tool_message = handle_tool_call(tool_call, tools)
+                handler.on_tool_result(tool_message)
+                new_messages.append(tool_message)
 
-        counter += 1
-        if counter >= (max_iterations or math.inf):
-            break
+            counter += 1
+            if counter >= (max_iterations or math.inf):
+                break
 
-    return new_messages
+        return new_messages
+    except Exception as exc:
+        handler.on_exception(exc)
+        raise
+    finally:
+        handler.on_end()
 
 
 def _completion_stream(
@@ -147,65 +155,78 @@ def _completion_stream(
 
     tools = as_tools(tools or [])
 
+    handler.on_start()
+
     counter = 0
-    while not snapshot_message or get_tool_calls(snapshot_message):
-        completion_messages = as_oai_messages(messages + new_messages)
-        if message_preprocessor:
-            completion_messages = [
-                m
-                for msg in completion_messages
-                if (m := message_preprocessor(msg)) is not None
-            ]
+    try:
+        while not snapshot_message or get_tool_calls(snapshot_message):
+            completion_messages = as_oai_messages(messages + new_messages)
+            if message_preprocessor:
+                completion_messages = [
+                    m
+                    for msg in completion_messages
+                    if (m := message_preprocessor(msg)) is not None
+                ]
 
-        response = litellm.completion(
-            model=model,
-            messages=trim_messages(completion_messages, model=model),
-            tools=[t.model_dump() for t in tools] if tools else None,
-            stream=True,
-            **kwargs,
-        )
+            response = litellm.completion(
+                model=model,
+                messages=trim_messages(completion_messages, model=model),
+                tools=[t.model_dump() for t in tools] if tools else None,
+                stream=True,
+                **kwargs,
+            )
 
-        deltas = []
-        for delta in response:
-            deltas.append(delta)
-            snapshot = litellm.stream_chunk_builder(deltas)
-            delta_message, snapshot_message = as_cf_messages([delta, snapshot])
-            delta_message.name, snapshot_message.name = assistant_name, assistant_name
-
-            # on message created
-            if len(deltas) == 1:
-                if snapshot_message.has_tool_calls():
-                    handler.on_tool_call_created(delta=delta_message)
-                else:
-                    handler.on_message_created(delta=delta_message)
-
-            # on message delta
-            if snapshot_message.has_tool_calls():
-                handler.on_tool_call_delta(
-                    delta=delta_message, snapshot=snapshot_message
+            deltas = []
+            for delta in response:
+                deltas.append(delta)
+                snapshot = litellm.stream_chunk_builder(deltas)
+                delta_message, snapshot_message = as_cf_messages([delta, snapshot])
+                delta_message.name, snapshot_message.name = (
+                    assistant_name,
+                    assistant_name,
                 )
+
+                # on message created
+                if len(deltas) == 1:
+                    if snapshot_message.has_tool_calls():
+                        handler.on_tool_call_created(delta=delta_message)
+                    else:
+                        handler.on_message_created(delta=delta_message)
+
+                # on message delta
+                if snapshot_message.has_tool_calls():
+                    handler.on_tool_call_delta(
+                        delta=delta_message, snapshot=snapshot_message
+                    )
+                else:
+                    handler.on_message_delta(
+                        delta=delta_message, snapshot=snapshot_message
+                    )
+
+            new_messages.append(snapshot_message)
+            yield snapshot_message
+
+            # on message done
+            if snapshot_message.has_tool_calls():
+                handler.on_tool_call_done(snapshot_message)
             else:
-                handler.on_message_delta(delta=delta_message, snapshot=snapshot_message)
+                handler.on_message_done(snapshot_message)
 
-        new_messages.append(snapshot_message)
-        yield snapshot_message
+            # tool calls
+            for tool_call in get_tool_calls(snapshot_message):
+                tool_message = handle_tool_call(tool_call, tools)
+                handler.on_tool_result(tool_message)
+                new_messages.append(tool_message)
+                yield tool_message
 
-        # on message done
-        if snapshot_message.has_tool_calls():
-            handler.on_tool_call_done(snapshot_message)
-        else:
-            handler.on_message_done(snapshot_message)
-
-        # tool calls
-        for tool_call in get_tool_calls(snapshot_message):
-            tool_message = handle_tool_call(tool_call, tools)
-            handler.on_tool_result(tool_message)
-            new_messages.append(tool_message)
-            yield tool_message
-
-        counter += 1
-        if counter >= (max_iterations or math.inf):
-            break
+            counter += 1
+            if counter >= (max_iterations or math.inf):
+                break
+    except Exception as exc:
+        handler.on_exception(exc)
+        raise
+    finally:
+        handler.on_end()
 
 
 async def completion_async(
@@ -256,45 +277,53 @@ async def completion_async(
 
     tools = as_tools(tools or [])
 
-    counter = 0
-    while not response_messages or get_tool_calls(response_messages):
-        completion_messages = as_oai_messages(messages + new_messages)
-        if message_preprocessor:
-            completion_messages = [
-                m
-                for msg in completion_messages
-                if (m := message_preprocessor(msg)) is not None
-            ]
+    handler.on_start()
 
-        response = await litellm.acompletion(
-            model=model,
-            messages=trim_messages(completion_messages, model=model),
-            tools=[t.model_dump() for t in tools] if tools else None,
-            **kwargs,
-        )
+    try:
+        counter = 0
+        while not response_messages or get_tool_calls(response_messages):
+            completion_messages = as_oai_messages(messages + new_messages)
+            if message_preprocessor:
+                completion_messages = [
+                    m
+                    for msg in completion_messages
+                    if (m := message_preprocessor(msg)) is not None
+                ]
 
-        response_messages = as_cf_messages([response])
+            response = await litellm.acompletion(
+                model=model,
+                messages=trim_messages(completion_messages, model=model),
+                tools=[t.model_dump() for t in tools] if tools else None,
+                **kwargs,
+            )
 
-        # on done
-        for msg in response_messages:
-            msg.name = assistant_name
-            new_messages.append(msg)
-            if msg.has_tool_calls():
-                handler.on_tool_call_done(msg)
-            else:
-                handler.on_message_done(msg)
+            response_messages = as_cf_messages([response])
 
-        # tool calls
-        for tool_call in get_tool_calls(response_messages):
-            tool_message = handle_tool_call(tool_call, tools)
-            handler.on_tool_result(tool_message)
-            new_messages.append(tool_message)
+            # on done
+            for msg in response_messages:
+                msg.name = assistant_name
+                new_messages.append(msg)
+                if msg.has_tool_calls():
+                    handler.on_tool_call_done(msg)
+                else:
+                    handler.on_message_done(msg)
 
-        counter += 1
-        if counter >= (max_iterations or math.inf):
-            break
+            # tool calls
+            for tool_call in get_tool_calls(response_messages):
+                tool_message = handle_tool_call(tool_call, tools)
+                handler.on_tool_result(tool_message)
+                new_messages.append(tool_message)
 
-    return new_messages
+            counter += 1
+            if counter >= (max_iterations or math.inf):
+                break
+
+        return new_messages
+    except Exception as exc:
+        handler.on_exception(exc)
+        raise
+    finally:
+        handler.on_end()
 
 
 """
@@ -354,62 +383,74 @@ async def _completion_stream_async(
 
     tools = as_tools(tools or [])
 
+    handler.on_start()
+
     counter = 0
-    while not snapshot_message or get_tool_calls(snapshot_message):
-        completion_messages = as_oai_messages(messages + new_messages)
-        if message_preprocessor:
-            completion_messages = [
-                m
-                for msg in completion_messages
-                if (m := message_preprocessor(msg)) is not None
-            ]
+    try:
+        while not snapshot_message or get_tool_calls(snapshot_message):
+            completion_messages = as_oai_messages(messages + new_messages)
+            if message_preprocessor:
+                completion_messages = [
+                    m
+                    for msg in completion_messages
+                    if (m := message_preprocessor(msg)) is not None
+                ]
 
-        response = await litellm.acompletion(
-            model=model,
-            messages=trim_messages(completion_messages, model=model),
-            tools=[t.model_dump() for t in tools] if tools else None,
-            stream=True,
-            **kwargs,
-        )
+            response = await litellm.acompletion(
+                model=model,
+                messages=trim_messages(completion_messages, model=model),
+                tools=[t.model_dump() for t in tools] if tools else None,
+                stream=True,
+                **kwargs,
+            )
 
-        deltas = []
-        async for delta in response:
-            deltas.append(delta)
-            snapshot = litellm.stream_chunk_builder(deltas)
-            delta_message, snapshot_message = as_cf_messages([delta, snapshot])
-            delta_message.name, snapshot_message.name = assistant_name, assistant_name
-
-            # on message created
-            if len(deltas) == 1:
-                if snapshot_message.has_tool_calls():
-                    handler.on_tool_call_created(delta=delta_message)
-                else:
-                    handler.on_message_created(delta=delta_message)
-
-            # on message delta
-            if snapshot_message.has_tool_calls():
-                handler.on_tool_call_delta(
-                    delta=delta_message, snapshot=snapshot_message
+            deltas = []
+            async for delta in response:
+                deltas.append(delta)
+                snapshot = litellm.stream_chunk_builder(deltas)
+                delta_message, snapshot_message = as_cf_messages([delta, snapshot])
+                delta_message.name, snapshot_message.name = (
+                    assistant_name,
+                    assistant_name,
                 )
+
+                # on message created
+                if len(deltas) == 1:
+                    if snapshot_message.has_tool_calls():
+                        handler.on_tool_call_created(delta=delta_message)
+                    else:
+                        handler.on_message_created(delta=delta_message)
+
+                # on message delta
+                if snapshot_message.has_tool_calls():
+                    handler.on_tool_call_delta(
+                        delta=delta_message, snapshot=snapshot_message
+                    )
+                else:
+                    handler.on_message_delta(
+                        delta=delta_message, snapshot=snapshot_message
+                    )
+
+            # on message done
+            if snapshot_message.has_tool_calls():
+                handler.on_tool_call_done(snapshot_message)
             else:
-                handler.on_message_delta(delta=delta_message, snapshot=snapshot_message)
+                handler.on_message_done(snapshot_message)
 
-        # on message done
-        if snapshot_message.has_tool_calls():
-            handler.on_tool_call_done(snapshot_message)
-        else:
-            handler.on_message_done(snapshot_message)
+            new_messages.append(snapshot_message)
+            yield snapshot_message
 
-        new_messages.append(snapshot_message)
-        yield snapshot_message
+            # tool calls
+            for tool_call in get_tool_calls(snapshot_message):
+                tool_message = handle_tool_call(tool_call, tools)
+                handler.on_tool_result(tool_message)
+                new_messages.append(tool_message)
+                yield tool_message
 
-        # tool calls
-        for tool_call in get_tool_calls(snapshot_message):
-            tool_message = handle_tool_call(tool_call, tools)
-            handler.on_tool_result(tool_message)
-            new_messages.append(tool_message)
-            yield tool_message
-
-        counter += 1
-        if counter >= (max_iterations or math.inf):
-            break
+            counter += 1
+            if counter >= (max_iterations or math.inf):
+                break
+    except Exception as exc:
+        handler.on_exception(exc)
+    finally:
+        handler.on_end()
