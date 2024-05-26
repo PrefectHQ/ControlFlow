@@ -81,8 +81,10 @@ def get_flow_messages(limit: int = None) -> list[MessageType]:
 
     Will error if no flow is found in the context.
     """
+    if limit is None:
+        limit = 50
     flow = get_flow()
     if flow:
-        get_default_history().load_messages(flow.thread_id, limit=limit)
+        return get_default_history().load_messages(flow.thread_id, limit=limit)
     else:
         return []

@@ -450,16 +450,21 @@ class Task(ControlFlowModel):
 
         self.result = validate_result(result, self.result_type)
         self.set_status(TaskStatus.SUCCESSFUL)
-
+        if agent := ctx.get("controller_agent"):
+            return f"{self.friendly_name()} marked successful by {agent.name}."
         return f"{self.friendly_name()} marked successful."
 
     def mark_failed(self, message: Union[str, None] = None):
         self.error = message
         self.set_status(TaskStatus.FAILED)
+        if agent := ctx.get("controller_agent"):
+            return f"{self.friendly_name()} marked failed by {agent.name}."
         return f"{self.friendly_name()} marked failed."
 
     def mark_skipped(self):
         self.set_status(TaskStatus.SKIPPED)
+        if agent := ctx.get("controller_agent"):
+            return f"{self.friendly_name()} marked skipped by {agent.name}."
         return f"{self.friendly_name()} marked skipped."
 
 
