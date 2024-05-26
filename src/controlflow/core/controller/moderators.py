@@ -25,6 +25,7 @@ def classify_moderator(
     instructions = get_instructions()
     context = context or {}
     context.update(tasks=tasks, history=history, instructions=instructions)
+
     agent = classify(
         context,
         labels=agents,

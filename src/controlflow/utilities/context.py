@@ -27,7 +27,7 @@ class ScopedContext:
     """
 
     def __init__(self, initial_value: dict = None):
-        """Initializes the ScopedContext with an initial valuedictionary."""
+        """Initializes the ScopedContext with an initial value dictionary."""
         self._context_storage = contextvars.ContextVar(
             "scoped_context_storage", default=initial_value or {}
         )
@@ -44,8 +44,7 @@ class ScopedContext:
 
     def set(self, **kwargs: Any) -> None:
         ctx = self._context_storage.get()
-        updated_ctx = {**ctx, **kwargs}
-        token = self._context_storage.set(updated_ctx)
+        token = self._context_storage.set(ctx | kwargs)
         return token
 
     @contextmanager
@@ -74,5 +73,6 @@ ctx = ScopedContext(
         flow=None,
         tasks=[],
         tui=None,
+        controller_agent=None,
     )
 )

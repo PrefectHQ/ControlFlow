@@ -110,9 +110,10 @@ class TasksTemplate(Template):
 
         ### Providing a result
         
-        Tasks may require a typed result, which is an artifact satisfying the task's objective. If a
-        task does not require a result artifact (e.g. `result_type=None`), you must still
-        complete its stated objective before marking the task as complete.
+        Tasks may require a typed result, which is an artifact satisfying the
+        task's objective. If a task does not require a result artifact (e.g.
+        `result_type=None`), you must still complete its stated objective before
+        marking the task as complete.
                 
         """
     tasks: list[Task]
@@ -149,8 +150,9 @@ class CommunicationTemplate(Template):
         posted as messages to the thread, so you never need to write out task
         results as messages before marking a task as complete.
                 
-        Note that all agents post messages with the "assistant" role, so
-        each agent's messages are automatically prefixed with that agent's name for clarity.
+        Note that all agents post messages with the "assistant" role, so each
+        agent's name will be automatically prefixed to their messages. You do
+        NOT need to include your name in your messages.
         
         ### Talking to human users
         

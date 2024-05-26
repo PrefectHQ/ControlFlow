@@ -63,6 +63,11 @@ def format_text_message(message: MessageType) -> Panel:
 def format_assistant_message_with_tool_calls(message: AssistantMessage) -> Group:
     panels = []
     for tool_call in get_tool_calls(message):
+        if message.role == "assistant" and message.name:
+            title = f"Tool Call: {message.name}"
+        else:
+            title = "Tool Call"
+
         content = Markdown(
             inspect.cleandoc("""
                 🦾 Calling `{name}` with the following arguments:
@@ -74,10 +79,11 @@ def format_assistant_message_with_tool_calls(message: AssistantMessage) -> Group
                 name=tool_call.function.name, args=tool_call.function.arguments
             )
         )
+
         panels.append(
             Panel(
                 content,
-                title="[bold]Tool Call[/]",
+                title=f"[bold]{title}[/]",
                 subtitle=f"[italic]{format_timestamp(message.timestamp)}[/]",
                 title_align="left",
                 subtitle_align="right",
