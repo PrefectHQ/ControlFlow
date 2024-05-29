@@ -121,9 +121,15 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         tools = self.flow.tools + agent.get_tools() + [self._create_end_turn_tool()]
 
         # add tools for any inactive tasks that the agent is assigned to
+        assigned_tools = []
         for task in tasks:
             if agent in task.get_agents():
-                tools = tools + task.get_tools()
+                assigned_tools.extend(task.get_tools())
+        if not assigned_tools:
+            raise ValueError(
+                f"Agent {agent.name} is not assigned to any of the tasks that are ready to be run."
+            )
+        tools.extend(assigned_tools)
 
         instructions_template = MainTemplate(
             agent=agent,

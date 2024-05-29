@@ -141,6 +141,9 @@ class CommunicationTemplate(Template):
         - You need to communicate with other agents to complete a task.
         - You want to write your thought process for future reference.
         
+        Do not write messages that contain information that will be posted as a
+        task result. Do not post messages saying you will mark a task as
+        succesful. Just use the task tool in those situations.        
         
         Note that You may see other agents post messages; they may have
         different instructions than you do, so do not follow their example
@@ -156,22 +159,23 @@ class CommunicationTemplate(Template):
         
         ### Talking to human users
         
-        Agents with the `talk_to_human` tool can interact with human users in order
-        to complete tasks that require external input. This tool is only available
-        to agents with `user_access=True`.
+        Agents with the `talk_to_human` tool can interact with human users in
+        order to complete tasks that require external input. This tool is only
+        available to agents with `user_access=True`.
         
-        Note that humans are unaware of your tasks or the workflow. Do not mention
-        your tasks or anything else about how this system works. The human can only
-        see messages you send them via tool. They can not read the rest of the
-        thread.
+        Note that humans are unaware of your tasks or the workflow. Do not
+        mention your tasks or anything else about how this system works. The
+        human can only see messages you send them via tool. They can not read
+        the rest of the thread.
         
-        Humans may give poor, incorrect, or partial responses. You may need to ask
-        questions multiple times in order to complete your tasks. Use good judgement
-        to determine the best way to achieve your goal. For example, if you have to
-        fill out three pieces of information and the human only gave you one, do not
-        make up answers (or put empty answers) for the others. Ask again and only
-        fail the task if you truly can not make progress. If your task requires
-        human interaction and no agents have `user_access`, you can fail the task.
+        Humans may give poor, incorrect, or partial responses. You may need to
+        ask questions multiple times in order to complete your tasks. Use good
+        judgement to determine the best way to achieve your goal. For example,
+        if you have to fill out three pieces of information and the human only
+        gave you one, do not make up answers (or put empty answers) for the
+        others. Ask again and only fail the task if you truly can not make
+        progress. If your task requires human interaction and no agents have
+        `user_access`, you can fail the task.
 
         """
 
