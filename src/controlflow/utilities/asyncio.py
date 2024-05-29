@@ -2,7 +2,7 @@ import asyncio
 import functools
 from typing import Any, Callable, Coroutine, TypeVar, cast
 
-from prefect.utilities.asyncutils import run_sync
+from prefect.utilities.asyncutils import run_coro_as_sync
 
 T = TypeVar("T")
 
@@ -77,7 +77,7 @@ def expose_sync_method(name: str) -> Callable[..., Any]:
         @functools.wraps(async_method)
         def sync_wrapper(*args: Any, **kwargs: Any) -> T:
             coro = async_method(*args, **kwargs)
-            return run_sync(coro)
+            return run_coro_as_sync(coro)
 
         # Cast the sync_wrapper to the same type as the async_method to give the
         # type checker the needed information.

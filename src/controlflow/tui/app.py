@@ -48,7 +48,7 @@ class TUIApp(App):
             headless = controlflow.settings.run_tui_headless
 
         if run:
-            asyncio.create_task(
+            task = asyncio.create_task(
                 self.run_async(
                     inline=inline,
                     inline_no_clear=inline_stay_visible,
