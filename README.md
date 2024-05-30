@@ -28,7 +28,7 @@ This targeted approach results in AI systems that are easier to build, maintain,
 ControlFlow is under active development.
 
 ```bash
-git clone https://github.com/jlowin/controlflow.git
+git clone https://github.com/PrefectHQ/controlflow.git
 cd controlflow
 pip install .
 ```
@@ -38,7 +38,7 @@ pip install .
 To install for development:
 
 ```bash
-git clone https://github.com/jlowin/controlflow.git
+git clone https://github.com/PrefectHQ/controlflow.git
 cd controlflow
 pip install -e ".[dev]"
 ```
