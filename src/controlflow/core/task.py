@@ -6,6 +6,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Generator,
     GenericAlias,
     Literal,
     Optional,
@@ -25,6 +26,7 @@ from pydantic import (
 )
 
 import controlflow
+import controlflow.core
 from controlflow.instructions import get_instructions
 from controlflow.llm.tools import annotate_fn
 from controlflow.tools.talk_to_human import talk_to_human
@@ -167,10 +169,8 @@ class Task(ControlFlowModel):
 
     @model_validator(mode="after")
     def _finalize(self):
-        from controlflow.core.flow import get_flow
-
         # add task to flow, if exists
-        if flow := get_flow():
+        if flow := controlflow.core.flow.get_flow():
             flow.add_task(self)
 
         # create dependencies to tasks passed in as depends_on
@@ -230,9 +230,7 @@ class Task(ControlFlowModel):
         return f"Task {self.id} ({objective})"
 
     def as_graph(self) -> "Graph":
-        from controlflow.core.graph import Graph
-
-        return Graph.from_tasks(tasks=[self])
+        return controlflow.core.graph.Graph.from_tasks(tasks=[self])
 
     def add_subtask(self, task: "Task"):
         """
@@ -256,30 +254,40 @@ class Task(ControlFlowModel):
         """
         Runs the task with provided agent. If no agent is provided, one will be selected from the task's agents.
         """
-        from controlflow.core.controller import Controller
-        from controlflow.core.flow import get_flow
-
         # run once doesn't create new flows because the history would be lost
-        flow = flow or get_flow()
+        flow = flow or controlflow.core.flow.get_flow()
         if flow is None:
             raise ValueError(
                 "Task.run_once() must be called within a flow context or with a flow argument."
             )
 
-        controller = Controller(tasks=[self], agents=agent, flow=flow)
-
+        controller = controlflow.Controller(tasks=[self], agents=agent, flow=flow)
         controller.run_once()
 
-    def run(
+    async def run_once_async(self, agent: "Agent" = None, flow: "Flow" = None):
+        """
+        Runs the task with provided agent. If no agent is provided, one will be selected from the task's agents.
+        """
+
+        # run once doesn't create new flows because the history would be lost
+        flow = flow or controlflow.core.flow.get_flow()
+        if flow is None:
+            raise ValueError(
+                "Task.run_once_async() must be called within a flow context or with a flow argument."
+            )
+
+        controller = controlflow.Controller(tasks=[self], agents=agent, flow=flow)
+        await controller.run_once_async()
+
+    def _run(
         self,
         raise_on_error: bool = True,
         max_iterations: int = NOTSET,
         flow: "Flow" = None,
-    ) -> T:
+        run_async: bool = False,
+    ) -> Generator[T, None, None]:
         """
-        Runs the task with provided agents until it is complete.
-
-        If max_iterations is provided, the task will run at most that many times before raising an error.
+        Internal function that can handle both sync and async runs by yielding either the result or the coroutine.
         """
         from controlflow.core.flow import Flow, get_flow
 
@@ -304,12 +312,61 @@ class Task(ControlFlowModel):
                 raise ValueError(
                     f"{self.friendly_name()} did not complete after {max_iterations} iterations."
                 )
-            self.run_once(flow=flow)
+            if run_async:
+                yield self.run_once_async(flow=flow)
+            else:
+                yield self.run_once(flow=flow)
             counter += 1
         if self.is_successful():
             return self.result
         elif self.is_failed() and raise_on_error:
             raise ValueError(f"{self.friendly_name()} failed: {self.error}")
+
+    def run(
+        self,
+        raise_on_error: bool = True,
+        max_iterations: int = NOTSET,
+        flow: "Flow" = None,
+    ) -> T:
+        """
+        Runs the task with provided agents until it is complete.
+
+        If max_iterations is provided, the task will run at most that many times before raising an error.
+        """
+        gen = self._run(
+            raise_on_error=raise_on_error,
+            max_iterations=max_iterations,
+            flow=flow,
+            run_async=False,
+        )
+        while True:
+            try:
+                next(gen)
+            except StopIteration as e:
+                return e.value
+
+    async def run_async(
+        self,
+        raise_on_error: bool = True,
+        max_iterations: int = NOTSET,
+        flow: "Flow" = None,
+    ) -> T:
+        """
+        Runs the task with provided agents until it is complete.
+
+        If max_iterations is provided, the task will run at most that many times before raising an error.
+        """
+        gen = self._run(
+            raise_on_error=raise_on_error,
+            max_iterations=max_iterations,
+            flow=flow,
+            run_async=True,
+        )
+        while True:
+            try:
+                await next(gen)
+            except StopIteration as e:
+                return e.value
 
     @contextmanager
     def _context(self):
