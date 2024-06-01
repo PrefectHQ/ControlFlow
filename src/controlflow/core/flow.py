@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from pydantic import Field
 
+import controlflow
 from controlflow.llm.history import get_default_history
 from controlflow.llm.messages import MessageType
 from controlflow.utilities.context import ctx
@@ -56,14 +57,20 @@ class Flow(ControlFlowModel):
     def __exit__(self, *exc_info):
         return self.__cm_stack.pop().__exit__(*exc_info)
 
+    async def run_async(self):
+        """
+        Runs the flow asynchronously.
+        """
+        if self._tasks:
+            controller = controlflow.Controller(flow=self)
+            await controller.run_async()
+
     def run(self):
         """
         Runs the flow.
         """
-        from controlflow.core.controller import Controller
-
         if self._tasks:
-            controller = Controller(flow=self)
+            controller = controlflow.Controller(flow=self)
             controller.run()
 
 
