@@ -5,7 +5,7 @@ from uuid import UUID
 from prefect import get_client as get_prefect_client
 from prefect.artifacts import ArtifactRequest
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.utilities.asyncutils import run_sync
+from prefect.utilities.asyncutils import run_coro_as_sync
 from pydantic import TypeAdapter
 
 
@@ -29,7 +29,7 @@ def create_markdown_artifact(
         flow_run_id = flow_run_id or fr_context.flow_run.id
 
     client = get_prefect_client()
-    run_sync(
+    run_coro_as_sync(
         client.create_artifact(
             artifact=ArtifactRequest(
                 key=key,
