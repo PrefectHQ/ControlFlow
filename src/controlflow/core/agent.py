@@ -1,11 +1,13 @@
 import logging
-from typing import Callable, Optional
+from typing import AsyncGenerator, Callable, Generator, Optional, Union
 
 from pydantic import Field
 
 import controlflow
+from controlflow.llm.completions import completion, completion_async
+from controlflow.llm.handlers import CompletionEvent, CompletionHandler
+from controlflow.llm.messages import ControlFlowMessage
 from controlflow.tools.talk_to_human import talk_to_human
-from controlflow.utilities.asyncio import ExposeSyncMethodsMixin
 from controlflow.utilities.types import ControlFlowModel
 
 logger = logging.getLogger(__name__)
@@ -15,7 +17,7 @@ def get_default_agent() -> "Agent":
     return controlflow.default_agent
 
 
-class Agent(ControlFlowModel, ExposeSyncMethodsMixin):
+class Agent(ControlFlowModel):
     name: str = Field(
         ...,
         description="The name of the agent. This is used to identify the agent in the system and should be unique per assigned task.",
@@ -46,6 +48,62 @@ class Agent(ControlFlowModel, ExposeSyncMethodsMixin):
         if self.user_access:
             tools.append(talk_to_human)
         return tools
+
+    def run(
+        self,
+        messages: list[ControlFlowMessage],
+        tools: list[Callable] = None,
+        handlers: list[CompletionHandler] = None,
+        message_preprocessor: Optional[Callable] = None,
+        stream: bool = False,
+    ) -> Union[list[ControlFlowMessage], Generator[CompletionEvent, None, None]]:
+        """
+        Run the agent on the given messages.
+        """
+
+        if tools is None:
+            tools = self.get_tools()
+
+        response = completion(
+            messages=messages,
+            model=self.model,
+            tools=tools,
+            handlers=handlers,
+            max_iterations=1,
+            assistant_name=self.name,
+            message_preprocessor=message_preprocessor,
+            stream=stream,
+        )
+
+        return response
+
+    async def run_async(
+        self,
+        messages: list[ControlFlowMessage],
+        tools: list[Callable] = None,
+        handlers: list[CompletionHandler] = None,
+        message_preprocessor: Optional[Callable] = None,
+        stream: bool = False,
+    ) -> Union[list[ControlFlowMessage], AsyncGenerator[CompletionEvent, None]]:
+        """
+        Run the agent on the given messages.
+        """
+
+        if tools is None:
+            tools = self.get_tools()
+
+        response = await completion_async(
+            messages=messages,
+            model=self.model,
+            tools=tools,
+            handlers=handlers,
+            max_iterations=1,
+            assistant_name=self.name,
+            message_preprocessor=message_preprocessor,
+            stream=stream,
+        )
+
+        return response
 
 
 DEFAULT_AGENT = Agent(

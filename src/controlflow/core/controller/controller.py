@@ -1,7 +1,7 @@
 import logging
 import math
 from collections import defaultdict
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from functools import cached_property
 from typing import Callable, Union
 
@@ -14,12 +14,10 @@ from controlflow.core.flow import Flow, get_flow
 from controlflow.core.graph import Graph
 from controlflow.core.task import Task
 from controlflow.instructions import get_instructions
-from controlflow.llm.completions import completion_async
-from controlflow.llm.handlers import PrintHandler, TUIHandler
+from controlflow.llm.handlers import PrintHandler, ResponseHandler, TUIHandler
 from controlflow.llm.history import History
 from controlflow.llm.messages import AssistantMessage, ControlFlowMessage, SystemMessage
 from controlflow.tui.app import TUIApp as TUI
-from controlflow.utilities.asyncio import ExposeSyncMethodsMixin, expose_sync_method
 from controlflow.utilities.context import ctx
 from controlflow.utilities.tasks import all_complete, any_incomplete
 
@@ -35,7 +33,7 @@ def add_agent_name_to_message(msg: ControlFlowMessage):
     return msg
 
 
-class Controller(BaseModel, ExposeSyncMethodsMixin):
+class Controller(BaseModel):
     """
     A controller contains logic for executing agents with context about the
     larger workflow, including the flow itself, any tasks, and any other agents
@@ -70,7 +68,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
     model_config: dict = dict(extra="forbid")
     enable_tui: bool = Field(default_factory=lambda: controlflow.settings.enable_tui)
     _iteration: int = 0
-    _should_abort: bool = False
+    _should_stop: bool = False
     _end_run_counts: dict = PrivateAttr(default_factory=lambda: defaultdict(int))
 
     @computed_field
@@ -101,7 +99,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
             self._end_run_counts[key] += 1
             if self._end_run_counts[key] >= 3:
-                self._should_abort = True
+                self._should_stop = True
                 self._end_run_counts[key] = 0
 
             return (
@@ -111,7 +109,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
 
         return end_turn
 
-    async def _run_agent(self, agent: Agent, tasks: list[Task]):
+    def _setup_agent(self, agent: Agent, tasks: list[Task]):
         """
         Run a single agent.
         """
@@ -152,35 +150,36 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         else:
             handlers = []
 
-        # call llm
-        response_messages = []
-        async for msg in await completion_async(
+        return dict(
             messages=[system_message] + messages,
-            model=agent.model,
             tools=tools,
             handlers=handlers,
-            max_iterations=1,
-            assistant_name=agent.name,
-            stream=True,
             message_preprocessor=add_agent_name_to_message,
-        ):
-            response_messages.append(msg)
+        )
+
+    def run_agent(self, agent: Agent, tasks: list[Task]):
+        agent_payload = self._setup_agent(agent=agent, tasks=tasks)
+        agent_payload["handlers"].append(response_handler := ResponseHandler())
+
+        for _ in agent.run(**agent_payload, stream=True):
+            pass
 
         # save history
         self.history.save_messages(
-            thread_id=self.flow.thread_id, messages=response_messages
+            thread_id=self.flow.thread_id, messages=response_handler.response_messages
         )
 
-        # create_json_artifact(
-        #     key="messages",
-        #     data=[m.model_dump() for m in run.messages],
-        #     description="All messages sent and received during the run.",
-        # )
-        # create_json_artifact(
-        #     key="actions",
-        #     data=[s.model_dump() for s in run.steps],
-        #     description="All actions taken by the assistant during the run.",
-        # )
+    async def run_agent_async(self, agent: Agent, tasks: list[Task]):
+        agent_payload = self._setup_agent(agent=agent, tasks=tasks)
+        agent_payload["handlers"].append(response_handler := ResponseHandler())
+
+        async for _ in await agent.run_async(**agent_payload, stream=True):
+            pass
+
+        # save history
+        self.history.save_messages(
+            thread_id=self.flow.thread_id, messages=response_handler.response_messages
+        )
 
     def choose_agent(self, agents: list[Agent], tasks: list[Task]) -> Agent:
         return classify_moderator(
@@ -201,53 +200,57 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         else:
             yield
 
-    @expose_sync_method("run_once")
-    async def run_once_async(self):
+    @contextmanager
+    def _setup_run_once(self):
         """
         Run the controller for a single iteration of the provided tasks. An agent will be selected to run the tasks.
         """
+        if all(t.is_complete() for t in self.tasks):
+            yield None
+            return
+
+        # put the flow in context
+        with self.flow:
+            # TODO: show the agent the entire graph, not just immediate upstreams
+            # get the tasks to run
+            tasks = self.graph.ready_tasks()
+            # get the agents
+            agent_candidates = [a for t in tasks for a in t.get_agents() if t.is_ready]
+            if len({a.name for a in agent_candidates}) != len(agent_candidates):
+                raise ValueError(
+                    "Multiple agents with the same name were found. Agents must have unique names."
+                )
+            if self.agents:
+                agents = [a for a in agent_candidates if a in self.agents]
+            else:
+                agents = agent_candidates
+
+            # select the next agent
+            if len(agents) == 0:
+                raise ValueError(
+                    "No agents were provided that are assigned to tasks that are ready to be run."
+                )
+            elif len(agents) == 1:
+                agent = agents[0]
+            else:
+                agent = self.choose_agent(agents=agents, tasks=tasks)
+
+            with ctx(controller_agent=agent):
+                yield dict(agent=agent, tasks=tasks)
+
+            self._iteration += 1
+
+    async def run_once_async(self):
         async with self.tui():
-            # put the flow in context
-            with self.flow:
-                # get the tasks to run
-                ready_tasks = {t for t in self.tasks if t.is_ready}
-                upstreams = {d for t in ready_tasks for d in t.depends_on}
-                tasks = list(ready_tasks.union(upstreams))
+            with self._setup_run_once() as payload:
+                if payload is not None:
+                    await self.run_agent_async(**payload)
 
-                # TODO: show the agent the entire graph, not just immediate upstreams
+    def run_once(self):
+        with self._setup_run_once() as payload:
+            if payload is not None:
+                self.run_agent(**payload)
 
-                if all(t.is_complete() for t in tasks):
-                    return
-
-                # get the agents
-                agent_candidates = [
-                    a for t in tasks for a in t.get_agents() if t.is_ready
-                ]
-                if len({a.name for a in agent_candidates}) != len(agent_candidates):
-                    raise ValueError(
-                        "Multiple agents with the same name were found. Agents must have unique names."
-                    )
-                if self.agents:
-                    agents = [a for a in agent_candidates if a in self.agents]
-                else:
-                    agents = agent_candidates
-
-                # select the next agent
-                if len(agents) == 0:
-                    raise ValueError(
-                        "No agents were provided that are assigned to tasks that are ready to be run."
-                    )
-                elif len(agents) == 1:
-                    agent = agents[0]
-                else:
-                    agent = self.choose_agent(agents=agents, tasks=tasks)
-
-                with ctx(controller_agent=agent):
-                    await self._run_agent(agent, tasks=tasks)
-
-                self._iteration += 1
-
-    @expose_sync_method("run")
     async def run_async(self):
         """
         Run the controller until all tasks are complete.
@@ -257,7 +260,7 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
         if all_complete(self.tasks):
             return
         async with self.tui():
-            while any_incomplete(self.tasks) and not self._should_abort:
+            while any_incomplete(self.tasks) and not self._should_stop:
                 await self.run_once_async()
                 if self._iteration > start_iteration + max_task_iterations * len(
                     self.tasks
@@ -265,4 +268,22 @@ class Controller(BaseModel, ExposeSyncMethodsMixin):
                     raise ValueError(
                         f"Task iterations exceeded maximum of {max_task_iterations} for each task."
                     )
-            self._should_abort = False
+            self._should_stop = False
+
+    def run(self):
+        """
+        Run the controller until all tasks are complete.
+        """
+        max_task_iterations = controlflow.settings.max_task_iterations or math.inf
+        start_iteration = self._iteration
+        if all_complete(self.tasks):
+            return
+        while any_incomplete(self.tasks) and not self._should_stop:
+            self.run_once()
+            if self._iteration > start_iteration + max_task_iterations * len(
+                self.tasks
+            ):
+                raise ValueError(
+                    f"Task iterations exceeded maximum of {max_task_iterations} for each task."
+                )
+        self._should_stop = False

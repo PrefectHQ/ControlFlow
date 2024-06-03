@@ -9,6 +9,8 @@ from textual.reactive import reactive
 from textual.widgets import Footer, Header, Label
 
 import controlflow
+import controlflow.utilities
+import controlflow.utilities.asyncio
 from controlflow.llm.messages import AssistantMessage, ToolMessage, UserMessage
 
 from .basic import Column, Row
@@ -48,7 +50,7 @@ class TUIApp(App):
             headless = controlflow.settings.run_tui_headless
 
         if run:
-            task = asyncio.create_task(
+            controlflow.utilities.asyncio.create_task(
                 self.run_async(
                     inline=inline,
                     inline_no_clear=inline_stay_visible,
