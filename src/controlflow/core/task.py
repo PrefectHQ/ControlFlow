@@ -90,9 +90,10 @@ class Task(ControlFlowModel):
     status: TaskStatus = TaskStatus.INCOMPLETE
     result: T = None
     result_type: Union[type[T], GenericAlias, _LiteralGenericAlias, None] = Field(
-        None,
+        str,
         description="The expected type of the result. This should be a type"
-        ", generic alias, BaseModel subclass, pd.DataFrame, or pd.Series.",
+        ", generic alias, BaseModel subclass, pd.DataFrame, or pd.Series. "
+        "Can be None if no result is expected or the agent should communicate internally.",
     )
     error: Union[str, None] = None
     tools: list[Callable] = Field(
