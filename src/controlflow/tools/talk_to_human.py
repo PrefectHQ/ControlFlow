@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from prefect.context import FlowRunContext
 from prefect.input.run_input import receive_input
+from rich.prompt import Prompt
 
 import controlflow
 from controlflow.llm.tools import tool
@@ -16,8 +17,8 @@ async def get_terminal_input():
     # as a convenience, we wait for human input on the local terminal
     # this is not necessary for the flow to run, but can be useful for testing
     loop = asyncio.get_event_loop()
-    user_input = await loop.run_in_executor(None, input, "Type your response: ")
-    # user_input = await loop.run_in_executor(None, Prompt.ask, "Type your response")
+    # user_input = await loop.run_in_executor(None, input, "Type your response: ")
+    user_input = await loop.run_in_executor(None, Prompt.ask, "Type your response")
     return user_input
 
 
