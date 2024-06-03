@@ -8,9 +8,23 @@ from controlflow.llm.messages import (
     ToolMessage,
 )
 from controlflow.utilities.context import ctx
+from controlflow.utilities.types import ControlFlowModel
+
+
+class CompletionEvent(ControlFlowModel):
+    type: str
+    payload: dict
 
 
 class CompletionHandler:
+    def on_event(self, event: CompletionEvent):
+        method = getattr(self, f"on_{event.type}", None)
+        if not method:
+            raise ValueError(f"Unknown event type: {event.type}")
+        method(**event.payload)
+        if event.type in ["message_done", "tool_call_done", "tool_result_done"]:
+            self.on_response_message(event.payload["message"])
+
     def on_start(self):
         pass
 
@@ -38,53 +52,30 @@ class CompletionHandler:
     def on_tool_call_done(self, message: AssistantMessage):
         pass
 
-    def on_tool_result(self, message: ToolMessage):
+    def on_tool_result_done(self, message: ToolMessage):
+        pass
+
+    def on_response_message(self, message: ControlFlowMessage):
+        """
+        This handler is called whenever a message is generated that should be
+        included in the completion history (e.g. a `message`, `tool_call` or
+        `tool_result`). Note that this is called *in addition* to the respective
+        on_*_done handlers, and can be used to quickly collect all messages
+        generated during a completion.
+        """
         pass
 
 
-class CompoundHandler(CompletionHandler):
-    def __init__(self, handlers: list[CompletionHandler]):
-        self.handlers = handlers
+class ResponseHandler(CompletionHandler):
+    """
+    A handler for collecting response messages.
+    """
 
-    def on_start(self):
-        for handler in self.handlers:
-            handler.on_start()
+    def __init__(self):
+        self.response_messages = []
 
-    def on_end(self):
-        for handler in self.handlers:
-            handler.on_end()
-
-    def on_exception(self, exc: Exception):
-        for handler in self.handlers:
-            handler.on_exception(exc)
-
-    def on_message_created(self, delta: AssistantMessage):
-        for handler in self.handlers:
-            handler.on_message_created(delta)
-
-    def on_message_delta(self, delta: AssistantMessage, snapshot: AssistantMessage):
-        for handler in self.handlers:
-            handler.on_message_delta(delta, snapshot)
-
-    def on_message_done(self, message: AssistantMessage):
-        for handler in self.handlers:
-            handler.on_message_done(message)
-
-    def on_tool_call_created(self, delta: AssistantMessage):
-        for handler in self.handlers:
-            handler.on_tool_call_created(delta)
-
-    def on_tool_call_delta(self, delta: AssistantMessage, snapshot: AssistantMessage):
-        for handler in self.handlers:
-            handler.on_tool_call_delta(delta, snapshot)
-
-    def on_tool_call_done(self, message: AssistantMessage):
-        for handler in self.handlers:
-            handler.on_tool_call_done(message)
-
-    def on_tool_result(self, message: ToolMessage):
-        for handler in self.handlers:
-            handler.on_tool_result(message)
+    def on_response_message(self, message: ControlFlowMessage):
+        self.response_messages.append(message)
 
 
 class TUIHandler(CompletionHandler):
@@ -98,7 +89,7 @@ class TUIHandler(CompletionHandler):
         if tui := ctx.get("tui"):
             tui.update_message(message=snapshot)
 
-    def on_tool_result(self, message: ToolMessage):
+    def on_tool_result_done(self, message: ToolMessage):
         if tui := ctx.get("tui"):
             tui.update_tool_result(message=message)
 
@@ -128,6 +119,6 @@ class PrintHandler(CompletionHandler):
         self.messages[snapshot.id] = snapshot
         self.update_live()
 
-    def on_tool_result(self, message: ToolMessage):
+    def on_tool_result_done(self, message: ToolMessage):
         self.messages[message.id] = message
         self.update_live()
