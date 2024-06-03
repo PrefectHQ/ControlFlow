@@ -57,12 +57,11 @@ class TasksTemplate(Template):
     template: str = """
         ## Tasks
         
-        Your job is to complete the tasks assigned to you. Tasks may have multiple agents assigned. Only one agent
-        will be active at a time.
+        Your job is to complete any tasks assigned to you. Tasks may have multiple agents assigned.
         
         ### Current tasks
         
-        These tasks are assigned to you and ready to be worked on because their dependencies have been completed.
+        These tasks are assigned to you and ready to be worked on because their dependencies have been completed:
         
         {% for task in tasks %} 
         {% if task.is_ready %}

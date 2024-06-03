@@ -95,12 +95,17 @@ class TUIHandler(CompletionHandler):
 
 
 class PrintHandler(CompletionHandler):
-    def on_start(self):
-        self.live = Live(refresh_per_second=12)
-        self.live.start()
+    def __init__(self):
         self.messages: dict[str, ControlFlowMessage] = {}
+        self.live = Live(auto_refresh=False)
+
+    def on_start(self):
+        self.live.start()
 
     def on_end(self):
+        self.live.stop()
+
+    def on_exception(self, exc: Exception):
         self.live.stop()
 
     def update_live(self):
@@ -109,7 +114,7 @@ class PrintHandler(CompletionHandler):
         for message in messages:
             content.append(format_message(message))
 
-        self.live.update(Group(*content))
+        self.live.update(Group(*content), refresh=True)
 
     def on_message_delta(self, delta: AssistantMessage, snapshot: AssistantMessage):
         self.messages[snapshot.id] = snapshot
