@@ -1,13 +1,10 @@
 import logging
-from typing import AsyncGenerator, Callable, Generator, Optional, Union
+from typing import Callable, Optional
 
 from pydantic import Field
 
 import controlflow
 from controlflow.core.task import Task
-from controlflow.llm.completions import completion, completion_async
-from controlflow.llm.handlers import CompletionEvent, CompletionHandler
-from controlflow.llm.messages import ControlFlowMessage
 from controlflow.tools.talk_to_human import talk_to_human
 from controlflow.utilities.types import ControlFlowModel
 
@@ -55,62 +52,6 @@ class Agent(ControlFlowModel):
 
     async def run_async(self, task: "Task"):
         return await task.run_once_async(agent=self)
-
-    def completion(
-        self,
-        messages: list[ControlFlowMessage],
-        tools: list[Callable] = None,
-        handlers: list[CompletionHandler] = None,
-        message_preprocessor: Optional[Callable] = None,
-        stream: bool = False,
-    ) -> Union[list[ControlFlowMessage], Generator[CompletionEvent, None, None]]:
-        """
-        Run the agent on the given messages.
-        """
-
-        if tools is None:
-            tools = self.get_tools()
-
-        response = completion(
-            messages=messages,
-            model=self.model,
-            tools=tools,
-            handlers=handlers,
-            max_iterations=1,
-            assistant_name=self.name,
-            message_preprocessor=message_preprocessor,
-            stream=stream,
-        )
-
-        return response
-
-    async def completion_async(
-        self,
-        messages: list[ControlFlowMessage],
-        tools: list[Callable] = None,
-        handlers: list[CompletionHandler] = None,
-        message_preprocessor: Optional[Callable] = None,
-        stream: bool = False,
-    ) -> Union[list[ControlFlowMessage], AsyncGenerator[CompletionEvent, None]]:
-        """
-        Run the agent on the given messages.
-        """
-
-        if tools is None:
-            tools = self.get_tools()
-
-        response = await completion_async(
-            messages=messages,
-            model=self.model,
-            tools=tools,
-            handlers=handlers,
-            max_iterations=1,
-            assistant_name=self.name,
-            message_preprocessor=message_preprocessor,
-            stream=stream,
-        )
-
-        return response
 
 
 DEFAULT_AGENT = Agent(
