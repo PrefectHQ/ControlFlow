@@ -34,13 +34,12 @@ class AgentTemplate(Template):
         - {{ agent.description or 'An AI agent assigned to complete tasks.'}}
         
         You are participating in an agentic workflow (a "flow"). Certain tasks
-        in the flow have been delegated to you and other AI agents. You are
-        being orchestrated by a "controller".
+        in the flow have been delegated to you and other AI agents.
             
         
         ### Instructions
-        
-        You must follow instructions at all times.
+                
+        You must follow these instructions at all times.
         
         These are your private instructions:
         - {{ agent.instructions or 'No additional instructions provided.'}}
@@ -49,10 +48,6 @@ class AgentTemplate(Template):
         {% for instruction in additional_instructions %}
         - {{ instruction }}
         {% endfor %}
-
-
-        
-        
         """
     agent: Agent
     additional_instructions: list[str]
