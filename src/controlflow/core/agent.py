@@ -4,6 +4,7 @@ from typing import AsyncGenerator, Callable, Generator, Optional, Union
 from pydantic import Field
 
 import controlflow
+from controlflow.core.task import Task
 from controlflow.llm.completions import completion, completion_async
 from controlflow.llm.handlers import CompletionEvent, CompletionHandler
 from controlflow.llm.messages import ControlFlowMessage
@@ -49,7 +50,13 @@ class Agent(ControlFlowModel):
             tools.append(talk_to_human)
         return tools
 
-    def run(
+    def run(self, task: "Task"):
+        return task.run_once(agent=self)
+
+    async def run_async(self, task: "Task"):
+        return await task.run_once_async(agent=self)
+
+    def completion(
         self,
         messages: list[ControlFlowMessage],
         tools: list[Callable] = None,
@@ -77,7 +84,7 @@ class Agent(ControlFlowModel):
 
         return response
 
-    async def run_async(
+    async def completion_async(
         self,
         messages: list[ControlFlowMessage],
         tools: list[Callable] = None,

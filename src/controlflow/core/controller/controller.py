@@ -1,7 +1,7 @@
 import logging
 import math
 from collections import defaultdict
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import asynccontextmanager
 from functools import cached_property
 from typing import Callable, Union
 
@@ -109,78 +109,6 @@ class Controller(BaseModel):
 
         return end_turn
 
-    def _setup_agent(self, agent: Agent, tasks: list[Task]):
-        """
-        Run a single agent.
-        """
-
-        from controlflow.core.controller.instruction_template import MainTemplate
-
-        tools = self.flow.tools + agent.get_tools() + [self._create_end_turn_tool()]
-
-        # add tools for any inactive tasks that the agent is assigned to
-        assigned_tools = []
-        for task in tasks:
-            if agent in task.get_agents():
-                assigned_tools.extend(task.get_tools())
-        if not assigned_tools:
-            raise ValueError(
-                f"Agent {agent.name} is not assigned to any of the tasks that are ready to be run."
-            )
-        tools.extend(assigned_tools)
-
-        instructions_template = MainTemplate(
-            agent=agent,
-            controller=self,
-            tasks=tasks,
-            context=self.context,
-            instructions=get_instructions(),
-        )
-        instructions = instructions_template.render()
-
-        # prepare messages
-        system_message = SystemMessage(content=instructions)
-        messages = self.history.load_messages(thread_id=self.flow.thread_id)
-
-        # setup handler
-        if controlflow.settings.enable_tui:
-            handlers = [TUIHandler()]
-        elif controlflow.settings.enable_print_handler:
-            handlers = [PrintHandler()]
-        else:
-            handlers = []
-
-        return dict(
-            messages=[system_message] + messages,
-            tools=tools,
-            handlers=handlers,
-            message_preprocessor=add_agent_name_to_message,
-        )
-
-    def run_agent(self, agent: Agent, tasks: list[Task]):
-        agent_payload = self._setup_agent(agent=agent, tasks=tasks)
-        agent_payload["handlers"].append(response_handler := ResponseHandler())
-
-        for _ in agent.run(**agent_payload, stream=True):
-            pass
-
-        # save history
-        self.history.save_messages(
-            thread_id=self.flow.thread_id, messages=response_handler.response_messages
-        )
-
-    async def run_agent_async(self, agent: Agent, tasks: list[Task]):
-        agent_payload = self._setup_agent(agent=agent, tasks=tasks)
-        agent_payload["handlers"].append(response_handler := ResponseHandler())
-
-        async for _ in await agent.run_async(**agent_payload, stream=True):
-            pass
-
-        # save history
-        self.history.save_messages(
-            thread_id=self.flow.thread_id, messages=response_handler.response_messages
-        )
-
     def choose_agent(self, agents: list[Agent], tasks: list[Task]) -> Agent:
         return classify_moderator(
             agents=agents,
@@ -200,13 +128,11 @@ class Controller(BaseModel):
         else:
             yield
 
-    @contextmanager
-    def _setup_run_once(self):
+    def _run_once(self):
         """
         Run the controller for a single iteration of the provided tasks. An agent will be selected to run the tasks.
         """
         if all(t.is_complete() for t in self.tasks):
-            yield None
             return
 
         # put the flow in context
@@ -236,20 +162,86 @@ class Controller(BaseModel):
                 agent = self.choose_agent(agents=agents, tasks=tasks)
 
             with ctx(controller_agent=agent):
-                yield dict(agent=agent, tasks=tasks)
+                from controlflow.core.controller.instruction_template import (
+                    MainTemplate,
+                )
 
-            self._iteration += 1
+                tools = (
+                    self.flow.tools + agent.get_tools() + [self._create_end_turn_tool()]
+                )
+
+                # add tools for any inactive tasks that the agent is assigned to
+                assigned_tools = []
+                for task in tasks:
+                    if agent in task.get_agents():
+                        assigned_tools.extend(task.get_tools())
+                if not assigned_tools:
+                    raise ValueError(
+                        f"Agent {agent.name} is not assigned to any of the tasks that are ready to be run."
+                    )
+                tools.extend(assigned_tools)
+
+                instructions_template = MainTemplate(
+                    agent=agent,
+                    controller=self,
+                    tasks=tasks,
+                    context=self.context,
+                    instructions=get_instructions(),
+                )
+                instructions = instructions_template.render()
+
+                # prepare messages
+                system_message = SystemMessage(content=instructions)
+                messages = self.history.load_messages(thread_id=self.flow.thread_id)
+
+                # setup handlers
+                handlers = []
+                if controlflow.settings.enable_tui:
+                    handlers.append(TUIHandler())
+                if controlflow.settings.enable_print_handler:
+                    handlers.append(PrintHandler())
+
+                self._iteration += 1
+
+                # yield the agent payload
+                return dict(
+                    agent=agent,
+                    messages=[system_message] + messages,
+                    tools=tools,
+                    handlers=handlers,
+                    message_preprocessor=add_agent_name_to_message,
+                )
 
     async def run_once_async(self):
         async with self.tui():
-            with self._setup_run_once() as payload:
-                if payload is not None:
-                    await self.run_agent_async(**payload)
+            agent_payload = self._run_once()
+            if agent_payload is not None:
+                agent = agent_payload.pop("agent")
+                agent_payload["handlers"].append(response_handler := ResponseHandler())
+                async for _ in await agent.completion_async(
+                    **agent_payload, stream=True
+                ):
+                    pass
+
+                # save history
+                self.history.save_messages(
+                    thread_id=self.flow.thread_id,
+                    messages=response_handler.response_messages,
+                )
 
     def run_once(self):
-        with self._setup_run_once() as payload:
-            if payload is not None:
-                self.run_agent(**payload)
+        agent_payload = self._run_once()
+        if agent_payload is not None:
+            agent = agent_payload.pop("agent")
+            agent_payload["handlers"].append(response_handler := ResponseHandler())
+            for _ in agent.completion(**agent_payload, stream=True):
+                pass
+
+            # save history
+            self.history.save_messages(
+                thread_id=self.flow.thread_id,
+                messages=response_handler.response_messages,
+            )
 
     async def run_async(self):
         """
