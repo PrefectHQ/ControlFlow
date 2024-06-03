@@ -19,6 +19,7 @@ from controlflow.llm.tools import (
     as_tools,
     get_tool_calls,
     handle_tool_call,
+    handle_tool_call_async,
 )
 
 
@@ -209,7 +210,7 @@ async def _completion_async_generator(
             response_messages.append(response_message)
 
             for tool_call in get_tool_calls(response_message):
-                tool_result_message = handle_tool_call(tool_call, tools)
+                tool_result_message = await handle_tool_call_async(tool_call, tools)
                 yield CompletionEvent(
                     type="tool_result_done", payload=dict(message=tool_result_message)
                 )

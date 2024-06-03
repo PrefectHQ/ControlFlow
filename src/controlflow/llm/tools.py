@@ -4,6 +4,7 @@ from functools import partial, update_wrapper
 from typing import Any, Callable, Literal, Optional, Union
 
 import pydantic
+from prefect.utilities.asyncutils import run_coro_as_sync
 
 from controlflow.llm.messages import (
     AssistantMessage,
@@ -171,6 +172,8 @@ def handle_tool_call(tool_call: ToolCall, tools: list[dict, Callable]) -> ToolMe
             metadata.update(tool._metadata)
             fn_args = tool_call.function.json_arguments()
             fn_output = tool(**fn_args)
+            if inspect.isawaitable(fn_output):
+                fn_output = run_coro_as_sync(fn_output)
     except Exception as exc:
         fn_output = f'Error calling function "{fn_name}": {exc}'
         metadata["is_failed"] = True
@@ -199,7 +202,7 @@ async def handle_tool_call_async(
             metadata = tool._metadata
             fn_args = tool_call.function.json_arguments()
             fn_output = tool(**fn_args)
-            if inspect.is_awaitable(fn_output):
+            if inspect.isawaitable(fn_output):
                 fn_output = await fn_output
     except Exception as exc:
         fn_output = f'Error calling function "{fn_name}": {exc}'
