@@ -93,7 +93,7 @@ def demo():
         interests = Task(
             "ask user for three interests", result_type=list[str], user_access=True
         )
-        interests.run_until_complete()
+        interests.run()
 
     # set instructions for just the next task
     with instructions("no more than 8 lines"):
