@@ -4,9 +4,8 @@ import warnings
 from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Union
 
-import litellm
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -53,7 +52,7 @@ class PrefectSettings(ControlFlowSettings):
 class Settings(ControlFlowSettings):
     assistant_model: str = "gpt-4o"
     max_task_iterations: Union[int, None] = Field(
-        None,
+        100,
         description="The maximum number of iterations to attempt to complete a task "
         "before raising an error. If None, the task will run indefinitely. "
         "This setting can be overridden by the `max_iterations` attribute "
@@ -89,14 +88,7 @@ class Settings(ControlFlowSettings):
 
     # ------------ LLM settings ------------
 
-    llm_model: str = Field("gpt-4o", description="The LLM model to use.")
-    llm_api_key: Optional[str] = Field(None, description="The LLM API key to use.")
-    llm_api_base: Optional[str] = Field(
-        None, description="The LLM API base URL to use."
-    )
-    llm_api_version: Optional[str] = Field(
-        None, description="The LLM API version to use."
-    )
+    llm_model: str = Field("openai/gpt-4o", description="The LLM model to use.")
 
     # ------------ Flow visualization settings ------------
 
@@ -123,12 +115,6 @@ class Settings(ControlFlowSettings):
         v = Path(v).expanduser()
         if not v.exists():
             v.mkdir(parents=True, exist_ok=True)
-        return v
-
-    @field_validator("llm_model", mode="before")
-    def _validate_model(cls, v):
-        if not litellm.supports_function_calling(model=v):
-            raise ValueError(f"Model '{v}' does not support function calling.")
         return v
 
 

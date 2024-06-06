@@ -1,9 +1,12 @@
-import litellm
+from typing import Union
+
 import tiktoken
+from langchain_openai import AzureChatOpenAI, ChatOpenAI
 from pydantic import TypeAdapter
 
 import controlflow
-from controlflow.llm.messages import AssistantMessage, SystemMessage, UserMessage
+from controlflow.llm.messages import AIMessage, HumanMessage, SystemMessage
+from controlflow.llm.models import BaseChatModel
 
 
 def classify(
@@ -11,7 +14,7 @@ def classify(
     labels: list,
     instructions: str = None,
     context: dict = None,
-    model: str = None,
+    model: BaseChatModel = None,
 ):
     try:
         label_strings = [TypeAdapter(type(t)).dump_json(t).decode() for t in labels]
@@ -38,7 +41,7 @@ def classify(
             {% endfor %}
             """
         ).render(labels=label_strings),
-        UserMessage(
+        HumanMessage(
             """
             ## Information to classify
             
@@ -61,15 +64,15 @@ def classify(
             
             """
         ).render(data=data, instructions=instructions, context=context),
-        AssistantMessage("""
+        AIMessage("""
             The best label for the data is Label number
             """),
     ]
 
-    model = model or controlflow.settings.llm_model
+    model = model or controlflow.llm.models.get_default_model()
 
     kwargs = {}
-    if model in litellm.models_by_provider["openai"]:
+    if isinstance(model, (ChatOpenAI, AzureChatOpenAI)):
         openai_kwargs = _openai_kwargs(model=model, n_labels=len(labels))
         kwargs.update(openai_kwargs)
     else:
@@ -90,8 +93,8 @@ def classify(
     return labels[index]
 
 
-def _openai_kwargs(model: str, n_labels: int):
-    encoding = tiktoken.encoding_for_model(model)
+def _openai_kwargs(model: Union[AzureChatOpenAI, ChatOpenAI], n_labels: int):
+    encoding = tiktoken.encoding_for_model(model.model_name)
 
     logit_bias = {}
     for i in range(n_labels):

@@ -64,16 +64,15 @@ newman = Agent(
 
 
 @flow
-def demo():
-    topic = "milk and cereal"
+def demo(topic: str):
     task = Task(
         "Discuss a topic",
         agents=[jerry, george, elaine, kramer, newman],
         context=dict(topic=topic),
-        instructions="every agent should speak at least once",
+        instructions="every agent should speak at least once. only one agent per turn.",
     )
-    task.run()
+    return task
 
 
 if __name__ == "__main__":
-    demo()
+    demo(topic="sandwiches")

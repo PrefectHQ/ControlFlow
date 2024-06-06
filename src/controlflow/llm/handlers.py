@@ -3,8 +3,9 @@ from rich.live import Live
 
 from controlflow.llm.formatting import format_message
 from controlflow.llm.messages import (
-    AssistantMessage,
-    ControlFlowMessage,
+    AIMessage,
+    AIMessageChunk,
+    MessageType,
     ToolMessage,
 )
 from controlflow.utilities.context import ctx
@@ -34,28 +35,28 @@ class CompletionHandler:
     def on_exception(self, exc: Exception):
         pass
 
-    def on_message_created(self, delta: AssistantMessage):
+    def on_message_created(self, delta: AIMessageChunk):
         pass
 
-    def on_message_delta(self, delta: AssistantMessage, snapshot: AssistantMessage):
+    def on_message_delta(self, delta: AIMessageChunk, snapshot: AIMessageChunk):
         pass
 
-    def on_message_done(self, message: AssistantMessage):
+    def on_message_done(self, message: AIMessage):
         pass
 
-    def on_tool_call_created(self, delta: AssistantMessage):
+    def on_tool_call_created(self, delta: AIMessageChunk):
         pass
 
-    def on_tool_call_delta(self, delta: AssistantMessage, snapshot: AssistantMessage):
+    def on_tool_call_delta(self, delta: AIMessageChunk, snapshot: AIMessageChunk):
         pass
 
-    def on_tool_call_done(self, message: AssistantMessage):
+    def on_tool_call_done(self, message: AIMessage):
         pass
 
     def on_tool_result_done(self, message: ToolMessage):
         pass
 
-    def on_response_message(self, message: ControlFlowMessage):
+    def on_response_message(self, message: MessageType):
         """
         This handler is called whenever a message is generated that should be
         included in the completion history (e.g. a `message`, `tool_call` or
@@ -74,18 +75,16 @@ class ResponseHandler(CompletionHandler):
     def __init__(self):
         self.response_messages = []
 
-    def on_response_message(self, message: ControlFlowMessage):
+    def on_response_message(self, message: MessageType):
         self.response_messages.append(message)
 
 
 class TUIHandler(CompletionHandler):
-    def on_message_delta(
-        self, delta: AssistantMessage, snapshot: AssistantMessage
-    ) -> None:
+    def on_message_delta(self, delta: AIMessageChunk, snapshot: AIMessageChunk) -> None:
         if tui := ctx.get("tui"):
             tui.update_message(message=snapshot)
 
-    def on_tool_call_delta(self, delta: AssistantMessage, snapshot: AssistantMessage):
+    def on_tool_call_delta(self, delta: AIMessageChunk, snapshot: AIMessageChunk):
         if tui := ctx.get("tui"):
             tui.update_message(message=snapshot)
 
@@ -96,7 +95,7 @@ class TUIHandler(CompletionHandler):
 
 class PrintHandler(CompletionHandler):
     def __init__(self):
-        self.messages: dict[str, ControlFlowMessage] = {}
+        self.messages: dict[str, MessageType] = {}
         self.live = Live(auto_refresh=False)
 
     def on_start(self):
@@ -116,11 +115,11 @@ class PrintHandler(CompletionHandler):
 
         self.live.update(Group(*content), refresh=True)
 
-    def on_message_delta(self, delta: AssistantMessage, snapshot: AssistantMessage):
+    def on_message_delta(self, delta: AIMessageChunk, snapshot: AIMessageChunk):
         self.messages[snapshot.id] = snapshot
         self.update_live()
 
-    def on_tool_call_delta(self, delta: AssistantMessage, snapshot: AssistantMessage):
+    def on_tool_call_delta(self, delta: AIMessageChunk, snapshot: AIMessageChunk):
         self.messages[snapshot.id] = snapshot
         self.update_live()
 

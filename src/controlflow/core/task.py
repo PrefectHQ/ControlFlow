@@ -28,7 +28,7 @@ from pydantic import (
 import controlflow
 import controlflow.core
 from controlflow.instructions import get_instructions
-from controlflow.llm.tools import annotate_fn
+from controlflow.llm.tools import Tool
 from controlflow.tools.talk_to_human import talk_to_human
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
@@ -426,7 +426,7 @@ class Task(ControlFlowModel):
             def succeed(result: result_schema) -> str:  # type: ignore
                 return self.mark_successful(result=result)
 
-        return annotate_fn(
+        return Tool.from_function(
             succeed,
             name=f"mark_task_{self.id}_successful",
             description=f"Mark task {self.id} as successful.",
@@ -438,7 +438,7 @@ class Task(ControlFlowModel):
         Create an agent-compatible tool for failing this task.
         """
 
-        return annotate_fn(
+        return Tool.from_function(
             self.mark_failed,
             name=f"mark_task_{self.id}_failed",
             description=f"Mark task {self.id} as failed. Only use when a technical issue like a broken tool or unresponsive human prevents completion.",
@@ -449,7 +449,7 @@ class Task(ControlFlowModel):
         """
         Create an agent-compatible tool for skipping this task.
         """
-        return annotate_fn(
+        return Tool.from_function(
             self.mark_skipped,
             name=f"mark_task_{self.id}_skipped",
             description=f"Mark task {self.id} as skipped. Only use when completing its parent task early.",

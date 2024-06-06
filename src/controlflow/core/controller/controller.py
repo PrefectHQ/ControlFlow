@@ -1,7 +1,7 @@
 import logging
 import math
 from collections import defaultdict
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import asynccontextmanager
 from functools import cached_property
 from typing import Callable, Union
 
@@ -17,7 +17,7 @@ from controlflow.instructions import get_instructions
 from controlflow.llm.completions import completion, completion_async
 from controlflow.llm.handlers import PrintHandler, ResponseHandler, TUIHandler
 from controlflow.llm.history import History
-from controlflow.llm.messages import AssistantMessage, ControlFlowMessage, SystemMessage
+from controlflow.llm.messages import AIMessage, MessageType, SystemMessage
 from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
 from controlflow.utilities.tasks import all_complete, any_incomplete
@@ -25,11 +25,11 @@ from controlflow.utilities.tasks import all_complete, any_incomplete
 logger = logging.getLogger(__name__)
 
 
-def add_agent_name_to_message(msg: ControlFlowMessage):
+def add_agent_name_to_message(msg: MessageType):
     """
     If the message is from a named assistant, prefix the message with the assistant's name.
     """
-    if isinstance(msg, AssistantMessage) and msg.name:
+    if isinstance(msg, AIMessage) and msg.name:
         msg = msg.model_copy(update={"content": f"{msg.name}: {msg.content}"})
     return msg
 
@@ -70,7 +70,7 @@ class Controller(BaseModel):
     enable_tui: bool = Field(default_factory=lambda: controlflow.settings.enable_tui)
     _iteration: int = 0
     _should_stop: bool = False
-    _end_run_counts: dict = PrivateAttr(default_factory=lambda: defaultdict(int))
+    _end_turn_counts: dict = PrivateAttr(default_factory=lambda: defaultdict(int))
 
     @computed_field
     @cached_property
@@ -98,13 +98,13 @@ class Controller(BaseModel):
             # the agent's name is used as the key to track the number of times
             key = getattr(ctx.get("controller_agent", None), "name", None)
 
-            self._end_run_counts[key] += 1
-            if self._end_run_counts[key] >= 3:
+            self._end_turn_counts[key] += 1
+            if self._end_turn_counts[key] >= 3:
                 self._should_stop = True
-                self._end_run_counts[key] = 0
+                self._end_turn_counts[key] = 0
 
             return (
-                f"Ending turn. {3 - self._end_run_counts[key]}"
+                f"Ending turn. {3 - self._end_turn_counts[key]}"
                 " more uses will abort the workflow."
             )
 
@@ -129,96 +129,89 @@ class Controller(BaseModel):
         else:
             yield
 
-    @contextmanager
     def _run_once_payload(self):
         """
-        Generate the payload for a single run of the controller. This is a context manager so it can be used with
-        both async and sync code without duplication.
+        Generate the payload for a single run of the controller.
         """
         if all(t.is_complete() for t in self.tasks):
-            yield None
             return
 
-        # put the flow in context
-        with self.flow:
-            # TODO: show the agent the entire graph, not just immediate upstreams
-            # get the tasks to run
-            tasks = self.graph.ready_tasks()
-            # get the agents
-            agent_candidates = [a for t in tasks for a in t.get_agents() if t.is_ready]
-            if len({a.name for a in agent_candidates}) != len(agent_candidates):
-                raise ValueError(
-                    "Multiple agents with the same name were found. Agents must have unique names."
-                )
-            if self.agents:
-                agents = [a for a in agent_candidates if a in self.agents]
-            else:
-                agents = agent_candidates
+        # TODO: show the agent the entire graph, not just immediate upstreams
+        # get the tasks to run
+        tasks = self.graph.ready_tasks()
+        # get the agents
+        agent_candidates = [a for t in tasks for a in t.get_agents() if t.is_ready]
+        if len({a.name for a in agent_candidates}) != len(agent_candidates):
+            raise ValueError(
+                "Multiple agents with the same name were found. Agents must have unique names."
+            )
+        if self.agents:
+            agents = [a for a in agent_candidates if a in self.agents]
+        else:
+            agents = agent_candidates
 
-            # select the next agent
-            if len(agents) == 0:
-                raise ValueError(
-                    "No agents were provided that are assigned to tasks that are ready to be run."
-                )
-            elif len(agents) == 1:
-                agent = agents[0]
-            else:
-                agent = self.choose_agent(agents=agents, tasks=tasks)
+        # select the next agent
+        if len(agents) == 0:
+            raise ValueError(
+                "No agents were provided that are assigned to tasks that are ready to be run."
+            )
+        elif len(agents) == 1:
+            agent = agents[0]
+        else:
+            agent = self.choose_agent(agents=agents, tasks=tasks)
 
-            with ctx(controller_agent=agent):
-                from controlflow.core.controller.instruction_template import (
-                    MainTemplate,
-                )
+        from controlflow.core.controller.instruction_template import (
+            MainTemplate,
+        )
 
-                tools = (
-                    self.flow.tools + agent.get_tools() + [self._create_end_turn_tool()]
-                )
+        tools = self.flow.tools + agent.get_tools() + [self._create_end_turn_tool()]
 
-                # add tools for any inactive tasks that the agent is assigned to
-                assigned_tools = []
-                for task in tasks:
-                    if agent in task.get_agents():
-                        assigned_tools.extend(task.get_tools())
-                if not assigned_tools:
-                    raise ValueError(
-                        f"Agent {agent.name} is not assigned to any of the tasks that are ready to be run."
-                    )
-                tools.extend(assigned_tools)
+        # add tools for any inactive tasks that the agent is assigned to
+        assigned_tools = []
+        for task in tasks:
+            if agent in task.get_agents():
+                assigned_tools.extend(task.get_tools())
+        if not assigned_tools:
+            raise ValueError(
+                f"Agent {agent.name} is not assigned to any of the tasks that are ready to be run."
+            )
+        tools.extend(assigned_tools)
 
-                instructions_template = MainTemplate(
-                    agent=agent,
-                    controller=self,
-                    tasks=tasks,
-                    context=self.context,
-                    instructions=get_instructions(),
-                )
-                instructions = instructions_template.render()
+        # tools = [prefect.task(tool) for tool in tools]
 
-                # prepare messages
-                system_message = SystemMessage(content=instructions)
-                messages = self.history.load_messages(thread_id=self.flow.thread_id)
+        instructions_template = MainTemplate(
+            agent=agent,
+            controller=self,
+            tasks=tasks,
+            context=self.context,
+            instructions=get_instructions(),
+        )
+        instructions = instructions_template.render()
 
-                # setup handlers
-                handlers = []
-                if controlflow.settings.enable_tui:
-                    handlers.append(TUIHandler())
-                if controlflow.settings.enable_print_handler:
-                    handlers.append(PrintHandler())
+        # prepare messages
+        system_message = SystemMessage(content=instructions)
+        messages = self.history.load_messages(thread_id=self.flow.thread_id)
 
-                # yield the agent payload
-                yield dict(
-                    agent=agent,
-                    messages=[system_message] + messages,
-                    tools=tools,
-                    handlers=handlers,
-                    message_preprocessor=add_agent_name_to_message,
-                )
+        # setup handlers
+        handlers = []
+        if controlflow.settings.enable_tui:
+            handlers.append(TUIHandler())
+        if controlflow.settings.enable_print_handler:
+            handlers.append(PrintHandler())
 
-                self._iteration += 1
+        # yield the agent payload
+        return dict(
+            agent=agent,
+            messages=[system_message] + messages,
+            tools=tools,
+            handlers=handlers,
+            # message_preprocessor=add_agent_name_to_message,
+        )
 
     async def run_once_async(self):
         async with self.tui():
-            with self._run_once_payload() as payload:
+            with self.flow:
+                payload = self._run_once_payload()
                 if payload is not None:
                     agent: Agent = payload.pop("agent")
                     response_handler = ResponseHandler()
@@ -230,8 +223,8 @@ class Controller(BaseModel):
                         tools=payload["tools"],
                         handlers=payload["handlers"],
                         max_iterations=1,
-                        assistant_name=agent.name,
-                        message_preprocessor=payload["message_preprocessor"],
+                        # assistant_name=agent.name,
+                        # message_preprocessor=payload["message_preprocessor"],
                         stream=True,
                     )
                     async for _ in response_gen:
@@ -242,9 +235,11 @@ class Controller(BaseModel):
                     thread_id=self.flow.thread_id,
                     messages=response_handler.response_messages,
                 )
+        self._iteration += 1
 
     def run_once(self):
-        with self._run_once_payload() as payload:
+        with self.flow:
+            payload = self._run_once_payload()
             if payload is not None:
                 agent: Agent = payload.pop("agent")
                 response_handler = ResponseHandler()
@@ -256,8 +251,8 @@ class Controller(BaseModel):
                     tools=payload["tools"],
                     handlers=payload["handlers"],
                     max_iterations=1,
-                    assistant_name=agent.name,
-                    message_preprocessor=payload["message_preprocessor"],
+                    # assistant_name=agent.name,
+                    # message_preprocessor=payload["message_preprocessor"],
                     stream=True,
                 )
                 for _ in response_gen:
@@ -268,6 +263,7 @@ class Controller(BaseModel):
                 thread_id=self.flow.thread_id,
                 messages=response_handler.response_messages,
             )
+        self._iteration += 1
 
     async def run_async(self):
         """

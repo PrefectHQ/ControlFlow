@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from controlflow import Task
 from controlflow.core.flow import Flow
-from controlflow.llm.messages import AssistantMessage
+from controlflow.llm.messages import AIMessage
 from controlflow.tui.app import TUIApp
 
 
@@ -50,13 +50,13 @@ async def run():
         )
         await asyncio.sleep(1)
         t0.mark_failed(message="this is my result")
-        app.update_message(AssistantMessage(content="hello there"))
+        app.update_message(AIMessage(content="hello there"))
         await asyncio.sleep(1)
-        app.update_message(AssistantMessage(content="hello there"))
+        app.update_message(AIMessage(content="hello there"))
         await asyncio.sleep(1)
-        app.update_message(AssistantMessage(content="hello there" * 50))
+        app.update_message(AIMessage(content="hello there" * 50))
         await asyncio.sleep(1)
-        app.update_message(AssistantMessage(content="hello there"))
+        app.update_message(AIMessage(content="hello there"))
         await asyncio.sleep(1)
 
         await asyncio.sleep(inf)

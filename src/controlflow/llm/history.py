@@ -5,7 +5,6 @@ import math
 from pathlib import Path
 from typing import ClassVar
 
-from litellm.utils import trim_messages
 from pydantic import Field, field_validator
 
 import controlflow
@@ -27,20 +26,6 @@ class History(ControlFlowModel, abc.ABC):
         after: datetime.datetime = None,
     ) -> list[MessageType]:
         raise NotImplementedError()
-
-    def load_messages_to_token_limit(
-        self, thread_id: str, model: str = None
-    ) -> list[MessageType]:
-        messages = []
-        # as long as the messages are not trimmed, keep loading more
-        while messages == (trim := trim_messages(messages, model=model)):
-            batch = self.load_messages(
-                thread_id,
-                limit=50,
-                before=None if not messages else messages[-1].timestamp,
-            )
-            messages.extend(batch)
-        return trim
 
     @abc.abstractmethod
     def save_messages(self, thread_id: str, messages: list[MessageType]):
