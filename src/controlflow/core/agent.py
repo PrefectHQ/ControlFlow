@@ -5,6 +5,7 @@ from pydantic import Field
 
 import controlflow
 from controlflow.core.task import Task
+from controlflow.llm.models import BaseChatModel, get_default_model
 from controlflow.tools.talk_to_human import talk_to_human
 from controlflow.utilities.types import ControlFlowModel
 
@@ -33,9 +34,10 @@ class Agent(ControlFlowModel):
         False,
         description="If True, the agent is given tools for interacting with a human user.",
     )
-    model: str = Field(
+    model: BaseChatModel = Field(
         description="The model used by the agent. If not provided, the default model will be used.",
-        default_factory=lambda: controlflow.settings.llm_model,
+        default_factory=get_default_model,
+        exclude=True,
     )
 
     def __init__(self, name, **kwargs):

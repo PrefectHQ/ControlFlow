@@ -7,10 +7,11 @@ authors = [
 ]
 dependencies = [
     "prefect>=3.0rc1",
-    "textual>=0.61.1",
-    "litellm>=1.37.17",
     "jinja2>=3.1.4",
+    "langchain_core>=0.2.4",
+    "langchain_openai>=0.1.8",
     "pydantic-settings>=2.2.1",
+    "textual>=0.61.1",
     "tiktoken>=0.7.0",
 ]
 readme = "README.md"
@@ -47,10 +48,16 @@ tests = [
     "pytest>=7.0",
     "pytest-timeout",
     "pytest-xdist",
-    "pre-commit>=3.7.0",
     "pandas",
 ]
-dev = ["controlflow[tests]", "ipython", "pdbpp", "ruff>=0.3.4", "textual-dev"]
+dev = [
+    "controlflow[tests]",
+    "ipython",
+    "pdbpp",
+    "pre-commit",
+    "ruff>=0.3.4",
+    "textual-dev",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -84,7 +91,3 @@ skip-magic-trailing-comma = false
 [tool.pytest.ini_options]
 timeout = 120
 asyncio_mode = "auto"
-filterwarnings = [
-    "ignore::DeprecationWarning:litellm.*",
-    "ignore::PendingDeprecationWarning:litellm.*",
-]

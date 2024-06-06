@@ -7,11 +7,10 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 
 from controlflow.llm.messages import (
-    AssistantMessage,
+    AIMessage,
     MessageType,
     ToolMessage,
 )
-from controlflow.llm.tools import get_tool_calls
 
 ROLE_COLORS = {
     "system": "gray",
@@ -34,8 +33,8 @@ def format_message(
 ) -> Panel:
     if isinstance(message, ToolMessage):
         return format_tool_message(message)
-    elif get_tool_calls(message):
-        return format_assistant_message_with_tool_calls(message)
+    elif isinstance(message, AIMessage) and message.tool_calls:
+        return format_ai_message_with_tool_calls(message)
     else:
         return format_text_message(message)
 
@@ -60,9 +59,9 @@ def format_text_message(message: MessageType) -> Panel:
     )
 
 
-def format_assistant_message_with_tool_calls(message: AssistantMessage) -> Group:
+def format_ai_message_with_tool_calls(message: AIMessage) -> Group:
     panels = []
-    for tool_call in get_tool_calls(message):
+    for tool_call in message.tool_calls:
         if message.role == "assistant" and message.name:
             title = f"Tool Call: {message.name}"
         else:
@@ -75,9 +74,7 @@ def format_assistant_message_with_tool_calls(message: AssistantMessage) -> Group
                 ```json
                 {args}
                 ```
-                """).format(
-                name=tool_call.function.name, args=tool_call.function.arguments
-            )
+                """).format(name=tool_call["name"], args=tool_call["args"])
         )
 
         panels.append(
@@ -99,11 +96,13 @@ def format_assistant_message_with_tool_calls(message: AssistantMessage) -> Group
 
 def format_tool_message(message: ToolMessage) -> Panel:
     if message.tool_metadata.get("is_failed"):
-        content = f"❌ The tool call to [markdown.code]{message.tool_call.function.name}[/] failed."
+        content = (
+            f"❌ The tool call to [markdown.code]{message.tool_call['name']}[/] failed."
+        )
     elif not message.tool_metadata.get("is_task_status_tool"):
         content_type = "json" if isinstance(message.tool_result, (dict, list)) else ""
         content = Group(
-            f"✅ Received output from the [markdown.code]{message.tool_call.function.name}[/] tool.\n",
+            f"✅ Received output from the [markdown.code]{message.tool_call['name']}[/] tool.\n",
             Markdown(f"```{content_type}\n{message.content or ''}\n```"),
         )
     else:

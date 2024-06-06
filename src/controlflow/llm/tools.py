@@ -1,62 +1,64 @@
 import functools
 import inspect
-from functools import partial, update_wrapper
-from typing import Any, Callable, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
+import langchain_core
+import langchain_core.tools
 import pydantic
+import pydantic.v1
+from langchain_core.messages import ToolCall
 from prefect.utilities.asyncutils import run_coro_as_sync
+from pydantic import Field, create_model
 
-from controlflow.llm.messages import (
-    AssistantMessage,
-    ControlFlowMessage,
-    ToolCall,
-    ToolMessage,
-)
-from controlflow.utilities.types import ControlFlowModel
+if TYPE_CHECKING:
+    from controlflow.llm.messages import ToolMessage
 
 
-class ToolFunction(ControlFlowModel):
-    name: str
-    parameters: dict
-    description: str = ""
+def pydantic_model_from_function(fn: Callable):
+    sig = inspect.signature(fn)
+    fields = {}
+    for name, param in sig.parameters.items():
+        annotation = (
+            param.annotation if param.annotation is not inspect.Parameter.empty else Any
+        )
+        default = param.default if param.default is not inspect.Parameter.empty else ...
+        fields[name] = (annotation, Field(default=default))
+    return create_model(fn.__name__, **fields)
 
 
-class Tool(ControlFlowModel):
-    type: Literal["function"] = "function"
-    function: ToolFunction
-    _fn: Callable = pydantic.PrivateAttr()
-    _metadata: dict = pydantic.PrivateAttr(default_factory=dict)
+def _sync_wrapper(coro):
+    """
+    Wrapper that runs a coroutine as a synchronous function with deffered args
+    """
 
-    def __init__(self, *, _fn: Callable, _metadata: dict = None, **kwargs):
-        super().__init__(**kwargs)
-        self._fn = _fn
-        self._metadata = _metadata or {}
+    @functools.wraps(coro)
+    def wrapper(*args, **kwargs):
+        return run_coro_as_sync(coro(*args, **kwargs))
+
+    return wrapper
+
+
+class Tool(langchain_core.tools.StructuredTool):
+    """
+    A subclass of StructuredTool that is compatible with Pydantic v1 models
+    (which Langchain uses) and v2 models (which ControlFlow users).
+
+    Note that THIS is a Pydantic v1 model because it subclasses the Langchain class.
+    """
+
+    tags: dict[str, Any] = pydantic.v1.Field(default_factory=dict)
+    args_schema: Optional[type[Union[pydantic.v1.BaseModel, pydantic.BaseModel]]]
 
     @classmethod
-    def from_function(
-        cls,
-        fn: Callable,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        metadata: Optional[dict] = None,
-    ):
-        if name is None and fn.__name__ == "<lambda>":
-            name = "__lambda__"
-
-        return cls(
-            function=ToolFunction(
-                name=name or fn.__name__,
-                description=inspect.cleandoc(description or fn.__doc__ or ""),
-                parameters=pydantic.TypeAdapter(
-                    fn, config=pydantic.ConfigDict(arbitrary_types_allowed=True)
-                ).json_schema(),
-            ),
-            _fn=fn,
-            _metadata=metadata or getattr(fn, "__metadata__", {}),
+    def from_function(cls, fn=None, *args, **kwargs):
+        args_schema = pydantic_model_from_function(fn)
+        if inspect.iscoroutinefunction(fn):
+            fn, coro = _sync_wrapper(fn), fn
+        else:
+            coro = None
+        return super().from_function(
+            *args, func=fn, coroutine=coro, args_schema=args_schema, **kwargs
         )
-
-    def __call__(self, *args, **kwargs):
-        return self._fn(*args, **kwargs)
 
 
 def tool(
@@ -64,71 +66,20 @@ def tool(
     *,
     name: Optional[str] = None,
     description: Optional[str] = None,
-    metadata: Optional[dict] = None,
+    tags: Optional[dict] = None,
 ) -> Tool:
     if fn is None:
-        return partial(tool, name=name, description=description, metadata=metadata)
-    return Tool.from_function(fn, name=name, description=description, metadata=metadata)
+        return functools.partial(tool, name=name, description=description, tags=tags)
+    return Tool.from_function(fn, name=name, description=description, tags=tags or {})
 
 
-def annotate_fn(
-    fn: Callable,
-    name: Optional[str] = None,
-    description: Optional[str] = None,
-    metadata: Optional[dict] = None,
-) -> Callable:
-    """
-    Annotate a function with a new name and description without modifying the
-    original. Useful when you want to provide a custom name and description for
-    a tool, but without creating a new tool object.
-    """
-    new_fn = functools.partial(fn)
-    new_fn.__name__ = name or fn.__name__
-    new_fn.__doc__ = description or fn.__doc__
-    new_fn.__metadata__ = getattr(fn, "__metadata__", {}) | metadata
-    return new_fn
-
-
-def as_tools(tools: list[Union[Tool, Callable]]) -> list[Tool]:
-    tools = [t if isinstance(t, Tool) else tool(t) for t in tools]
-    if len({t.function.name for t in tools}) != len(tools):
-        duplicates = {t.function.name for t in tools if tools.count(t) > 1}
-        raise ValueError(
-            f"Tool names must be unique, but found duplicates: {', '.join(duplicates)}"
-        )
-    return tools
-
-
-def as_tool_lookup(tools: list[Union[Tool, Callable]]) -> dict[str, Tool]:
-    return {t.function.name: t for t in as_tools(tools)}
-
-
-def custom_partial(func: Callable, **fixed_kwargs: Any) -> Callable:
-    """
-    Returns a new function with partial application of the given keyword arguments.
-    The new function has the same __name__ and docstring as the original, and its
-    signature excludes the provided kwargs.
-    """
-
-    # Define the new function with a dynamic signature
-    def wrapper(**kwargs):
-        # Merge the provided kwargs with the fixed ones, prioritizing the former
-        all_kwargs = {**fixed_kwargs, **kwargs}
-        return func(**all_kwargs)
-
-    # Update the wrapper function's metadata to match the original function
-    update_wrapper(wrapper, func)
-
-    # Modify the signature to exclude the fixed kwargs
-    original_sig = inspect.signature(func)
-    new_params = [
-        param
-        for param in original_sig.parameters.values()
-        if param.name not in fixed_kwargs
-    ]
-    wrapper.__signature__ = original_sig.replace(parameters=new_params)
-
-    return wrapper
+def as_tools(tools: list[Union[Callable, Tool]]) -> list[Tool]:
+    new_tools = []
+    for t in tools:
+        if not isinstance(t, Tool):
+            t = Tool.from_function(t)
+        new_tools.append(t)
+    return new_tools
 
 
 def output_to_string(output: Any) -> str:
@@ -145,23 +96,9 @@ def output_to_string(output: Any) -> str:
     return output
 
 
-def get_tool_calls(
-    messages: list[ControlFlowMessage],
-) -> list[ToolCall]:
-    if not isinstance(messages, list):
-        messages = [messages]
-    return [
-        tc
-        for m in messages
-        if isinstance(m, AssistantMessage) and m.tool_calls
-        for tc in m.tool_calls
-    ]
-
-
-def handle_tool_call(tool_call: ToolCall, tools: list[dict, Callable]) -> ToolMessage:
-    tool_lookup = as_tool_lookup(tools)
-    fn_name = tool_call.function.name
-    fn_args = None
+def handle_tool_call(tool_call: ToolCall, tools: list[Tool]) -> "ToolMessage":
+    tool_lookup = {t.name: t for t in tools}
+    fn_name = tool_call["name"]
     metadata = {}
     try:
         if fn_name not in tool_lookup:
@@ -169,17 +106,19 @@ def handle_tool_call(tool_call: ToolCall, tools: list[dict, Callable]) -> ToolMe
             metadata["is_failed"] = True
         else:
             tool = tool_lookup[fn_name]
-            metadata.update(tool._metadata)
-            fn_args = tool_call.function.json_arguments()
-            fn_output = tool(**fn_args)
+            fn_args = tool_call["args"]
+            fn_output = tool.invoke(input=fn_args)
             if inspect.isawaitable(fn_output):
                 fn_output = run_coro_as_sync(fn_output)
     except Exception as exc:
         fn_output = f'Error calling function "{fn_name}": {exc}'
         metadata["is_failed"] = True
+
+    from controlflow.llm.messages import ToolMessage
+
     return ToolMessage(
         content=output_to_string(fn_output),
-        tool_call_id=tool_call.id,
+        tool_call_id=tool_call["id"],
         tool_call=tool_call,
         tool_result=fn_output,
         tool_metadata=metadata,
@@ -187,11 +126,10 @@ def handle_tool_call(tool_call: ToolCall, tools: list[dict, Callable]) -> ToolMe
 
 
 async def handle_tool_call_async(
-    tool_call: ToolCall, tools: list[dict, Callable]
-) -> ToolMessage:
-    tool_lookup = as_tool_lookup(tools)
-    fn_name = tool_call.function.name
-    fn_args = None
+    tool_call: ToolCall, tools: list[Tool]
+) -> "ToolMessage":
+    tool_lookup = {t.name: t for t in tools}
+    fn_name = tool_call["name"]
     metadata = {}
     try:
         if fn_name not in tool_lookup:
@@ -199,17 +137,17 @@ async def handle_tool_call_async(
             metadata["is_failed"] = True
         else:
             tool = tool_lookup[fn_name]
-            metadata = tool._metadata
-            fn_args = tool_call.function.json_arguments()
-            fn_output = tool(**fn_args)
-            if inspect.isawaitable(fn_output):
-                fn_output = await fn_output
+            fn_args = tool_call["args"]
+            fn_output = await tool.ainvoke(input=fn_args)
     except Exception as exc:
         fn_output = f'Error calling function "{fn_name}": {exc}'
         metadata["is_failed"] = True
+
+    from controlflow.llm.messages import ToolMessage
+
     return ToolMessage(
         content=output_to_string(fn_output),
-        tool_call_id=tool_call.id,
+        tool_call_id=tool_call["id"],
         tool_call=tool_call,
         tool_result=fn_output,
         tool_metadata=metadata,
