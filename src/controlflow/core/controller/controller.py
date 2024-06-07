@@ -217,14 +217,22 @@ class Controller(BaseModel):
                     response_handler = ResponseHandler()
                     payload["handlers"].append(response_handler)
 
+                    messages = []
+                    for msg in payload["messages"]:
+                        if isinstance(msg, AIMessage) and msg.name:
+                            msg = msg.copy()
+                            msg.content = (
+                                f"Message from agent: {msg.name}\n\n{msg.content}"
+                            )
+                        messages.append(msg)
+
                     response_gen = await completion_async(
-                        messages=payload["messages"],
+                        messages=messages,
                         model=agent.model,
                         tools=payload["tools"],
                         handlers=payload["handlers"],
                         max_iterations=1,
-                        # assistant_name=agent.name,
-                        # message_preprocessor=payload["message_preprocessor"],
+                        ai_name=agent.name,
                         stream=True,
                     )
                     async for _ in response_gen:
@@ -245,14 +253,20 @@ class Controller(BaseModel):
                 response_handler = ResponseHandler()
                 payload["handlers"].append(response_handler)
 
+                messages = []
+                for msg in payload["messages"]:
+                    if isinstance(msg, AIMessage) and msg.name:
+                        msg = msg.copy()
+                        msg.content = f"Message from agent: {msg.name}\n\n{msg.content}"
+                    messages.append(msg)
+
                 response_gen = completion(
-                    messages=payload["messages"],
+                    messages=messages,
                     model=agent.model,
                     tools=payload["tools"],
                     handlers=payload["handlers"],
                     max_iterations=1,
-                    # assistant_name=agent.name,
-                    # message_preprocessor=payload["message_preprocessor"],
+                    ai_name=agent.name,
                     stream=True,
                 )
                 for _ in response_gen:

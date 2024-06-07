@@ -40,10 +40,12 @@ def _sync_wrapper(coro):
 
 class Tool(langchain_core.tools.StructuredTool):
     """
-    A subclass of StructuredTool that is compatible with Pydantic v1 models
-    (which Langchain uses) and v2 models (which ControlFlow users).
+    A subclass of StructuredTool that is compatible with functions whose
+    signatures include either Pydantic v1 models (which Langchain uses) or v2
+    models (which ControlFlow users).
 
-    Note that THIS is a Pydantic v1 model because it subclasses the Langchain class.
+    Note that THIS class is a Pydantic v1 model because it subclasses the Langchain
+    class.
     """
 
     tags: dict[str, Any] = pydantic.v1.Field(default_factory=dict)
