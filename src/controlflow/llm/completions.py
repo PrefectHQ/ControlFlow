@@ -1,6 +1,6 @@
 import datetime
 import math
-from typing import AsyncGenerator, Callable, Generator, Optional, Union, cast
+from typing import AsyncGenerator, Callable, Generator, Optional, Union
 
 import langchain_core.language_models as lc_models
 
@@ -24,6 +24,7 @@ def _completion_generator(
     model: lc_models.BaseChatModel,
     tools: Optional[list[Callable]],
     max_iterations: int,
+    ai_name: Optional[str],
     stream: bool,
     **kwargs,
 ) -> Generator[CompletionEvent, None, None]:
@@ -47,7 +48,9 @@ def _completion_generator(
                     input=messages + response_messages,
                     **kwargs,
                 )
-                response_message = AIMessage.from_message(response_message)
+                response_message = AIMessage.from_message(
+                    response_message, name=ai_name
+                )
 
             else:
                 deltas: list[AIMessageChunk] = []
@@ -57,7 +60,7 @@ def _completion_generator(
                     input=messages + response_messages,
                     **kwargs,
                 ):
-                    delta = AIMessageChunk.from_chunk(delta)
+                    delta = AIMessageChunk.from_chunk(delta, name=ai_name)
                     deltas.append(delta)
 
                     if snapshot is None:
@@ -127,6 +130,7 @@ async def _completion_async_generator(
     model: lc_models.BaseChatModel,
     tools: Optional[list[Callable]],
     max_iterations: int,
+    ai_name: Optional[str],
     stream: bool,
     **kwargs,
 ) -> AsyncGenerator[CompletionEvent, None]:
@@ -151,7 +155,9 @@ async def _completion_async_generator(
                     tools=tools or None,
                     **kwargs,
                 )
-                response_message = AIMessage.from_message(response_message)
+                response_message = AIMessage.from_message(
+                    response_message, name=ai_name
+                )
 
             else:
                 deltas: list[AIMessageChunk] = []
@@ -162,7 +168,7 @@ async def _completion_async_generator(
                     tools=tools or None,
                     **kwargs,
                 ):
-                    delta = cast(AIMessageChunk, delta)
+                    delta = AIMessageChunk.from_chunk(delta, name=ai_name)
                     deltas.append(delta)
 
                     if snapshot is None:
@@ -251,6 +257,7 @@ def completion(
     tools: list[Callable] = None,
     max_iterations: int = None,
     handlers: list[CompletionHandler] = None,
+    ai_name: Optional[str] = None,
     stream: bool = False,
     **kwargs,
 ) -> Union[list[MessageType], Generator[MessageType, None, None]]:
@@ -266,6 +273,7 @@ def completion(
         model=model,
         tools=tools,
         max_iterations=max_iterations,
+        ai_name=ai_name,
         stream=stream,
         **kwargs,
     )
@@ -286,6 +294,7 @@ async def completion_async(
     tools: list[Callable] = None,
     max_iterations: int = None,
     handlers: list[CompletionHandler] = None,
+    ai_name: Optional[str] = None,
     stream: bool = False,
     **kwargs,
 ) -> Union[list[MessageType], Generator[MessageType, None, None]]:
@@ -301,6 +310,7 @@ async def completion_async(
         model=model,
         tools=tools,
         max_iterations=max_iterations,
+        ai_name=ai_name,
         stream=stream,
         **kwargs,
     )

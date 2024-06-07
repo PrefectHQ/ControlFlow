@@ -63,6 +63,7 @@ class AIMessageChunk(langchain_core.messages.AIMessageChunk, AIMessage):
     def __add__(self, other: Any) -> "AIMessageChunk":  # type: ignore
         result = super().__add__(other)
         result.timestamp = self.timestamp
+        result.name = self.name
         return result
 
 
