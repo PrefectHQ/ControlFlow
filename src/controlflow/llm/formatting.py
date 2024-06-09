@@ -1,5 +1,6 @@
 import datetime
 import inspect
+from typing import Optional
 
 from rich import box
 from rich.console import Group
@@ -28,18 +29,16 @@ def format_timestamp(timestamp: datetime.datetime) -> str:
     return timestamp.strftime("%l:%M:%S %p")
 
 
-def format_message(
-    message: MessageType,
-) -> Panel:
+def format_message(message: MessageType, width: Optional[int] = None) -> Panel:
     if isinstance(message, ToolMessage):
-        return format_tool_message(message)
+        return format_tool_message(message, width=width)
     elif isinstance(message, AIMessage) and message.tool_calls:
-        return format_ai_message_with_tool_calls(message)
+        return format_ai_message_with_tool_calls(message, width=width)
     else:
-        return format_text_message(message)
+        return format_text_message(message, width=width)
 
 
-def format_text_message(message: MessageType) -> Panel:
+def format_text_message(message: MessageType, width: Optional[int] = None) -> Panel:
     if message.role == "assistant" and message.name:
         title = f"Agent: {message.name}"
     else:
@@ -53,13 +52,15 @@ def format_text_message(message: MessageType) -> Panel:
         subtitle_align="right",
         border_style=ROLE_COLORS.get(message.role, "red"),
         box=box.ROUNDED,
-        width=100,
+        width=width or 100,
         expand=True,
         padding=(1, 2),
     )
 
 
-def format_ai_message_with_tool_calls(message: AIMessage) -> Group:
+def format_ai_message_with_tool_calls(
+    message: AIMessage, width: Optional[int] = None
+) -> Group:
     panels = []
     for tool_call in message.tool_calls:
         if message.role == "assistant" and message.name:
@@ -71,7 +72,7 @@ def format_ai_message_with_tool_calls(message: AIMessage) -> Group:
             inspect.cleandoc("""
                 🦾 Calling `{name}` with the following arguments:
                 
-                ```json
+                ```
                 {args}
                 ```
                 """).format(name=tool_call["name"], args=tool_call["args"])
@@ -86,7 +87,7 @@ def format_ai_message_with_tool_calls(message: AIMessage) -> Group:
                 subtitle_align="right",
                 border_style=ROLE_COLORS.get(message.role, "red"),
                 box=box.ROUNDED,
-                width=100,
+                width=width or 100,
                 expand=True,
                 padding=(1, 2),
             )
@@ -94,7 +95,7 @@ def format_ai_message_with_tool_calls(message: AIMessage) -> Group:
     return Group(*panels)
 
 
-def format_tool_message(message: ToolMessage) -> Panel:
+def format_tool_message(message: ToolMessage, width: Optional[int] = None) -> Panel:
     if message.tool_metadata.get("is_failed"):
         content = (
             f"❌ The tool call to [markdown.code]{message.tool_call['name']}[/] failed."
@@ -116,7 +117,7 @@ def format_tool_message(message: ToolMessage) -> Panel:
         subtitle_align="right",
         border_style="blue",
         box=box.ROUNDED,
-        width=100,
+        width=width or 100,
         expand=True,
         padding=(1, 2),
     )

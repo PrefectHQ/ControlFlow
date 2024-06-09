@@ -127,27 +127,6 @@ class Task(ControlFlowModel):
         super().__init__(**kwargs)
         self.__cm_stack = []
 
-    def __repr__(self):
-        include_fields = [
-            "id",
-            "objective",
-            "status",
-            "is_ready",
-            "result_type",
-            "agents",
-            "context",
-            "user_access",
-            "parent",
-            "depends_on",
-            "tools",
-        ]
-        fields = self.model_dump(include=include_fields)
-        field_str = ", ".join(
-            f'{k}="{fields[k]}"' if isinstance(fields[k], str) else f"{k}={fields[k]}"
-            for k in include_fields
-        )
-        return f"{self.__class__.__name__}({field_str})"
-
     @field_validator("parent", mode="before")
     def _default_parent(cls, v):
         if v is None:

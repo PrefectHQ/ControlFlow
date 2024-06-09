@@ -4,7 +4,7 @@ import warnings
 from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -68,6 +68,8 @@ class Settings(ControlFlowSettings):
         validate_default=True,
     )
 
+    # ------------ display and logging settings ------------
+
     # ------------ flow settings ------------
 
     eager_mode: bool = Field(
@@ -104,6 +106,14 @@ class Settings(ControlFlowSettings):
     run_tui_headless: bool = Field(
         False,
         description="If True, the TUI will run in headless mode, which is useful for debugging.",
+    )
+
+    # ------------ Debug settings ------------
+
+    print_handler_width: Optional[int] = Field(
+        None,
+        description="The number of coloumns to use for the print handler. If None, the width of "
+        "the terminal will be used. Useful for screenshots and examples that need to fit a known width. For docs, use 50.",
     )
 
     def __init__(self, **data):

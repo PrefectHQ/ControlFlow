@@ -1,6 +1,7 @@
 from rich.console import Group
 from rich.live import Live
 
+import controlflow
 from controlflow.llm.formatting import format_message
 from controlflow.llm.messages import (
     AIMessage,
@@ -95,6 +96,7 @@ class TUIHandler(CompletionHandler):
 
 class PrintHandler(CompletionHandler):
     def __init__(self):
+        self.width = controlflow.settings.print_handler_width
         self.messages: dict[str, MessageType] = {}
         self.live = Live(auto_refresh=False)
 
@@ -111,7 +113,7 @@ class PrintHandler(CompletionHandler):
         messages = sorted(self.messages.values(), key=lambda m: m.timestamp)
         content = []
         for message in messages:
-            content.append(format_message(message))
+            content.append(format_message(message, width=self.width))
 
         self.live.update(Group(*content), refresh=True)
 
