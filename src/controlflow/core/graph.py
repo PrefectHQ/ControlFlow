@@ -111,95 +111,38 @@ class Graph(BaseModel):
             self._cache["downstream_edges"] = graph
         return self._cache["downstream_edges"]
 
-    def upstream_dependencies(
-        self,
-        tasks: list[Task],
-        prune_completed: bool = True,
-        include_tasks: bool = False,
-    ) -> list[Task]:
+    def topological_sort(self) -> list[Task]:
         """
-        From a list of tasks, returns the subgraph of tasks that are directly or
-        indirectly dependencies of those tasks. A dependency means following
-        upstream edges, so it includes tasks that are considered explicit
-        dependencies as well as any subtasks that are considered implicit
-        dependencies.
+        Perform a topological sort on the graph and return the sorted tasks.
 
-        If `prune_completed` is True, the subgraph will be pruned to stop
-        traversal after adding any completed tasks.
+        This is a depth-first search algorithm that visits each node and its
+        upstream dependencies. This maintains context as much as possible
+        when traversing the graph (e.g. all else equal, the graph will visit
+        as many dependent tasks in a row before jumping to a "new" branch).
 
-        If `include_tasks` is True, the subgraph will include the tasks provided.
+        Returns:
+            list: A list of tasks in the order of their dependencies.
         """
-        currently_visiting = set()
-        subgraph = set()
-        upstreams = self.upstream_edges()
-        # copy stack to allow difference update with original tasks
-        stack = [t for t in tasks]
-        while stack:
-            current = stack.pop()
-            if current in subgraph:
-                continue
+        if "topological_sort" not in self._cache:
+            visited = set()
+            stack = []
 
-            if current in currently_visiting:
-                raise ValueError(f"Cycle detected at task {current}")
+            dependencies = self.upstream_edges()
+            created_at = {task: task.created_at for task in self.tasks}
 
-            currently_visiting.add(current)
-            subgraph.add(current)
-            # if prune_completed, stop traversal if the current task is complete
-            if prune_completed and current.is_complete():
-                continue
+            def dfs(task):
+                visited.add(task)
+                for dependent in sorted(
+                    dependencies.get(task, []), key=lambda x: created_at[x.upstream]
+                ):
+                    if dependent.upstream not in visited:
+                        dfs(dependent.upstream)
+                stack.append(task)
 
-            for edge in upstreams[current]:
-                stack.append(edge.upstream)
+            all_tasks = self.tasks
+            for task in sorted(all_tasks, key=lambda x: created_at[x]):
+                if task not in visited:
+                    dfs(task)
 
-            currently_visiting.remove(current)
-
-        if not include_tasks:
-            subgraph.difference_update(tasks)
-
-        return list(subgraph)
-
-    def ready_tasks(self, tasks: list[Task] = None) -> list[Task]:
-        """
-        Returns a list of tasks that are ready to run, meaning that all of their
-        dependencies have been completed. If `tasks` is provided, only tasks in
-        the upstream dependency subgraph of those tasks will be considered.
-
-        Ready tasks will be returned in the order they were created.
-        """
-        if tasks is None:
-            candidates = self.tasks
-        else:
-            candidates = self.upstream_dependencies(tasks, include_tasks=True)
-        return sorted(
-            [task for task in candidates if task.is_ready], key=lambda t: t.created_at
-        )
-
-
-def toposort(graph: dict[T, list[T]]) -> list[T]:
-    """
-    Given a graph that represents a node and a list of all nodes upstream of that node, returns a
-    list of nodes in topological order such that a node only appears after its upstream nodes.
-
-    If the graph is cyclic, a ValueError will be raised.
-    """
-    visited: set[T] = set()
-    stack: list[T] = []
-    temp_mark: set[T] = set()
-
-    def visit(node: T) -> None:
-        if node in temp_mark:
-            raise ValueError("Graph has a cycle, topological sort not possible")
-        if node not in visited:
-            temp_mark.add(node)
-            if node in graph:
-                for upstream in graph[node]:
-                    visit(upstream)
-            temp_mark.remove(node)
-            visited.add(node)
-            stack.append(node)
-
-    for node in graph:
-        if node not in visited:
-            visit(node)
-
-    return stack
+            self._cache["topological_sort"] = stack
+        return self._cache["topological_sort"]

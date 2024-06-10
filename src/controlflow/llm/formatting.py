@@ -15,13 +15,13 @@ from controlflow.llm.messages import (
 
 ROLE_COLORS = {
     "system": "gray",
-    "user": "green",
-    "assistant": "blue",
+    "human": "green",
+    "ai": "blue",
 }
 ROLE_NAMES = {
     "system": "System",
-    "assistant": "Agent",
-    "user": "User",
+    "ai": "Agent",
+    "human": "Human",
 }
 
 
@@ -39,7 +39,7 @@ def format_message(message: MessageType, width: Optional[int] = None) -> Panel:
 
 
 def format_text_message(message: MessageType, width: Optional[int] = None) -> Panel:
-    if message.role == "assistant" and message.name:
+    if message.role == "ai" and message.name:
         title = f"Agent: {message.name}"
     else:
         title = ROLE_NAMES.get(message.role, "Agent")
@@ -63,7 +63,7 @@ def format_ai_message_with_tool_calls(
 ) -> Group:
     panels = []
     for tool_call in message.tool_calls:
-        if message.role == "assistant" and message.name:
+        if message.role == "ai" and message.name:
             title = f"Tool Call: {message.name}"
         else:
             title = "Tool Call"

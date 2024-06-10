@@ -121,8 +121,16 @@ class PrintHandler(CompletionHandler):
         self.messages[snapshot.id] = snapshot
         self.update_live()
 
+    def on_message_done(self, message: AIMessage):
+        self.messages[message.id] = message
+        self.update_live()
+
     def on_tool_call_delta(self, delta: AIMessageChunk, snapshot: AIMessageChunk):
         self.messages[snapshot.id] = snapshot
+        self.update_live()
+
+    def on_tool_call_done(self, message: AIMessage):
+        self.messages[message.id] = message
         self.update_live()
 
     def on_tool_result_done(self, message: ToolMessage):
