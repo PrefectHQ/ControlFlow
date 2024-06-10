@@ -107,7 +107,7 @@
     "topbarLinks": [
         {
             "name": "Support",
-            "url": "https://discord.gg/Kgw4HpcuYG"
+            "url": "https://prefect.io/slack?utm_source=controlflow&utm_medium=docs"
         }
     ]
 }
