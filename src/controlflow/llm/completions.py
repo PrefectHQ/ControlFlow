@@ -24,8 +24,9 @@ def _completion_generator(
     model: lc_models.BaseChatModel,
     tools: Optional[list[Callable]],
     max_iterations: int,
-    ai_name: Optional[str],
     stream: bool,
+    ai_name: Optional[str],
+    message_preprocessor: Callable = None,
     **kwargs,
 ) -> Generator[CompletionEvent, None, None]:
     response_messages = []
@@ -43,9 +44,14 @@ def _completion_generator(
         # there is no response message yet)
         while not response_message or response_message.tool_calls:
             timestamp = datetime.datetime.now(datetime.timezone.utc)
+
+            input_messages = messages + response_messages
+            if message_preprocessor is not None:
+                input_messages = message_preprocessor(input_messages)
+
             if not stream:
                 response_message = model.invoke(
-                    input=messages + response_messages,
+                    input=input_messages,
                     **kwargs,
                 )
                 response_message = AIMessage.from_message(
@@ -57,7 +63,7 @@ def _completion_generator(
                 snapshot: AIMessageChunk = None
 
                 for delta in model.stream(
-                    input=messages + response_messages,
+                    input=input_messages,
                     **kwargs,
                 ):
                     delta = AIMessageChunk.from_chunk(delta, name=ai_name)
@@ -130,8 +136,9 @@ async def _completion_async_generator(
     model: lc_models.BaseChatModel,
     tools: Optional[list[Callable]],
     max_iterations: int,
-    ai_name: Optional[str],
     stream: bool,
+    ai_name: Optional[str],
+    message_preprocessor: Callable = None,
     **kwargs,
 ) -> AsyncGenerator[CompletionEvent, None]:
     response_messages = []
@@ -149,9 +156,14 @@ async def _completion_async_generator(
         # there is no response message yet)
         while not response_message or response_message.tool_calls:
             timestamp = datetime.datetime.now(datetime.timezone.utc)
+
+            input_messages = messages + response_messages
+            if message_preprocessor is not None:
+                input_messages = message_preprocessor(input_messages)
+
             if not stream:
                 response_message = await model.ainvoke(
-                    input=messages + response_messages,
+                    input=input_messages,
                     tools=tools or None,
                     **kwargs,
                 )
@@ -164,7 +176,7 @@ async def _completion_async_generator(
                 snapshot: AIMessageChunk = None
 
                 async for delta in model.astream(
-                    input=messages + response_messages,
+                    input=input_messages,
                     tools=tools or None,
                     **kwargs,
                 ):
@@ -257,8 +269,9 @@ def completion(
     tools: list[Callable] = None,
     max_iterations: int = None,
     handlers: list[CompletionHandler] = None,
-    ai_name: Optional[str] = None,
     stream: bool = False,
+    ai_name: Optional[str] = None,
+    message_preprocessor: Callable = None,
     **kwargs,
 ) -> Union[list[MessageType], Generator[MessageType, None, None]]:
     if model is None:
@@ -273,8 +286,9 @@ def completion(
         model=model,
         tools=tools,
         max_iterations=max_iterations,
-        ai_name=ai_name,
         stream=stream,
+        ai_name=ai_name,
+        message_preprocessor=message_preprocessor,
         **kwargs,
     )
 
@@ -294,8 +308,9 @@ async def completion_async(
     tools: list[Callable] = None,
     max_iterations: int = None,
     handlers: list[CompletionHandler] = None,
-    ai_name: Optional[str] = None,
     stream: bool = False,
+    ai_name: Optional[str] = None,
+    message_preprocessor: Callable = None,
     **kwargs,
 ) -> Union[list[MessageType], Generator[MessageType, None, None]]:
     if model is None:
@@ -310,8 +325,9 @@ async def completion_async(
         model=model,
         tools=tools,
         max_iterations=max_iterations,
-        ai_name=ai_name,
         stream=stream,
+        ai_name=ai_name,
+        message_preprocessor=message_preprocessor,
         **kwargs,
     )
 

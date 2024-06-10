@@ -57,11 +57,13 @@ class TasksTemplate(Template):
     template: str = """
         ## Tasks
         
-        Your job is to complete any tasks assigned to you. Tasks may have multiple agents assigned.
+        Your job is to complete any tasks assigned to you. Tasks may have
+        multiple agents assigned.
         
-        ### Current tasks
+        ### Ready tasks
         
-        These tasks are assigned to you and ready to be worked on because their dependencies have been completed:
+        These tasks are ready to be worked on because their dependencies have
+        been completed. You can only work on tasks assigned to you.
         
         {% for task in tasks %} 
         {% if task.is_ready %}
@@ -74,7 +76,7 @@ class TasksTemplate(Template):
         
         ### Other tasks
         
-        These tasks are either not ready yet or are dependencies of other tasks. They are provided for context.
+        These tasks are provided for context only. They may be upstream or downstream of the active tasks.
         
         {% for task in tasks %}
         {% if not task.is_ready %}
@@ -131,7 +133,8 @@ class CommunicationTemplate(Template):
         - You need to post a message or otherwise communicate to complete a
           task. For example, the task instructs you to write, discuss, or
           otherwise produce content (and does not accept a result, or the result
-          that meets the objective is different than the instructed actions).
+          that meets the objective is different than the instructed actions, or
+          multiple agents are assigned to the discussion).
         - You need to communicate with other agents to complete a task.
         - You want to write your thought process for future reference.
         
@@ -183,8 +186,10 @@ class ContextTemplate(Template):
         Information about the flow and controller.
         
         ### Flow
-        {% if flow.name %} Flow name: {{ flow.name }} {% endif %}
-        {% if flow.description %} Flow description: {{ flow.description }} {% endif %}
+        
+        {% if flow.name %}Flow name: {{ flow.name }} {% endif %}
+        {% if flow.description %}Flow description: {{ flow.description }} {% endif %}
+        
         Flow context:
         {% for key, value in flow.context.items() %}
         - *{{ key }}*: {{ value }}

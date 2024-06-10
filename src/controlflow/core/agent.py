@@ -1,14 +1,15 @@
 import logging
-from typing import Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 from pydantic import Field
 
 import controlflow
-from controlflow.core.task import Task
 from controlflow.llm.models import BaseChatModel, get_default_model
 from controlflow.tools.talk_to_human import talk_to_human
 from controlflow.utilities.types import ControlFlowModel
 
+if TYPE_CHECKING:
+    from controlflow.core.task import Task
 logger = logging.getLogger(__name__)
 
 

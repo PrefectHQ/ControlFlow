@@ -101,9 +101,18 @@ class Task(ControlFlowModel):
         description="Tools available to every agent working on this task.",
     )
     user_access: bool = False
+    moderator: Optional[Callable] = Field(
+        None,
+        description="A function that returns an agent, used for customizing how "
+        "the next agent is selected. The returned agent must be one "
+        "of the assigned agents. If not provided, will be inferred "
+        "from the parent task; round-robin selection is the default. "
+        "Only used for tasks with more than one agent assigned.",
+    )
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     _subtasks: set["Task"] = set()
     _downstreams: set["Task"] = set()
+    _iteration: int = 0
     model_config = dict(extra="forbid", arbitrary_types_allowed=True)
 
     def __init__(
@@ -452,6 +461,24 @@ class Task(ControlFlowModel):
                 return flow.agents
             else:
                 return [get_default_agent()]
+
+    def get_moderator(self) -> Callable:
+        """
+        Get a moderator function for selecting the next agent to work on this
+        task.
+
+        If a moderator is provided, it will be used. Otherwise, the parent
+        task's moderator will be used. Finally, the global default moderator
+        will be used (round-robin selection).
+        """
+        if self.moderator is not None:
+            return self.moderator
+        elif self.parent:
+            return self.parent.get_moderator()
+        else:
+            import controlflow.moderators
+
+            return controlflow.moderators.round_robin
 
     def get_tools(self) -> list[Callable]:
         tools = self.tools.copy()

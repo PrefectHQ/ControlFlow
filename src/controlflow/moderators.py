@@ -1,5 +1,5 @@
 from controlflow.core.agent import Agent
-from controlflow.core.flow import get_flow_messages
+from controlflow.core.flow import Flow, get_flow_messages
 from controlflow.core.task import Task
 from controlflow.instructions import get_instructions
 from controlflow.llm.classify import classify
@@ -7,11 +7,11 @@ from controlflow.llm.classify import classify
 
 def round_robin(
     agents: list[Agent],
-    tasks: list[Task],
-    context: dict = None,
-    iteration: int = 0,
+    task: Task,
+    flow: Flow,
+    **kwargs,
 ) -> Agent:
-    return agents[iteration % len(agents)]
+    return agents[task._iteration % len(agents)]
 
 
 def classify_moderator(
