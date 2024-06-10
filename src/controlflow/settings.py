@@ -51,7 +51,7 @@ class PrefectSettings(ControlFlowSettings):
 
 class Settings(ControlFlowSettings):
     assistant_model: str = "gpt-4o"
-    max_task_iterations: Union[int, None] = Field(
+    max_task_iterations: Optional[int] = Field(
         default=100,
         description="The maximum number of iterations to attempt to complete a task "
         "before raising an error. If None, the task will run indefinitely. "
