@@ -1,6 +1,6 @@
 ---
 title: ControlFlow
-# sidebarTitle: Why ControlFlow?
+sidebarTitle: Why ControlFlow?
 ---
 
 <video
@@ -65,11 +65,3 @@ ControlFlow prioritizes transparency and ease of debugging by providing native t
 ControlFlow is designed to integrate seamlessly with existing Python codebases, treating AI tasks as first-class citizens in the application logic. The `Task` class provides a clean interface for defining the inputs, outputs, and requirements of each task, making it easy to incorporate AI capabilities into traditional software workflows. This seamless integration allows for a gradual and controlled adoption of AI, reducing the risk and complexity of introducing AI into existing systems.
 
 Together, these features make ControlFlow a powerful and flexible framework for building AI-powered applications that are transparent, maintainable, and aligned with software engineering best practices.
-
-## Why not "super-agents"?
-
-Many agentic LLM frameworks rely on monolithic "super-agents": powerful, unconstrained models that are expected to achieve their goals by autonomously handling a wide range of tasks, tools, and behaviors. The resulting workflows are opaque, unpredictable, and difficult to debug.
-
-This approach naively assumes that the technology is more advanced than it actually is. LLMs feel like magic because they can perform a wide variety of non-algorithmic tasks, but they are still fundamentally limited when it comes to generalizing beyond their traning data and techniques. Moreover, the failure modes of agentic LLMs are difficult to identify, let alone fix, making them difficult to trust in production environments or with mission-critical tasks.
-
-In contrast to these "super-agent" approaches, ControlFlow promotes a modular, decoupled architecture where specialized agents are orchestrated to perform well-defined tasks, after which traditional software regains control of the application. This approach results in workflows that are more transparent, controllable, and debuggable, setting ControlFlow apart from other frameworks.

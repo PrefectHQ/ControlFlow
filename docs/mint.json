@@ -7,9 +7,9 @@
             "url": "https://controlflow.ai"
         },
         {
-            "icon": "slack",
+            "icon": "discord",
             "name": "Community",
-            "url": "https://mintlify.com/community"
+            "url": "https://discord.gg/Kgw4HpcuYG"
         }
     ],
     "colors": {
@@ -23,9 +23,7 @@
     },
     "favicon": "/assets/logo_2.webp",
     "footerSocials": {
-        "github": "https://github.com/mintlify",
-        "linkedin": "https://www.linkedin.com/company/mintsearch",
-        "x": "https://x.com/mintlify"
+        "github": "https://github.com/prefecthq/controlflow"
     },
     "logo": {
         "dark": "/assets/logo_2.webp",
@@ -37,9 +35,9 @@
             "group": "Get Started",
             "pages": [
                 "introduction",
-                "concepts",
                 "installation",
-                "tutorial"
+                "tutorial",
+                "concepts"
             ]
         },
         {
@@ -104,12 +102,12 @@
     ],
     "topbarCtaButton": {
         "type": "github",
-        "url": "https://github.com/jlowin/controlflow"
+        "url": "https://github.com/prefect/controlflow"
     },
     "topbarLinks": [
         {
             "name": "Support",
-            "url": "mailto:hi@mintlify.com"
+            "url": "https://discord.gg/Kgw4HpcuYG"
         }
     ]
 }
