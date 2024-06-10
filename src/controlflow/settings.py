@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class ControlFlowSettings(BaseSettings):
-    model_config: SettingsConfigDict = SettingsConfigDict(
+    model_config = SettingsConfigDict(
         env_prefix="CONTROLFLOW_",
         env_file=(
             ""
@@ -52,7 +52,7 @@ class PrefectSettings(ControlFlowSettings):
 class Settings(ControlFlowSettings):
     assistant_model: str = "gpt-4o"
     max_task_iterations: Union[int, None] = Field(
-        100,
+        default = 100,
         description="The maximum number of iterations to attempt to complete a task "
         "before raising an error. If None, the task will run indefinitely. "
         "This setting can be overridden by the `max_iterations` attribute "
@@ -63,7 +63,7 @@ class Settings(ControlFlowSettings):
     # ------------ home settings ------------
 
     home_path: Path = Field(
-        "~/.controlflow",
+        default = "~/.controlflow",
         description="The path to the ControlFlow home directory.",
         validate_default=True,
     )
@@ -73,55 +73,55 @@ class Settings(ControlFlowSettings):
     # ------------ flow settings ------------
 
     eager_mode: bool = Field(
-        True,
+        default = True,
         description="If True, @task- and @flow-decorated functions are run immediately. "
         "This can be set on a per-task or per-flow basis using the `eager` argument.",
     )
     enable_local_input: bool = Field(
-        True,
+        default = True,
         description="If True, the user can provide input via "
         "the terminal. Otherwise, only API input is accepted.",
     )
     strict_flow_context: bool = Field(
-        False,
+        default = False,
         description="If False, calling Task.run() outside a flow context will automatically "
         "create a flow and run the task within it. If True, an error will be raised.",
     )
 
     # ------------ LLM settings ------------
 
-    llm_model: str = Field("openai/gpt-4o", description="The LLM model to use.")
+    llm_model: str = Field(default = "openai/gpt-4o", description="The LLM model to use.")
 
     # ------------ Flow visualization settings ------------
 
     enable_print_handler: bool = Field(
-        True,
+        default = True,
         description="If True, the PrintHandler will be enabled. Superseded by the enable_tui setting.",
     )
 
     enable_tui: bool = Field(
-        False,
+        default = False,
         description="If True, the TUI will be enabled. If False, the TUI will be disabled.",
     )
     run_tui_headless: bool = Field(
-        False,
+        default = False,
         description="If True, the TUI will run in headless mode, which is useful for debugging.",
     )
 
     # ------------ Debug settings ------------
 
     print_handler_width: Optional[int] = Field(
-        None,
+        default = None,
         description="The number of coloumns to use for the print handler. If None, the width of "
         "the terminal will be used. Useful for screenshots and examples that need to fit a known width. For docs, use 50.",
     )
 
-    def __init__(self, **data):
-        super().__init__(**data)
+    def model_post_init(self, __context: Any) -> None:
         self.prefect.apply()
+        return super().model_post_init(__context)
 
     @field_validator("home_path", mode="before")
-    def _validate_home_path(cls, v):
+    def _validate_home_path(cls, v: Union[str, Path]) -> Path:
         v = Path(v).expanduser()
         if not v.exists():
             v.mkdir(parents=True, exist_ok=True)
