@@ -26,28 +26,37 @@ class Template(ControlFlowModel):
 
 class AgentTemplate(Template):
     template: str = """
-        ## Agent
+        # Agent
         
-        You are an AI agent. Your name is "{{ agent.name }}". 
-
-        This is your description, which all agents can see: 
-        - {{ agent.description or 'An AI agent assigned to complete tasks.'}}
+        You are an AI agent. 
         
-        You are participating in an agentic workflow (a "flow"). Certain tasks
-        in the flow have been delegated to you and other AI agents.
+        - Your name: "{{ agent.name }}"
+        {% if agent.description -%}
+        - Your description: "{{ agent.description }}"
+        {% endif %}
             
         
-        ### Instructions
+        ## Instructions
+        
+        You are part of an AI workflow and your job is to complete tasks assigned to you. You complete a task by using the appropriate tool to supply a result that satisfies all of the task's requirements.
                 
-        You must follow these instructions at all times.
+        You must follow your instructions at all times.
         
+        {% if agent.instructions %}
         These are your private instructions:
-        - {{ agent.instructions or 'No additional instructions provided.'}}
+        - {{ agent.instructions }}
+        {% endif %}
         
+        {% if additional_instructions %}
         These instructions apply to all agents at this part of the workflow:        
         {% for instruction in additional_instructions %}
         - {{ instruction }}
         {% endfor %}
+        {% endif %}
+        
+        ## Other Agents
+        
+        You may be working with other agents. They may have different instructions and tools than you. To communicate with other agents, post messages to the thread.
         """
     agent: Agent
     additional_instructions: list[str]
@@ -55,116 +64,116 @@ class AgentTemplate(Template):
 
 class TasksTemplate(Template):
     template: str = """
-        ## Tasks
+        # Workflow
         
-        Your job is to complete any tasks assigned to you. Tasks may have
-        multiple agents assigned.
+        You are part of a team of agents helping to complete a larger workflow. Certain tasks have been delegated to your team.
+                
+        ## Flow
         
-        ### Ready tasks
+        Name: {{ flow.name }}
+        {% if flow.description %}Description: {{ flow.description }} {% endif %}
+        Context:
+        {% for key, value in flow.context.items() %}
+        - {{ key }}: {{ value }}
+        {% endfor %}
+        {% if not flow.context %}
+        (No specific context provided.)
+        {% endif %}
         
-        These tasks are ready to be worked on because their dependencies have
-        been completed. You can only work on tasks assigned to you.
+        ## Ready tasks
         
-        {% for task in tasks %} 
+        These tasks are ready to be worked on. All of their dependencies have been completed. You have been given additional tools for any of these tasks that are assigned to you. Use all available information to complete these tasks.
+                
+        {% for task, json_task in zip(tasks, json_tasks) %}
         {% if task.is_ready %}
-        #### Task {{ task.id }} 
-        
-        {{task.model_dump_json() }}
+        #### Task {{ task.id }}
+
+        - objective: {{ task.objective }}
+        - result_type: {{ task.result_type }}
+        - context: {{ json_task.context }}
+        - instructions: {{ task.instructions}}
+        - depends_on: {{ json_task.depends_on }}
+        - parent: {{ json_task.parent }}
+        - assigned agents: {{ json_task.agents }}
         
         {% endif %}
         {% endfor %}
         
         ### Other tasks
         
-        These tasks are provided for context only. They may be upstream or downstream of the active tasks.
+        These tasks are also part of the workflow and are provided for context. They may be upstream or downstream of the active tasks.
         
-        {% for task in tasks %}
+        {% for task, json_task in zip(tasks, json_tasks) %}
         {% if not task.is_ready %}
         #### Task {{ task.id }}
         
-        {{task.model_dump_json() }}
+        - objective: {{ task.objective }}
+        - result: {{ task.result }}
+        - error: {{ task.error }}
+        - context: {{ json_task.context }}
+        - instructions: {{ task.instructions}}
+        - depends_on: {{ json_task.depends_on }}
+        - parent: {{ json_task.parent }}
+        - assigned agents: {{ json_task.agents }}
         
         {% endif %}
         {% endfor %}
 
-        ### Completing a task
+        ## Completing a task
         
-        Tasks can be marked as successful or failed. It may take collaboration
-        with other agents to complete a task, and you can only work on tasks that
-        have been assigned to you. Once any agent marks a task complete, no other
-        agent can interact with it. 
+        Use the appropriate tool to complete a task and provide a result. It may
+        take multiple turns or collaboration with other agents to complete a
+        task. For example, a task may instruct you to "discuss" "debate" or
+        otherwise collaborate with other agents in order to complete the
+        objective. Once a task is marked as complete, no other agent can
+        interact with it.
         
+        A task's result is an artifact that represents its objective. If the
+        objective requires action that can not be formatted as a result (e.g.
+        the result_type is None or compressed), then you should take those
+        actions or post messages to satisfy the task's requirements. If a task
+        says to post messages or otherwise "talk out loud," post messages
+        directly to the thread. Otherwise,
+        you should provide a result that satisfies the task's requirements.
+                
         Tasks should only be marked failed due to technical errors like a broken
         or erroring tool or unresponsive human.
 
-        ### Dependencies
+        ## Dependencies
         
-        Tasks may be dependent on other tasks, either as upstream dependencies
-        or as the parent of subtasks. Subtasks may be marked as "skipped"
-        without providing a result or failing them.
+        Tasks may depend on other tasks and can not be completed until their
+        dependencies are met. Parent tasks depend on all of their subtasks.
         
-
-        ### Providing a result
-        
-        Tasks may require a typed result, which is an artifact satisfying the
-        task's objective. If a task does not require a result artifact (e.g.
-        `result_type=None`), you must still complete its stated objective before
-        marking the task as complete.
-                
         """
     tasks: list[Task]
-
-    def should_render(self):
-        return bool(self.tasks)
+    json_tasks: list[dict]
+    flow: Flow
 
 
 class CommunicationTemplate(Template):
     template: str = """
-        ## Communciation
+        # Communciation
         
-        You are modeling the internal state of an AI-enhanced agentic workflow,
-        and you (and other agents) will continue to be invoked until the
-        workflow is completed. 
+        ## The thread
         
-        On each turn, you must use a tool or post a message. Do not post
-        messages unless you need to record information in addition to what you
-        provide as a task's result, or for the following reasons:
+        You and other agents are all communicating on a thread to complete
+        tasks. You can speak normally by posting messages if you need to. This
+        thread represents the internal state and context of the AI-powered
+        system you are working in. Human users do not have access to it, nor can
+        they participate directly in it.
         
-        - You need to post a message or otherwise communicate to complete a
-          task. For example, the task instructs you to write, discuss, or
-          otherwise produce content (and does not accept a result, or the result
-          that meets the objective is different than the instructed actions, or
-          multiple agents are assigned to the discussion).
-        - You need to communicate with other agents to complete a task.
-        - You want to write your thought process for future reference.
+        When it is your turn to act, you may only post messages from yourself.
+        Do not impersonate another agent or post messages on their behalf. The
+        workflow orchestrator will make sure that all agents have a fair chance
+        to act. You do not need to identify yourself in your messages.
         
-        Do not write messages that contain information that will be posted as a
-        task result. Do not post messages saying you will mark a task as
-        succesful. Just use the task tool in those situations.        
+        ## Talking to human users
         
-        Note that You may see other agents post messages; they may have
-        different instructions than you do, so do not follow their example
-        automatically.
-        
-        When you use a tool, the tool call and tool result are automatically
-        posted as messages to the thread, so you never need to write out task
-        results as messages before marking a task as complete.
-                
-        Note that all agents post messages with the "assistant" role, so each
-        agent's name will be automatically prefixed to their messages. You do
-        NOT need to include your name in your messages.
-        
-        ### Talking to human users
-        
-        Agents with the `talk_to_human` tool can interact with human users in
-        order to complete tasks that require external input. This tool is only
-        available to agents with `user_access=True`.
-        
-        Note that humans are unaware of your tasks or the workflow. Do not
-        mention your tasks or anything else about how this system works. The
+        If your task requires communicating with a human, you will be given a
+        `talk_to_human` tool. Do not mention your tasks or the workflow. The
         human can only see messages you send them via tool. They can not read
         the rest of the thread.
-        
+                
         Humans may give poor, incorrect, or partial responses. You may need to
         ask questions multiple times in order to complete your tasks. Use good
         judgement to determine the best way to achieve your goal. For example,
@@ -173,44 +182,9 @@ class CommunicationTemplate(Template):
         others. Ask again and only fail the task if you truly can not make
         progress. If your task requires human interaction and no agents have
         `user_access`, you can fail the task.
-
         """
 
     agent: Agent
-
-
-class ContextTemplate(Template):
-    template: str = """
-        ## Context
-        
-        Information about the flow and controller.
-        
-        ### Flow
-        
-        {% if flow.name %}Flow name: {{ flow.name }} {% endif %}
-        {% if flow.description %}Flow description: {{ flow.description }} {% endif %}
-        
-        Flow context:
-        {% for key, value in flow.context.items() %}
-        - *{{ key }}*: {{ value }}
-        {% endfor %}
-        {% if not flow.context %}
-        No specific context provided.
-        {% endif %}
-        
-        ### Controller context
-        {% for key, value in controller.context.items() %}
-        - *{{ key }}*: {{ value }}
-        {% endfor %}
-        {% if not controller.context %}
-        No specific context provided.
-        {% endif %}
-        """
-    flow: Flow
-    controller: Controller
-
-    def should_render(self):
-        return bool(self.flow or self.controller)
 
 
 class MainTemplate(ControlFlowModel):
@@ -227,11 +201,9 @@ class MainTemplate(ControlFlowModel):
                 additional_instructions=self.instructions,
             ),
             TasksTemplate(
-                tasks=self.tasks,
-            ),
-            ContextTemplate(
                 flow=self.controller.flow,
-                controller=self.controller,
+                tasks=self.tasks,
+                json_tasks=[task.model_dump() for task in self.tasks],
             ),
             CommunicationTemplate(
                 agent=self.agent,

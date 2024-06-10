@@ -54,6 +54,9 @@ class CompletionHandler:
     def on_tool_call_done(self, message: AIMessage):
         pass
 
+    def on_invalid_tool_call_done(self, message: AIMessage):
+        pass
+
     def on_tool_result_done(self, message: ToolMessage):
         pass
 

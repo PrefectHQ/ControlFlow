@@ -429,7 +429,7 @@ class Task(ControlFlowModel):
         return Tool.from_function(
             self.mark_failed,
             name=f"mark_task_{self.id}_failed",
-            description=f"Mark task {self.id} as failed. Only use when a technical issue like a broken tool or unresponsive human prevents completion.",
+            description=f"Mark task {self.id} as failed. Only use when technical errors prevent success.",
             metadata=dict(is_task_status_tool=True),
         )
 
@@ -440,7 +440,7 @@ class Task(ControlFlowModel):
         return Tool.from_function(
             self.mark_skipped,
             name=f"mark_task_{self.id}_skipped",
-            description=f"Mark task {self.id} as skipped. Only use when completing its parent task early.",
+            description=f"Mark task {self.id} as skipped. Only use when completing a parent task early.",
             metadata=dict(is_task_status_tool=True),
         )
 
@@ -485,8 +485,8 @@ class Task(ControlFlowModel):
         if self.is_incomplete():
             tools.extend([self._create_fail_tool(), self._create_success_tool()])
             # add skip tool if this task has a parent task
-            if self.parent is not None:
-                tools.append(self._create_skip_tool())
+            # if self.parent is not None:
+            #     tools.append(self._create_skip_tool())
         if self.user_access:
             tools.append(talk_to_human)
         return tools

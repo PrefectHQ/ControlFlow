@@ -50,9 +50,8 @@ class PrefectSettings(ControlFlowSettings):
 
 
 class Settings(ControlFlowSettings):
-    assistant_model: str = "gpt-4o"
     max_task_iterations: Optional[int] = Field(
-        default=100,
+       default=100,
         description="The maximum number of iterations to attempt to complete a task "
         "before raising an error. If None, the task will run indefinitely. "
         "This setting can be overridden by the `max_iterations` attribute "
@@ -91,6 +90,7 @@ class Settings(ControlFlowSettings):
     # ------------ LLM settings ------------
 
     llm_model: str = Field(default="openai/gpt-4o", description="The LLM model to use.")
+    llm_temperature: float = Field(0.7, description="The temperature for LLM sampling.")
 
     # ------------ Flow visualization settings ------------
 

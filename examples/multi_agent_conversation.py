@@ -68,6 +68,7 @@ def demo(topic: str):
     task = Task(
         "Discuss a topic",
         agents=[jerry, george, elaine, kramer, newman],
+        result_type=None,
         context=dict(topic=topic),
         instructions="every agent should speak at least once. only one agent per turn.",
     )

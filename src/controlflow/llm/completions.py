@@ -14,6 +14,7 @@ from controlflow.llm.handlers import (
 from controlflow.llm.messages import AIMessage, AIMessageChunk, MessageType
 from controlflow.llm.tools import (
     as_tools,
+    handle_invalid_tool_call,
     handle_tool_call,
     handle_tool_call_async,
 )
@@ -100,10 +101,16 @@ def _completion_generator(
 
             response_message.timestamp = timestamp
 
-            if response_message.tool_calls:
-                yield CompletionEvent(
-                    type="tool_call_done", payload=dict(message=response_message)
-                )
+            if response_message.tool_calls or response_message.invalid_tool_calls:
+                if response_message.tool_calls:
+                    yield CompletionEvent(
+                        type="tool_call_done", payload=dict(message=response_message)
+                    )
+                elif response_message.invalid_tool_calls:
+                    yield CompletionEvent(
+                        type="invalid_tool_call_done",
+                        payload=dict(message=response_message),
+                    )
             else:
                 yield CompletionEvent(
                     type="message_done", payload=dict(message=response_message)
@@ -119,6 +126,11 @@ def _completion_generator(
                     type="tool_result_done", payload=dict(message=tool_result_message)
                 )
                 response_messages.append(tool_result_message)
+
+            # handle invalid tool calls
+            for tool_call in response_message.invalid_tool_calls:
+                invalid_tool_message = handle_invalid_tool_call(tool_call)
+                response_messages.append(invalid_tool_message)
 
             counter += 1
             if counter >= (max_iterations or math.inf):
@@ -214,10 +226,16 @@ async def _completion_async_generator(
 
             response_message.timestamp = timestamp
 
-            if response_message.tool_calls:
-                yield CompletionEvent(
-                    type="tool_call_done", payload=dict(message=response_message)
-                )
+            if response_message.tool_calls or response_message.invalid_tool_calls:
+                if response_message.tool_calls:
+                    yield CompletionEvent(
+                        type="tool_call_done", payload=dict(message=response_message)
+                    )
+                elif response_message.invalid_tool_calls:
+                    yield CompletionEvent(
+                        type="invalid_tool_call_done",
+                        payload=dict(message=response_message),
+                    )
             else:
                 yield CompletionEvent(
                     type="message_done", payload=dict(message=response_message)
@@ -233,6 +251,11 @@ async def _completion_async_generator(
                     type="tool_result_done", payload=dict(message=tool_result_message)
                 )
                 response_messages.append(tool_result_message)
+
+            # handle invalid tool calls
+            for tool_call in response_message.invalid_tool_calls:
+                invalid_tool_message = handle_invalid_tool_call(tool_call)
+                response_messages.append(invalid_tool_message)
 
             counter += 1
             if counter >= (max_iterations or math.inf):

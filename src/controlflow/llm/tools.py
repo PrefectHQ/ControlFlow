@@ -6,9 +6,11 @@ import langchain_core
 import langchain_core.tools
 import pydantic
 import pydantic.v1
-from langchain_core.messages import ToolCall
+from langchain_core.messages import InvalidToolCall, ToolCall
 from prefect.utilities.asyncutils import run_coro_as_sync
 from pydantic import Field, create_model
+
+from controlflow.llm.messages import InvalidToolMessage
 
 if TYPE_CHECKING:
     from controlflow.llm.messages import ToolMessage
@@ -153,4 +155,14 @@ async def handle_tool_call_async(
         tool_call=tool_call,
         tool_result=fn_output,
         tool_metadata=metadata,
+    )
+
+
+def handle_invalid_tool_call(tool_call: InvalidToolCall) -> "ToolMessage":
+    return InvalidToolMessage(
+        content=tool_call["error"] or "",
+        tool_call_id=tool_call["id"],
+        tool_call=tool_call,
+        tool_result=tool_call["error"],
+        tool_metadata=dict(is_failed=True, is_invalid=True),
     )

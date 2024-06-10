@@ -19,5 +19,6 @@ jinja_env.globals.update(
         "now": lambda: datetime.now(ZoneInfo("UTC")),
         "inspect": inspect,
         "getcwd": os.getcwd,
+        "zip": zip,
     }
 )
