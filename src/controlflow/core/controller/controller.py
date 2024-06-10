@@ -31,7 +31,11 @@ def add_agent_name_to_messages(messages: list[MessageType]) -> list[MessageType]
     new_messages = []
     for msg in messages:
         if isinstance(msg, AIMessage) and msg.name:
-            msg = msg.copy(update={"content": f"{msg.name}: {msg.content}"})
+            msg = msg.copy(
+                update={
+                    "content": f'(Message from agent "{msg.name}")\n\n{msg.content}'
+                }
+            )
         new_messages.append(msg)
     return new_messages
 
