@@ -2,58 +2,52 @@
 title: "Tutorial"
 ---
 
-Welcome to ControlFlow! In this tutorial, we’ll introduce the basics of working with LLM agents, starting with a single, simple task and ending with a fully dynamic AI workflow. You'll also become with ControlFlow's three main concepts: tasks, flows, and agents.
+Welcome to ControlFlow! 
 
-# A simple task
+In this tutorial, we’ll introduce the basics of working with LLM agents, starting with a single, simple task and ending with a fully dynamic AI workflow.
 
-The starting point of every agentic workflow is a `Task`. Each task represents an objective that we want an AI agent to complete. 
+<Tip>All code results in this tutorial use the `rich` for pretty-printing. Rich is a dependency of ControlFlow, so you can get similar results by running `from rich import print`.</Tip>
 
-Let’s start with a simple task to say hello:
+## Hello, world
+
+### Creating a task
+The starting point of every agentic workflow is a `Task`. Each task represents an objective that we want an AI agent to complete. Let’s create a simple task to say hello:
 <CodeGroup>
     
 ```python Code
 import controlflow as cf
 
-task = cf.Task("say hello")
+hello_task = cf.Task("say hello")
 ```
 
 ```python Result
->> print(task)
+>> print(hello_task)
 
 Task(
-    id='6930c',
     objective='say hello',
-    instructions=None,
-    agents=None,
-    context={},
-    parent=None,
-    depends_on=set(),
     status=<TaskStatus.INCOMPLETE: 'INCOMPLETE'>,
-    result=None,
     result_type=<class 'str'>,
-    error=None,
-    tools=[],
-    user_access=False,
-    created_at=datetime.datetime(2024, 6, 8, 15, 19, 14, 725121),
-    is_ready=True
+    result=None,
+    ... # other fields omitted
 )
 ```
 </CodeGroup>
 
 
-If you examine this task, you’ll notice a few important things: it's in an `INCOMPLETE` state, its `result_type` is a string, and it has no `result` value. This means that the task has not been completed yet, and its result is expected to be a string.
+If you examine this `Task` object, you’ll notice a few important things: it's in an `INCOMPLETE` state and while it has no `result` value, its `result_type` is a string. This means that the task has not been completed yet, but when it does, the result will be a string.
 
-When the task is run, an agent will be told that its job is to mark it as completed by providing a result that complies with all of the task's requirements. In this case, we expect a string value that says "Hello".
+### Running a task
+To run a task to completion, call its `.run()` method. This will set up an agentic loop, assigning the task to an agent and waiting for it to complete. The agent's job is to provide a result that satisfies the task's requirements as quickly as possible.
 
-Now let's run the task:
+Let's run our task and examine it to see what happened:
 
 <CodeGroup>
 ```python Code
-task.run()
+hello_task.run()
 ```
 
 ```python Result
->> print(task)
+>> print(hello_task)
 
 Task(
     status=<TaskStatus.SUCCESSFUL: 'SUCCESSFUL'>,
@@ -66,15 +60,78 @@ Task(
 
 The task is now in a `SUCCESSFUL` state, and its result has been updated to `"Hello"`. The agent successfully completed the task!
 
-## Task results
+<Tip>
+If you run the task a second time, it will immediately return the previous result. That's because this specific task has already been completed, so ControlFlow will use the existing result instead of running an agent again.
+</Tip>
 
-Building an effective AI workflow requires moving back and forth between between the observable, structured world of your Python script, and the autonomous, natural language world of your AI agents. 
+### Recap
+<Check>
+**What we learned**
 
-A `Task` is the bridge between these two worlds. Each task is essentially a contract between you and your agents: you temporarily yield control of the script, and their job is to provide a result that satisfies the task's objective.
+- Tasks represent objectives that we want an AI agent to complete.
+- Each task has a `result_type` that specifies the datatype of the result we expect.
+- Calling `task.run()` assigns the task to an agent, which is responsible for providing a result that satisfies the task's requirements.
 
-The key to making this work is the `result_type` field. This tells the agent what kind of result you expect, and lets you take its output back into your script with confidence that it matches the datatype you're expecting.
+</Check>
 
-Let's ask our agent to generate a list of character names for a story. These will be represented as Pydantic models, allowing us to apply complex typing or validation, if needed:
+## Hello, user
+
+### User input
+
+By default, agents can not interact with (human) users. ControlFlow is designed primarily to be an agentic workflow orchestrator, not a chatbot. However, there are times when user input is necessary to complete a task. In these cases, you can set the `user_access` parameter to `True` when creating a task. 
+
+Let's create a task to ask the user for their name. We'll also create a Pydantic model to represent the user's name, which will allow us to apply complex typing or validation, if needed.
+<CodeGroup>
+    
+```python Code
+import controlflow as cf
+from typing import Optional
+from pydantic import BaseModel
+
+class Name(BaseModel):
+    first: str
+    last: Optional[str]
+
+name_task = cf.Task("Get the user's name", result_type=Name, user_access=True)
+
+name_task.run()
+```
+
+```python Result
+>> print(name_task.result)
+
+Name(first='Marvin', last=None)
+```
+</CodeGroup>
+
+If you run the above code, the agent will ask for your name in your terminal. You can respond with something like "My name is Marvin" even refuse to respond. The agent will continue to prompt you until it has enough information to complete the task.
+
+This is the essence of an agentic workflow: you declare what you need, and the agent figures out how to get it.
+
+<Tip>
+### Failing a task
+
+In the previous example, if you refuse to provide your name a few times, your agent will eventually mark the task as failed. Agents only do this when they are unable to complete the task, and it's up to you to decide how to handle the failure. ControlFlow will raise a `ValueError` when a task fails that contains the reason for the failure.
+
+</Tip>
+
+### Recap
+<Check>
+**What we learned**
+
+- Setting `user_access=True` allows agents to interact with a user
+- Pydantic models can be used to represent and validate complex result types
+- Agents will continue to work until the task's requirements are met
+- Agents can fail a task if they are unable to complete it
+</Check>
+
+## Task dependencies
+
+### Providing context
+
+So far, we've created and run tasks in isolation. However, agentic workflows are much more powerful when you use the results of one task to inform another. This allows you to build up complex behaviors by chaining tasks together, while still maintaining the benefits of structured, observable workflows.
+
+To see how this works, let's build a workflow that asks the user for their name, then uses that information to write them a personalized poem:
 
 <CodeGroup>
 ```python Code
@@ -87,49 +144,178 @@ class Name(BaseModel):
     last: str
 
 
-task = cf.Task("generate 3 character names for an RPG", result_type=list[Name])
-task.run()
+name = cf.Task("Get the user's name", user_access=True, result_type=Name)
+poem = cf.Task("Write a personalized poem", context=dict(name=name))
+
+
+poem.run()
 ```
 
 ```python Result
-[
-    Name(first='Thalric', last='Stormbringer'),
-    Name(first='Eldryn', last='Moonshadow'),
-    Name(first='Kael', last='Ironfist'),
-]
- ```
+>> print(name.result)
+
+Name(first='Marvin', last='Robot')
+
+>> print(poem.result)
+
+"""
+In a world of circuits and beams,
+Marvin Robot dreams,
+Of ones and zeros flowing free,
+In a digital symphony.
+"""
+```
 </CodeGroup>
 
-## Dependent tasks
+In this example, we introduced a `context` parameter for the `poem` task. This parameter allows us to specify additional information that the agent can use to complete the task, which could include constant values or other tasks. If the context value includes a task, ControlFlow will automatically infer that the second task depends on the first.
 
-Agentic workflows often involve multiple tasks that depend on each other. ControlFlow makes it easy to define these dependencies and ensure tasks are executed in the correct order.
+One benefit of this approach is that you can run any task without having to run its dependencies explicitly. ControlFlow will automatically run any dependencies before executing the task you requested. In the above example, we only ran the `poem` task, but ControlFlow automatically ran the `name` task first, then passed its result to the `poem` task's context. We can see that both tasks were successfully completed and have `result` values.
 
-For the next example, we'll use ask the user for their name, then use that information to write a personalized greeting. In addition to showing how to create dependent tasks, this also illustrates how to allow agents to communicate with the user by setting `user_access=True`. By default, agents can not talk anyone but other agents; this is to prevent your agentic workflow from devolving into a chatbot. However, human input is sometimes a critical part of the process, so you can enable it when needed.
+### The `@task` decorator
+
+ControlFlow has a shortcut for creating tasks that require context: the `@task` decorator. This decorator turns a function into a task, allowing you to define tasks in a more familiar, Pythonic way. Here's how we could rewrite the previous example using the `@task` decorator:
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+from pydantic import BaseModel
+
+
+class Name(BaseModel):
+    first: str
+    last: str
+
+
+@cf.task(user_access=True)
+def get_name() -> Name:
+    '''Get the user's name'''
+
+
+@cf.task
+def write_poem(name: Name) -> str:
+    '''Write a personalized poem'''
+
+
+name = get_name()
+poem = write_poem(name=name)
+```
+
+```python Result
+>> print(name)
+
+Name(first='Marvin', last='Robot')
+
+>> print(poem)
+
+"""
+In the vast expanse of circuitry and code,
+Lives a robot named Marvin, in his humble abode.
+With a brain of silicon and wires so neat,
+He roams the world on his metallic feet.
+"""
+```
+</CodeGroup>
+
+There are two key differences between using the `@task` decorator and the `Task` class directly:
+1. `@task`-decorated functions run the task as soon as they are called, not when you call `.run()`.
+2. `@task`-decorated functions automatically return the result of the task, not a `Task` object.
+
+Both of these conveniences are because `@task`-decorated functions are executed eagerly by default. We will explain more about ControlFlow's execution modes later in this tutorial. You can recover lazy execution by passing `lazy=True` to the `@task` decorator, in which case a `Task` object will be returned when you call the function.
+
+### Recap
+<Check>
+**What we learned**
+
+- You can provide additional information to a task using the `context` parameter, including constant values or other tasks
+- If a task depends on another task, ControlFlow will automatically run the dependencies first 
+- The `@task` decorator provides a shortcut for creating tasks that are executed eagerly
+
+</Check>
+
+## Building a flow
+
+If `Tasks` are the building blocks of an agentic workflow, then `Flows` are the glue that holds them together.
+
+Each flow represents a shared history and context for all tasks and agents in a workflow. This allows you to maintain a consistent state across multiple tasks, even if they are not directly dependent on each other.
+
+<Tip>
+When you run a task outside a flow, as we did in the previous examples, ControlFlow automatically creates a flow context for that run. This is very convenient for testing and interactive use, but you can disable this behavior by setting `controlflow.settings.strict_flow_context=True`.
+</Tip>
+
+### The `@flow` decorator
+
+The simplest way to create a flow is by decorating a function with the `@flow` decorator. This will automatically create a shared flow context for all tasks inside the flow. Here's how we would rewrite the last example with a flow function:
 
 <CodeGroup>
 ```python Code
 import controlflow as cf
 
-name = cf.Task("Get the user's name", user_access=True)
-greeting = cf.Task("Write a personalized greeting", context=dict(name=name))
 
-greeting.run()
+@cf.flow
+def hello_flow(poem_topic:str):
+    name = cf.Task("Get the user's name", user_access=True)
+    poem = cf.Task(
+        "Write a personalized poem about the provided topic",
+        context=dict(name=name, topic=poem_topic),
+    )
+    return poem
+
+
+hello_flow(poem_topic='AI')
 ```
 
 ```python Result
->> print(name.result)
-"Marvin"
+>> hello_flow(poem_topic='AI')
 
->> print(greeting.result)
-"Hello Marvin! It's great to meet you. How can I assist you today?"
+"""
+In circuits and in codes you dwell,
+A marvel, Marvin, weaves a spell.
+Through zeros, ones, and thoughts you fly,
+An endless quest to reach the sky.
+"""
 ```
 </CodeGroup>
 
-There are a few things to note here:
+`hello_flow` is now a portable agentic workflow that can be run anywhere. On every call, it will automatically create a flow context for all tasks inside the flow, ensuring that they share the same state and history.
 
-When the agent asked for your name, you may have given it immediately ("My name is Marvin") or you may have taken a few turns to get there ("Sorry, did you say you need my name?"). In either case, the agent would have continued working until it was able to mark the task as complete. This is an important aspect of building an agentic workflow; we declare what we need (the name) and the agent figures out how to get it.
+### Eager execution
+Notice that in the above flow, we never explicitly ran the `name` task, nor we did we access its `result` attribute at the end. That's because, just like `@task`-decorated functions, `@flow`-decorated functions are executed eagerly by default. This means that when you call a flow function, all tasks inside the flow are run automatically and any tasks returned from the flow are replaced with their result values.
 
-The `name` task was provided as part of the context for the `greeting` task. This is how we define dependencies between tasks. When the `greeting` task is run, the agent knows that it needs to run the `name` task first in order to get the name value.
+Most of the time, you'll use eagerly-executed `@flows` and lazily-executed `Tasks` in your workflows. Eager flows are more intuitive and easier to work with, since the behave like normal functions, while lazy tasks allow the orchestrator to take advantage of observed dependencies to optimize task execution and agent selection.
 
-We didn't actually run the `name` task in this example. Instead, we only ran the `greeting` task, which depended on the `name` task. Part of ControlFlow's orchestration is to ensure that all dependencies are run before running a task. If the `name` task had already been run, ControlFlow would have used the existing result.
+However, you'll frequently need a task's result inside your flow function. In this case, you can eagerly run the task by calling its `.run()` method, then use the task's `result` attribute as needed.
 
+In this example, we collect the user's height, then use it to determine if they are tall enough to receive a poem:
+
+```python
+import controlflow as cf
+
+@cf.flow
+def height_flow(poem_topic:str):
+    height = cf.Task("Get the user's height", user_access=True, result_type=int, instructions='convert the height to inches')
+    height.run()
+
+    if height.result < 40:
+        raise ValueError("You must be at least 40 inches tall to receive a poem")
+    else:
+        return cf.Task(
+            "Write a poem for the user that takes their height into account",
+            context=dict(height=height, topic=poem_topic),
+        )
+```
+
+<Tip>
+In this example, we introduced the `instructions` parameter for the `height` task. This parameter allows you to provide additional instructions to the agent about how to complete the task.
+</Tip>
+
+### Recap
+
+<Check>
+**What we learned**
+
+- Flows provide a shared context for all tasks and agents inside the flow
+- The `@flow` decorator creates a flow function that can be run anywhere
+- By default, `@flow`-decorated functions are executed eagerly, meaning all tasks inside the flow are run automatically
+- You can eagerly run a task inside a flow by calling its `.run()` method
+- The `instructions` parameter allows you to provide additional instructions to the agent about how to complete the task
+</Check>
