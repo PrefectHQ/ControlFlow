@@ -32,7 +32,9 @@ def format_timestamp(timestamp: datetime.datetime) -> str:
 def format_message(message: MessageType, width: Optional[int] = None) -> Panel:
     if isinstance(message, ToolMessage):
         return format_tool_message(message, width=width)
-    elif isinstance(message, AIMessage) and message.tool_calls:
+    elif isinstance(message, AIMessage) and (
+        message.tool_calls or message.invalid_tool_calls
+    ):
         return format_ai_message_with_tool_calls(message, width=width)
     else:
         return format_text_message(message, width=width)
@@ -82,6 +84,21 @@ def format_ai_message_with_tool_calls(
             Panel(
                 content,
                 title=f"[bold]{title}[/]",
+                subtitle=f"[italic]{format_timestamp(message.timestamp)}[/]",
+                title_align="left",
+                subtitle_align="right",
+                border_style=ROLE_COLORS.get(message.role, "red"),
+                box=box.ROUNDED,
+                width=width or 100,
+                expand=True,
+                padding=(1, 2),
+            )
+        )
+    for invalid_tool_call in message.invalid_tool_calls:
+        panels.append(
+            Panel(
+                f"❌ Invalid tool call: {invalid_tool_call['name']}",
+                title="Tool Call",
                 subtitle=f"[italic]{format_timestamp(message.timestamp)}[/]",
                 title_align="left",
                 subtitle_align="right",

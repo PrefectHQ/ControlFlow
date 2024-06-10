@@ -31,10 +31,10 @@ def add_agent_name_to_messages(messages: list[MessageType]) -> list[MessageType]
     new_messages = []
     for msg in messages:
         if isinstance(msg, AIMessage) and msg.name:
-            msg = msg.copy(
-                update={
-                    "content": f'(Message from agent "{msg.name}")\n\n{msg.content}'
-                }
+            new_messages.append(
+                SystemMessage(
+                    content=f'The following message is from agent "{msg.name}".'
+                )
             )
         new_messages.append(msg)
     return new_messages
@@ -92,7 +92,7 @@ class Controller(BaseModel):
         return self
 
     def _create_end_turn_tool(self) -> Callable:
-        def end_turn():
+        def emergency_end_turn():
             """
             This tool is for emergencies only; you should not use it normally.
             If you find yourself in a situation where you are repeatedly invoked
@@ -116,7 +116,7 @@ class Controller(BaseModel):
                 " more uses will abort the workflow."
             )
 
-        return end_turn
+        return emergency_end_turn
 
     @asynccontextmanager
     async def tui(self):

@@ -3,7 +3,7 @@ import uuid
 from typing import Any, Literal, Union
 
 import langchain_core.messages
-from langchain_core.messages import ToolCall
+from langchain_core.messages import InvalidToolCall, ToolCall
 from pydantic.v1 import Field as v1_Field
 
 from controlflow.utilities.jinja import jinja_env
@@ -82,4 +82,10 @@ class ToolMessage(langchain_core.messages.ToolMessage, MessageMixin):
     tool_metadata: dict[str, Any] = v1_Field(default_factory=dict)
 
 
-MessageType = Union[HumanMessage, AIMessage, SystemMessage, ToolMessage]
+class InvalidToolMessage(ToolMessage):
+    tool_call: InvalidToolCall
+
+
+MessageType = Union[
+    HumanMessage, AIMessage, SystemMessage, ToolMessage, InvalidToolMessage
+]
