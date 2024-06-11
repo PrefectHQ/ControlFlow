@@ -4,9 +4,12 @@ title: "Tutorial"
 
 Welcome to ControlFlow! 
 
-In this tutorial, we’ll introduce the basics of working with LLM agents, starting with a single, simple task and ending with a fully dynamic AI workflow.
 
-<Tip>All code results in this tutorial use the `rich` for pretty-printing. Rich is a dependency of ControlFlow, so you can get similar results by running `from rich import print`.</Tip>
+ControlFlow is a declarative framework for building agentic workflows. This means that you define the objectives you want an AI agent to complete, and ControlFlow handles the rest. You can think of ControlFlow as a high-level orchestrator for AI agents, allowing you to focus on the logic of your application while ControlFlow manages the details of agent selection, data flow, and error handling.
+
+In this tutorial, we’ll introduce the basics of ControlFlow, including tasks, flows, agents, and more. By the end, you’ll have a solid understanding of how to create and run complex agentic workflows.
+
+---
 
 ## Hello, world
 
@@ -74,6 +77,8 @@ If you run the task a second time, it will immediately return the previous resul
 
 </Check>
 
+---
+
 ## Hello, user
 
 ### User input
@@ -88,11 +93,14 @@ import controlflow as cf
 from typing import Optional
 from pydantic import BaseModel
 
+
 class Name(BaseModel):
     first: str
     last: Optional[str]
 
+
 name_task = cf.Task("Get the user's name", result_type=Name, user_access=True)
+
 
 name_task.run()
 ```
@@ -108,12 +116,11 @@ If you run the above code, the agent will ask for your name in your terminal. Yo
 
 This is the essence of an agentic workflow: you declare what you need, and the agent figures out how to get it.
 
-<Tip>
+
 ### Failing a task
 
 In the previous example, if you refuse to provide your name a few times, your agent will eventually mark the task as failed. Agents only do this when they are unable to complete the task, and it's up to you to decide how to handle the failure. ControlFlow will raise a `ValueError` when a task fails that contains the reason for the failure.
 
-</Tip>
 
 ### Recap
 <Check>
@@ -125,9 +132,11 @@ In the previous example, if you refuse to provide your name a few times, your ag
 - Agents can fail a task if they are unable to complete it
 </Check>
 
-## Task dependencies
+---
 
-### Providing context
+## Hello, tasks
+
+### Task dependencies
 
 So far, we've created and run tasks in isolation. However, agentic workflows are much more powerful when you use the results of one task to inform another. This allows you to build up complex behaviors by chaining tasks together, while still maintaining the benefits of structured, observable workflows.
 
@@ -171,9 +180,46 @@ In this example, we introduced a `context` parameter for the `poem` task. This p
 
 One benefit of this approach is that you can run any task without having to run its dependencies explicitly. ControlFlow will automatically run any dependencies before executing the task you requested. In the above example, we only ran the `poem` task, but ControlFlow automatically ran the `name` task first, then passed its result to the `poem` task's context. We can see that both tasks were successfully completed and have `result` values.
 
+### Custom tools
+
+For certain tasks, you may want your agents to use specialized tools or APIs to complete the task. 
+
+To add tools to a task, pass a list of Python functions to the `tools` parameter of the task. These functions will be available to the agent when it runs the task, allowing it to use them to complete the task more effectively. The only requirement is that the functions are type-annotated and have a docstring, so that the agent can understand how to use them.
+
+
+In this example, we create a task to roll various dice, and provide a `roll_die` function as a tool to the task, which the agent can use to complete the task:
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+import random
+
+
+def roll_die(n:int) -> int:
+    '''Roll an n-sided die'''
+    return random.randint(1, n)
+
+
+task = cf.Task(
+    'Roll 5 dice, three with 6 sides and two with 20 sides', 
+    tools=[roll_die], 
+    result_type=list[int],
+)
+
+
+task.run()
+```
+
+```python Result
+>> print(task.result)
+
+[3, 1, 2, 14, 8]
+```
+</CodeGroup>
+
 ### The `@task` decorator
 
-ControlFlow has a shortcut for creating tasks that require context: the `@task` decorator. This decorator turns a function into a task, allowing you to define tasks in a more familiar, Pythonic way. Here's how we could rewrite the previous example using the `@task` decorator:
+ControlFlow has a shortcut for creating tasks from Python functions: the `@task` decorator. This allows you to define tasks in a more familiar, Pythonic way. Here's how we could rewrite the previous example using the `@task` decorator:
 
 <CodeGroup>
 ```python Code
@@ -220,7 +266,9 @@ There are two key differences between using the `@task` decorator and the `Task`
 1. `@task`-decorated functions run the task as soon as they are called, not when you call `.run()`.
 2. `@task`-decorated functions automatically return the result of the task, not a `Task` object.
 
-Both of these conveniences are because `@task`-decorated functions are executed eagerly by default. We will explain more about ControlFlow's execution modes later in this tutorial. You can recover lazy execution by passing `lazy=True` to the `@task` decorator, in which case a `Task` object will be returned when you call the function.
+Both of these conveniences are because `@task`-decorated functions are executed eagerly by default. You can recover lazy execution by passing `lazy=True` to the `@task` decorator, in which case a `Task` object will be returned when you call the function.
+
+In complex workflows, lazy execution may be preferred, as it allows ControlFlow to optimize task execution and agent selection based on observed dependencies. However, eager execution can be useful for testing or interactive use, as it behaves more like a normal Python function.
 
 ### Recap
 <Check>
@@ -228,11 +276,14 @@ Both of these conveniences are because `@task`-decorated functions are executed 
 
 - You can provide additional information to a task using the `context` parameter, including constant values or other tasks
 - If a task depends on another task, ControlFlow will automatically run the dependencies first 
+- You can provide custom tools to a task by passing a list of Python functions to the `tools` parameter
 - The `@task` decorator provides a shortcut for creating tasks that are executed eagerly
 
 </Check>
 
-## Building a flow
+---
+
+## Hello, flow
 
 If `Tasks` are the building blocks of an agentic workflow, then `Flows` are the glue that holds them together.
 
@@ -318,4 +369,154 @@ In this example, we introduced the `instructions` parameter for the `height` tas
 - By default, `@flow`-decorated functions are executed eagerly, meaning all tasks inside the flow are run automatically
 - You can eagerly run a task inside a flow by calling its `.run()` method
 - The `instructions` parameter allows you to provide additional instructions to the agent about how to complete the task
+</Check>
+
+---
+
+## Hello, agents
+
+You've made it through an entire tutorial on agentic workflows without ever encountering an actual agent! That's because ControlFlow abstracts away the complexities of agent selection and orchestration, allowing you to focus on the high-level logic of your application.
+
+But agents are the heart of ControlFlow, and understanding how to create and use them is essential to building sophisticated agentic workflows.
+
+### Creating an agent
+
+To create an agent, provide at least a name, as well as optional description, instructions, or tools. Here's an example of creating an agent that specializes in writing technical documentation:
+
+```python
+import controlflow as cf
+
+docs_agent = cf.Agent(
+    name="DocsBot",
+    description="An agent that specializes in writing technical documentation",
+    instructions=(
+        "You are an expert in technical writing. You strive "
+        "to condense complex subjects into clear, concise language."
+        "Your goal is to provide the user with accurate, informative "
+        "documentation that is easy to understand."
+    ),
+)
+```
+
+<Tip>
+What's the difference between a description and instructions? The description is a high-level overview of the agent's purpose and capabilities, while instructions provide detailed guidance on how the agent should complete a task. Agent descriptions can be seen by other agents, but instructions are private, which can affect how agents collaborate with each other.
+</Tip>
+
+### Choosing an LLM model
+
+By default, agents use OpenAI's GPT-4o model, but you can specify a different model by passing a `model` parameter to the agent. ControlFlow is built on LangChain Core, so you can provide [any LangChain LLM](https://python.langchain.com/v0.1/docs/integrations/chat/) that supports the chat and tool calling APIs. Here are a few examples:
+
+```python
+import controlflow as cf
+from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+# GPT-3.5-turbo
+gpt35_agent = cf.Agent(
+    name="GPT-3.5-turbo", 
+    model=ChatOpenAI(model="gpt-3.5-turbo"),
+)
+
+# GPT-4o with low temperature
+gpt4o_low_temp_agent = cf.Agent(
+    name="GPT-4o-low-temp", 
+    model=ChatOpenAI(model="gpt-4o", temperature=0.1),
+)
+
+# Claude 3
+claude_agent = cf.Agent(
+    name="Claude", 
+    model=ChatAnthropic(model='claude-3-opus-20240229'),
+)
+
+# Gemini Pro
+gemini_agent = cf.Agent(
+    name="Gemini", 
+    model=ChatGoogleGenerativeAI(model='gemini-pro'),
+)
+```
+
+Note that ControlFlow only includes `langchain_openai` as a dependency by default. If you want to use other models, you'll need to install the corresponding LangChain package.
+
+<Tip>
+By assigning different agents to tasks, you can take advantage of each model's strenghts, latency, and cost to optimize your workflow.
+</Tip>
+
+
+### Assigning an agent to a task
+
+To use an agent to complete a task, assign the agent to the task's `agents` parameter. Here's an example of assigning the `docs_agent` to a task that requires writing a technical document:
+
+```python
+technical_document = cf.Task(
+    "Write a technical document",
+    agents=[docs_agent],
+    instructions=(
+        "Write a technical document that explains agentic workflows."
+    ),
+)
+```
+
+When you run the `technical_document` task, ControlFlow will automatically assign the `docs_agent` to complete the task. The agent will use the instructions provided to generate a technical document that meets the task's requirements.
+
+### Assigning multiple agents to a task
+
+You can assign multiple agents to a task by passing a list of agents to the `agents` parameter. This allows you to leverage the unique capabilities of different agents to complete a task more effectively. Here's an example of assigning an editor agent to review the technical document created by the `docs_agent`:
+
+```python
+import controlflow as cf
+
+docs_agent = cf.Agent(
+    name="DocsBot",
+    description="An agent that specializes in writing technical documentation",
+    instructions=(
+        "You are an expert in technical writing. You strive "
+        "to condense complex subjects into clear, concise language."
+        "Your goal is to provide the user with accurate, informative "
+        "documentation that is easy to understand."
+    ),
+)
+
+editor_agent = cf.Agent(
+    name="EditorBot",
+    description="An agent that specializes in editing technical documentation",
+    instructions=(
+        "You are an expert in grammar, style, and clarity. "
+        "Your goal is to review the technical document created by DocsBot, "
+        "ensuring that it is accurate, well-organized, and easy to read."
+        "You should output notes rather than rewriting the document."
+    ),
+)
+
+technical_document = cf.Task(
+    "Write a technical document",
+    agents=[docs_agent, editor_agent],
+    instructions=(
+        "Write a technical document that explains agentic workflows."
+        "The docs agent should generate the document, "
+        "after which the editor agent should review and "
+        "edit it. Only the editor can mark the task as complete."
+    ),
+)
+
+with cf.instructions('No more than 5 sentences per document'):
+    technical_document.run()
+```
+
+When you run the `technical_document` task, ControlFlow will assign both the `docs_agent` and the `editor_agent` to complete the task. The `docs_agent` will generate the technical document, and the `editor_agent` will review and edit the document to ensure its accuracy and readability. By default, they will be run in round-robin fashion, but you can customize the agent selection strategy by passing a function as the task's `agent_strategy`.
+
+### Instructions
+
+In the above example, we also introduced the `instructions` context manager. This allows you to provide additional instructions to the agents about how to complete any task. As long as the context manager is active, any tasks/agents run within its scope will follow the provided instructions. Here, we use it to limit the length of the technical document to 5 sentences in order to keep the example manageable.
+
+### Recap
+
+<Check>
+**What we learned**
+
+- Agents are autonomous entities that complete tasks on behalf of the user
+- You can create an agent by providing a name, description, instructions, and LangChain model
+- Assign an agent to a task by passing it to the task's `agents` parameter
+- You can assign multiple agents to a task to have them collaborate
 </Check>
