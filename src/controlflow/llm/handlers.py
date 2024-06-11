@@ -7,6 +7,7 @@ from controlflow.llm.messages import (
     AIMessage,
     AIMessageChunk,
     MessageType,
+    ToolCall,
     ToolMessage,
 )
 from controlflow.utilities.context import ctx
@@ -57,6 +58,9 @@ class CompletionHandler:
     def on_invalid_tool_call_done(self, message: AIMessage):
         pass
 
+    def on_tool_result_created(self, message: AIMessage, tool_call: ToolCall):
+        pass
+
     def on_tool_result_done(self, message: ToolMessage):
         pass
 
@@ -99,9 +103,10 @@ class TUIHandler(CompletionHandler):
 
 class PrintHandler(CompletionHandler):
     def __init__(self):
-        self.width = controlflow.settings.print_handler_width
+        self.width: int = controlflow.settings.print_handler_width
         self.messages: dict[str, MessageType] = {}
-        self.live = Live(auto_refresh=False)
+        self.live: Live = Live(auto_refresh=False)
+        self.paused_id: str = None
 
     def on_start(self):
         self.live.start()
@@ -136,6 +141,21 @@ class PrintHandler(CompletionHandler):
         self.messages[message.id] = message
         self.update_live()
 
+    def on_tool_result_created(self, message: AIMessage, tool_call: ToolCall):
+        # if collecting input on the terminal, pause the live display
+        # to avoid overwriting the input prompt
+        if tool_call["name"] == "talk_to_human":
+            self.paused_id = tool_call["id"]
+            self.live.stop()
+            self.messages.clear()
+
     def on_tool_result_done(self, message: ToolMessage):
         self.messages[message.tool_call_id] = message
+
+        # if we were paused, resume the live display
+        if message.tool_call_id == self.paused_id:
+            self.paused_id = None
+            print()
+            self.live = Live(auto_refresh=False)
+            self.live.start()
         self.update_live()

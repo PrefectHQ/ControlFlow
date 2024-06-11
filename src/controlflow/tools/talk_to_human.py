@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from prefect.context import FlowRunContext
 from prefect.input.run_input import receive_input
-from rich.prompt import Prompt
+from rich.prompt import Prompt as RichPrompt
 
 import controlflow
 from controlflow.llm.tools import tool
@@ -13,12 +13,20 @@ if TYPE_CHECKING:
     pass
 
 
-async def get_terminal_input():
+class Prompt(RichPrompt):
+    # remove the prompt suffix
+    prompt_suffix = " "
+
+
+async def get_terminal_input(message: str):
     # as a convenience, we wait for human input on the local terminal
     # this is not necessary for the flow to run, but can be useful for testing
     loop = asyncio.get_event_loop()
-    # user_input = await loop.run_in_executor(None, input, "Type your response: ")
-    user_input = await loop.run_in_executor(None, Prompt.ask, "Type your response")
+    user_input = await loop.run_in_executor(
+        None,
+        RichPrompt.ask,
+        f"\n[bold blue]🤖 Agent:[/] [blue]{message}[/]\nType your response",
+    )
     return user_input
 
 
@@ -30,7 +38,7 @@ async def get_terminal_input():
 #     return container[0]
 
 
-async def get_flow_run_input():
+async def get_flow_run_input(message: str):
     async for response in receive_input(
         str, flow_run_id=FlowRunContext.get().flow_run.id, poll_interval=0.2
     ):
@@ -49,11 +57,11 @@ async def talk_to_human(message: str, get_response: bool = True) -> str:
         tasks = []
         # if running in a Prefect flow, listen for a remote input
         if (frc := FlowRunContext.get()) and frc.flow_run and frc.flow_run.id:
-            remote_input = asyncio.create_task(get_flow_run_input())
+            remote_input = asyncio.create_task(get_flow_run_input(message=message))
             tasks.append(remote_input)
         # if terminal input is enabled, listen for local input
         if controlflow.settings.enable_local_input:
-            local_input = asyncio.create_task(get_terminal_input())
+            local_input = asyncio.create_task(get_terminal_input(message=message))
             tasks.append(local_input)
         if not tasks:
             raise ValueError(
