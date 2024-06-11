@@ -1,9 +1,10 @@
+---
+title: Task
+---
+A task represents a discrete objective or goal within a ControlFlow workflow that an AI agent needs to solve. Tasks are the fundamental building blocks of ControlFlow and act as a bridge between AI agents and application logic. Each task is defined by its specific objective, instructions, expected result type, and any required context or tools.
 
-Tasks are the building blocks of ControlFlow workflows. Each task represents a discrete objective for agents to solve, such as generating text, classifying data, or extracting information from a document. In addition, tasks can specify instructions, tools for agents to use, a schema for the expected output, and more. 
+Tasks can have [dependencies](/glossary/dependencies) that define their relationships and execution order. Dependencies ensure that tasks are completed in a logical sequence, where one task's output may be required as input for another, or certain tasks must be completed before others can begin. This allows developers to create complex workflows that are easy to understand and manage, ensuring that each task is executed with the necessary context and prerequisites.
 
-Tasks can depend on each other in various ways, creating complex workflows that are easy to understand and manage:
-- **sequential** dependencies: one task must be completed before another can start
-- **context** dependencies: the result of one task is used as input for another
-- **subtask** dependencies: a task has subtasks that must be completed before the task can be considered done
+Tasks have one or more [agents](/glossary/agent) assigned to them. By assigning appropriate agents, developers can optimize the execution of tasks by leveraging the specialized capabilities or model characteristics of different agents, ensuring each task is handled by the most suitable entity.
 
-By specifying the parameters of each task and how they relate to each other, developers can create complex workflows that are easy to understand and manage.
+By specifying the parameters and dependencies of each task, developers can build sophisticated and dynamic workflows that leverage the full capabilities of AI agents in a structured and efficient manner.

@@ -74,16 +74,21 @@
         {
             "group": "LLMs",
             "pages": [
+                "glossary/llm",
                 "glossary/prompt-engineering",
                 "glossary/flow-engineering",
-                "glossary/agentic-workflow"
+                "glossary/agentic-workflow",
+                "glossary/fine-tuning"
             ]
         },
         {
             "group": "ControlFlow",
             "pages": [
                 "glossary/task",
-                "glossary/flow"
+                "glossary/flow",
+                "glossary/agent",
+                "glossary/tools",
+                "glossary/dependencies"
             ]
         },
         {
