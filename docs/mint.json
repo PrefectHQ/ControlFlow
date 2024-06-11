@@ -23,7 +23,7 @@
     },
     "favicon": "/assets/ControlFlow.jpeg",
     "footerSocials": {
-        "github": "https://github.com/prefecthq/controlflow"
+        "github": "https://github.com/PrefectHQ/ControlFlow"
     },
     "logo": {
         "dark": "/assets/ControlFlow.jpeg",
@@ -103,7 +103,7 @@
     ],
     "topbarCtaButton": {
         "type": "github",
-        "url": "https://github.com/prefect/controlflow"
+        "url": "https://github.com/PrefectHQ/ControlFlow"
     },
     "topbarLinks": [
         {

@@ -37,7 +37,7 @@ keywords = [
 ]
 
 [project.urls]
-Code = "https://github.com/prefecthq/ControlFlow"
+Code = "https://github.com/PrefectHQ/ControlFlow"
 
 [project.optional-dependencies]
 tests = [
