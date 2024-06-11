@@ -35,6 +35,14 @@ def model_from_string(model: str, temperature: float = None, **kwargs) -> BaseCh
                 "To use Anthropic models, please install the `langchain-anthropic` package."
             )
         cls = ChatAnthropic
+    elif provider == "google":
+        try:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+        except ImportError:
+            raise ImportError(
+                "To use Google models, please install the `langchain_google_genai` package."
+            )
+        cls = ChatGoogleGenerativeAI
     else:
         raise ValueError(
             f"Could not load provider automatically: {provider}. Please create your model manually."
