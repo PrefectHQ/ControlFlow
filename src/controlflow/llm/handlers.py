@@ -137,5 +137,5 @@ class PrintHandler(CompletionHandler):
         self.update_live()
 
     def on_tool_result_done(self, message: ToolMessage):
-        self.messages[message.id] = message
+        self.messages[message.tool_call_id] = message
         self.update_live()
