@@ -1,13 +1,41 @@
 ---
 title:  Workflow Design
 ---
-Designing efficient and effective workflows is a critical aspect of using ControlFlow to build AI-powered applications. A well-designed workflow enables smooth execution, clear task dependencies, and seamless integration with normal Python code. This document provides a comprehensive guide on designing workflows in ControlFlow, covering execution modes, combining task types, handling dependencies, error handling, observability, and best practices.
+Designing efficient and effective workflows is a critical aspect of using ControlFlow to build AI-powered applications. A well-designed workflow enables smooth execution, clear task dependencies, and seamless integration with normal Python code. This document provides a comprehensive guide on designing workflows in ControlFlow, covering the various APIs for defining workflows, execution modes, handling dependencies, error handling, observability, and best practices.
 
-## Functional and Imperative APIs
-ControlFlow provides both functional and imperative APIs for defining tasks and workflows. The functional API uses task-decorated functions (`@task`) to define tasks, while the imperative API uses the `Task` class to create tasks imperatively. Similarly, the `@flow` decorator and the `Flow` class can be used to define flows.
+## Functional and imperative APIs
+ControlFlow provides both functional and imperative APIs for defining tasks and workflows. The functional API uses task-decorated functions (`@task`) to define tasks, while the imperative API uses the `Task` class to create task objects. Similarly, the `@flow` decorator and the `Flow` class can be used to define flows.
 
+In general, most users will start with the functional API for flows (`@flow`) and imperative API for tasks (`Task`), as this is the most intuitive and concise way to define recognizable workflows. However, the choice between the two APIs will depend on your workflow requirements and personal preference. Both are fully supported.
+
+Here's an example that shows the same workflow, written three different ways: with the fully imperative API, the fully functional API, and a mix of the two:
 <CodeGroup>
-```python The functional API
+```python Fully imperative API
+from controlflow import Flow, Task
+
+
+with Flow(name='poem_flow') as poem_flow:
+
+    name = Task(
+        objective="Get the user's name", 
+        result_type=str, 
+        user_access=True)
+
+    poem = Task(
+        objective="Write a short poem about the user and provided topic",
+        result_type=str,
+        context={"name": name, "topic": "sunset"},
+    )
+
+
+poem_flow.run()
+print(poem.result)
+
+# John Doe, across the days
+# You shine with vibrant rays.
+# ...
+```
+```python Fully functional API
 from controlflow import flow, task
 
 
@@ -18,91 +46,71 @@ def get_name() -> str:
 
 
 @task
-def write_poem(name: str) -> str:
-    """Write a short poem about the user."""
+def write_poem(name: str, topic:str) -> str:
+    """Write a short poem about the user and provided topic."""
     pass
 
 
 @flow
-def poem_flow():
+def poem_flow(topic:str):
     name = get_name()
     poem = write_poem(name)
     return poem
 
 
-print(poem_flow())
+print(poem_flow(topic="sunset"))
 
 # John Doe, across the days
 # You shine with vibrant rays.
 # ...
 ```
 
-```python The imperative API
-from controlflow import Flow, Task
-
-
-with Flow(name='poem_flow') as poem_flow:
-    name = Task(
-        objective="Get the user's name", 
-        result_type=str, 
-        user_access=True)
-
-    poem = Task(
-        objective="Write a short poem about the user",
-        result_type=str,
-        context={"name": name},
-    )
-
-
-poem_flow.run()
-print(poem.result)
-```
 ```python Mixed APIs
 from controlflow import flow, Task
 
 
 @flow
-def poem_flow()
+def poem_flow(topic:str):
+
     name = Task(
         objective="Get the user's name", 
         result_type=str, 
         user_access=True)
 
     poem = Task(
-        objective="Write a short poem about the user",
+        objective="Write a short poem about the user and provided topic",
         result_type=str,
-        context={"name": name},
+        context={"name": name, "topic": topic},
     )
 
     return poem
     
 
-print(poem_flow())
+print(poem_flow(topic="sunset"))
+
+# John Doe, across the days
+# You shine with vibrant rays.
+# ...
 ```
 </CodeGroup>
 
-### Which Approach Should I Use?
+
+### Which API should I use?
 
 <Tip>
-**tldr:** Most users should use the functional `@flow` decorator, but the choice of whether to use `@task` or `Task` will be a matter of personal preference and workflow requirements.
+Most users should start with the functional `@flow` decorator and imperative `Task` class, though the choice of whether to use `Task` or `@task` is ultimately a matter of personal preference and workflow requirements.
 </Tip>
 
-Users should almost always use the `@flow` decorator to create flows. It provides a simple and concise way to define flows using Python functions that encapsulate all logic. The `@flow` decorator automatically infers the structure of the flow and its tasks, making it easy to define and run workflows.
+#### Flows
+Users should almost always use the `@flow` decorator to create flows. It provides a simple and concise way to define flows using Python functions that encapsulate all logic. The `@flow` decorator automatically infers the structure of the flow and its tasks, making it easy to define and run workflows. The imperative `Flow` class is available for advanced users who need more control over flow creation and execution, but requires more boilerplate.
+#### Tasks
+For tasks, the choice between the functional and imperative APIs will depend on your workflow requirements and personal preference.
 
-For tasks, the choice between the functional and imperative APIs will depend entirely on your workflow requirements and personal preference.
+Most users should start with the imperative `Task` class. This approach leans in to an object-oriented style of programming, where tasks are explicitly defined and configured. This can be beneficial for users who prefer a more explicit and structured approach to defining tasks, with fine-grained control over task properties and behavior. 
 
-Some users will feel that task functions look more natural when defined and called. Others may find the bodyless functions created by the `@task` decorator to be less readable and prefer the terse explicitness of the `Task` class. There is no superior choice between the two, and users should choose the API that best fits their workflow and coding style.
+The functional `@task` decorator creates tasks that look and behave like functions, making them relatively easy to define and use. The functional API is especially useful for prototyping, simple workflows, and tasks that do not have complex dependencies. This is because the functional API is eagerly executed by default. On the one hand this simplifies workflow design, but it also prevents agents from optimizing their work based on knowledge of the entire workflow.
 
-### Advantages of the Functional API
-The functional `@task` API offers several advantages:
-
-1. **Concise and readable code**: Task-decorated functions allow you to define tasks using familiar Python syntax, making the code more concise and easier to read.
-
-2. **Automatic inference of task properties**: The `@task` decorator automatically infers task properties such as the objective, instructions, context, and result type from the function definition, reducing the need for explicit configuration.
-
-3. **Eager execution**: Task-decorated functions are executed eagerly by default, which can be beneficial for some workflows, especially those that rely on task results. 
-
-### Advantages of the Imperative API
+### Advantages of the imperative API
 The imperative API, using the `Task` class, offers the following advantages:
 
 1. **Explicit control over task definition**: The `Task` class allows you to specify detailed objectives, instructions, agents, context, and result types for each task, providing fine-grained control over task behavior.
@@ -111,8 +119,16 @@ The imperative API, using the `Task` class, offers the following advantages:
 
 3. **Lazy execution**: The imperative API provides access to fine-grained control over task execution, dependencies, and error handling, allowing you to customize the workflow behavior as needed.
 
-### Mixing Functional and Imperative APIs
-ControlFlow allows you to mix functional and imperative APIs within a workflow, leveraging the strengths of both approaches. Most commonly, you'll seamlessly combine `@flow`-decorated functions with both `@task`-decorated functions and tasks created using the `Task` class.
+
+### Advantages of the functional API
+The functional `@task` API offers several advantages:
+
+1. **Automatic inference of task properties**: The `@task` decorator automatically infers task properties such as the objective, instructions, context, and result type from the function definition, reducing the need for explicit configuration.
+
+2. **Eager execution**: Task-decorated functions are executed eagerly by default, which can be beneficial for some workflows and provide a more intuitive programming experience.
+
+### Mixing functional and imperative APIs
+ControlFlow allows you to mix functional and imperative APIs within a workflow, leveraging the strengths of both approaches. Most commonly, you'll seamlessly combine `@flow`-decorated functions with `Task` objects, but you can switch APIs at any time.
 
 Here's an example that demonstrates mixing functional and imperative tasks:
 
@@ -143,13 +159,13 @@ In this example, the `preprocess_data` task is defined using the `@task` decorat
 
 By mixing functional and imperative tasks, you can design workflows that are both expressive and flexible, allowing you to leverage the strengths of each approach as needed.
 
-## Execution Modes
+## Execution modes
 
-ControlFlow supports two execution modes for the functional API: eager execution and lazy execution. Understanding these modes is essential for controlling the behavior of your workflows.
+ControlFlow supports two execution modes: eager execution and lazy execution. Understanding these modes is essential for controlling the behavior of your workflows. 
 
-### Eager Execution
+### Eager execution
 
-Eager execution is the default mode for flow- and task-decorated functions. When a `@task`-decorated function is called in eager mode, it is executed immediately by an AI agent. When a `@flow`-decorated function, it runs every task that was created inside the flow (whether functional or imperative) and resolves any returned tasks as their results.
+Eager mode is the default for the functional API. In this mode, flows and tasks are executed immediately. When a `@task`-decorated function is called, it is run by an AI agent right away and its result is returned. When a `@flow`-decorated function is called, it executes the function, runs every task that was created inside the flow (whether functional or imperative) and returns the results of any returned tasks.
 
 Here's an example of eager execution:
 
@@ -162,26 +178,25 @@ def write_poem(topic: str) -> str:
     pass
 
 @flow
-def my_flow():
-    topic = "sunset"
+def my_flow(topic:str):
+    
     # the poem task is immediately given to an AI agent for execution
     # and the result is returned
     poem = write_poem(topic)
-    print(poem)
+    return poem
 
-my_flow()
+my_flow("sunset")
 ```
 
 In this example, the `write_poem` task is executed by an AI agent as soon as its function is called. The AI agent generates a short poem based on the provided topic, and the generated poem is returned as the `poem` variable.
 
 Because eager execution returns the result of each task, it makes it easy to mix task-decorated functions with normal Python code seamlessly, enabling you to use standard Python control flow statements, such as conditionals and loops, to control the execution of tasks.
 
-### Lazy Execution
-Lazy execution is the only mode available for the imperative API, as imperative tasks are not run until you explicitly run them or one of their downstream dependencies. 
+### Lazy execution
 
-Lazy execution for the functional API is an advanced mode that allows you to defer the execution of task-decorated functions. Instead of executing tasks immediately, lazy execution converts `@task` functions into `Task` objects, which can be used to build up a directed acyclic graph (DAG) of tasks within the flow.
+Lazy execution means that tasks are not executed when they are created. Instead, ContorlFlow builds a directed acyclic graph (DAG) of tasks and their dependencies, and executes them only when necessary. The advantage of this approach is that knowledge of the entire graph, including potentially future work, can be used by agents to optimize their work. It also defers potentially expensive work (in terms of time or resources) until it is actually needed.
 
-To run a functional task lazily, you can pass `lazy_=True` (note the trailing underscore) when calling it, or pass `lazy=True` to the `@task` decorator.
+Lazy execution is the only mode available for the imperative API, as imperative tasks must be run explicitly. You can also run functional tasks lazily by passing `lazy=True` to the `@task` decorator or `lazy_=True` when calling the task. In lazy mode, `@task` functions return a `Task` object.
 
 Here's an example of lazy task execution:
 
@@ -200,10 +215,10 @@ def generate_report(insights: dict) -> str:
     pass
 
 @flow
-def my_flow():
-    data = load_data()
-    # insights is a Task object, as if analyze_data had been created
-    # with the imperative API
+def my_flow(data):
+    
+    # analyze_data runs lazily, so the `insights` variable is a Task 
+    # object, as if it had been created with the imperative API
     insights = analyze_data(data)
 
     # `report` is a Task object because generate_report is being called lazily
@@ -215,11 +230,9 @@ result = my_flow()
 
 In this example, the `analyze_data` and `generate_report` tasks are defined using the `@task` decorator, but their execution is deferred. `analyze_data` is defined lazily; `generate_report` is lazy on for this specific call.
 
+Flows can also be run lazily. In this case, a `Flow` object is returned when calling the flow function. Note that this is a very advanced feature and most users will not use it.
 
-
-Flows can also be run lazily. In this case, a `Flow` object is returned when calling the flow function. Note that this is a very advanced feature and most users will not need to use it.
-
-### Why Use Lazy Execution?
+#### Why use lazy execution?
 
 Lazy execution is particularly useful in scenarios where you want to define the structure and dependencies of tasks upfront but delay their actual execution. This can be beneficial for planning and optimizing the execution of complex workflows. When tasks are run eagerly, the Agents can only see the workflow that's been defined up to that point. When tasks with dependencies are run lazily, the agent can see the entire workflow and optimize its execution of early task in order to produce the output it needs for later tasks. This can lead to more efficient and precise execution of the workflow.
 
@@ -227,7 +240,14 @@ In addition, lazy execution allows you to exercise more precise control over how
 
 Remember that lazy execution is the only way to run tasks in the imperative API, so if you need to use imperative tasks, you'll be using lazy execution by default. Eager execution is the default for functional tasks because it is more intuitive for users expecting typical Python behavior when calling a function. 
 
-## Task Dependencies and Execution Order
+#### When are lazy tasks run?
+
+Lazily-executed tasks are run under the following conditions:
+1. When their `run()` method is called.
+2. When they are an upstream dependency of another task that is run (whether eagerly or lazily)
+3. At the end of an eagerly-executed flow, if they were created in that flow.
+
+## Task dependencies and execution order
 ControlFlow provides mechanisms to define dependencies between tasks and control their execution order. Tasks can have upstream dependencies, meaning they can only be executed after their dependent tasks have completed successfully.
 
 In this way, tasks form a DAG of operations. ControlFlow can take advantage of this DAG to help agents optimize the execution of tasks, ensuring that they are run in the correct order and that the results of upstream tasks are available to downstream tasks.
@@ -281,17 +301,15 @@ In this example, `task2` depends on `task1`, as it takes the result of `task1` a
 
 ControlFlow ensures that tasks are executed in the correct order based on their dependencies. Tasks with unresolved dependencies will not be executed until all their upstream tasks have completed successfully.
 
-### Subtask Dependencies
+### Parent and subtask dependencies
 
-Another way to define dependencies is to use subtasks. Subtasks are tasks that are created within the context of another task and are automatically considered dependencies of the parent task. This means that a parent task can not be marked as complete until all of its subtasks have been completed.
-
-However, as a convenience, subtasks can be marked skipped if an agent determines that they are not necessary.
+Another way to define dependencies is to use subtasks. Subtasks are tasks that are created within the context of another task and are automatically considered dependencies of that parent task. This means that a parent task can not be marked as complete until all of its subtasks have been completed.
 
 A subtask can be created in two ways:
 - By creating a task within the context of another task.
 - By passing a task as the `parent` argument of another task.
 
-In general, the context approach is more versatile since it works with both the functional and imperative APIs.
+In general, the context approach is more versatile since it works with both the functional and imperative APIs:
 
 ```python
 from controlflow import flow, Task
@@ -309,7 +327,7 @@ def my_flow():
 
 In the above example, `write_poem` is the parent task, and `verse_1`, `verse_2`, `verse_3`, and `title` are subtasks. The parent task considers all subtasks as dependencies, so it will not be marked as complete until all subtasks have been completed. However, this also means that we only have to run the `write_poem` task to execute all subtasks, since tasks force their upstream dependencies to be run. That's why only the `write_poem` task is returned from the flow, where it will be run via eager execution.
 
-## Error Handling
+## Error handling
 ControlFlow provides mechanisms to handle errors and exceptions that may occur during task execution.
 
 In eager execution mode, if a task fails and raises an exception, you can catch and handle the exception using Python's standard exception handling techniques, such as `try`-`except` blocks.
@@ -337,7 +355,7 @@ In this example, if the `divide_numbers` task fails because the agent recognizes
 
 In lazy execution mode, exceptions are not raised immediately but are propagated through the task DAG. When the flow is executed using the `run()` method, any exceptions that occurred during task execution will be raised at that point.
 
-## Observability and Orchestration
+## Observability and orchestration
 ControlFlow integrates with Prefect, a popular workflow orchestration tool, to provide observability and orchestration capabilities for your workflows.
 
 Under the hood, ControlFlow tasks and flows are modeled as Prefect tasks and flows, allowing you to leverage Prefect's features for monitoring, logging, and orchestration. This integration enables you to track the execution status of tasks, monitor their progress, and access detailed logs and reports.
@@ -352,7 +370,7 @@ prefect server start
 
 Once the server is running, you can open the Prefect UI by navigating to `http://localhost:4200` in your web browser. The UI provides a visual interface to monitor the execution of your workflows, view task statuses, and access logs and reports.
 
-## Best Practices
+## Best practices
 When designing workflows in ControlFlow, consider the following best practices:
 
 1. **Define clear task objectives**: Ensure that each task has a clear and specific objective. Provide detailed instructions and context to guide the AI agent in completing the task effectively.
