@@ -2,9 +2,14 @@
     "$schema": "https://mintlify.com/schema.json",
     "anchors": [
         {
+            "icon": "github",
+            "name": "Code",
+            "url": "https://github.com/PrefectHQ/ControlFlow"
+        },
+        {
             "icon": "book-open-cover",
             "name": "Documentation",
-            "url": "https://controlflow.ai"
+            "url": "/"
         },
         {
             "icon": "slack",
@@ -47,13 +52,13 @@
                 "concepts/tasks",
                 "concepts/flows",
                 "concepts/agents",
-                "concepts/workflow-design",
                 "concepts/execution"
             ]
         },
         {
             "group": "Guides",
             "pages": [
+                "concepts/workflow-design",
                 "guides/subtasks",
                 "guides/deployment"
             ]
@@ -109,11 +114,5 @@
     "topbarCtaButton": {
         "type": "github",
         "url": "https://github.com/PrefectHQ/ControlFlow"
-    },
-    "topbarLinks": [
-        {
-            "name": "Support",
-            "url": "https://prefect.io/slack?utm_source=controlflow&utm_medium=docs"
-        }
-    ]
+    }
 }
