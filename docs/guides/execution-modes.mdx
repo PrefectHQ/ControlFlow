@@ -1,0 +1,94 @@
+---
+title:  Execution Modes
+---
+
+
+ControlFlow supports two execution modes: eager execution and lazy execution. Understanding these modes is essential for controlling the behavior of your workflows. 
+
+<Tip>
+Please review the functional and imperative APIs in the [Workflow API guide](/docs/guides/apis) before proceeding.
+</Tip>
+
+## Eager execution
+
+Eager mode is the default for the functional API. In this mode, flows and tasks are executed immediately. When a `@task`-decorated function is called, it is run by an AI agent right away and its result is returned. When a `@flow`-decorated function is called, it executes the function, runs every task that was created inside the flow (whether functional or imperative) and returns the results of any returned tasks.
+
+Here's an example of eager execution:
+
+```python
+from controlflow import flow, task
+
+@task
+def write_poem(topic: str) -> str:
+    """Write a short poem about the given topic."""
+    pass
+
+@flow
+def my_flow(topic:str):
+    
+    # the poem task is immediately given to an AI agent for execution
+    # and the result is returned
+    poem = write_poem(topic)
+    return poem
+
+my_flow("sunset")
+```
+
+In this example, the `write_poem` task is executed by an AI agent as soon as its function is called. The AI agent generates a short poem based on the provided topic, and the generated poem is returned as the `poem` variable.
+
+Because eager execution returns the result of each task, it makes it easy to mix task-decorated functions with normal Python code seamlessly, enabling you to use standard Python control flow statements, such as conditionals and loops, to control the execution of tasks.
+
+## Lazy execution
+
+Lazy execution means that tasks are not executed when they are created. Instead, ContorlFlow builds a directed acyclic graph (DAG) of tasks and their dependencies, and executes them only when necessary. The advantage of this approach is that knowledge of the entire graph, including potentially future work, can be used by agents to optimize their work. It also defers potentially expensive work (in terms of time or resources) until it is actually needed.
+
+Lazy execution is the only mode available for the imperative API, as imperative tasks must be run explicitly. You can also run functional tasks lazily by passing `lazy=True` to the `@task` decorator or `lazy_=True` when calling the task. In lazy mode, `@task` functions return a `Task` object.
+
+Here's an example of lazy task execution:
+
+```python
+from controlflow import flow, task
+
+# this task will always run lazily
+@task(lazy=True)
+def analyze_data(data: pd.DataFrame) -> dict:
+    """Analyze the given data and return insights."""
+    pass
+
+@task
+def generate_report(insights: dict) -> str:
+    """Generate a report based on the provided insights."""
+    pass
+
+@flow
+def my_flow(data):
+    
+    # analyze_data runs lazily, so the `insights` variable is a Task 
+    # object, as if it had been created with the imperative API
+    insights = analyze_data(data)
+
+    # `report` is a Task object because generate_report is being called lazily
+    report = generate_report(insights, lazy_=True)
+    return report
+
+result = my_flow()
+```
+
+In this example, the `analyze_data` and `generate_report` tasks are defined using the `@task` decorator, but their execution is deferred. `analyze_data` is defined lazily; `generate_report` is lazy on for this specific call.
+
+Flows can also be run lazily. In this case, a `Flow` object is returned when calling the flow function. Note that this is a very advanced feature and most users will not use it.
+
+### Why use lazy execution?
+
+Lazy execution is particularly useful in scenarios where you want to define the structure and dependencies of tasks upfront but delay their actual execution. This can be beneficial for planning and optimizing the execution of complex workflows. When tasks are run eagerly, the Agents can only see the workflow that's been defined up to that point. When tasks with dependencies are run lazily, the agent can see the entire workflow and optimize its execution of early task in order to produce the output it needs for later tasks. This can lead to more efficient and precise execution of the workflow.
+
+In addition, lazy execution allows you to exercise more precise control over how tasks are executed. When you run an eagerly executed task, ControlFlow works autonomously to complete the task and all its upstream dependencies. This is similar to calling `run()` on any imperative task. However, the imperative API gives you access to methods like `run_once()` (only run an agent for one turn) and even choosing which agent to run the task with, which can be useful for debugging and optimization.
+
+Remember that lazy execution is the only way to run tasks in the imperative API, so if you need to use imperative tasks, you'll be using lazy execution by default. Eager execution is the default for functional tasks because it is more intuitive for users expecting typical Python behavior when calling a function. 
+
+### When are lazy tasks run?
+
+Lazily-executed tasks are run under the following conditions:
+1. When their `run()` method is called.
+2. When they are an upstream dependency of another task that is run (whether eagerly or lazily)
+3. At the end of an eagerly-executed flow, if they were created in that flow.
