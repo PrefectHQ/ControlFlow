@@ -41,7 +41,6 @@
             "pages": [
                 "introduction",
                 "installation",
-                "quickstart",
                 "tutorial",
                 "concepts"
             ]
@@ -51,15 +50,16 @@
             "pages": [
                 "concepts/tasks",
                 "concepts/flows",
-                "concepts/agents",
-                "concepts/execution"
+                "concepts/agents"
             ]
         },
         {
             "group": "Guides",
             "pages": [
-                "concepts/workflow-design",
-                "guides/subtasks",
+                "guides/apis",
+                "guides/execution-modes",
+                "guides/dependencies",
+                "guides/orchestration",
                 "guides/deployment"
             ]
         },

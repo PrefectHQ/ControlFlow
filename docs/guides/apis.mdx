@@ -1,0 +1,165 @@
+---
+title:  Workflow APIs
+---
+Designing efficient and effective workflows is a critical aspect of using ControlFlow to build AI-powered applications. A well-designed workflow enables smooth execution, clear task dependencies, and seamless integration with normal Python code. This document provides a comprehensive guide on designing workflows in ControlFlow, covering the various APIs for defining workflows, execution modes, handling dependencies, error handling, observability, and best practices.
+
+## Functional and imperative APIs
+ControlFlow provides both functional and imperative APIs for defining tasks and workflows. The functional API uses task-decorated functions (`@task`) to define tasks, while the imperative API uses the `Task` class to create task objects. Similarly, the `@flow` decorator and the `Flow` class can be used to define flows.
+
+In general, most users will start with the functional API for flows (`@flow`) and imperative API for tasks (`Task`), as this is the most intuitive and concise way to define recognizable workflows. However, the choice between the two APIs will depend on your workflow requirements and personal preference. Both are fully supported.
+
+Here's an example that shows the same workflow, written three different ways: with the fully imperative API, the fully functional API, and a mix of the two:
+<CodeGroup>
+```python Fully imperative API
+from controlflow import Flow, Task
+
+
+with Flow(name='poem_flow') as poem_flow:
+
+    name = Task(
+        objective="Get the user's name", 
+        result_type=str, 
+        user_access=True)
+
+    poem = Task(
+        objective="Write a short poem about the user and provided topic",
+        result_type=str,
+        context={"name": name, "topic": "sunset"},
+    )
+
+
+poem_flow.run()
+print(poem.result)
+
+# John Doe, across the days
+# You shine with vibrant rays.
+# ...
+```
+```python Fully functional API
+from controlflow import flow, task
+
+
+@task(user_access=True)
+def get_name() -> str:
+    """Get the user's name."""
+    pass
+
+
+@task
+def write_poem(name: str, topic:str) -> str:
+    """Write a short poem about the user and provided topic."""
+    pass
+
+
+@flow
+def poem_flow(topic:str):
+    name = get_name()
+    poem = write_poem(name)
+    return poem
+
+
+print(poem_flow(topic="sunset"))
+
+# John Doe, across the days
+# You shine with vibrant rays.
+# ...
+```
+
+```python Mixed APIs
+from controlflow import flow, Task
+
+
+@flow
+def poem_flow(topic:str):
+
+    name = Task(
+        objective="Get the user's name", 
+        result_type=str, 
+        user_access=True)
+
+    poem = Task(
+        objective="Write a short poem about the user and provided topic",
+        result_type=str,
+        context={"name": name, "topic": topic},
+    )
+
+    return poem
+    
+
+print(poem_flow(topic="sunset"))
+
+# John Doe, across the days
+# You shine with vibrant rays.
+# ...
+```
+</CodeGroup>
+
+
+## Which API should I use?
+
+<Tip>
+Most users should start with the functional `@flow` decorator and imperative `Task` class, though the choice of whether to use `Task` or `@task` is ultimately a matter of personal preference and workflow requirements.
+</Tip>
+
+### Flows
+Users should almost always use the `@flow` decorator to create flows. It provides a simple and concise way to define flows using Python functions that encapsulate all logic. The `@flow` decorator automatically infers the structure of the flow and its tasks, making it easy to define and run workflows. The imperative `Flow` class is available for advanced users who need more control over flow creation and execution, but requires more boilerplate.
+### Tasks
+For tasks, the choice between the functional and imperative APIs will depend on your workflow requirements and personal preference.
+
+Most users should start with the imperative `Task` class. This approach leans in to an object-oriented style of programming, where tasks are explicitly defined and configured. This can be beneficial for users who prefer a more explicit and structured approach to defining tasks, with fine-grained control over task properties and behavior. 
+
+The functional `@task` decorator creates tasks that look and behave like functions, making them relatively easy to define and use. The functional API is especially useful for prototyping, simple workflows, and tasks that do not have complex dependencies. This is because the functional API is eagerly executed by default. On the one hand this simplifies workflow design, but it also prevents agents from optimizing their work based on knowledge of the entire workflow.
+
+## Advantages of the imperative API
+The imperative API, using the `Task` class, offers the following advantages:
+
+1. **Explicit control over task definition**: The `Task` class allows you to specify detailed objectives, instructions, agents, context, and result types for each task, providing fine-grained control over task behavior.
+
+2. **Dynamic task creation**: Tasks can be created dynamically based on runtime conditions or data, enabling more flexible and dynamic workflows.
+
+3. **Lazy execution**: The imperative API provides access to fine-grained control over task execution, dependencies, and error handling, allowing you to customize the workflow behavior as needed.
+
+
+## Advantages of the functional API
+The functional `@task` API offers several advantages:
+
+1. **Automatic inference of task properties**: The `@task` decorator automatically infers task properties such as the objective, instructions, context, and result type from the function definition, reducing the need for explicit configuration.
+
+2. **Eager execution**: Task-decorated functions are executed eagerly by default, which can be beneficial for some workflows and provide a more intuitive programming experience.
+
+## Mixing functional and imperative APIs
+ControlFlow allows you to mix functional and imperative APIs within a workflow, leveraging the strengths of both approaches. Most commonly, you'll seamlessly combine `@flow`-decorated functions with `Task` objects, but you can switch APIs at any time.
+
+Here's an example that demonstrates mixing functional and imperative tasks:
+
+```python
+from controlflow import flow, task, Task
+
+@task
+def preprocess_data(raw_data: str) -> pd.DataFrame:
+    """Preprocess the raw data and return a cleaned DataFrame."""
+    pass
+
+@flow
+def my_flow():
+    raw_data = load_raw_data()
+    cleaned_data = preprocess_data(raw_data)
+
+    analysis_task = Task(
+        objective="Perform exploratory data analysis",
+        context={"data": cleaned_data},
+        result_type=dict,
+    )
+
+    insights = analysis_task.run()
+    generate_report(insights)
+```
+
+In this example, the `preprocess_data` task is defined using the `@task` decorator, while the `analysis_task` is created imperatively using the `Task` class. The `preprocess_data` task is executed eagerly, and its result (`cleaned_data`) is passed as context to the `analysis_task`.
+
+By mixing functional and imperative tasks, you can design workflows that are both expressive and flexible, allowing you to leverage the strengths of each approach as needed.
+
+
+## Execution modes
+
+One of the key differences between the functional and imperative APIs is how tasks are executed. The functional API defaults to eager execution, where tasks are executed immediately when called, while the imperative API defaults to lazy execution, where tasks are executed only when necessary. To learn more about these two modes, see the [Execution Mode](/docs/concepts/execution-modes) guide.
