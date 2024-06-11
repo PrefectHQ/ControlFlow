@@ -14,7 +14,7 @@ def round_robin(
     return agents[task._iteration % len(agents)]
 
 
-def classify_moderator(
+def moderator(
     agents: list[Agent],
     tasks: list[Task],
     context: dict = None,

@@ -149,8 +149,8 @@ class Controller(BaseModel):
             # get an agent from the next ready task
             agents = ready_tasks[0].get_agents()
             if len(agents) != 1:
-                moderator = ready_tasks[0].get_moderator()
-                agent = moderator(agents=agents, task=ready_tasks[0], flow=self.flow)
+                strategy_fn = ready_tasks[0].get_agent_strategy()
+                agent = strategy_fn(agents=agents, task=ready_tasks[0], flow=self.flow)
                 ready_tasks[0]._iteration += 1
             else:
                 agent = agents[0]
