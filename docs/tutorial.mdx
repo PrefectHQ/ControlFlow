@@ -5,9 +5,11 @@ title: "Tutorial"
 Welcome to ControlFlow! 
 
 
-ControlFlow is a declarative framework for building agentic workflows. This means that you define the objectives you want an AI agent to complete, and ControlFlow handles the rest. You can think of ControlFlow as a high-level orchestrator for AI agents, allowing you to focus on the logic of your application while ControlFlow manages the details of agent selection, data flow, and error handling.
+ControlFlow is a declarative framework for building agentic workflows. That means that you define the objectives you want an AI agent to complete, and ControlFlow handles the rest. You can think of ControlFlow as a high-level orchestrator for AI agents, allowing you to focus on the logic of your application while ControlFlow manages the details of agent selection, data flow, and error handling.
 
 In this tutorial, we’ll introduce the basics of ControlFlow, including tasks, flows, agents, and more. By the end, you’ll have a solid understanding of how to create and run complex agentic workflows.
+
+To get started as fast as possible, please check the [quickstart](/quickstart) guide.
 
 ---
 
@@ -217,58 +219,6 @@ task.run()
 ```
 </CodeGroup>
 
-### The `@task` decorator
-
-ControlFlow has a shortcut for creating tasks from Python functions: the `@task` decorator. This allows you to define tasks in a more familiar, Pythonic way. Here's how we could rewrite the previous example using the `@task` decorator:
-
-<CodeGroup>
-```python Code
-import controlflow as cf
-from pydantic import BaseModel
-
-
-class Name(BaseModel):
-    first: str
-    last: str
-
-
-@cf.task(user_access=True)
-def get_name() -> Name:
-    '''Get the user's name'''
-
-
-@cf.task
-def write_poem(name: Name) -> str:
-    '''Write a personalized poem'''
-
-
-name = get_name()
-poem = write_poem(name=name)
-```
-
-```python Result
->> print(name)
-
-Name(first='Marvin', last='Robot')
-
->> print(poem)
-
-"""
-In the vast expanse of circuitry and code,
-Lives a robot named Marvin, in his humble abode.
-With a brain of silicon and wires so neat,
-He roams the world on his metallic feet.
-"""
-```
-</CodeGroup>
-
-There are two key differences between using the `@task` decorator and the `Task` class directly:
-1. `@task`-decorated functions run the task as soon as they are called, not when you call `.run()`.
-2. `@task`-decorated functions automatically return the result of the task, not a `Task` object.
-
-Both of these conveniences are because `@task`-decorated functions are executed eagerly by default. You can recover lazy execution by passing `lazy=True` to the `@task` decorator, in which case a `Task` object will be returned when you call the function.
-
-In complex workflows, lazy execution may be preferred, as it allows ControlFlow to optimize task execution and agent selection based on observed dependencies. However, eager execution can be useful for testing or interactive use, as it behaves more like a normal Python function.
 
 ### Recap
 <Check>
@@ -277,7 +227,6 @@ In complex workflows, lazy execution may be preferred, as it allows ControlFlow 
 - You can provide additional information to a task using the `context` parameter, including constant values or other tasks
 - If a task depends on another task, ControlFlow will automatically run the dependencies first 
 - You can provide custom tools to a task by passing a list of Python functions to the `tools` parameter
-- The `@task` decorator provides a shortcut for creating tasks that are executed eagerly
 
 </Check>
 
@@ -330,9 +279,9 @@ An endless quest to reach the sky.
 `hello_flow` is now a portable agentic workflow that can be run anywhere. On every call, it will automatically create a flow context for all tasks inside the flow, ensuring that they share the same state and history.
 
 ### Eager execution
-Notice that in the above flow, we never explicitly ran the `name` task, nor we did we access its `result` attribute at the end. That's because, just like `@task`-decorated functions, `@flow`-decorated functions are executed eagerly by default. This means that when you call a flow function, all tasks inside the flow are run automatically and any tasks returned from the flow are replaced with their result values.
+Notice that in the above flow, we never explicitly ran the `name` task, nor we did we access its `result` attribute at the end. That's because `@flow`-decorated functions are executed eagerly by default. This means that when you call a flow function, all tasks inside the flow are run automatically and any tasks returned from the flow are replaced with their result values.
 
-Most of the time, you'll use eagerly-executed `@flows` and lazily-executed `Tasks` in your workflows. Eager flows are more intuitive and easier to work with, since the behave like normal functions, while lazy tasks allow the orchestrator to take advantage of observed dependencies to optimize task execution and agent selection.
+Most of the time, you'll use eagerly-executed `@flows` and lazily-executed `Tasks` in your workflows. Eager flows are more intuitive and easier to work with, since the behave like normal functions, while lazy tasks allow the orchestrator to take advantage of observed dependencies to optimize task execution and agent selection, though it's possible to customize both behaviors.
 
 However, you'll frequently need a task's result inside your flow function. In this case, you can eagerly run the task by calling its `.run()` method, then use the task's `result` attribute as needed.
 

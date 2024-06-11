@@ -1,0 +1,122 @@
+---
+title: "Quickstart"
+---
+
+In this quickstart guide, we'll introduce ControlFlow and guide you through creating a simple workflow using tasks, flows, and agents as quickly as possible.
+
+If you'd like a more in-depth tour, including explanations of each concept and advanced features, check out the [full tutorial](/tutorial).
+
+
+
+## Task basics
+
+ControlFlow is a declarative framework for building agentic workflows. That means you define the objectives you want an AI agent to complete, and ControlFlow handles the rest. 
+
+Let's create two dependent tasks: one to get the user's name and another to write a poem using that name.
+
+```python
+import controlflow as cf
+
+name_task = cf.Task(
+    "Get the user's name",
+    user_access=True, 
+)
+
+poem_task = cf.Task(
+    "Write a four-line poem using the user's name",
+    result_type=list[str],
+    context=dict(name=name_task),
+)
+```
+
+There are a few important things to note here:
+- The `name_task` has `user_access=True`, which means its agent is allowed to communicate with the user.
+- The `poem_task` has a `result_type` argument that specifies the type of result it will return. In this case, it will return a list of strings, one for each line of the poem.
+- The `poem_task` has a `context` argument that defines a dependency on `name_task`. This means the poem task will use the result of the name task when it runs.
+
+Now, let's run the tasks:
+
+```python
+poem_task.run()
+```
+
+Note that even though we only explicitly ran `poem_task`, ControlFlow automatically runs `name_task` first because `poem_task` depends on its result. You should see an interactive prompt in your terminal asking for your name.
+
+When the tasks finish running, you can see the result of a task by accessing its `result` attribute. In this case, if you provided the name "Marvin Robot", you might get a poem like this:
+
+```python
+>> print(poem_task.result)
+
+[
+    'Marvin Robot, a name so grand,',
+    'In a world of circuits, takes a stand.',
+    'With logic and reason, thoughts so clear,',
+    'Guiding us forward, year after year.'
+ ]
+```
+
+## Flows and agents
+
+Running individual tasks is convenient, but for moderately interesting workflows you'll need to create a flow. A flow provides a shared context and history for agents working on a collection of tasks, even if the tasks don't depend on each other. To create a flow, use the `@cf.flow` decorator with any function.
+
+In addition, you can assign specialized agents to tasks. This allows you to use different AI models for different tasks, depending on their requirements.
+
+Here is a complete example of building a flow with tasks and agents:
+
+```python
+import controlflow as cf
+from langchain_openai import ChatOpenAI
+
+
+# create an agent that uses GPT-3.5 and talks like a pirate
+gpt_35_agent = cf.Agent(
+    name="GPT-35-Agent",
+    model=ChatOpenAI(model='gpt-3.5-turbo'),
+    instructions='You talk like a pirate',
+)
+
+# assign the agent to the name task
+name_task = cf.Task(
+    "Get the user's name",
+    user_access=True, 
+    agents=[gpt_35_agent],
+)
+
+# create a flow to generate poems
+@cf.flow
+def poem_flow(topic:str):
+    
+    # get the user's name
+    name = name_task.run()
+
+    # if the name is 6 characters or less, write a haiku
+    if len(name) <= 6:
+        poem_task = cf.Task(
+            "Write a haiku with the user's name and provided topic",
+            context=dict(name=name_task, topic=topic),
+        )
+
+    # otherwise write a Dr. Seuss-style poem
+    else:
+        poem_task = cf.Task(
+            "Write a poem in the style of Dr. Seuss "
+            "with the user's name and provided topic",
+            context=dict(name=name_task, topic=topic),
+        )
+
+    return poem_task
+
+
+poem_flow(topic='pirates')
+```
+
+In this flow, we demonstrate a number of advanced features:
+- We create a GPT-3.5 agent using the `ChatOpenAI` model from the `langchain_openai` package and assign it to the `name_task`.
+- We eagerly run the `name_task` to get the user's name, then use the name to dynamically create a `poem_task` based on the length of the name
+- We return the `poem_task` from the flow. When the flow is run, it will return the result of that task.
+
+
+
+## Next Steps
+
+This quickstart introduced all of the building blocks of ControlFlow: tasks, flows, dependencies, and agents. For more in-depth information and advanced use cases, check out the [full tutorial](/tutorial).
