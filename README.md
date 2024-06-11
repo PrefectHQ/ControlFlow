@@ -2,30 +2,32 @@
 
 # ControlFlow
 
-ControlFlow is a Python framework that simplifies the process of building AI-powered applications by providing a structured approach to orchestrating AI agents alongside traditional code. It allows developers to engage specialized AI models for specific tasks, while seamlessly integrating their results back into the main application workflow.
+ControlFlow is a Python framework for building agentic LLM workflows. It provides a structured approach to orchestrating AI agents alongside traditional code, making AI applications easier to build, maintain, and trust.
+
+ControlFlow uses a structured, declaratiave approach to building AI workflows. You define the objectives you want your agents to complete, and the framework coordinates their activity to achieve them. You can think of ControlFlow as a high-level orchestrator for AI agents, allowing you to focus on the logic of your application while ControlFlow manages the details of agent selection, data flow, and error handling.
 
 ## Why ControlFlow?
 
-Building AI applications often involves wrestling with complex, monolithic models that can be difficult to control and integrate into existing software. ControlFlow offers a more targeted and developer-friendly approach:
+Building AI workflows often involves wrestling with complex, unpredictable AI agents that can be difficult to control or integrate into existing software. ControlFlow offers a more targeted and developer-friendly approach:
 
-- Break down your application into smaller, well-defined tasks
+- Break your workflow into small, well-defined tasks
 - Assign tasks to specialized AI agents, providing clear instructions and constraints
 - Seamlessly integrate AI-generated results back into your application logic
 
-This targeted approach results in AI systems that are easier to build, maintain, and understand.
+ControlFlow's design reflects the opinion that AI agents are most effective when they are given clear, well-defined tasks and constraints. By structuring your application in this way, you can leverage the power of autonomous AI while maintaining visibility and control over its behavior.
 
 ## Key Concepts
 
-- **Flow**: A container for an AI-enhanced workflow, defined using the `@flow` decorator. Flows maintain consistent context and history across tasks.
+- **Task**: A discrete objective for AI agents to solve. Use tasks to describe the work you want your agents to perform, including any expected outputs, dependencies, and constraints.
 
-- **Task**: A discrete objective for AI agents to solve, defined using the `@task` decorator or declared inline. Tasks specify the expected inputs and outputs, acting as a bridge between AI agents and traditional code.
+- **Flow**: A shared context for AI workflows. Flows track dependencies and maintain consistent history across tasks, allowing agents to collaborate and share information as they work towards a common goal.
 
-- **Agent**: An AI agent that can be assigned tasks. Agents are powered by specialized AI models that excel at specific tasks, such as text generation or decision making based on unstructured data.
+- **Agent**: An AI agent that can be assigned to tasks. Each agent has specific instructions, tools, or even an LLM model that it uses to complete tasks. By assigning agents to tasks, you can control which AI tools are used for each part of your workflow.
 
 
 ## Get Started
 
-ControlFlow is under active development.
+Please note that ControlFlow is under active development.
 
 ```bash
 git clone https://github.com/PrefectHQ/controlflow.git
@@ -62,7 +64,7 @@ mintlify dev
 ## Example
 
 ```python
-from controlflow import Agent, Task, flow, task, instructions
+import controlflow as cf
 from pydantic import BaseModel
 
 
@@ -71,39 +73,39 @@ class Name(BaseModel):
     last_name: str
 
 
-@task(user_access=True)
-def get_user_name() -> Name:
-    pass
+@cf.flow
+def demo_flow():
+    name_task = cf.Task(
+        objective="Get the user's name",
+        user_access=True,
+        result_type=Name,
+    )
+    
+    # add ad-hoc instructions and run the task immediately
+    with cf.instructions("Talk like a pirate"):
+        name_task.run()
 
+    # create two dependent tasks
+    interests_task = cf.Task(
+        objective="Ask user for three interests",
+        result_type=list[str],
+        user_access=True,
+    )
+    
+    poem_task = cf.Task(
+        objective="Write a poem based on the provided name and interests",
+        agents=[cf.Agent(name="poetry-bot", instructions="loves limericks")],
+        context={"name": name_task, "interests": interests_task},
+    )
+    
 
-@task(agents=[Agent(name="poetry-bot", instructions="loves limericks")])
-def write_poem_about_user(name: Name, interests: list[str]) -> str:
-    """write a poem based on the provided `name` and `interests`"""
-    pass
-
-
-@flow()
-def demo():
-    # set instructions that will be used for multiple tasks
-    with instructions("talk like a pirate"):
-        # define an AI task as a function
-        name = get_user_name()
-
-        # define an AI task imperatively
-        interests = Task(
-            "ask user for three interests", result_type=list[str], user_access=True
-        )
-        interests.run()
-
-    # set instructions for just the next task
-    with instructions("no more than 8 lines"):
-        poem = write_poem_about_user(name, interests.result)
-
-    return poem
+    # return the final task; it will be run and its result will be returned
+    return poem_task
 
 
 if __name__ == "__main__":
-    demo()
+    poem = demo_flow()
+    print(poem)
 ```
 
 
