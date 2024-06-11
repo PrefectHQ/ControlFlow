@@ -30,7 +30,7 @@ ControlFlow's design reflects the opinion that AI agents are most effective when
 Please note that ControlFlow is under active development.
 
 ```bash
-git clone https://github.com/PrefectHQ/controlflow.git
+git clone https://github.com/PrefectHQ/ControlFlow.git
 cd controlflow
 pip install .
 ```
@@ -40,7 +40,7 @@ pip install .
 To install for development:
 
 ```bash
-git clone https://github.com/PrefectHQ/controlflow.git
+git clone https://github.com/PrefectHQ/ControlFlow.git
 cd controlflow
 pip install -e ".[dev]"
 ```
