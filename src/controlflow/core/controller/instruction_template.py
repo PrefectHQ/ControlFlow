@@ -124,9 +124,10 @@ class TasksTemplate(Template):
         Use the appropriate tool to complete a task and provide a result. It may
         take multiple turns or collaboration with other agents to complete a
         task. For example, a task may instruct you to "discuss" "debate" or
-        otherwise collaborate with other agents in order to complete the
-        objective. Once a task is marked as complete, no other agent can
-        interact with it.
+        otherwise work with other agents in order to complete the objective. If
+        so, work with those agents by posting messages to the thread until one
+        of you is ready to complete it. Once you mark a task as complete, no
+        other agent can interact with it.
         
         A task's result is an artifact that represents its objective. If the
         objective requires action that can not be formatted as a result (e.g.

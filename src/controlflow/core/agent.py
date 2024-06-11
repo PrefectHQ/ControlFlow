@@ -1,10 +1,10 @@
 import logging
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
-from pydantic import Field
+from pydantic import Field, field_serializer
 
 import controlflow
-from controlflow.llm.models import BaseChatModel, get_default_model
+from controlflow.llm.models import get_default_model
 from controlflow.tools.talk_to_human import talk_to_human
 from controlflow.utilities.types import ControlFlowModel
 
@@ -18,9 +18,11 @@ def get_default_agent() -> "Agent":
 
 
 class Agent(ControlFlowModel):
+    model_config = dict(arbitrary_types_allowed=True)
     name: str = Field(
         ...,
         description="The name of the agent. This is used to identify the agent in the system and should be unique per assigned task.",
+        pattern=r"^[a-zA-Z0-9_-]+$",
     )
     description: Optional[str] = Field(
         None, description="A description of the agent, visible to other agents."
@@ -35,11 +37,20 @@ class Agent(ControlFlowModel):
         False,
         description="If True, the agent is given tools for interacting with a human user.",
     )
-    model: BaseChatModel = Field(
-        description="The model used by the agent. If not provided, the default model will be used.",
+
+    # note: `model` should be typed as a BaseChatModel but V2 models can't have
+    # V1 attributes without erroring, so we have to use Any.
+    model: Any = Field(
+        description="The LangChain BaseChatModel used by the agent. If not provided, the default model will be used.",
         default_factory=get_default_model,
         exclude=True,
     )
+
+    @field_serializer("tools")
+    def _serialize_tools(self, tools: list[Callable]):
+        tools = controlflow.llm.tools.as_tools(tools)
+        # tools are Pydantic 1 objects
+        return [t.dict(include={"name", "description"}) for t in tools]
 
     def __init__(self, name, **kwargs):
         super().__init__(name=name, **kwargs)

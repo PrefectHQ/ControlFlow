@@ -101,7 +101,7 @@ class Task(ControlFlowModel):
         description="Tools available to every agent working on this task.",
     )
     user_access: bool = False
-    moderator: Optional[Callable] = Field(
+    agent_strategy: Optional[Callable] = Field(
         None,
         description="A function that returns an agent, used for customizing how "
         "the next agent is selected. The returned agent must be one "
@@ -209,7 +209,8 @@ class Task(ControlFlowModel):
     @field_serializer("tools")
     def _serialize_tools(self, tools: list[Callable]):
         tools = controlflow.llm.tools.as_tools(tools)
-        return [t.model_dump({"name", "description"}) for t in tools]
+        # tools are Pydantic 1 objects
+        return [t.dict(include={"name", "description"}) for t in tools]
 
     def friendly_name(self):
         if len(self.objective) > 50:
@@ -462,23 +463,23 @@ class Task(ControlFlowModel):
             else:
                 return [get_default_agent()]
 
-    def get_moderator(self) -> Callable:
+    def get_agent_strategy(self) -> Callable:
         """
-        Get a moderator function for selecting the next agent to work on this
+        Get a function for selecting the next agent to work on this
         task.
 
-        If a moderator is provided, it will be used. Otherwise, the parent
-        task's moderator will be used. Finally, the global default moderator
+        If an agent_strategy is provided, it will be used. Otherwise, the parent
+        task's agent_strategy will be used. Finally, the global default agent_strategy
         will be used (round-robin selection).
         """
-        if self.moderator is not None:
-            return self.moderator
+        if self.agent_strategy is not None:
+            return self.agent_strategy
         elif self.parent:
-            return self.parent.get_moderator()
+            return self.parent.get_agent_strategy()
         else:
-            import controlflow.moderators
+            import controlflow.agent_strategies
 
-            return controlflow.moderators.round_robin
+            return controlflow.agent_strategies.round_robin
 
     def get_tools(self) -> list[Callable]:
         tools = self.tools.copy()
