@@ -121,11 +121,15 @@ def _completion_generator(
 
             # handle tool calls
             for tool_call in response_message.tool_calls:
+                yield CompletionEvent(
+                    type="tool_result_created",
+                    payload=dict(message=response_message, tool_call=tool_call),
+                )
                 tool_result_message = handle_tool_call(tool_call, tools)
+                response_messages.append(tool_result_message)
                 yield CompletionEvent(
                     type="tool_result_done", payload=dict(message=tool_result_message)
                 )
-                response_messages.append(tool_result_message)
 
             # handle invalid tool calls
             for tool_call in response_message.invalid_tool_calls:
@@ -136,7 +140,7 @@ def _completion_generator(
             if counter >= (max_iterations or math.inf):
                 break
 
-    except Exception as exc:
+    except (BaseException, Exception) as exc:
         yield CompletionEvent(type="exception", payload=dict(exc=exc))
         raise
     finally:
@@ -246,11 +250,15 @@ async def _completion_async_generator(
 
             # handle tool calls
             for tool_call in response_message.tool_calls:
+                yield CompletionEvent(
+                    type="tool_result_created",
+                    payload=dict(message=response_message, tool_call=tool_call),
+                )
                 tool_result_message = await handle_tool_call_async(tool_call, tools)
+                response_messages.append(tool_result_message)
                 yield CompletionEvent(
                     type="tool_result_done", payload=dict(message=tool_result_message)
                 )
-                response_messages.append(tool_result_message)
 
             # handle invalid tool calls
             for tool_call in response_message.invalid_tool_calls:
@@ -261,7 +269,7 @@ async def _completion_async_generator(
             if counter >= (max_iterations or math.inf):
                 break
 
-    except Exception as exc:
+    except (BaseException, Exception) as exc:
         yield CompletionEvent(type="exception", payload=dict(exc=exc))
         raise
     finally:
