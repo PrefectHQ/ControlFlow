@@ -1,7 +1,7 @@
 import logging
 from typing import TYPE_CHECKING, Callable, Optional
 
-from pydantic import Field
+from pydantic import Field, field_serializer
 
 import controlflow
 from controlflow.llm.models import BaseChatModel, get_default_model
@@ -40,6 +40,12 @@ class Agent(ControlFlowModel):
         default_factory=get_default_model,
         exclude=True,
     )
+
+    @field_serializer("tools")
+    def _serialize_tools(self, tools: list[Callable]):
+        tools = controlflow.llm.tools.as_tools(tools)
+        # tools are Pydantic 1 objects
+        return [t.dict(include={"name", "description"}) for t in tools]
 
     def __init__(self, name, **kwargs):
         super().__init__(name=name, **kwargs)

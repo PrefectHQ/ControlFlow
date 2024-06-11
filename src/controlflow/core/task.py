@@ -209,7 +209,8 @@ class Task(ControlFlowModel):
     @field_serializer("tools")
     def _serialize_tools(self, tools: list[Callable]):
         tools = controlflow.llm.tools.as_tools(tools)
-        return [t.model_dump({"name", "description"}) for t in tools]
+        # tools are Pydantic 1 objects
+        return [t.dict(include={"name", "description"}) for t in tools]
 
     def friendly_name(self):
         if len(self.objective) > 50:
