@@ -8,7 +8,7 @@
         },
         {
             "icon": "book-open-cover",
-            "name": "Documentation",
+            "name": "Docs",
             "url": "/"
         },
         {
@@ -107,7 +107,7 @@
     ],
     "tabs": [
         {
-            "name": "Glossary",
+            "name": "AI Glossary",
             "url": "glossary"
         }
     ],
