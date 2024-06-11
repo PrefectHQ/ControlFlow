@@ -21,13 +21,13 @@
         "light": "#E44BF4",
         "primary": "#2D6DF6"
     },
-    "favicon": "/assets/logo_2.webp",
+    "favicon": "/assets/ControlFlow.jpeg",
     "footerSocials": {
         "github": "https://github.com/prefecthq/controlflow"
     },
     "logo": {
-        "dark": "/assets/logo_2.webp",
-        "light": "/assets/logo_2.webp"
+        "dark": "/assets/ControlFlow.jpeg",
+        "light": "/assets/ControlFlow.jpeg"
     },
     "name": "ControlFlow",
     "navigation": [
