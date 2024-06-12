@@ -1,6 +1,5 @@
 [project]
 name = "controlflow"
-version = "0.6.0"
 dynamic = ["version"]
 description = "A framework for building agentic LLM workflows"
 authors = [
