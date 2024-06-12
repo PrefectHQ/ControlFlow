@@ -22,3 +22,9 @@ from .llm.history import DEFAULT_HISTORY
 
 default_history = DEFAULT_HISTORY
 del DEFAULT_HISTORY
+
+
+try:
+    from ._version import version as __version__
+except ImportError:
+    __version__ = "unknown"
