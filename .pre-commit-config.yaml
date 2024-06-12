@@ -18,7 +18,5 @@ repos:
               - langchain_anthropic
               - langchain_openai
               - langchain_google_genai
-              - pytest
-              - pytest_mock
-          files: ^(src/controlflow/llm/models.py|tests/llm/test_models.py)$
+          files: ^(src/controlflow/llm/models.py)$
           args: [--strict]
