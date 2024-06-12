@@ -13,13 +13,16 @@ class MessageMixin(langchain_core.messages.BaseMessage):
     class Config:
         validate_assignment = True
 
-    # default ID value
-    id: str = v1_Field(default_factory=lambda: uuid.uuid4().hex)
-
     # add timestamp
     timestamp: datetime.datetime = v1_Field(
         default_factory=lambda: datetime.datetime.now(datetime.timezone.utc),
     )
+
+    def __init__(self, **data):
+        # for some reason the id is not set if we add a default_factory
+        if data.get("id") is None:
+            data["id"] = uuid.uuid4().hex
+        super().__init__(**data)
 
     def render(self, **kwargs) -> "MessageType":
         """

@@ -1,4 +1,3 @@
-import datetime
 import math
 from typing import AsyncGenerator, Callable, Generator, Optional, Union
 
@@ -18,6 +17,45 @@ from controlflow.llm.tools import (
     handle_tool_call,
     handle_tool_call_async,
 )
+
+
+def handle_delta_events(
+    delta: AIMessageChunk, deltas: list[AIMessageChunk], snapshot: AIMessageChunk
+):
+    """
+    Emit events for the given delta message.
+    """
+    if delta.content:
+        if not deltas[-1].content:
+            yield CompletionEvent(type="message_created", payload=dict(delta=delta))
+        if delta.content != deltas[-1].content:
+            yield CompletionEvent(
+                type="message_delta",
+                payload=dict(delta=delta, snapshot=snapshot),
+            )
+
+    if delta.tool_call_chunks:
+        if not deltas[-1].tool_call_chunks:
+            yield CompletionEvent(type="tool_call_created", payload=dict(delta=delta))
+        yield CompletionEvent(
+            type="tool_call_delta",
+            payload=dict(delta=delta, snapshot=snapshot),
+        )
+
+
+def handle_done_events(message: AIMessage):
+    """
+    Emit events for the given message when it has been processed.
+    """
+    if message.content:
+        yield CompletionEvent(type="message_done", payload=dict(message=message))
+    if message.tool_calls:
+        yield CompletionEvent(type="tool_call_done", payload=dict(message=message))
+    if message.invalid_tool_calls:
+        yield CompletionEvent(
+            type="invalid_tool_call_done",
+            payload=dict(message=message),
+        )
 
 
 def _completion_generator(
@@ -44,8 +82,6 @@ def _completion_generator(
         # continue as long as the last response message contains tool calls (or
         # there is no response message yet)
         while not response_message or response_message.tool_calls:
-            timestamp = datetime.datetime.now(datetime.timezone.utc)
-
             input_messages = messages + response_messages
             if message_preprocessor is not None:
                 input_messages = message_preprocessor(input_messages)
@@ -60,7 +96,9 @@ def _completion_generator(
                 )
 
             else:
-                deltas: list[AIMessageChunk] = []
+                # initialize the list of deltas with an empty delta
+                # to facilitate comparison with the previous delta
+                deltas: list[AIMessageChunk] = [AIMessageChunk(content="")]
                 snapshot: AIMessageChunk = None
 
                 for delta in model.stream(
@@ -68,53 +106,23 @@ def _completion_generator(
                     **kwargs,
                 ):
                     delta = AIMessageChunk.from_chunk(delta, name=ai_name)
-                    deltas.append(delta)
 
                     if snapshot is None:
                         snapshot = delta
                     else:
                         snapshot = snapshot + delta
 
-                    if len(deltas) == 1:
-                        if delta.tool_call_chunks:
-                            yield CompletionEvent(
-                                type="tool_call_created", payload=dict(delta=delta)
-                            )
-                        else:
-                            yield CompletionEvent(
-                                type="message_created", payload=dict(delta=delta)
-                            )
+                    yield from handle_delta_events(
+                        delta=delta, deltas=deltas, snapshot=snapshot
+                    )
 
-                    if delta.tool_call_chunks:
-                        yield CompletionEvent(
-                            type="tool_call_delta",
-                            payload=dict(delta=delta, snapshot=snapshot),
-                        )
-                    else:
-                        yield CompletionEvent(
-                            type="message_delta",
-                            payload=dict(delta=delta, snapshot=snapshot),
-                        )
+                    deltas.append(delta)
 
                 # the last snapshot message is the response message
                 response_message = snapshot.to_message()
 
-            response_message.timestamp = timestamp
-
-            if response_message.tool_calls or response_message.invalid_tool_calls:
-                if response_message.tool_calls:
-                    yield CompletionEvent(
-                        type="tool_call_done", payload=dict(message=response_message)
-                    )
-                elif response_message.invalid_tool_calls:
-                    yield CompletionEvent(
-                        type="invalid_tool_call_done",
-                        payload=dict(message=response_message),
-                    )
-            else:
-                yield CompletionEvent(
-                    type="message_done", payload=dict(message=response_message)
-                )
+            # handle done events for the response message
+            yield from handle_done_events(response_message)
 
             # append the response message to the list of response messages
             response_messages.append(response_message)
@@ -133,8 +141,15 @@ def _completion_generator(
 
             # handle invalid tool calls
             for tool_call in response_message.invalid_tool_calls:
+                yield CompletionEvent(
+                    type="tool_result_created",
+                    payload=dict(message=response_message, tool_call=tool_call),
+                )
                 invalid_tool_message = handle_invalid_tool_call(tool_call)
                 response_messages.append(invalid_tool_message)
+                yield CompletionEvent(
+                    type="tool_result_done", payload=dict(message=tool_result_message)
+                )
 
             counter += 1
             if counter >= (max_iterations or math.inf):
@@ -171,8 +186,6 @@ async def _completion_async_generator(
         # continue as long as the last response message contains tool calls (or
         # there is no response message yet)
         while not response_message or response_message.tool_calls:
-            timestamp = datetime.datetime.now(datetime.timezone.utc)
-
             input_messages = messages + response_messages
             if message_preprocessor is not None:
                 input_messages = message_preprocessor(input_messages)
@@ -188,7 +201,9 @@ async def _completion_async_generator(
                 )
 
             else:
-                deltas: list[AIMessageChunk] = []
+                # initialize the list of deltas with an empty delta
+                # to facilitate comparison with the previous delta
+                deltas: list[AIMessageChunk] = [AIMessageChunk(content="")]
                 snapshot: AIMessageChunk = None
 
                 async for delta in model.astream(
@@ -197,53 +212,25 @@ async def _completion_async_generator(
                     **kwargs,
                 ):
                     delta = AIMessageChunk.from_chunk(delta, name=ai_name)
-                    deltas.append(delta)
 
                     if snapshot is None:
                         snapshot = delta
                     else:
                         snapshot = snapshot + delta
 
-                    if len(deltas) == 1:
-                        if delta.tool_call_chunks:
-                            yield CompletionEvent(
-                                type="tool_call_created", payload=dict(delta=delta)
-                            )
-                        else:
-                            yield CompletionEvent(
-                                type="message_created", payload=dict(delta=delta)
-                            )
+                    for event in handle_delta_events(
+                        delta=delta, deltas=deltas, snapshot=snapshot
+                    ):
+                        yield event
 
-                    if delta.tool_call_chunks:
-                        yield CompletionEvent(
-                            type="tool_call_delta",
-                            payload=dict(delta=delta, snapshot=snapshot),
-                        )
-                    else:
-                        yield CompletionEvent(
-                            type="message_delta",
-                            payload=dict(delta=delta, snapshot=snapshot),
-                        )
+                    deltas.append(delta)
 
                 # the last snapshot message is the response message
                 response_message = snapshot.to_message()
 
-            response_message.timestamp = timestamp
-
-            if response_message.tool_calls or response_message.invalid_tool_calls:
-                if response_message.tool_calls:
-                    yield CompletionEvent(
-                        type="tool_call_done", payload=dict(message=response_message)
-                    )
-                elif response_message.invalid_tool_calls:
-                    yield CompletionEvent(
-                        type="invalid_tool_call_done",
-                        payload=dict(message=response_message),
-                    )
-            else:
-                yield CompletionEvent(
-                    type="message_done", payload=dict(message=response_message)
-                )
+            # handle done events for the response message
+            for event in handle_done_events(response_message):
+                yield event
 
             # append the response message to the list of response messages
             response_messages.append(response_message)
@@ -262,8 +249,15 @@ async def _completion_async_generator(
 
             # handle invalid tool calls
             for tool_call in response_message.invalid_tool_calls:
+                yield CompletionEvent(
+                    type="tool_result_created",
+                    payload=dict(message=response_message, tool_call=tool_call),
+                )
                 invalid_tool_message = handle_invalid_tool_call(tool_call)
                 response_messages.append(invalid_tool_message)
+                yield CompletionEvent(
+                    type="tool_result_done", payload=dict(message=tool_result_message)
+                )
 
             counter += 1
             if counter >= (max_iterations or math.inf):
@@ -281,7 +275,10 @@ def _handle_events(
 ) -> Generator[CompletionEvent, None, None]:
     for event in generator:
         for handler in handlers:
-            handler.on_event(event)
+            try:
+                handler.on_event(event)
+            except Exception as exc:
+                generator.throw(exc)
         yield event
 
 
@@ -290,7 +287,10 @@ async def _handle_events_async(
 ) -> AsyncGenerator[CompletionEvent, None]:
     async for event in generator:
         for handler in handlers:
-            handler.on_event(event)
+            try:
+                handler.on_event(event)
+            except Exception as exc:
+                generator.throw(exc)
         yield event
 
 
