@@ -47,7 +47,6 @@ tests = [
     "pytest-sugar>=0.9,<2.0",
     "pytest>=7.0",
     "pytest-timeout",
-    "pytest_mock",
     "pytest-xdist",
     "pandas",
 ]
@@ -58,7 +57,6 @@ dev = [
     "pre-commit",
     "ruff>=0.3.4",
     "textual-dev",
-    "mypy",
 ]
 
 [build-system]

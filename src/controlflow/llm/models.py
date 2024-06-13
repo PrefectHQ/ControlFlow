@@ -1,61 +1,61 @@
-from importlib import import_module
-from typing import TYPE_CHECKING, Any, Optional, Union
-
 from langchain_core.language_models import BaseChatModel
 
 import controlflow
 
-if TYPE_CHECKING:
-    from langchain_anthropic import ChatAnthropic
-    from langchain_google_genai import ChatGoogleGenerativeAI
-    from langchain_openai import AzureChatOpenAI, ChatOpenAI
-
-_model_registry: dict[str, tuple[str, str]] = {
-    "openai": ("langchain_openai", "ChatOpenAI"),
-    "azure_openai": ("langchain_openai", "AzureChatOpenAI"),
-    "anthropic": ("langchain_anthropic", "ChatAnthropic"),
-    "google": ("langchain_google_genai", "ChatGoogleGenerativeAI"),
-}
-
-
-def get_provider_from_string(
-    provider: str,
-) -> Union[
-    type["ChatOpenAI"],
-    type["AzureChatOpenAI"],
-    type["ChatAnthropic"],
-    type["ChatGoogleGenerativeAI"],
-]:
-    module_name, class_name = _model_registry.get(provider, ("openai", ""))
-    if not class_name:
-        raise ValueError(
-            f"Could not load provider automatically: {provider}. Please create your model manually."
-        )
-    try:
-        module = import_module(module_name)
-    except ImportError:
-        raise ImportError(
-            f"To use {provider} models, please install the `{module_name}` package."
-        )
-    return getattr(module, class_name)  # type: ignore[no-any-return]
-
-
-def get_model_from_string(
-    model: Optional[str] = None, temperature: Optional[float] = None, **kwargs: Any
-) -> BaseChatModel:
-    provider, _, model = (model or controlflow.settings.llm_model).partition("/")
-    return get_provider_from_string(provider=provider)(
-        name=model or controlflow.settings.llm_model,
-        temperature=temperature or controlflow.settings.llm_temperature,
-        **kwargs,
-    )
-
 
 def get_default_model() -> BaseChatModel:
     if controlflow.default_model is None:
-        return get_model_from_string(controlflow.settings.llm_model)
+        return model_from_string(controlflow.settings.llm_model)
     else:
         return controlflow.default_model
+
+
+def model_from_string(model: str, temperature: float = None, **kwargs) -> BaseChatModel:
+    if "/" not in model:
+        provider, model = "openai", model
+    provider, model = model.split("/")
+
+    if temperature is None:
+        temperature = controlflow.settings.llm_temperature
+
+    if provider == "openai":
+        try:
+            from langchain_openai import ChatOpenAI
+        except ImportError:
+            raise ImportError(
+                "To use OpenAI models, please install the `langchain-openai` package."
+            )
+        cls = ChatOpenAI
+    elif provider == "azure-openai":
+        try:
+            from langchain_openai import AzureChatOpenAI
+        except ImportError:
+            raise ImportError(
+                "To use Azure OpenAI models, please install the `langchain-openai` package."
+            )
+        cls = AzureChatOpenAI
+    elif provider == "anthropic":
+        try:
+            from langchain_anthropic import ChatAnthropic
+        except ImportError:
+            raise ImportError(
+                "To use Anthropic models, please install the `langchain-anthropic` package."
+            )
+        cls = ChatAnthropic
+    elif provider == "google":
+        try:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+        except ImportError:
+            raise ImportError(
+                "To use Google models, please install the `langchain_google_genai` package."
+            )
+        cls = ChatGoogleGenerativeAI
+    else:
+        raise ValueError(
+            f"Could not load provider automatically: {provider}. Please create your model manually."
+        )
+
+    return cls(model=model, temperature=temperature, **kwargs)
 
 
 DEFAULT_MODEL = None

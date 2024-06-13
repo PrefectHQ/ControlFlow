@@ -29,4 +29,3 @@ jobs:
           python-version: "3.9"
       - name: Run pre-commit
         uses: pre-commit/action@v3.0.1
-        
