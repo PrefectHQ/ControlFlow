@@ -15,6 +15,58 @@ LLMs are powerful AI models that can understand and generate human-like text, en
 
 ControlFlow provides a structured and intuitive way to create sophisticated agentic workflows while adhereing to traditional software engineering best practices. The resulting applications are observable, controllable, and easy to trust.
 
+<CodeGroup>
+```python Example: Restaurant recommendations
+from controlflow import flow, Task
+from pydantic import BaseModel
+
+
+class Restaurant(BaseModel):
+    name: str
+    description: str
+
+
+@flow
+def restaurant_recs(n:int) -> list[Restaurant]:
+    """
+    An agentic workflow that asks the user for their location and 
+    cuisine preference, then recommends n restaurants based on their input.
+    """
+    location = Task("Get a location", user_access=True)
+    cuisine = Task("Get a type of restaurant", user_access=True)
+    recs = Task(
+        f"Recommend {n} restaurants to the user", 
+        result_type=list[Restaurant], 
+        context=dict(location=location, cuisine=cuisine),
+    )
+    return recs
+
+
+recs = restaurant_recs(n=3)
+```
+```python Result
+# >> Agent: Hi! Could you please tell me your current location? Also, 
+#    what type of cuisine are you in the mood for?
+
+# >> User: I'm in DC looking for a cafe
+
+# recs
+[
+    Restaurant(
+        name="Compass Coffee",
+        description="A popular coffee shop known for its quality coffee and relaxed atmosphere.",
+    ),
+    Restaurant(
+        name="The Wydown Coffee Bar",
+        description="A stylish cafe offering specialty coffee, pastries, and a cozy environment.",
+    ),
+    Restaurant(
+        name="Tryst Coffeehouse",
+        description="A vibrant coffeehouse with great coffee, food options, and a welcoming ambiance.",
+    ),
+]
+```
+</CodeGroup>
 ## Design principles
 
 ControlFlow's design is informed by a strong opinion: LLMs are powerful tools, but they are most effective when applied to small, well-defined tasks within a structured workflow. This approach mitigates many of the challenges associated with LLMs, such as hallucinations, biases, and unpredictable behavior, while also making it easier to debug, monitor, and control the application.

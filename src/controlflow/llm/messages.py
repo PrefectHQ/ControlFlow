@@ -40,6 +40,15 @@ class HumanMessage(langchain_core.messages.HumanMessage, MessageMixin):
 class AIMessage(langchain_core.messages.AIMessage, MessageMixin):
     role: Literal["ai"] = v1_Field("ai", exclude=True)
 
+    def __init__(self, **data):
+        super().__init__(**data)
+
+        # GPT-4 models somtimes use a hallucinated parallel tool calling mechanism
+        # whose name is not compatible with the API's restrictions on tool names
+        for tool_call in self.tool_calls:
+            if tool_call["name"] == "multi_tool_use.parallel":
+                tool_call["name"] = "multi_tool_use_parallel"
+
     def has_tool_calls(self) -> bool:
         return any(self.tool_calls)
 

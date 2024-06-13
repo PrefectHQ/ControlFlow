@@ -17,6 +17,7 @@ from controlflow.llm.completions import completion, completion_async
 from controlflow.llm.handlers import PrintHandler, ResponseHandler, TUIHandler
 from controlflow.llm.history import History
 from controlflow.llm.messages import AIMessage, MessageType, SystemMessage
+from controlflow.llm.tools import as_tools
 from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
 from controlflow.utilities.tasks import all_complete, any_incomplete
@@ -183,13 +184,12 @@ class Controller(BaseModel):
                 handlers.append(TUIHandler())
             if controlflow.settings.enable_print_handler:
                 handlers.append(PrintHandler())
-
             with ctx(controller_agent=agent):
                 # yield the agent payload
                 yield dict(
                     agent=agent,
                     messages=[system_message] + messages,
-                    tools=tools,
+                    tools=as_tools(tools),
                     handlers=handlers,
                 )
 
