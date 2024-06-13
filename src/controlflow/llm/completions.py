@@ -161,7 +161,7 @@ def _completion_generator(
                 invalid_tool_message = handle_invalid_tool_call(tool_call)
                 response_messages.append(invalid_tool_message)
                 yield CompletionEvent(
-                    type="tool_result_done", payload=dict(message=tool_result_message)
+                    type="tool_result_done", payload=dict(message=invalid_tool_message)
                 )
 
             counter += 1
@@ -272,7 +272,7 @@ async def _completion_async_generator(
                 invalid_tool_message = handle_invalid_tool_call(tool_call)
                 response_messages.append(invalid_tool_message)
                 yield CompletionEvent(
-                    type="tool_result_done", payload=dict(message=tool_result_message)
+                    type="tool_result_done", payload=dict(message=invalid_tool_message)
                 )
 
             counter += 1
