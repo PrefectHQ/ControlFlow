@@ -8,3 +8,15 @@ repos:
         args: [ --fix ]
       # Run the formatter.
       - id: ruff-format
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.9.0
+    hooks:
+        - id: mypy
+          additional_dependencies:
+              - pydantic>=2,<3.0.0
+              - langchain_core
+              - langchain_anthropic
+              - langchain_openai
+              - langchain_google_genai
+          files: ^(src/controlflow/llm/models.py)$
+          args: [--strict]
