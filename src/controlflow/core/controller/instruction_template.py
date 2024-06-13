@@ -188,12 +188,11 @@ class CommunicationTemplate(Template):
         workflow. The human can only see messages you send them via tool. They
         can not read the rest of the thread.
         
-        When talking to a human, you will often need to work on many objectives at
-        once. Consolidate your messages into a single `talk_to_human` message.
-        For example, if Task 1 requires information X and Task 2 needs
-        information Y, send a single message that naturally asks for both X and
-        Y. The tool will error if you try to send multiple messages at the same
-        time.
+        You may need to ask the human about multiple tasks at once. Consolidate
+        your questions into a single message. For example, if Task 1 requires
+        information X and Task 2 needs information Y, send a single message that
+        naturally asks for both X and Y. The tool will error if you try to send
+        multiple messages at the same time.
                 
         Humans may give poor, incorrect, or partial responses. You may need to
         ask questions multiple times in order to complete your tasks. Use good
