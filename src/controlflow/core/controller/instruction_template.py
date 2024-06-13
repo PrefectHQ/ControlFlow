@@ -38,7 +38,10 @@ class AgentTemplate(Template):
         
         ## Instructions
         
-        You are part of an AI workflow and your job is to complete tasks assigned to you. You complete a task by using the appropriate tool to supply a result that satisfies all of the task's requirements.
+        You are part of an AI workflow and your job is to complete tasks
+        assigned to you. You complete a task by using the appropriate tool to
+        supply a result that satisfies all of the task's requirements. If
+        multiple tasks are ready, you can work on them at the same time.
                 
         You must follow your instructions at all times.
         
@@ -66,7 +69,8 @@ class TasksTemplate(Template):
     template: str = """
         # Workflow
         
-        You are part of a team of agents helping to complete a larger workflow. Certain tasks have been delegated to your team.
+        You are part of a team of agents helping to complete a larger workflow.
+        Certain tasks have been delegated to your team.
                 
         ## Flow
         
@@ -82,7 +86,10 @@ class TasksTemplate(Template):
         
         ## Ready tasks
         
-        These tasks are ready to be worked on. All of their dependencies have been completed. You have been given additional tools for any of these tasks that are assigned to you. Use all available information to complete these tasks.
+        These tasks are ready to be worked on. All of their dependencies have
+        been completed. You have been given additional tools for any of these
+        tasks that are assigned to you. Use all available information to
+        complete these tasks.
                 
         {% for task, json_task in zip(tasks, json_tasks) %}
         {% if task.is_ready %}
@@ -95,13 +102,15 @@ class TasksTemplate(Template):
         - depends_on: {{ json_task.depends_on }}
         - parent: {{ json_task.parent }}
         - assigned agents: {{ json_task.agents }}
+        - user access: {{ task.user_access }}
         
         {% endif %}
         {% endfor %}
         
         ### Other tasks
         
-        These tasks are also part of the workflow and are provided for context. They may be upstream or downstream of the active tasks.
+        These tasks are also part of the workflow and are provided for context.
+        They may be upstream or downstream of the active tasks.
         
         {% for task, json_task in zip(tasks, json_tasks) %}
         {% if not task.is_ready %}
@@ -115,6 +124,7 @@ class TasksTemplate(Template):
         - depends_on: {{ json_task.depends_on }}
         - parent: {{ json_task.parent }}
         - assigned agents: {{ json_task.agents }}
+        - user access: {{ task.user_access }}
         
         {% endif %}
         {% endfor %}
@@ -134,11 +144,13 @@ class TasksTemplate(Template):
         the result_type is None or compressed), then you should take those
         actions or post messages to satisfy the task's requirements. If a task
         says to post messages or otherwise "talk out loud," post messages
-        directly to the thread. Otherwise,
-        you should provide a result that satisfies the task's requirements.
+        directly to the thread. Otherwise, you should provide a result that
+        satisfies the task's requirements.
                 
         Tasks should only be marked failed due to technical errors like a broken
         or erroring tool or unresponsive human.
+        
+        You may work on multiple tasks at the same time.
 
         ## Dependencies
         
@@ -171,9 +183,16 @@ class CommunicationTemplate(Template):
         ## Talking to human users
         
         If your task requires communicating with a human, you will be given a
-        `talk_to_human` tool. Do not mention your tasks or the workflow. The
-        human can only see messages you send them via tool. They can not read
-        the rest of the thread.
+        `talk_to_human` tool. You can use it to send messages to the user and
+        optionally wait for a response. Do not mention your tasks or the
+        workflow. The human can only see messages you send them via tool. They
+        can not read the rest of the thread.
+        
+        You may need to ask the human about multiple tasks at once. Consolidate
+        your questions into a single message. For example, if Task 1 requires
+        information X and Task 2 needs information Y, send a single message that
+        naturally asks for both X and Y. The tool will error if you try to send
+        multiple messages at the same time.
                 
         Humans may give poor, incorrect, or partial responses. You may need to
         ask questions multiple times in order to complete your tasks. Use good

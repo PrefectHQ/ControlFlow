@@ -12,6 +12,7 @@ from controlflow.llm.handlers import (
 )
 from controlflow.llm.messages import AIMessage, AIMessageChunk, MessageType
 from controlflow.llm.tools import (
+    ToolCall,
     as_tools,
     handle_invalid_tool_call,
     handle_tool_call,
@@ -56,6 +57,17 @@ def handle_done_events(message: AIMessage):
             type="invalid_tool_call_done",
             payload=dict(message=message),
         )
+
+
+def handle_multiple_talk_to_human_calls(tool_call: ToolCall, message: AIMessage):
+    if (
+        tool_call["name"] == "talk_to_human"
+        and len([t for t in message.tool_calls if t["name"] == "talk_to_human"]) > 1
+    ):
+        error = 'Tool call "talk_to_human" can only be used once per turn.'
+    else:
+        error = None
+    return error
 
 
 def _completion_generator(
@@ -133,7 +145,8 @@ def _completion_generator(
                     type="tool_result_created",
                     payload=dict(message=response_message, tool_call=tool_call),
                 )
-                tool_result_message = handle_tool_call(tool_call, tools)
+                error = handle_multiple_talk_to_human_calls(tool_call, response_message)
+                tool_result_message = handle_tool_call(tool_call, tools, error=error)
                 response_messages.append(tool_result_message)
                 yield CompletionEvent(
                     type="tool_result_done", payload=dict(message=tool_result_message)
@@ -241,7 +254,10 @@ async def _completion_async_generator(
                     type="tool_result_created",
                     payload=dict(message=response_message, tool_call=tool_call),
                 )
-                tool_result_message = await handle_tool_call_async(tool_call, tools)
+                error = handle_multiple_talk_to_human_calls(tool_call, response_message)
+                tool_result_message = await handle_tool_call_async(
+                    tool_call, tools, error=error
+                )
                 response_messages.append(tool_result_message)
                 yield CompletionEvent(
                     type="tool_result_done", payload=dict(message=tool_result_message)
