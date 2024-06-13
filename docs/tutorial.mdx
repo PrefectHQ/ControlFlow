@@ -356,46 +356,6 @@ docs_agent = cf.Agent(
 What's the difference between a description and instructions? The description is a high-level overview of the agent's purpose and capabilities, while instructions provide detailed guidance on how the agent should complete a task. Agent descriptions can be seen by other agents, but instructions are private, which can affect how agents collaborate with each other.
 </Tip>
 
-### Choosing an LLM model
-
-By default, agents use OpenAI's GPT-4o model, but you can specify a different model by passing a `model` parameter to the agent. ControlFlow is built on LangChain Core, so you can provide [any LangChain LLM](https://python.langchain.com/v0.1/docs/integrations/chat/) that supports the chat and tool calling APIs. Here are a few examples:
-
-```python
-import controlflow as cf
-from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
-from langchain_google_genai import ChatGoogleGenerativeAI
-
-# GPT-3.5-turbo
-gpt35_agent = cf.Agent(
-    name="GPT-3.5-turbo", 
-    model=ChatOpenAI(model="gpt-3.5-turbo"),
-)
-
-# GPT-4o with low temperature
-gpt4o_low_temp_agent = cf.Agent(
-    name="GPT-4o-low-temp", 
-    model=ChatOpenAI(model="gpt-4o", temperature=0.1),
-)
-
-# Claude 3
-claude_agent = cf.Agent(
-    name="Claude", 
-    model=ChatAnthropic(model='claude-3-opus-20240229'),
-)
-
-# Gemini Pro
-gemini_agent = cf.Agent(
-    name="Gemini", 
-    model=ChatGoogleGenerativeAI(model='gemini-pro'),
-)
-```
-
-Note that ControlFlow only includes `langchain_openai` as a dependency by default. If you want to use other models, you'll need to install the corresponding LangChain package.
-
-<Tip>
-By assigning different agents to tasks, you can take advantage of each model's strenghts, latency, and cost to optimize your workflow.
-</Tip>
 
 
 ### Assigning an agent to a task
@@ -474,3 +434,9 @@ In the above example, we also introduced the `instructions` context manager. Thi
 - Assign an agent to a task by passing it to the task's `agents` parameter
 - You can assign multiple agents to a task to have them collaborate
 </Check>
+
+
+## What's next?
+- Read more about core concepts like [tasks](/concepts/tasks), [flows](/concepts/flows), and [agents](/concepts/agents)
+- Understand ControlFlow's [workflow APIs](/guides/apis) and [execution modes](/guides/execution-modes)
+- Learn how to use [different LLM models](/guides/llms)

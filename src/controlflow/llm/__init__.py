@@ -1,1 +1,1 @@
-from . import handlers, tools, history, completions
+from . import models, messages, history, tools, handlers, completions
