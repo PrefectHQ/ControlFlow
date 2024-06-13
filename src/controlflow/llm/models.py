@@ -3,6 +3,13 @@ from langchain_core.language_models import BaseChatModel
 import controlflow
 
 
+def get_default_model() -> BaseChatModel:
+    if controlflow.default_model is None:
+        return model_from_string(controlflow.settings.llm_model)
+    else:
+        return controlflow.default_model
+
+
 def model_from_string(model: str, temperature: float = None, **kwargs) -> BaseChatModel:
     if "/" not in model:
         provider, model = "openai", model
@@ -19,7 +26,7 @@ def model_from_string(model: str, temperature: float = None, **kwargs) -> BaseCh
                 "To use OpenAI models, please install the `langchain-openai` package."
             )
         cls = ChatOpenAI
-    elif provider == "azure_openai":
+    elif provider == "azure-openai":
         try:
             from langchain_openai import AzureChatOpenAI
         except ImportError:
@@ -51,5 +58,4 @@ def model_from_string(model: str, temperature: float = None, **kwargs) -> BaseCh
     return cls(model=model, temperature=temperature, **kwargs)
 
 
-def get_default_model(**kwargs) -> BaseChatModel:
-    return model_from_string(model=controlflow.settings.llm_model, **kwargs)
+DEFAULT_MODEL = None

@@ -1,0 +1,153 @@
+---
+title: Configuring LLMs
+---
+
+ControlFlow is optimized for workflows that are composed of multiple tasks, each of which can be completed by a different agent. One benefit of this approach is that you can use a different LLM for each task, or even for each agent assigned to a task. 
+
+ControlFlow will ensure that all agents share a consistent context and history, even if they are using different models. This allows you to leverage the relative strengths of different models, depending on your requirements. 
+
+## The default model
+
+By default, ControlFlow uses OpenAI's GPT-4o model. GPT-4o is an extremely powerful and popular model that provides excellent out-of-the-box performance on most tasks. This does mean that to run an agent with no additional configuration, you will need to provide an OpenAI API key. 
+
+## Selecting a different LLM
+
+Every ControlFlow agent can be assigned a specific LLM. When instantiating an agent, you can pass a `model` parameter to specify the LLM to use. 
+
+ControlFlow agents can use any LangChain LLM class that supports chat-based APIs and tool calling. For a complete list of available models, settings, and instructions, please see LangChain's [LLM provider documentation](https://python.langchain.com/docs/integrations/chat/).
+
+<Tip>
+ControlFlow includes OpenAI and Azure OpenAI models by default. To use other models, you'll need to install the corresponding LangChain package first. See the model's documentation for more information.
+</Tip>
+
+
+To configure a different LLM, follow these steps:
+<Steps>
+<Step title="Install required packages">
+To use an LLM, first make sure you have installed the appropriate provider package. ControlFlow only includes `langchain_openai` by default. For example, to use an Anthropic model, first run:
+```
+pip install langchain_anthropic
+```
+</Step>
+<Step title="Configure API keys">
+You must provide the correct API keys and configuration for the LLM you want to use. These can be provided as environment variables or when you create the model in your script. For example, to use an Anthropic model, set the `ANTHROPIC_API_KEY` environment variable:
+
+```
+export ANTHROPIC_API_KEY=<your-api-key>
+```
+For model-specific instructions, please refer to the provider's documentation.
+</Step>
+<Step title="Create the model">
+Begin by creating the LLM object in your script. For example, to use Claude 3 Opus:
+
+```python
+from langchain_anthropic import ChatAnthropic
+
+# create the model
+model = ChatAnthropic(model='claude-3-opus-20240229')
+```
+</Step>
+<Step title="Pass the model to an agent">
+Next, create an agent with the specified model:
+
+```python
+import controlflow as cf
+
+# provide the model to an agent
+agent = cf.Agent(model=model)
+```
+</Step>
+<Step title='Assign the agent to a task'>
+Finally, assign your agent to a task:
+
+```python
+# assign the agent to a task
+task = cf.Task('Write a short poem about LLMs', agents=[agent])
+
+# (optional) run the task
+task.run()
+```
+</Step>
+</Steps>
+
+<Accordion title="Click here to copy the entire example script">
+
+```python
+import controlflow as cf
+from langchain_anthropic import ChatAnthropic
+
+# create the model
+model = ChatAnthropic(model='claude-3-opus-20240229')
+
+# provide the model to an agent
+agent = cf.Agent(model=model)
+
+# assign the agent to a task
+task = cf.Task('Write a short poem about LLMs', agents=[agent])
+
+# (optional) run the task
+task.run()
+```
+</Accordion>
+
+### Model configuration
+
+In addition to choosing a specific model, you can also configure the model's parameters. For example, you can set the temperature for GPT-4o:
+
+```python
+import controlflow as cf
+from langchain_openai import ChatOpenAI
+
+model = ChatOpenAI(model='gpt-4o', temperature=0.1)
+agent = cf.Agent(model=model)
+
+assert agent.model.temperature == 0.1
+```
+
+## Changing the default model
+
+### From a model object
+
+To use any model as the default LLM, create the model object in your script and assign it to controlflow's `default_model` attribute. It will be used by any agent that does not have a model specified.
+
+```python
+import controlflow as cf
+from langchain_anthropic import ChatAnthropic
+
+# set the default model
+cf.default_model = ChatAnthropic(
+    model='claude-3-opus-20240229', 
+    temperature=0.1,
+)
+
+# check that the default model is loaded
+assert cf.Agent('Marvin').model.model_name == 'claude-3-opus-20240229'
+```
+### From a string setting
+
+If you don't need to configure the model object, you can set the default model using a string setting. The string must have the form `<provider>/<model name>`.
+
+
+You can change this setting either with an environment variable or by modifying it in your script. For example, to use GPT 3.5 Turbo as the default model:
+
+<CodeGroup>
+```bash As an environment variable
+export CONTROLFLOW_LLM_MODEL=openai/gpt-3.5-turbo
+```
+
+```python In your script
+import controlflow as cf
+# set the default model
+cf.settings.llm_model = "openai/gpt-3.5-turbo"
+
+# check that the default model is loaded
+assert cf.Agent('Marvin').model.model_name == 'gpt-3.5-turbo'
+```
+</CodeGroup>
+
+
+At this time, setting the default model via string is only supported for the following providers:
+- `openai`
+- `azure-openai`
+- `anthropic`
+- `google`
