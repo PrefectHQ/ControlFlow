@@ -51,7 +51,7 @@ class PrefectSettings(ControlFlowSettings):
 
 class Settings(ControlFlowSettings):
     max_task_iterations: Optional[int] = Field(
-       default=100,
+        default=100,
         description="The maximum number of iterations to attempt to complete a task "
         "before raising an error. If None, the task will run indefinitely. "
         "This setting can be overridden by the `max_iterations` attribute "
@@ -109,6 +109,10 @@ class Settings(ControlFlowSettings):
     )
 
     # ------------ Debug settings ------------
+
+    raise_on_tool_error: bool = Field(
+        True, description="If True, an error in a tool call will raise an exception."
+    )
 
     print_handler_width: Optional[int] = Field(
         default=None,
