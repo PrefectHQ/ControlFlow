@@ -10,6 +10,7 @@ from langchain_core.messages import InvalidToolCall, ToolCall
 from prefect.utilities.asyncutils import run_coro_as_sync
 from pydantic import Field, create_model
 
+import controlflow
 from controlflow.llm.messages import InvalidToolMessage
 
 if TYPE_CHECKING:
@@ -133,6 +134,8 @@ def handle_tool_call(
     except Exception as exc:
         fn_output = f'Error calling function "{fn_name}": {exc}'
         metadata["is_failed"] = True
+        if controlflow.settings.raise_on_tool_error:
+            raise
 
     from controlflow.llm.messages import ToolMessage
 
@@ -165,6 +168,8 @@ async def handle_tool_call_async(
     except Exception as exc:
         fn_output = f'Error calling function "{fn_name}": {exc}'
         metadata["is_failed"] = True
+        if controlflow.settings.raise_on_tool_error:
+            raise
 
     from controlflow.llm.messages import ToolMessage
 
