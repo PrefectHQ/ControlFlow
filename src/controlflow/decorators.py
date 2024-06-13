@@ -1,6 +1,6 @@
 import functools
 import inspect
-from typing import Callable
+from typing import Any, Callable, Optional
 
 import prefect
 
@@ -17,13 +17,13 @@ logger = get_logger(__name__)
 
 
 def flow(
-    fn=None,
+    fn: Optional[Callable[..., Any]] = None,
     *,
-    thread: str = None,
-    instructions: str = None,
-    tools: list[Callable] = None,
-    agents: list["Agent"] = None,
-    lazy: bool = None,
+    thread: Optional[str] = None,
+    instructions: Optional[str] = None,
+    tools: Optional[list[Callable[..., Any]]] = None,
+    agents: Optional[list[Agent]] = None,
+    lazy: Optional[bool] = None,
 ):
     """
     A decorator that wraps a function as a ControlFlow flow.
@@ -121,14 +121,14 @@ def flow(
 
 
 def task(
-    fn=None,
+    fn: Optional[Callable[..., Any]] = None,
     *,
-    objective: str = None,
-    instructions: str = None,
-    agents: list["Agent"] = None,
-    tools: list[Callable] = None,
-    user_access: bool = None,
-    lazy: bool = None,
+    objective: Optional[str] = None,
+    instructions: Optional[str] = None,
+    agents: Optional[list["Agent"]] = None,
+    tools: Optional[list[Callable[..., Any]]] = None,
+    user_access: Optional[bool] = None,
+    lazy: Optional[bool] = None,
 ):
     """
     A decorator that turns a Python function into a Task. The Task objective is
