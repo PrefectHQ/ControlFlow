@@ -10,6 +10,7 @@ from langchain_core.messages import InvalidToolCall, ToolCall
 from prefect.utilities.asyncutils import run_coro_as_sync
 from pydantic import Field, create_model
 
+import controlflow
 from controlflow.llm.messages import InvalidToolMessage
 
 if TYPE_CHECKING:
@@ -78,11 +79,22 @@ def tool(
 
 
 def as_tools(tools: list[Union[Callable, Tool]]) -> list[Tool]:
+    """
+    Converts a list of tools (either Tool objects or callables) into a list of
+    Tool objects.
+
+    If duplicate tools are found, where the name, function, and coroutine are
+    the same, only one is kept.
+    """
+    seen = set()
     new_tools = []
     for t in tools:
         if not isinstance(t, Tool):
             t = Tool.from_function(t)
+        if (t.name, t.func, t.coroutine) in seen:
+            continue
         new_tools.append(t)
+        seen.add((t.name, t.func, t.coroutine))
     return new_tools
 
 
@@ -100,12 +112,17 @@ def output_to_string(output: Any) -> str:
     return output
 
 
-def handle_tool_call(tool_call: ToolCall, tools: list[Tool]) -> "ToolMessage":
+def handle_tool_call(
+    tool_call: ToolCall, tools: list[Tool], error: str = None
+) -> "ToolMessage":
     tool_lookup = {t.name: t for t in tools}
     fn_name = tool_call["name"]
     metadata = {}
     try:
-        if fn_name not in tool_lookup:
+        if error:
+            fn_output = error
+            metadata["is_failed"] = True
+        elif fn_name not in tool_lookup:
             fn_output = f'Function "{fn_name}" not found.'
             metadata["is_failed"] = True
         else:
@@ -117,6 +134,8 @@ def handle_tool_call(tool_call: ToolCall, tools: list[Tool]) -> "ToolMessage":
     except Exception as exc:
         fn_output = f'Error calling function "{fn_name}": {exc}'
         metadata["is_failed"] = True
+        if controlflow.settings.raise_on_tool_error:
+            raise
 
     from controlflow.llm.messages import ToolMessage
 
@@ -130,13 +149,16 @@ def handle_tool_call(tool_call: ToolCall, tools: list[Tool]) -> "ToolMessage":
 
 
 async def handle_tool_call_async(
-    tool_call: ToolCall, tools: list[Tool]
+    tool_call: ToolCall, tools: list[Tool], error: str = None
 ) -> "ToolMessage":
     tool_lookup = {t.name: t for t in tools}
     fn_name = tool_call["name"]
     metadata = {}
     try:
-        if fn_name not in tool_lookup:
+        if error:
+            fn_output = error
+            metadata["is_failed"] = True
+        elif fn_name not in tool_lookup:
             fn_output = f'Function "{fn_name}" not found.'
             metadata["is_failed"] = True
         else:
@@ -146,6 +168,8 @@ async def handle_tool_call_async(
     except Exception as exc:
         fn_output = f'Error calling function "{fn_name}": {exc}'
         metadata["is_failed"] = True
+        if controlflow.settings.raise_on_tool_error:
+            raise
 
     from controlflow.llm.messages import ToolMessage
 

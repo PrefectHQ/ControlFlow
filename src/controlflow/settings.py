@@ -110,6 +110,10 @@ class Settings(ControlFlowSettings):
 
     # ------------ Debug settings ------------
 
+    raise_on_tool_error: bool = Field(
+        True, description="If True, an error in a tool call will raise an exception."
+    )
+
     print_handler_width: Optional[int] = Field(
         default=None,
         description="The number of coloumns to use for the print handler. If None, the width of "

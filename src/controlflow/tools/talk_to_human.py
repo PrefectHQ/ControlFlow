@@ -48,9 +48,17 @@ async def get_flow_run_input(message: str):
 @tool
 async def talk_to_human(message: str, get_response: bool = True) -> str:
     """
-    Send a message to the human user and optionally wait for a response.
-    If `get_response` is True, the function will return the user's response,
+    Send a message to the human user and optionally wait for a response. If
+    `get_response` is True, the function will return the user's response,
     otherwise it will return a simple confirmation.
+
+    All uses of this tool go to the same user, so the tool will error if you
+    call it multiple times in the same turn.
+
+    You may need to ask the human about multiple tasks at once. Consolidate
+    your questions into a single message. For example, if Task 1 requires
+    information X and Task 2 needs information Y, send a single message that
+    naturally asks for both X and Y.
     """
 
     if get_response:

@@ -51,5 +51,11 @@ def get_model_from_string(
     )
 
 
-def get_default_model(**kwargs: Any) -> BaseChatModel:
-    return get_model_from_string(**kwargs)
+def get_default_model() -> BaseChatModel:
+    if controlflow.default_model is None:
+        return get_model_from_string(controlflow.settings.llm_model)
+    else:
+        return controlflow.default_model
+
+
+DEFAULT_MODEL = None
