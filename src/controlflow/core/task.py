@@ -90,12 +90,6 @@ class Task(ControlFlowModel, Generic[T]):
     )
     status: TaskStatus = TaskStatus.INCOMPLETE
     result: Optional[T] = None
-    result_type: Union[type[T], GenericAlias, _LiteralGenericAlias, None] = Field(
-        str,
-        description="The expected type of the result. This should be a type"
-        ", generic alias, BaseModel subclass, pd.DataFrame, or pd.Series. "
-        "Can be None if no result is expected or the agent should communicate internally.",
-    )
     error: Union[str, None] = None
     tools: list[Callable] = Field(
         default_factory=list,
@@ -520,7 +514,7 @@ class Task(ControlFlowModel, Generic[T]):
                     f"are: {', '.join(t.friendly_name() for t in self._subtasks if t.is_incomplete())}"
                 )
 
-        self.result = validate_result(result, self.result_type)
+        self.result = validate_result(result)
         self.set_status(TaskStatus.SUCCESSFUL)
         if agent := ctx.get("controller_agent"):
             return f"{self.friendly_name()} marked successful by {agent.name}."
