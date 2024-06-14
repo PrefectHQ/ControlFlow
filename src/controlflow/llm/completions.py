@@ -99,10 +99,7 @@ def _completion_generator(
                 input_messages = message_preprocessor(input_messages)
 
             if not stream:
-                response_message = model.invoke(
-                    input=input_messages,
-                    **kwargs,
-                )
+                response_message = model.invoke(input=input_messages, **kwargs)
                 response_message = AIMessage.from_message(
                     response_message, name=ai_name
                 )
@@ -113,10 +110,7 @@ def _completion_generator(
                 deltas: list[AIMessageChunk] = [AIMessageChunk(content="")]
                 snapshot: AIMessageChunk = None
 
-                for delta in model.stream(
-                    input=input_messages,
-                    **kwargs,
-                ):
+                for delta in model.stream(input=input_messages, **kwargs):
                     delta = AIMessageChunk.from_chunk(delta, name=ai_name)
 
                     if snapshot is None:
@@ -204,11 +198,7 @@ async def _completion_async_generator(
                 input_messages = message_preprocessor(input_messages)
 
             if not stream:
-                response_message = await model.ainvoke(
-                    input=input_messages,
-                    tools=tools or None,
-                    **kwargs,
-                )
+                response_message = await model.ainvoke(input=input_messages, **kwargs)
                 response_message = AIMessage.from_message(
                     response_message, name=ai_name
                 )
@@ -219,11 +209,7 @@ async def _completion_async_generator(
                 deltas: list[AIMessageChunk] = [AIMessageChunk(content="")]
                 snapshot: AIMessageChunk = None
 
-                async for delta in model.astream(
-                    input=input_messages,
-                    tools=tools or None,
-                    **kwargs,
-                ):
+                async for delta in model.astream(input=input_messages, **kwargs):
                     delta = AIMessageChunk.from_chunk(delta, name=ai_name)
 
                     if snapshot is None:
@@ -306,7 +292,7 @@ async def _handle_events_async(
             try:
                 handler.on_event(event)
             except Exception as exc:
-                generator.throw(exc)
+                await generator.athrow(exc)
         yield event
 
 
