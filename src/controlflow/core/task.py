@@ -13,6 +13,7 @@ from typing import (
     TypeVar,
     Union,
     _LiteralGenericAlias,
+    Generic
 )
 
 from pydantic import (
@@ -59,7 +60,7 @@ class TaskStatus(Enum):
     SKIPPED = "SKIPPED"
 
 
-class Task(ControlFlowModel):
+class Task(ControlFlowModel, Generic[T]):
     id: str = Field(default_factory=lambda: str(uuid.uuid4().hex[:5]))
     objective: str = Field(
         ..., description="A brief description of the required result."
@@ -88,7 +89,7 @@ class Task(ControlFlowModel):
         default_factory=set, description="Tasks that this task depends on explicitly."
     )
     status: TaskStatus = TaskStatus.INCOMPLETE
-    result: T = None
+    result: Optional[T] = None
     result_type: Union[type[T], GenericAlias, _LiteralGenericAlias, None] = Field(
         str,
         description="The expected type of the result. This should be a type"
