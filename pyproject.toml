@@ -57,6 +57,7 @@ dev = [
     "pre-commit",
     "ruff>=0.3.4",
     "textual-dev",
+    "mypy",
 ]
 
 [build-system]
