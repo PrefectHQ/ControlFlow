@@ -20,43 +20,46 @@ ControlFlow provides a structured and intuitive way to create sophisticated agen
 from controlflow import flow, Task
 from pydantic import BaseModel
 
+class Preferences(BaseModel):
+    location: str
+    cuisine: str
 
 class Restaurant(BaseModel):
     name: str
     description: str
 
-
 @flow
-def restaurant_recs(n:int) -> list[Restaurant]:
+def restaurant_recommendations(n:int) -> list[Restaurant]:
     """
-    An agentic workflow that asks the user for their location and 
-    cuisine preference, then recommends n restaurants based on their input.
+    An agentic workflow that asks the user for preferences, 
+    then recommends restaurants based on their input.
     """
     
-    # get the user's location
-    location = Task("Get a location", user_access=True)
+    # get preferences from the user
+    preferences = Task(
+        "Get the user's preferences", 
+        result_type=Preferences, 
+        user_access=True,
+    )
     
-    # get the user's preferred cuisine
-    cuisine = Task("Get a preferred cuisine", user_access=True)
-    
-    # generate the recommendations from the user's input
-    recs = Task(
+    # generate the recommendations
+    recommendations = Task(
         f"Recommend {n} restaurants to the user", 
-        context=dict(location=location, cuisine=cuisine),
+        context=dict(preferences=preferences),
         result_type=list[Restaurant], 
     )
-    return recs
 
+    return recommendations
 
 recs = restaurant_recs(n=3)
+print(recs)
 ```
 ```python Result
-# >> Agent: Hi! Could you please tell me your current location? Also, 
-#    what type of cuisine are you in the mood for?
+# >> Agent: Hi there! To help find the best restaurant 
+# for you, could you please tell me your location and 
+# the type of cuisine you're interested in?
 
 # >> User: I'm in DC looking for a cafe
-
-# -------------------------------------------------
 
 [
     Restaurant(
