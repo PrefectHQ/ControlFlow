@@ -84,25 +84,26 @@ class TasksTemplate(Template):
         (No specific context provided.)
         {% endif %}
         
-        ## Ready tasks
+        ## Tasks
+        
+        ### Ready tasks
         
         These tasks are ready to be worked on. All of their dependencies have
         been completed. You have been given additional tools for any of these
         tasks that are assigned to you. Use all available information to
         complete these tasks.
                 
-        {% for task, json_task in zip(tasks, json_tasks) %}
-        {% if task.is_ready %}
-        #### Task {{ task.id }}
-
-        - objective: {{ task.objective }}
-        - result_type: {{ task.result_type }}
-        - context: {{ json_task.context }}
-        - instructions: {{ task.instructions}}
-        - depends_on: {{ json_task.depends_on }}
-        - parent: {{ json_task.parent }}
-        - assigned agents: {{ json_task.agents }}
-        - user access: {{ task.user_access }}
+        {% for jtask in json_tasks %}
+        {% if jtask.is_ready %}
+        #### Task {{ jtask.id }}
+        - objective: {{ jtask.objective }}
+        - result_type: {{ jtask.result_type }}
+        - context: {{ jtask.context }}
+        - instructions: {{ jtask.instructions}}
+        - depends_on: {{ jtask.depends_on }}
+        - parent: {{ jtask.parent }}
+        - assigned agents: {{ jtask.agents }}
+        - user access: {{ jtask.user_access }}
         
         {% endif %}
         {% endfor %}
@@ -112,24 +113,25 @@ class TasksTemplate(Template):
         These tasks are also part of the workflow and are provided for context.
         They may be upstream or downstream of the active tasks.
         
-        {% for task, json_task in zip(tasks, json_tasks) %}
-        {% if not task.is_ready %}
-        #### Task {{ task.id }}
-        
-        - objective: {{ task.objective }}
-        - result: {{ task.result }}
-        - error: {{ task.error }}
-        - context: {{ json_task.context }}
-        - instructions: {{ task.instructions}}
-        - depends_on: {{ json_task.depends_on }}
-        - parent: {{ json_task.parent }}
-        - assigned agents: {{ json_task.agents }}
-        - user access: {{ task.user_access }}
+        {% for jtask in json_tasks %}
+        {% if not jtask.is_ready %}
+        #### Task {{ jtask.id }}
+        - objective: {{ jtask.objective }}
+        - status: {{ jtask.status }}
+        - result_type: {{ jtask.result_type }}
+        - result: {{ jtask.result }}
+        - error: {{ jtask.error }}
+        - context: {{ jtask.context }}
+        - instructions: {{ jtask.instructions}}
+        - depends_on: {{ jtask.depends_on }}
+        - parent: {{ jtask.parent }}
+        - assigned agents: {{ jtask.agents }}
+        - user access: {{ jtask.user_access }}
         
         {% endif %}
         {% endfor %}
 
-        ## Completing a task
+        ### Completing a task
         
         Use the appropriate tool to complete a task and provide a result. It may
         take multiple turns or collaboration with other agents to complete a
@@ -152,7 +154,7 @@ class TasksTemplate(Template):
         
         You may work on multiple tasks at the same time.
 
-        ## Dependencies
+        ### Dependencies
         
         Tasks may depend on other tasks and can not be completed until their
         dependencies are met. Parent tasks depend on all of their subtasks.
