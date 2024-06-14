@@ -8,7 +8,7 @@ import pydantic
 import pydantic.v1
 from langchain_core.messages import InvalidToolCall, ToolCall
 from prefect.utilities.asyncutils import run_coro_as_sync
-from pydantic import Field, create_model
+from pydantic import TypeAdapter
 
 import controlflow
 from controlflow.llm.messages import InvalidToolMessage
@@ -17,21 +17,33 @@ if TYPE_CHECKING:
     from controlflow.llm.messages import ToolMessage
 
 
-def pydantic_model_from_function(fn: Callable):
-    sig = inspect.signature(fn)
-    fields = {}
-    for name, param in sig.parameters.items():
-        annotation = (
-            param.annotation if param.annotation is not inspect.Parameter.empty else Any
-        )
-        default = param.default if param.default is not inspect.Parameter.empty else ...
-        fields[name] = (annotation, Field(default=default))
-    return create_model(fn.__name__, **fields)
+class FnArgsSchema:
+    """
+    A dropin replacement for LangChain's StructuredTool args_schema objects
+    that can be created from any function that has type hints.
+    Used in ControlFlow to create Tool objects from functions.
+    """
+
+    def __init__(self, fn):
+        self.fn = fn
+
+    def schema(self) -> dict:
+        return TypeAdapter(self.fn).json_schema()
+
+    def parse_obj(self, args_dict: dict):
+        # use validate call to parse the args
+        # using a function with the same signature as the real one, but just returning the kwargs
+        @pydantic.validate_call
+        @functools.wraps(self.fn)
+        def get_kwargs(**kwargs):
+            return kwargs
+
+        return get_kwargs(**args_dict)
 
 
 def _sync_wrapper(coro):
     """
-    Wrapper that runs a coroutine as a synchronous function with deffered args
+    Wrapper that runs a coroutine as a synchronous function with deferred args
     """
 
     @functools.wraps(coro)
@@ -52,11 +64,13 @@ class Tool(langchain_core.tools.StructuredTool):
     """
 
     tags: dict[str, Any] = pydantic.v1.Field(default_factory=dict)
-    args_schema: Optional[type[Union[pydantic.v1.BaseModel, pydantic.BaseModel]]]
+    args_schema: Optional[
+        Union[type[pydantic.v1.BaseModel], type[pydantic.BaseModel], FnArgsSchema]
+    ]
 
     @classmethod
     def from_function(cls, fn=None, *args, **kwargs):
-        args_schema = pydantic_model_from_function(fn)
+        args_schema = FnArgsSchema(fn)
         if inspect.iscoroutinefunction(fn):
             fn, coro = _sync_wrapper(fn), fn
         else:
@@ -64,6 +78,12 @@ class Tool(langchain_core.tools.StructuredTool):
         return super().from_function(
             *args, func=fn, coroutine=coro, args_schema=args_schema, **kwargs
         )
+
+    def _parse_input(self, tool_input: Union[str, dict]) -> Union[str, dict[str, Any]]:
+        if isinstance(self.args_schema, FnArgsSchema):
+            return self.args_schema.parse_obj(tool_input)
+        else:
+            return super()._parse_input(tool_input)
 
 
 def tool(
@@ -73,6 +93,9 @@ def tool(
     description: Optional[str] = None,
     tags: Optional[dict] = None,
 ) -> Tool:
+    """
+    Decorator for turning a function into a Tool
+    """
     if fn is None:
         return functools.partial(tool, name=name, description=description, tags=tags)
     return Tool.from_function(fn, name=name, description=description, tags=tags or {})
