@@ -1,6 +1,6 @@
 import functools
 import inspect
-from typing import Callable
+from typing import Any, Callable, Optional, Union
 
 import prefect
 
@@ -24,6 +24,10 @@ def flow(
     tools: list[Callable] = None,
     agents: list["Agent"] = None,
     lazy: bool = None,
+    retries: Optional[int] = None,
+    retry_delay_seconds: Optional[Union[float, int]] = None,
+    timeout_seconds: Optional[Union[float, int]] = None,
+    prefect_kwargs: dict[str, Any] = None,
 ):
     """
     A decorator that wraps a function as a ControlFlow flow.
@@ -59,6 +63,10 @@ def flow(
             tools=tools,
             agents=agents,
             lazy=lazy,
+            retries=retries,
+            retry_delay_seconds=retry_delay_seconds,
+            timeout_seconds=timeout_seconds,
+            prefect_kwargs=prefect_kwargs,
         )
 
     sig = inspect.signature(fn)
@@ -90,7 +98,12 @@ def flow(
         )
 
         # create a function to wrap as a Prefect flow
-        @prefect.flow
+        @prefect.flow(
+            timeout_seconds=timeout_seconds,
+            retries=retries,
+            retry_delay_seconds=retry_delay_seconds,
+            **prefect_kwargs or {},
+        )
         def wrapped_flow(*args, lazy_=None, **kwargs):
             with flow_obj:
                 with controlflow.instructions(instructions):

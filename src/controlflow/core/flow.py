@@ -30,12 +30,11 @@ class Flow(ControlFlowModel):
         "for any task that does not specify agents.",
         default_factory=list,
     )
-    _tasks: dict[str, "Task"] = {}
     context: dict[str, Any] = {}
+    _tasks: dict[str, "Task"] = {}
+    _cm_stack: list[contextmanager] = []
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.__cm_stack = []
+    # --- Prefect kwargs ---
 
     def add_task(self, task: "Task"):
         if self._tasks.get(task.id, task) is not task:
@@ -51,11 +50,11 @@ class Flow(ControlFlowModel):
 
     def __enter__(self):
         # use stack so we can enter the context multiple times
-        self.__cm_stack.append(self._context())
-        return self.__cm_stack[-1].__enter__()
+        self._cm_stack.append(self._context())
+        return self._cm_stack[-1].__enter__()
 
     def __exit__(self, *exc_info):
-        return self.__cm_stack.pop().__exit__(*exc_info)
+        return self._cm_stack.pop().__exit__(*exc_info)
 
     async def run_async(self):
         """

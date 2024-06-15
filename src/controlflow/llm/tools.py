@@ -11,6 +11,7 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from pydantic import Field, create_model
 
 from controlflow.llm.messages import InvalidToolMessage
+from controlflow.utilities.prefect import wrap_prefect_tool
 
 if TYPE_CHECKING:
     from controlflow.llm.messages import ToolMessage
@@ -77,11 +78,13 @@ def tool(
     return Tool.from_function(fn, name=name, description=description, tags=tags or {})
 
 
-def as_tools(tools: list[Union[Callable, Tool]]) -> list[Tool]:
+def as_tools(tools: list[Union[Callable, Tool]], wrap_prefect=True) -> list[Tool]:
     new_tools = []
     for t in tools:
         if not isinstance(t, Tool):
             t = Tool.from_function(t)
+        if wrap_prefect:
+            t = wrap_prefect_tool(t)
         new_tools.append(t)
     return new_tools
 

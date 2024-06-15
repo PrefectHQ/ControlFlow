@@ -1,15 +1,18 @@
 from typing import Union
 
-from pydantic import (
-    BaseModel,
-)
+import prefect
+from pydantic import BaseModel, ConfigDict
 
 # flag for unset defaults
 NOTSET = "__NOTSET__"
 
 
 class ControlFlowModel(BaseModel):
-    model_config = dict(validate_assignment=True, extra="forbid")
+    model_config: dict = ConfigDict(
+        validate_assignment=True,
+        extra="forbid",
+        ignored_types=(prefect.Flow, prefect.Task),
+    )
 
 
 class PandasDataFrame(ControlFlowModel):

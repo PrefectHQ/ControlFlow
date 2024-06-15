@@ -1,11 +1,12 @@
+import inspect
 import logging
 import math
 from collections import defaultdict
 from contextlib import asynccontextmanager, contextmanager
-from functools import cached_property
 from typing import Callable, Union
 
-from pydantic import BaseModel, Field, PrivateAttr, computed_field, model_validator
+import prefect
+from pydantic import Field, PrivateAttr, model_validator
 
 import controlflow
 from controlflow.core.agent import Agent
@@ -19,9 +20,25 @@ from controlflow.llm.history import History
 from controlflow.llm.messages import AIMessage, MessageType, SystemMessage
 from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
+from controlflow.utilities.prefect import create_markdown_artifact
 from controlflow.utilities.tasks import all_complete, any_incomplete
+from controlflow.utilities.types import ControlFlowModel
 
 logger = logging.getLogger(__name__)
+
+
+def create_messages_markdown_artifact(messages, thread_id):
+    markdown_messages = "\n\n".join([f"{msg.role}: {msg.content}" for msg in messages])
+    create_markdown_artifact(
+        key="messages",
+        markdown=inspect.cleandoc(f"""
+            # Messages
+            
+            *Thread ID: {thread_id}*
+            
+            {markdown_messages}
+            """),
+    )
 
 
 def add_agent_name_to_messages(messages: list[MessageType]) -> list[MessageType]:
@@ -40,7 +57,7 @@ def add_agent_name_to_messages(messages: list[MessageType]) -> list[MessageType]
     return new_messages
 
 
-class Controller(BaseModel):
+class Controller(ControlFlowModel):
     """
     A controller contains logic for executing agents with context about the
     larger workflow, including the flow itself, any tasks, and any other agents
@@ -78,8 +95,7 @@ class Controller(BaseModel):
     _should_stop: bool = False
     _end_turn_counts: dict = PrivateAttr(default_factory=lambda: defaultdict(int))
 
-    @computed_field
-    @cached_property
+    @property
     def graph(self) -> Graph:
         return Graph.from_tasks(self.tasks)
 
@@ -140,6 +156,11 @@ class Controller(BaseModel):
             tasks = self.graph.topological_sort()
             ready_tasks = [t for t in tasks if t.is_ready]
 
+            # start tracking tasks
+            for task in ready_tasks:
+                if not task._prefect_task.is_started:
+                    task._prefect_task.start()
+
             # if there are no ready tasks, return. This will usually happen because
             # all the tasks are complete.
             if not ready_tasks:
@@ -193,7 +214,8 @@ class Controller(BaseModel):
                     handlers=handlers,
                 )
 
-    async def run_once_async(self):
+    @prefect.task(task_run_name="Run LLM")
+    async def run_once_async(self) -> dict:
         async with self.tui():
             with self._setup_run() as payload:
                 if payload is None:
@@ -222,6 +244,12 @@ class Controller(BaseModel):
                 )
                 self._iteration += 1
 
+                create_messages_markdown_artifact(
+                    messages=response_handler.response_messages,
+                    thread_id=self.flow.thread_id,
+                )
+
+    @prefect.task(task_run_name="Run LLM")
     def run_once(self):
         with self._setup_run() as payload:
             if payload is None:
@@ -250,6 +278,12 @@ class Controller(BaseModel):
             )
             self._iteration += 1
 
+            create_messages_markdown_artifact(
+                messages=response_handler.response_messages,
+                thread_id=self.flow.thread_id,
+            )
+
+    @prefect.task(task_run_name="Controller.run")
     async def run_async(self):
         """
         Run the controller until all tasks are complete.
@@ -269,6 +303,7 @@ class Controller(BaseModel):
                     )
             self._should_stop = False
 
+    @prefect.task(task_run_name="Controller.run")
     def run(self):
         """
         Run the controller until all tasks are complete.
