@@ -86,7 +86,7 @@ class Settings(ControlFlowSettings):
     # ------------ Debug settings ------------
 
     raise_on_tool_error: bool = Field(
-        True, description="If True, an error in a tool call will raise an exception."
+        False, description="If True, an error in a tool call will raise an exception."
     )
 
     print_handler_width: Optional[int] = Field(
