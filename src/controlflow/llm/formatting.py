@@ -1,6 +1,6 @@
 import datetime
 import inspect
-from typing import Optional
+from typing import Optional, Union
 
 from rich import box
 from rich.console import Group
@@ -29,15 +29,22 @@ def format_timestamp(timestamp: datetime.datetime) -> str:
     return timestamp.strftime("%l:%M:%S %p")
 
 
-def format_message(message: MessageType, width: Optional[int] = None) -> Panel:
+def format_message(
+    message: MessageType, width: Optional[int] = None
+) -> Union[Panel, Group]:
+    panels = []
     if isinstance(message, ToolMessage):
         return format_tool_message(message, width=width)
-    elif isinstance(message, AIMessage) and (
-        message.tool_calls or message.invalid_tool_calls
-    ):
-        return format_ai_message_with_tool_calls(message, width=width)
-    else:
-        return format_text_message(message, width=width)
+    elif isinstance(message, AIMessage):
+        if message.content:
+            panels.append(format_text_message(message, width=width))
+
+        if message.tool_calls or message.invalid_tool_calls:
+            panels.append(format_ai_message_with_tool_calls(message, width=width))
+
+    if len(panels) == 1:
+        return panels[0]
+    return Group(*panels)
 
 
 def format_text_message(message: MessageType, width: Optional[int] = None) -> Panel:

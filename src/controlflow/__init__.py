@@ -1,5 +1,9 @@
 from .settings import settings
-from . import llm
+import controlflow.llm
+
+# --- Default model ---
+# assign to controlflow.default_model to change the default model
+from .llm.models import DEFAULT_MODEL as default_model
 
 from .core.flow import Flow
 from .core.task import Task
@@ -9,16 +13,17 @@ from .core.controller.controller import Controller
 from .instructions import instructions
 from .decorators import flow, task
 
-# --- Default agent ---
-
-from .core.agent import DEFAULT_AGENT
-
-default_agent = DEFAULT_AGENT
-del DEFAULT_AGENT
 
 # --- Default history ---
+# assign to controlflow.default_history to change the default history
+from .llm.history import DEFAULT_HISTORY as default_history
 
-from .llm.history import DEFAULT_HISTORY
+# --- Default agent ---
+# assign to controlflow.default_agent to change the default agent
+from .core.agent import DEFAULT_AGENT as default_agent
 
-default_history = DEFAULT_HISTORY
-del DEFAULT_HISTORY
+# --- Version ---
+try:
+    from ._version import version as __version__  # type: ignore
+except ImportError:
+    __version__ = "unknown"

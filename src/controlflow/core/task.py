@@ -227,8 +227,14 @@ class Task(ControlFlowModel):
 
     @field_serializer("result_type")
     def _serialize_result_type(self, result_type: list["Task"]):
-        if result_type is not None:
-            return repr(result_type)
+        if result_type is None:
+            return None
+        try:
+            schema = TypeAdapter(result_type).json_schema()
+        except PydanticSchemaGenerationError:
+            schema = "<schema could not be generated>"
+
+        return dict(type=repr(result_type), schema=schema)
 
     @field_serializer("agents")
     def _serialize_agents(self, agents: Optional[list["Agent"]]):

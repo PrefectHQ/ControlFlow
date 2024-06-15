@@ -18,6 +18,7 @@ from controlflow.llm.completions import completion, completion_async
 from controlflow.llm.handlers import PrintHandler, ResponseHandler, TUIHandler
 from controlflow.llm.history import History
 from controlflow.llm.messages import AIMessage, MessageType, SystemMessage
+from controlflow.llm.tools import as_tools
 from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
 from controlflow.utilities.prefect import create_markdown_artifact
@@ -204,18 +205,17 @@ class Controller(ControlFlowModel):
                 handlers.append(TUIHandler())
             if controlflow.settings.enable_print_handler:
                 handlers.append(PrintHandler())
-
             with ctx(controller_agent=agent):
                 # yield the agent payload
                 yield dict(
                     agent=agent,
                     messages=[system_message] + messages,
-                    tools=tools,
+                    tools=as_tools(tools),
                     handlers=handlers,
                 )
 
     @prefect.task(task_run_name="Run LLM")
-    async def run_once_async(self) -> dict:
+    async def run_once_async(self) -> list[MessageType]:
         async with self.tui():
             with self._setup_run() as payload:
                 if payload is None:
@@ -249,8 +249,10 @@ class Controller(ControlFlowModel):
                     thread_id=self.flow.thread_id,
                 )
 
+        return response_handler.response_messages
+
     @prefect.task(task_run_name="Run LLM")
-    def run_once(self):
+    def run_once(self) -> list[MessageType]:
         with self._setup_run() as payload:
             if payload is None:
                 return
@@ -283,8 +285,10 @@ class Controller(ControlFlowModel):
                 thread_id=self.flow.thread_id,
             )
 
+        return response_handler.response_messages
+
     @prefect.task(task_run_name="Controller.run")
-    async def run_async(self):
+    async def run_async(self) -> list[MessageType]:
         """
         Run the controller until all tasks are complete.
         """
@@ -292,9 +296,12 @@ class Controller(ControlFlowModel):
         start_iteration = self._iteration
         if all_complete(self.tasks):
             return
+
+        messages = []
         async with self.tui():
             while any_incomplete(self.tasks) and not self._should_stop:
-                await self.run_once_async()
+                new_messages = await self.run_once_async()
+                messages.extend(new_messages)
                 if self._iteration > start_iteration + max_task_iterations * len(
                     self.tasks
                 ):
@@ -302,9 +309,10 @@ class Controller(ControlFlowModel):
                         f"Task iterations exceeded maximum of {max_task_iterations} for each task."
                     )
             self._should_stop = False
+            return messages
 
     @prefect.task(task_run_name="Controller.run")
-    def run(self):
+    def run(self) -> list[MessageType]:
         """
         Run the controller until all tasks are complete.
         """
@@ -312,8 +320,11 @@ class Controller(ControlFlowModel):
         start_iteration = self._iteration
         if all_complete(self.tasks):
             return
+
+        messages = []
         while any_incomplete(self.tasks) and not self._should_stop:
-            self.run_once()
+            new_messages = self.run_once()
+            messages.extend(new_messages)
             if self._iteration > start_iteration + max_task_iterations * len(
                 self.tasks
             ):
@@ -321,3 +332,4 @@ class Controller(ControlFlowModel):
                     f"Task iterations exceeded maximum of {max_task_iterations} for each task."
                 )
         self._should_stop = False
+        return messages

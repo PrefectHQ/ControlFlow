@@ -3,15 +3,6 @@ title: ControlFlow
 sidebarTitle: Why ControlFlow?
 ---
 
-<video
-    autoPlay
-    muted
-    loop
-    playsInline
-  className="w-full aspect-video"
-  src="/assets/video/controlflow-orbits.mp4"
-></video>
-
 ## What is ControlFlow?
 
 **ControlFlow is a Python framework for building agentic LLM workflows.**
@@ -24,6 +15,68 @@ LLMs are powerful AI models that can understand and generate human-like text, en
 
 ControlFlow provides a structured and intuitive way to create sophisticated agentic workflows while adhereing to traditional software engineering best practices. The resulting applications are observable, controllable, and easy to trust.
 
+<CodeGroup>
+```python Example: Restaurant recommendations
+from controlflow import flow, Task
+from pydantic import BaseModel
+
+class Preferences(BaseModel):
+    location: str
+    cuisine: str
+
+class Restaurant(BaseModel):
+    name: str
+    description: str
+
+@flow
+def restaurant_recommendations(n:int) -> list[Restaurant]:
+    """
+    An agentic workflow that asks the user for preferences, 
+    then recommends restaurants based on their input.
+    """
+    
+    # get preferences from the user
+    preferences = Task(
+        "Get the user's preferences", 
+        result_type=Preferences, 
+        user_access=True,
+    )
+    
+    # generate the recommendations
+    recommendations = Task(
+        f"Recommend {n} restaurants to the user", 
+        context=dict(preferences=preferences),
+        result_type=list[Restaurant], 
+    )
+
+    return recommendations
+
+recs = restaurant_recs(n=3)
+print(recs)
+```
+```python Result
+# >> Agent: Hi there! To help find the best restaurant 
+# for you, could you please tell me your location and 
+# the type of cuisine you're interested in?
+
+# >> User: I'm in DC looking for a cafe
+
+[
+    Restaurant(
+        name="Compass Coffee",
+        description="A popular coffee shop known for its quality coffee and relaxed atmosphere.",
+    ),
+    Restaurant(
+        name="The Wydown Coffee Bar",
+        description="A stylish cafe offering specialty coffee, pastries, and a cozy environment.",
+    ),
+    Restaurant(
+        name="Tryst Coffeehouse",
+        description="A vibrant coffeehouse with great coffee, food options, and a welcoming ambiance.",
+    ),
+]
+```
+</CodeGroup>
 ## Design principles
 
 ControlFlow's design is informed by a strong opinion: LLMs are powerful tools, but they are most effective when applied to small, well-defined tasks within a structured workflow. This approach mitigates many of the challenges associated with LLMs, such as hallucinations, biases, and unpredictable behavior, while also making it easier to debug, monitor, and control the application.
@@ -32,17 +85,16 @@ This belief leads to three core design principles that underpin ControlFlow's ar
 
 ### 🛠️ Simple over complex
 
-ControlFlow believes in using **specialized, single-purpose LLMs** rather than monolithic models that try to do everything. Single-serving LLMs are more effective and efficient, ensuring that each task is handled by the right tool, leading to higher-quality results and easier management.
+ControlFlow believes in deploying specialized, single-purpose LLMs to a series of small problems, rather than using monolithic models that try to do everything. Single-serving LLMs are more effective and efficient, ensuring that each task is handled by the right tool, leading to higher-quality results and easier management.
 
 ### 🎯 Outcome over process
 
-ControlFlow advocates for a **declarative approach to defining AI workflows**. By focusing on desired outcomes instead of attempting to steer every action of the LLM, developers can create more predictable and controllable workflows, making it easier to achieve the desired results.
+ControlFlow takes a declarative approach to defining AI workflows. By focusing on outcomes instead of attempting to steer every action and decision of the LLM, developers can create more predictable and controllable workflows, making it easier to achieve the desired results.
 
 
 ### 🎛️ Explicit over implicit
 
-ControlFlow emphasizes the importance of treating LLMs as discrete, traditional software calls rather than relying on an end-to-end magic process. Explicitly defining tasks and checkpoints within a workflow ensures reliable results, allowing developers to maintain visibility and control while still leveraging the autonomy of LLMs.
-
+ControlFlow treats LLMs like discrete components of a software workflow rather than an end-to-end magic process. By explicitly defining tasks and checkpoints within workflows, developers can achieve reliable, predictable, and testable results. By focusing on code first and chat second, ControlFlow ensures that the artifacts of your workflows are structured data, not conversational text
 
 ## Why ControlFlow?
 

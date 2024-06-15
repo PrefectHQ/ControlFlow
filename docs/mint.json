@@ -59,6 +59,7 @@
                 "guides/apis",
                 "guides/execution-modes",
                 "guides/dependencies",
+                "guides/llms",
                 "guides/orchestration",
                 "guides/deployment"
             ]
