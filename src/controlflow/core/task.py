@@ -16,6 +16,7 @@ from typing import (
 )
 
 import prefect
+from prefect.context import TaskRunContext
 from pydantic import (
     Field,
     PydanticSchemaGenerationError,
@@ -52,6 +53,11 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 logger = get_logger(__name__)
+
+
+def get_task_run_name() -> str:
+    context = TaskRunContext.get()
+    return f'Run {context.parameters['self'].friendly_name()}'
 
 
 class TaskStatus(Enum):
@@ -307,7 +313,7 @@ class Task(ControlFlowModel):
         controller = controlflow.Controller(tasks=[self], agents=agent, flow=flow)
         await controller.run_once_async()
 
-    @prefect.task(task_run_name=lambda _, args: f"Run {args['self'].friendly_name()}")
+    @prefect.task(task_run_name=get_task_run_name)
     def _run(
         self,
         raise_on_error: bool = True,
@@ -319,8 +325,6 @@ class Task(ControlFlowModel):
         Internal function that can handle both sync and async runs by yielding either the result or the coroutine.
         """
         from controlflow.core.flow import Flow, get_flow
-
-        self._prefect_task.is_started = True
 
         if max_iterations == NOTSET:
             max_iterations = controlflow.settings.max_task_iterations

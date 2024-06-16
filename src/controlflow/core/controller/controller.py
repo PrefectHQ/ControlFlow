@@ -158,7 +158,11 @@ class Controller(ControlFlowModel):
         # start tracking tasks
         for task in ready_tasks:
             if not task._prefect_task.is_started:
-                task._prefect_task.start()
+                task._prefect_task.start(
+                    depends_on=[
+                        t.result for t in task.depends_on if t.result is not None
+                    ]
+                )
 
         # if there are no ready tasks, return. This will usually happen because
         # all the tasks are complete.
