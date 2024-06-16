@@ -5,7 +5,6 @@ from collections import defaultdict
 from contextlib import asynccontextmanager
 from typing import Callable, Union
 
-import prefect
 from pydantic import Field, PrivateAttr, model_validator
 
 import controlflow
@@ -22,6 +21,7 @@ from controlflow.llm.tools import as_tools
 from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
 from controlflow.utilities.prefect import create_markdown_artifact
+from controlflow.utilities.prefect import task as prefect_task
 from controlflow.utilities.tasks import all_complete, any_incomplete
 from controlflow.utilities.types import ControlFlowModel
 
@@ -32,13 +32,18 @@ def create_messages_markdown_artifact(messages, thread_id):
     markdown_messages = "\n\n".join([f"{msg.role}: {msg.content}" for msg in messages])
     create_markdown_artifact(
         key="messages",
-        markdown=inspect.cleandoc(f"""
+        markdown=inspect.cleandoc(
+            """
             # Messages
             
             *Thread ID: {thread_id}*
             
             {markdown_messages}
-            """),
+            """.format(
+                thread_id=thread_id,
+                markdown_messages=markdown_messages,
+            )
+        ),
     )
 
 
@@ -214,7 +219,7 @@ class Controller(ControlFlowModel):
             handlers=handlers,
         )
 
-    @prefect.task(task_run_name="Run LLM")
+    @prefect_task(task_run_name="Run LLM")
     async def run_once_async(self) -> list[MessageType]:
         async with self.tui():
             payload = self._setup_run()
@@ -252,7 +257,7 @@ class Controller(ControlFlowModel):
 
         return response_handler.response_messages
 
-    @prefect.task(task_run_name="Run LLM")
+    @prefect_task(task_run_name="Run LLM")
     def run_once(self) -> list[MessageType]:
         payload = self._setup_run()
         if payload is None:
@@ -289,7 +294,7 @@ class Controller(ControlFlowModel):
 
         return response_handler.response_messages
 
-    @prefect.task(task_run_name="Run LLM Controller")
+    @prefect_task(task_run_name="Run LLM Controller")
     async def run_async(self) -> list[MessageType]:
         """
         Run the controller until all tasks are complete.
@@ -313,7 +318,7 @@ class Controller(ControlFlowModel):
             self._should_stop = False
             return messages
 
-    @prefect.task(task_run_name="Run LLM Controller")
+    @prefect_task(task_run_name="Run LLM Controller")
     def run(self) -> list[MessageType]:
         """
         Run the controller until all tasks are complete.

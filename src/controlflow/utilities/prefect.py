@@ -9,6 +9,7 @@ from typing import (
 )
 from uuid import UUID
 
+import prefect
 import prefect.tasks
 from prefect import get_client as get_prefect_client
 from prefect.artifacts import ArtifactRequest
@@ -34,10 +35,31 @@ from prefect.utilities.engine import (
 )
 from pydantic import TypeAdapter
 
+import controlflow
 from controlflow.utilities.types import ControlFlowModel
 
 if TYPE_CHECKING:
     from controlflow.llm.tools import Tool
+
+
+def task(*args, **kwargs):
+    """
+    A decorator that creates a Prefect task with ControlFlow defaults
+    """
+
+    kwargs.setdefault("log_prints", controlflow.settings.log_prints)
+
+    return prefect.task(*args, **kwargs)
+
+
+def flow(*args, **kwargs):
+    """
+    A decorator that creates a Prefect flow with ControlFlow defaults
+    """
+
+    kwargs.setdefault("log_prints", controlflow.settings.log_prints)
+
+    return prefect.flow(*args, **kwargs)
 
 
 def create_markdown_artifact(
@@ -353,7 +375,7 @@ def prefect_task_context(**kwargs):
         )
 
     @contextmanager
-    @prefect.task(**kwargs)
+    @task(**kwargs)
     def task_context():
         yield
 
@@ -387,7 +409,7 @@ def prefect_flow_context(**kwargs):
         )
 
     @contextmanager
-    @prefect.flow(**kwargs)
+    @flow(**kwargs)
     def flow_context():
         yield
 

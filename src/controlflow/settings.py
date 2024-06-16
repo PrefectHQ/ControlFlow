@@ -44,6 +44,10 @@ class Settings(ControlFlowSettings):
 
     # ------------ display and logging settings ------------
 
+    log_prints: bool = Field(
+        True, description="Whether to log prints to eh Prefect logger by default."
+    )
+
     # ------------ flow settings ------------
 
     eager_mode: bool = Field(

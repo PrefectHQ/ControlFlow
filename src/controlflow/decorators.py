@@ -2,13 +2,13 @@ import functools
 import inspect
 from typing import Any, Callable, Optional, Union
 
-import prefect
-
 import controlflow
 from controlflow.core.agent import Agent
 from controlflow.core.flow import Flow
 from controlflow.core.task import Task
 from controlflow.utilities.logging import get_logger
+from controlflow.utilities.prefect import flow as prefect_flow
+from controlflow.utilities.prefect import task as prefect_task
 
 # from controlflow.utilities.marvin import patch_marvin
 from controlflow.utilities.tasks import resolve_tasks
@@ -63,12 +63,16 @@ def flow(
             tools=tools,
             agents=agents,
             lazy=lazy,
+            retries=retries,
+            retry_delay_seconds=retry_delay_seconds,
+            timeout_seconds=timeout_seconds,
+            prefect_kwargs=prefect_kwargs,
         )
 
     sig = inspect.signature(fn)
 
     # the flow decorator creates a proper prefect flow
-    @prefect.flow(
+    @prefect_flow(
         timeout_seconds=timeout_seconds,
         retries=retries,
         retry_delay_seconds=retry_delay_seconds,
@@ -136,6 +140,10 @@ def task(
     tools: Optional[list[Callable[..., Any]]] = None,
     user_access: Optional[bool] = None,
     lazy: Optional[bool] = None,
+    retries: Optional[int] = None,
+    retry_delay_seconds: Optional[Union[float, int]] = None,
+    timeout_seconds: Optional[Union[float, int]] = None,
+    prefect_kwargs: Optional[dict[str, Any]] = None,
 ):
     """
     A decorator that turns a Python function into a Task. The Task objective is
@@ -174,6 +182,10 @@ def task(
             tools=tools,
             user_access=user_access,
             lazy=lazy,
+            retries=retries,
+            retry_delay_seconds=retry_delay_seconds,
+            timeout_seconds=timeout_seconds,
+            prefect_kwargs=prefect_kwargs,
         )
 
     sig = inspect.signature(fn)
@@ -186,6 +198,12 @@ def task(
 
     result_type = fn.__annotations__.get("return")
 
+    @prefect_task(
+        timeout_seconds=timeout_seconds,
+        retries=retries,
+        retry_delay_seconds=retry_delay_seconds,
+        **prefect_kwargs or {},
+    )
     @functools.wraps(fn)
     def wrapper(*args, lazy_: bool = None, **kwargs):
         # first process callargs

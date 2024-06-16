@@ -15,7 +15,6 @@ from typing import (
     _LiteralGenericAlias,
 )
 
-import prefect
 from prefect.context import TaskRunContext
 from pydantic import (
     Field,
@@ -35,6 +34,7 @@ from controlflow.tools.talk_to_human import talk_to_human
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import PrefectTrackingTask
+from controlflow.utilities.prefect import task as prefect_task
 from controlflow.utilities.tasks import (
     collect_tasks,
     visit_task_collection,
@@ -313,7 +313,7 @@ class Task(ControlFlowModel):
         controller = controlflow.Controller(tasks=[self], agents=agent, flow=flow)
         await controller.run_once_async()
 
-    @prefect.task(task_run_name=get_task_run_name)
+    @prefect_task(task_run_name=get_task_run_name)
     def _run(
         self,
         raise_on_error: bool = True,
