@@ -2,7 +2,7 @@ import inspect
 import logging
 import math
 from collections import defaultdict
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import asynccontextmanager
 from typing import Callable, Union
 
 import prefect
@@ -121,7 +121,7 @@ class Controller(ControlFlowModel):
             """
 
             # the agent's name is used as the key to track the number of times
-            key = getattr(ctx.get("controller_agent", None), "name", None)
+            key = getattr(ctx.get("agent", None), "name", None)
 
             self._end_turn_counts[key] += 1
             if self._end_turn_counts[key] >= 3:
@@ -147,83 +147,80 @@ class Controller(ControlFlowModel):
         else:
             yield
 
-    @contextmanager
     def _setup_run(self):
         """
         Generate the payload for a single run of the controller.
         """
-        with self.flow:
-            # TODO: show the agent the entire graph, not just immediate upstreams
-            tasks = self.graph.topological_sort()
-            ready_tasks = [t for t in tasks if t.is_ready]
+        # TODO: show the agent the entire graph, not just immediate upstreams
+        tasks = self.graph.topological_sort()
+        ready_tasks = [t for t in tasks if t.is_ready]
 
-            # start tracking tasks
-            for task in ready_tasks:
-                if not task._prefect_task.is_started:
-                    task._prefect_task.start()
+        # start tracking tasks
+        for task in ready_tasks:
+            if not task._prefect_task.is_started:
+                task._prefect_task.start()
 
-            # if there are no ready tasks, return. This will usually happen because
-            # all the tasks are complete.
-            if not ready_tasks:
-                yield None
-                return
+        # if there are no ready tasks, return. This will usually happen because
+        # all the tasks are complete.
+        if not ready_tasks:
+            return
 
-            # get an agent from the next ready task
-            agents = ready_tasks[0].get_agents()
-            if len(agents) != 1:
-                strategy_fn = ready_tasks[0].get_agent_strategy()
-                agent = strategy_fn(agents=agents, task=ready_tasks[0], flow=self.flow)
-                ready_tasks[0]._iteration += 1
-            else:
-                agent = agents[0]
+        # get an agent from the next ready task
+        agents = ready_tasks[0].get_agents()
+        if len(agents) != 1:
+            strategy_fn = ready_tasks[0].get_agent_strategy()
+            agent = strategy_fn(agents=agents, task=ready_tasks[0], flow=self.flow)
+            ready_tasks[0]._iteration += 1
+        else:
+            agent = agents[0]
 
-            from controlflow.core.controller.instruction_template import MainTemplate
+        from controlflow.core.controller.instruction_template import MainTemplate
 
-            tools = self.flow.tools + agent.get_tools() + [self._create_end_turn_tool()]
+        tools = self.flow.tools + agent.get_tools() + [self._create_end_turn_tool()]
 
-            # add tools for any ready tasks that the agent is assigned to
-            for task in ready_tasks:
-                if agent in task.get_agents():
-                    tools.extend(task.get_tools())
+        # add tools for any ready tasks that the agent is assigned to
+        for task in ready_tasks:
+            if agent in task.get_agents():
+                tools.extend(task.get_tools())
 
-            instructions_template = MainTemplate(
-                agent=agent,
-                controller=self,
-                tasks=tasks,
-                context=self.context,
-                instructions=get_instructions(),
-            )
-            instructions = instructions_template.render()
+        instructions_template = MainTemplate(
+            agent=agent,
+            controller=self,
+            tasks=tasks,
+            context=self.context,
+            instructions=get_instructions(),
+        )
+        instructions = instructions_template.render()
 
-            # prepare messages
-            system_message = SystemMessage(content=instructions)
-            messages = self.history.load_messages(thread_id=self.flow.thread_id)
+        # prepare messages
+        system_message = SystemMessage(content=instructions)
+        messages = self.history.load_messages(thread_id=self.flow.thread_id)
 
-            # setup handlers
-            handlers = []
-            if controlflow.settings.enable_tui:
-                handlers.append(TUIHandler())
-            if controlflow.settings.enable_print_handler:
-                handlers.append(PrintHandler())
-            with ctx(controller_agent=agent):
-                # yield the agent payload
-                yield dict(
-                    agent=agent,
-                    messages=[system_message] + messages,
-                    tools=as_tools(tools),
-                    handlers=handlers,
-                )
+        # setup handlers
+        handlers = []
+        if controlflow.settings.enable_tui:
+            handlers.append(TUIHandler())
+        if controlflow.settings.enable_print_handler:
+            handlers.append(PrintHandler())
+        # yield the agent payload
+        return dict(
+            agent=agent,
+            messages=[system_message] + messages,
+            tools=as_tools(tools),
+            handlers=handlers,
+        )
 
     @prefect.task(task_run_name="Run LLM")
     async def run_once_async(self) -> list[MessageType]:
         async with self.tui():
-            with self._setup_run() as payload:
-                if payload is None:
-                    return
-                agent: Agent = payload.pop("agent")
-                response_handler = ResponseHandler()
-                payload["handlers"].append(response_handler)
+            payload = self._setup_run()
+            if payload is None:
+                return
+            agent: Agent = payload.pop("agent")
+            response_handler = ResponseHandler()
+            payload["handlers"].append(response_handler)
 
+            with ctx(agent=agent, flow=self.flow, controller=self):
                 response_gen = await completion_async(
                     messages=payload["messages"],
                     model=agent.model,
@@ -236,42 +233,6 @@ class Controller(ControlFlowModel):
                 )
                 async for _ in response_gen:
                     pass
-
-                # save history
-                self.history.save_messages(
-                    thread_id=self.flow.thread_id,
-                    messages=response_handler.response_messages,
-                )
-                self._iteration += 1
-
-                create_messages_markdown_artifact(
-                    messages=response_handler.response_messages,
-                    thread_id=self.flow.thread_id,
-                )
-
-        return response_handler.response_messages
-
-    @prefect.task(task_run_name="Run LLM")
-    def run_once(self) -> list[MessageType]:
-        with self._setup_run() as payload:
-            if payload is None:
-                return
-            agent: Agent = payload.pop("agent")
-            response_handler = ResponseHandler()
-            payload["handlers"].append(response_handler)
-
-            response_gen = completion(
-                messages=payload["messages"],
-                model=agent.model,
-                tools=payload["tools"],
-                handlers=payload["handlers"],
-                max_iterations=1,
-                stream=True,
-                ai_name=agent.name,
-                message_preprocessor=add_agent_name_to_messages,
-            )
-            for _ in response_gen:
-                pass
 
             # save history
             self.history.save_messages(
@@ -287,7 +248,44 @@ class Controller(ControlFlowModel):
 
         return response_handler.response_messages
 
-    @prefect.task(task_run_name="Controller.run")
+    @prefect.task(task_run_name="Run LLM")
+    def run_once(self) -> list[MessageType]:
+        payload = self._setup_run()
+        if payload is None:
+            return
+        agent: Agent = payload.pop("agent")
+        response_handler = ResponseHandler()
+        payload["handlers"].append(response_handler)
+
+        with ctx(agent=agent, flow=self.flow, controller=self):
+            response_gen = completion(
+                messages=payload["messages"],
+                model=agent.model,
+                tools=payload["tools"],
+                handlers=payload["handlers"],
+                max_iterations=1,
+                stream=True,
+                ai_name=agent.name,
+                message_preprocessor=add_agent_name_to_messages,
+            )
+            for _ in response_gen:
+                pass
+
+        # save history
+        self.history.save_messages(
+            thread_id=self.flow.thread_id,
+            messages=response_handler.response_messages,
+        )
+        self._iteration += 1
+
+        create_messages_markdown_artifact(
+            messages=response_handler.response_messages,
+            thread_id=self.flow.thread_id,
+        )
+
+        return response_handler.response_messages
+
+    @prefect.task(task_run_name="Run LLM Controller")
     async def run_async(self) -> list[MessageType]:
         """
         Run the controller until all tasks are complete.
@@ -311,7 +309,7 @@ class Controller(ControlFlowModel):
             self._should_stop = False
             return messages
 
-    @prefect.task(task_run_name="Controller.run")
+    @prefect.task(task_run_name="Run LLM Controller")
     def run(self) -> list[MessageType]:
         """
         Run the controller until all tasks are complete.

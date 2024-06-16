@@ -1,5 +1,5 @@
 import uuid
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from pydantic import Field
@@ -9,6 +9,7 @@ from controlflow.llm.history import get_default_history
 from controlflow.llm.messages import MessageType
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
+from controlflow.utilities.prefect import prefect_flow_context
 from controlflow.utilities.types import ControlFlowModel
 
 if TYPE_CHECKING:
@@ -44,16 +45,22 @@ class Flow(ControlFlowModel):
         self._tasks[task.id] = task
 
     @contextmanager
-    def _context(self):
-        with ctx(flow=self):
+    def _context(self, create_prefect_flow_context: bool = True):
+        if create_prefect_flow_context:
+            prefect_ctx = prefect_flow_context(name=self.name)
+        else:
+            prefect_ctx = nullcontext()
+        with ctx(flow=self), prefect_ctx:
             yield self
 
     def __enter__(self):
         # use stack so we can enter the context multiple times
-        self._cm_stack.append(self._context())
-        return self._cm_stack[-1].__enter__()
+        cm = self._context()
+        self._cm_stack.append(cm)
+        return cm.__enter__()
 
     def __exit__(self, *exc_info):
+        # exit the context manager
         return self._cm_stack.pop().__exit__(*exc_info)
 
     async def run_async(self):

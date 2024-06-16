@@ -72,7 +72,8 @@ ctx = ScopedContext(
     dict(
         flow=None,
         tasks=[],
+        agent=None,
+        controller=None,
         tui=None,
-        controller_agent=None,
     )
 )

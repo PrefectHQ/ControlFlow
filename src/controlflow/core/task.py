@@ -140,7 +140,7 @@ class Task(ControlFlowModel):
         super().__init__(**kwargs)
 
         self._prefect_task = PrefectTrackingTask(
-            name=self.friendly_name(),
+            name=f"Working on {self.friendly_name()}",
             description=self.instructions,
             tags=[self.__class__.__name__],
         )
@@ -355,9 +355,6 @@ class Task(ControlFlowModel):
         raise_on_error: bool = True,
         max_iterations: int = NOTSET,
         flow: "Flow" = None,
-        retries: Optional[int] = None,
-        retry_delay_seconds: Optional[Union[float, int]] = None,
-        timeout_seconds: Optional[Union[float, int]] = None,
     ) -> T:
         """
         Runs the task with provided agents until it is complete.
@@ -365,12 +362,7 @@ class Task(ControlFlowModel):
         If max_iterations is provided, the task will run at most that many times before raising an error.
         """
 
-        @prefect.task(
-            retries=retries,
-            retry_delay_seconds=retry_delay_seconds,
-            timeout_seconds=timeout_seconds,
-            task_run_name=f"Run: {self.friendly_name()}",
-        )
+        @prefect.task(task_run_name=f"Run Task {self.id}")
         def _run():
             gen = self._run(
                 raise_on_error=raise_on_error,
@@ -391,9 +383,6 @@ class Task(ControlFlowModel):
         raise_on_error: bool = True,
         max_iterations: int = NOTSET,
         flow: "Flow" = None,
-        retries: Optional[int] = None,
-        retry_delay_seconds: Optional[Union[float, int]] = None,
-        timeout_seconds: Optional[Union[float, int]] = None,
     ) -> T:
         """
         Runs the task with provided agents until it is complete.
@@ -401,12 +390,7 @@ class Task(ControlFlowModel):
         If max_iterations is provided, the task will run at most that many times before raising an error.
         """
 
-        @prefect.task(
-            retries=retries,
-            retry_delay_seconds=retry_delay_seconds,
-            timeout_seconds=timeout_seconds,
-            task_run_name=f"Run: {self.friendly_name()}",
-        )
+        @prefect.task(task_run_name=f"Run Task {self.id}")
         async def _run():
             gen = self._run(
                 raise_on_error=raise_on_error,
@@ -588,20 +572,20 @@ class Task(ControlFlowModel):
         self.result = validate_result(result, self.result_type)
         self.set_status(TaskStatus.SUCCESSFUL)
 
-        if agent := ctx.get("controller_agent"):
+        if agent := ctx.get("agent"):
             return f"{self.friendly_name()} marked successful by {agent.name}."
         return f"{self.friendly_name()} marked successful."
 
     def mark_failed(self, message: Union[str, None] = None):
         self.error = message
         self.set_status(TaskStatus.FAILED)
-        if agent := ctx.get("controller_agent"):
+        if agent := ctx.get("agent"):
             return f"{self.friendly_name()} marked failed by {agent.name}."
         return f"{self.friendly_name()} marked failed."
 
     def mark_skipped(self):
         self.set_status(TaskStatus.SKIPPED)
-        if agent := ctx.get("controller_agent"):
+        if agent := ctx.get("agent"):
             return f"{self.friendly_name()} marked skipped by {agent.name}."
         return f"{self.friendly_name()} marked skipped."
 

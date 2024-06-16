@@ -63,18 +63,22 @@ def flow(
             tools=tools,
             agents=agents,
             lazy=lazy,
-            retries=retries,
-            retry_delay_seconds=retry_delay_seconds,
-            timeout_seconds=timeout_seconds,
-            prefect_kwargs=prefect_kwargs,
         )
 
     sig = inspect.signature(fn)
 
+    # the flow decorator creates a proper prefect flow
+    @prefect.flow(
+        timeout_seconds=timeout_seconds,
+        retries=retries,
+        retry_delay_seconds=retry_delay_seconds,
+        **prefect_kwargs or {},
+    )
     @functools.wraps(fn)
     def wrapper(
         *args,
         flow_kwargs: dict = None,
+        lazy_: bool = False,
         **kwargs,
     ):
         # first process callargs
@@ -97,35 +101,25 @@ def flow(
             **flow_kwargs,
         )
 
-        # create a function to wrap as a Prefect flow
-        @prefect.flow(
-            timeout_seconds=timeout_seconds,
-            retries=retries,
-            retry_delay_seconds=retry_delay_seconds,
-            **prefect_kwargs or {},
-        )
-        def wrapped_flow(*args, lazy_=None, **kwargs):
-            with flow_obj:
-                with controlflow.instructions(instructions):
-                    result = fn(*args, **kwargs)
+        with flow_obj._context(create_prefect_flow_context=False):
+            with controlflow.instructions(instructions):
+                result = fn(*args, **kwargs)
 
-                    # Determine if we should run eagerly or lazily
-                    if lazy_ is not None:
-                        run_eagerly = not lazy_
-                    elif lazy is not None:
-                        run_eagerly = not lazy
-                    else:
-                        run_eagerly = controlflow.settings.eager_mode
+                # Determine if we should run eagerly or lazily
+                if lazy_ is not None:
+                    run_eagerly = not lazy_
+                elif lazy is not None:
+                    run_eagerly = not lazy
+                else:
+                    run_eagerly = controlflow.settings.eager_mode
 
-                    if run_eagerly:
-                        flow_obj.run()
+                if run_eagerly:
+                    flow_obj.run()
 
-                        # resolve any returned tasks; this will raise on failure
-                        return resolve_tasks(result)
-                    else:
-                        return flow_obj
-
-        return wrapped_flow(*args, **kwargs)
+                    # resolve any returned tasks; this will raise on failure
+                    return resolve_tasks(result)
+                else:
+                    return flow_obj
 
     if lazy is True or (lazy is None and not controlflow.settings.eager_mode):
         wrapper.__annotations__["return"] = Flow

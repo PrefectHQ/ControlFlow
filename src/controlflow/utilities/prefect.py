@@ -1,5 +1,6 @@
 import inspect
 import json
+from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -310,7 +311,9 @@ class PrefectTrackingTask(ControlFlowModel):
             terminal_state = run_coro_as_sync(
                 return_value_to_state(
                     result,
-                    result_factory=ResultFactory.from_autonomous_task(self._task),
+                    result_factory=run_coro_as_sync(
+                        ResultFactory.from_autonomous_task(self._task)
+                    ),
                 )
             )
         else:
@@ -322,3 +325,21 @@ class PrefectTrackingTask(ControlFlowModel):
 
     def skip(self):
         self.set_state(Cancelled(message="Task skipped"))
+
+
+def prefect_task_context(**kwargs):
+    @contextmanager
+    @prefect.task(**kwargs)
+    def task_context():
+        yield
+
+    return task_context()
+
+
+def prefect_flow_context(**kwargs):
+    @contextmanager
+    @prefect.flow(**kwargs)
+    def flow_context():
+        yield
+
+    return flow_context()
