@@ -20,7 +20,7 @@ from .llm.history import DEFAULT_HISTORY as default_history
 
 # --- Default agent ---
 # assign to controlflow.default_agent to change the default agent
-from .core.agent import DEFAULT_AGENT as default_agent
+from .core.agent.agent import DEFAULT_AGENT as default_agent
 
 # --- Version ---
 try:

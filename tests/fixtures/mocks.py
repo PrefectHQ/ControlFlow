@@ -3,7 +3,7 @@
 
 # import litellm
 # import pytest
-# from controlflow.core.agent import Agent
+# from controlflow.core.agents import Agent
 # from controlflow.core.task import Task, TaskStatus
 # from controlflow.llm.completions import Response
 # from controlflow.settings import temporary_settings

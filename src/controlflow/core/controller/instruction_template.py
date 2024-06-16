@@ -34,8 +34,10 @@ class AgentTemplate(Template):
         {% if agent.description -%}
         - Your description: "{{ agent.description }}"
         {% endif %}
-            
         
+        Your name and description are visible to other agents. The rest of the
+        information in this section is private to you.
+            
         ## Instructions
         
         You are part of an AI workflow and your job is to complete tasks
@@ -46,31 +48,39 @@ class AgentTemplate(Template):
         You must follow your instructions at all times.
         
         {% if agent.instructions %}
-        These are your private instructions:
-        - {{ agent.instructions }}
+        {{ agent.instructions }}
         {% endif %}
         
+        ## Memory
+        
+        You have the following private memories:
+        
+        {% for index, memory in memories %}
+        - {{ index }}: {{ memory }}
+        {% endfor %}
+        
+        Use your memory to record information 
+        
+        """
+    agent: Agent
+    memories: dict[int, str]
+
+
+class WorkflowTemplate(Template):
+    template: str = """
+        # Workflow
+        
+        You are part of a team of agents helping to complete a larger workflow.
+        Certain tasks have been delegated to your team.
+
+        ## Instructions
+                
         {% if additional_instructions %}
         These instructions apply to all agents at this part of the workflow:        
         {% for instruction in additional_instructions %}
         - {{ instruction }}
         {% endfor %}
         {% endif %}
-        
-        ## Other Agents
-        
-        You may be working with other agents. They may have different instructions and tools than you. To communicate with other agents, post messages to the thread.
-        """
-    agent: Agent
-    additional_instructions: list[str]
-
-
-class TasksTemplate(Template):
-    template: str = """
-        # Workflow
-        
-        You are part of a team of agents helping to complete a larger workflow.
-        Certain tasks have been delegated to your team.
                 
         ## Flow
         
@@ -163,13 +173,12 @@ class TasksTemplate(Template):
     tasks: list[Task]
     json_tasks: list[dict]
     flow: Flow
+    additional_instructions: list[str]
 
 
 class CommunicationTemplate(Template):
     template: str = """
         # Communciation
-        
-        ## The thread
         
         You and other agents are all communicating on a thread to complete
         tasks. You can speak normally by posting messages if you need to. This
@@ -181,7 +190,22 @@ class CommunicationTemplate(Template):
         Do not impersonate another agent or post messages on their behalf. The
         workflow orchestrator will make sure that all agents have a fair chance
         to act. You do not need to identify yourself in your messages.
+        """
+
+    agent: Agent
+
+
+class ToolTemplate(Template):
+    template: str = """
+        # Tools
         
+        ## Your memory
+        
+        You have a memory tool that you can use to store and retrieve private
+        information. Use this tool when you need to remember something private
+        or you don't want to confuse the thread. Otherwise, you can post your
+        thoughts publicly.
+                
         ## Talking to human users
         
         If your task requires communicating with a human, you will be given a
@@ -217,15 +241,21 @@ class MainTemplate(ControlFlowModel):
     tasks: list[Task]
 
     def render(self):
+        if self.agent.memory:
+            memories = self.agent.memory.load(thread_id=self.controller.flow.thread_id)
+        else:
+            memories = {}
+
         templates = [
             AgentTemplate(
                 agent=self.agent,
-                additional_instructions=self.instructions,
+                memories=memories,
             ),
-            TasksTemplate(
+            WorkflowTemplate(
                 flow=self.controller.flow,
                 tasks=self.tasks,
                 json_tasks=[task.model_dump() for task in self.tasks],
+                additional_instructions=self.instructions,
             ),
             CommunicationTemplate(
                 agent=self.agent,
