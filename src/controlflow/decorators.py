@@ -1,14 +1,14 @@
 import functools
 import inspect
-from typing import Any, Callable, Optional
-
-import prefect
+from typing import Any, Callable, Optional, Union
 
 import controlflow
 from controlflow.core.agent import Agent
 from controlflow.core.flow import Flow
 from controlflow.core.task import Task
 from controlflow.utilities.logging import get_logger
+from controlflow.utilities.prefect import flow as prefect_flow
+from controlflow.utilities.prefect import task as prefect_task
 
 # from controlflow.utilities.marvin import patch_marvin
 from controlflow.utilities.tasks import resolve_tasks
@@ -24,6 +24,10 @@ def flow(
     tools: Optional[list[Callable[..., Any]]] = None,
     agents: Optional[list[Agent]] = None,
     lazy: Optional[bool] = None,
+    retries: Optional[int] = None,
+    retry_delay_seconds: Optional[Union[float, int]] = None,
+    timeout_seconds: Optional[Union[float, int]] = None,
+    prefect_kwargs: Optional[dict[str, Any]] = None,
 ):
     """
     A decorator that wraps a function as a ControlFlow flow.
@@ -59,14 +63,26 @@ def flow(
             tools=tools,
             agents=agents,
             lazy=lazy,
+            retries=retries,
+            retry_delay_seconds=retry_delay_seconds,
+            timeout_seconds=timeout_seconds,
+            prefect_kwargs=prefect_kwargs,
         )
 
     sig = inspect.signature(fn)
 
+    # the flow decorator creates a proper prefect flow
+    @prefect_flow(
+        timeout_seconds=timeout_seconds,
+        retries=retries,
+        retry_delay_seconds=retry_delay_seconds,
+        **prefect_kwargs or {},
+    )
     @functools.wraps(fn)
     def wrapper(
         *args,
         flow_kwargs: dict = None,
+        lazy_: bool = False,
         **kwargs,
     ):
         # first process callargs
@@ -89,30 +105,25 @@ def flow(
             **flow_kwargs,
         )
 
-        # create a function to wrap as a Prefect flow
-        @prefect.flow
-        def wrapped_flow(*args, lazy_=None, **kwargs):
-            with flow_obj:
-                with controlflow.instructions(instructions):
-                    result = fn(*args, **kwargs)
+        with flow_obj.create_context(create_prefect_flow_context=False):
+            with controlflow.instructions(instructions):
+                result = fn(*args, **kwargs)
 
-                    # Determine if we should run eagerly or lazily
-                    if lazy_ is not None:
-                        run_eagerly = not lazy_
-                    elif lazy is not None:
-                        run_eagerly = not lazy
-                    else:
-                        run_eagerly = controlflow.settings.eager_mode
+                # Determine if we should run eagerly or lazily
+                if lazy_ is not None:
+                    run_eagerly = not lazy_
+                elif lazy is not None:
+                    run_eagerly = not lazy
+                else:
+                    run_eagerly = controlflow.settings.eager_mode
 
-                    if run_eagerly:
-                        flow_obj.run()
+                if run_eagerly:
+                    flow_obj.run()
 
-                        # resolve any returned tasks; this will raise on failure
-                        return resolve_tasks(result)
-                    else:
-                        return flow_obj
-
-        return wrapped_flow(*args, **kwargs)
+                    # resolve any returned tasks; this will raise on failure
+                    return resolve_tasks(result)
+                else:
+                    return flow_obj
 
     if lazy is True or (lazy is None and not controlflow.settings.eager_mode):
         wrapper.__annotations__["return"] = Flow
@@ -129,6 +140,10 @@ def task(
     tools: Optional[list[Callable[..., Any]]] = None,
     user_access: Optional[bool] = None,
     lazy: Optional[bool] = None,
+    retries: Optional[int] = None,
+    retry_delay_seconds: Optional[Union[float, int]] = None,
+    timeout_seconds: Optional[Union[float, int]] = None,
+    prefect_kwargs: Optional[dict[str, Any]] = None,
 ):
     """
     A decorator that turns a Python function into a Task. The Task objective is
@@ -167,6 +182,10 @@ def task(
             tools=tools,
             user_access=user_access,
             lazy=lazy,
+            retries=retries,
+            retry_delay_seconds=retry_delay_seconds,
+            timeout_seconds=timeout_seconds,
+            prefect_kwargs=prefect_kwargs,
         )
 
     sig = inspect.signature(fn)
@@ -179,6 +198,12 @@ def task(
 
     result_type = fn.__annotations__.get("return")
 
+    @prefect_task(
+        timeout_seconds=timeout_seconds,
+        retries=retries,
+        retry_delay_seconds=retry_delay_seconds,
+        **prefect_kwargs or {},
+    )
     @functools.wraps(fn)
     def wrapper(*args, lazy_: bool = None, **kwargs):
         # first process callargs

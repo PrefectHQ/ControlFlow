@@ -6,7 +6,7 @@ authors = [
     { name = "Jeremiah Lowin", email = "153965+jlowin@users.noreply.github.com" },
 ]
 dependencies = [
-    "prefect>=3.0rc1",
+    "prefect @ git+https://github.com/PrefectHQ/prefect.git@controlflow#egg=prefect",
     "jinja2>=3.1.4",
     "langchain_core>=0.2.4",
     "langchain_openai>=0.1.8",

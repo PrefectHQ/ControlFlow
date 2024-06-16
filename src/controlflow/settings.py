@@ -1,6 +1,4 @@
 import os
-import sys
-import warnings
 from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
@@ -27,28 +25,6 @@ class ControlFlowSettings(BaseSettings):
     )
 
 
-class PrefectSettings(ControlFlowSettings):
-    """
-    All settings here are used as defaults for Prefect, unless overridden by env vars.
-    Note that `apply()` must be called before Prefect is imported.
-    """
-
-    PREFECT_LOGGING_LEVEL: str = "WARNING"
-    PREFECT_EXPERIMENTAL_ENABLE_NEW_ENGINE: str = "true"
-
-    def apply(self):
-        import os
-
-        if "prefect" in sys.modules:
-            warnings.warn(
-                "Prefect has already been imported; ControlFlow defaults will not be applied."
-            )
-
-        for k, v in self.model_dump().items():
-            if k not in os.environ:
-                os.environ[k] = v
-
-
 class Settings(ControlFlowSettings):
     max_task_iterations: Optional[int] = Field(
         default=100,
@@ -57,7 +33,6 @@ class Settings(ControlFlowSettings):
         "This setting can be overridden by the `max_iterations` attribute "
         "on a task.",
     )
-    prefect: PrefectSettings = Field(default_factory=PrefectSettings)
 
     # ------------ home settings ------------
 
@@ -68,6 +43,10 @@ class Settings(ControlFlowSettings):
     )
 
     # ------------ display and logging settings ------------
+
+    log_prints: bool = Field(
+        True, description="Whether to log prints to eh Prefect logger by default."
+    )
 
     # ------------ flow settings ------------
 
@@ -119,10 +98,6 @@ class Settings(ControlFlowSettings):
         description="The number of coloumns to use for the print handler. If None, the width of "
         "the terminal will be used. Useful for screenshots and examples that need to fit a known width. For docs, use 50.",
     )
-
-    def model_post_init(self, __context: Any) -> None:
-        self.prefect.apply()
-        return super().model_post_init(__context)
 
     @field_validator("home_path", mode="before")
     def _validate_home_path(cls, v: Union[str, Path]) -> Path:

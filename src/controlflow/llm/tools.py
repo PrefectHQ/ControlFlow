@@ -12,6 +12,7 @@ from pydantic import TypeAdapter
 
 import controlflow
 from controlflow.llm.messages import InvalidToolMessage
+from controlflow.utilities.prefect import wrap_prefect_tool
 
 if TYPE_CHECKING:
     from controlflow.llm.messages import ToolMessage
@@ -101,7 +102,9 @@ def tool(
     return Tool.from_function(fn, name=name, description=description, tags=tags or {})
 
 
-def as_tools(tools: list[Union[Callable, Tool]]) -> list[Tool]:
+def as_tools(
+    tools: list[Union[Callable, Tool]], wrap_prefect: bool = True
+) -> list[Tool]:
     """
     Converts a list of tools (either Tool objects or callables) into a list of
     Tool objects.
@@ -116,6 +119,8 @@ def as_tools(tools: list[Union[Callable, Tool]]) -> list[Tool]:
             t = Tool.from_function(t)
         if (t.name, t.func, t.coroutine) in seen:
             continue
+        if wrap_prefect:
+            t = wrap_prefect_tool(t)
         new_tools.append(t)
         seen.add((t.name, t.func, t.coroutine))
     return new_tools

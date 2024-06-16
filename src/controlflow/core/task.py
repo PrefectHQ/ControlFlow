@@ -15,6 +15,7 @@ from typing import (
     _LiteralGenericAlias,
 )
 
+from prefect.context import TaskRunContext
 from pydantic import (
     Field,
     PydanticSchemaGenerationError,
@@ -32,6 +33,8 @@ from controlflow.llm.tools import Tool
 from controlflow.tools.talk_to_human import talk_to_human
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
+from controlflow.utilities.prefect import PrefectTrackingTask
+from controlflow.utilities.prefect import task as prefect_task
 from controlflow.utilities.tasks import (
     collect_tasks,
     visit_task_collection,
@@ -50,6 +53,11 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 logger = get_logger(__name__)
+
+
+def get_task_run_name() -> str:
+    context = TaskRunContext.get()
+    return f'Run {context.parameters['self'].friendly_name()}'
 
 
 class TaskStatus(Enum):
@@ -113,6 +121,8 @@ class Task(ControlFlowModel):
     _subtasks: set["Task"] = set()
     _downstreams: set["Task"] = set()
     _iteration: int = 0
+    _cm_stack: list[contextmanager] = []
+    _prefect_task: Optional[PrefectTrackingTask] = None
     model_config = dict(extra="forbid", arbitrary_types_allowed=True)
 
     def __init__(
@@ -134,7 +144,35 @@ class Task(ControlFlowModel):
             ).strip()
 
         super().__init__(**kwargs)
-        self.__cm_stack = []
+
+        self._prefect_task = PrefectTrackingTask(
+            name=f"Working on {self.friendly_name()}...",
+            description=self.instructions,
+            tags=[self.__class__.__name__],
+        )
+
+    def __hash__(self):
+        return hash((self.__class__.__name__, self.id))
+
+    def __eq__(self, other):
+        """
+        Tasks have set attributes and set equality is based on id() of their
+        contents, not equality of objects. This means that two tasks are not
+        equal unless their set attributes satisfy an identity criteria, which is
+        too strict.
+        """
+        if type(self) == type(other):
+            d1 = dict(self)
+            d2 = dict(other)
+            # conver sets to lists for comparison
+            d1["depends_on"] = list(d1["depends_on"])
+            d2["depends_on"] = list(d2["depends_on"])
+            return d1 == d2
+        return False
+
+    def __repr__(self) -> str:
+        serialized = self.model_dump()
+        return f"{self.__class__.__name__}({', '.join(f'{key}={repr(value)}' for key, value in serialized.items())})"
 
     @field_validator("parent", mode="before")
     def _default_parent(cls, v):
@@ -275,6 +313,7 @@ class Task(ControlFlowModel):
         controller = controlflow.Controller(tasks=[self], agents=agent, flow=flow)
         await controller.run_once_async()
 
+    @prefect_task(task_run_name=get_task_run_name)
     def _run(
         self,
         raise_on_error: bool = True,
@@ -329,6 +368,7 @@ class Task(ControlFlowModel):
 
         If max_iterations is provided, the task will run at most that many times before raising an error.
         """
+
         gen = self._run(
             raise_on_error=raise_on_error,
             max_iterations=max_iterations,
@@ -352,6 +392,7 @@ class Task(ControlFlowModel):
 
         If max_iterations is provided, the task will run at most that many times before raising an error.
         """
+
         gen = self._run(
             raise_on_error=raise_on_error,
             max_iterations=max_iterations,
@@ -365,18 +406,18 @@ class Task(ControlFlowModel):
                 return e.value
 
     @contextmanager
-    def _context(self):
+    def create_context(self):
         stack = ctx.get("tasks", [])
         with ctx(tasks=stack + [self]):
             yield self
 
     def __enter__(self):
         # use stack so we can enter the context multiple times
-        self.__cm_stack.append(self._context())
-        return self.__cm_stack[-1].__enter__()
+        self._cm_stack.append(self.create_context())
+        return self._cm_stack[-1].__enter__()
 
     def __exit__(self, *exc_info):
-        return self.__cm_stack.pop().__exit__(*exc_info)
+        return self._cm_stack.pop().__exit__(*exc_info)
 
     def is_incomplete(self) -> bool:
         return self.status == TaskStatus.INCOMPLETE
@@ -400,9 +441,6 @@ class Task(ControlFlowModel):
         Returns True if all dependencies are complete and this task is incomplete.
         """
         return self.is_incomplete() and all(t.is_complete() for t in self.depends_on)
-
-    def __hash__(self):
-        return id(self)
 
     def _create_success_tool(self) -> Callable:
         """
@@ -501,8 +539,19 @@ class Task(ControlFlowModel):
 
     def set_status(self, status: TaskStatus):
         self.status = status
+
+        # update TUI
         if tui := ctx.get("tui"):
             tui.update_task(self)
+
+        # update Prefect
+        if self._prefect_task.is_started:
+            if status == TaskStatus.SUCCESSFUL:
+                self._prefect_task.succeed(self.result)
+            elif status == TaskStatus.FAILED:
+                self._prefect_task.fail(self.error)
+            elif status == TaskStatus.SKIPPED:
+                self._prefect_task.skip()
 
     def mark_successful(self, result: T = None, validate_upstreams: bool = True):
         if validate_upstreams:
@@ -521,20 +570,21 @@ class Task(ControlFlowModel):
 
         self.result = validate_result(result, self.result_type)
         self.set_status(TaskStatus.SUCCESSFUL)
-        if agent := ctx.get("controller_agent"):
+
+        if agent := ctx.get("agent"):
             return f"{self.friendly_name()} marked successful by {agent.name}."
         return f"{self.friendly_name()} marked successful."
 
     def mark_failed(self, message: Union[str, None] = None):
         self.error = message
         self.set_status(TaskStatus.FAILED)
-        if agent := ctx.get("controller_agent"):
+        if agent := ctx.get("agent"):
             return f"{self.friendly_name()} marked failed by {agent.name}."
         return f"{self.friendly_name()} marked failed."
 
     def mark_skipped(self):
         self.set_status(TaskStatus.SKIPPED)
-        if agent := ctx.get("controller_agent"):
+        if agent := ctx.get("agent"):
             return f"{self.friendly_name()} marked skipped by {agent.name}."
         return f"{self.friendly_name()} marked skipped."
 
