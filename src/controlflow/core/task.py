@@ -140,7 +140,7 @@ class Task(ControlFlowModel):
         super().__init__(**kwargs)
 
         self._prefect_task = PrefectTrackingTask(
-            name=f"Working on {self.friendly_name()}",
+            name=f"Working on {self.friendly_name()}...",
             description=self.instructions,
             tags=[self.__class__.__name__],
         )
@@ -307,6 +307,7 @@ class Task(ControlFlowModel):
         controller = controlflow.Controller(tasks=[self], agents=agent, flow=flow)
         await controller.run_once_async()
 
+    @prefect.task(task_run_name=lambda _, args: f"Run {args['self'].friendly_name()}")
     def _run(
         self,
         raise_on_error: bool = True,
@@ -318,6 +319,8 @@ class Task(ControlFlowModel):
         Internal function that can handle both sync and async runs by yielding either the result or the coroutine.
         """
         from controlflow.core.flow import Flow, get_flow
+
+        self._prefect_task.is_started = True
 
         if max_iterations == NOTSET:
             max_iterations = controlflow.settings.max_task_iterations
@@ -362,21 +365,17 @@ class Task(ControlFlowModel):
         If max_iterations is provided, the task will run at most that many times before raising an error.
         """
 
-        @prefect.task(task_run_name=f"Run Task {self.id}")
-        def _run():
-            gen = self._run(
-                raise_on_error=raise_on_error,
-                max_iterations=max_iterations,
-                flow=flow,
-                run_async=False,
-            )
-            while True:
-                try:
-                    next(gen)
-                except StopIteration as e:
-                    return e.value
-
-        return _run()
+        gen = self._run(
+            raise_on_error=raise_on_error,
+            max_iterations=max_iterations,
+            flow=flow,
+            run_async=False,
+        )
+        while True:
+            try:
+                next(gen)
+            except StopIteration as e:
+                return e.value
 
     async def run_async(
         self,
@@ -390,31 +389,27 @@ class Task(ControlFlowModel):
         If max_iterations is provided, the task will run at most that many times before raising an error.
         """
 
-        @prefect.task(task_run_name=f"Run Task {self.id}")
-        async def _run():
-            gen = self._run(
-                raise_on_error=raise_on_error,
-                max_iterations=max_iterations,
-                flow=flow,
-                run_async=True,
-            )
-            while True:
-                try:
-                    await next(gen)
-                except StopIteration as e:
-                    return e.value
-
-        return await _run()
+        gen = self._run(
+            raise_on_error=raise_on_error,
+            max_iterations=max_iterations,
+            flow=flow,
+            run_async=True,
+        )
+        while True:
+            try:
+                await next(gen)
+            except StopIteration as e:
+                return e.value
 
     @contextmanager
-    def _context(self):
+    def create_context(self):
         stack = ctx.get("tasks", [])
         with ctx(tasks=stack + [self]):
             yield self
 
     def __enter__(self):
         # use stack so we can enter the context multiple times
-        self._cm_stack.append(self._context())
+        self._cm_stack.append(self.create_context())
         return self._cm_stack[-1].__enter__()
 
     def __exit__(self, *exc_info):

@@ -101,7 +101,7 @@ def flow(
             **flow_kwargs,
         )
 
-        with flow_obj._context(create_prefect_flow_context=False):
+        with flow_obj.create_context(create_prefect_flow_context=False):
             with controlflow.instructions(instructions):
                 result = fn(*args, **kwargs)
 

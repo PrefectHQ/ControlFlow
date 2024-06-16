@@ -45,7 +45,7 @@ class Flow(ControlFlowModel):
         self._tasks[task.id] = task
 
     @contextmanager
-    def _context(self, create_prefect_flow_context: bool = True):
+    def create_context(self, create_prefect_flow_context: bool = True):
         if create_prefect_flow_context:
             prefect_ctx = prefect_flow_context(name=self.name)
         else:
@@ -55,7 +55,7 @@ class Flow(ControlFlowModel):
 
     def __enter__(self):
         # use stack so we can enter the context multiple times
-        cm = self._context()
+        cm = self.create_context()
         self._cm_stack.append(cm)
         return cm.__enter__()
 

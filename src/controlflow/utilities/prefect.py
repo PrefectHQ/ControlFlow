@@ -328,6 +328,30 @@ class PrefectTrackingTask(ControlFlowModel):
 
 
 def prefect_task_context(**kwargs):
+    """
+    Creates a Prefect task that starts when the context is entered and ends when
+    it closes. This is useful for creating a Prefect task that is not tied to a
+    specific function but governs a block of code. Note that some features, like
+    retries and caching, will not work.
+    """
+    supported_kwargs = {
+        "name",
+        "description",
+        "task_run_name",
+        "tags",
+        "version",
+        "timeout_seconds",
+        "log_prints",
+        "on_completion",
+        "on_failure",
+    }
+    unsupported_kwargs = set(kwargs.keys()) - set(supported_kwargs)
+    if unsupported_kwargs:
+        raise ValueError(
+            f"Unsupported keyword arguments for a task context provided: "
+            f"{unsupported_kwargs}. Consider using a @task-decorated function instead."
+        )
+
     @contextmanager
     @prefect.task(**kwargs)
     def task_context():
@@ -337,6 +361,31 @@ def prefect_task_context(**kwargs):
 
 
 def prefect_flow_context(**kwargs):
+    """
+    Creates a Prefect flow that starts when the context is entered and ends when
+    it closes. This is useful for creating a Prefect flow that is not tied to a
+    specific function but governs a block of code. Note that some features, like
+    retries and caching, will not work.
+    """
+
+    supported_kwargs = {
+        "name",
+        "description",
+        "flow_run_name",
+        "tags",
+        "version",
+        "timeout_seconds",
+        "log_prints",
+        "on_completion",
+        "on_failure",
+    }
+    unsupported_kwargs = set(kwargs.keys()) - set(supported_kwargs)
+    if unsupported_kwargs:
+        raise ValueError(
+            f"Unsupported keyword arguments for a flow context provided: "
+            f"{unsupported_kwargs}. Consider using a @flow-decorated function instead."
+        )
+
     @contextmanager
     @prefect.flow(**kwargs)
     def flow_context():
