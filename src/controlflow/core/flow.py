@@ -37,7 +37,7 @@ class Flow(ControlFlowModel):
         default_factory=list,
     )
     context: dict[str, Any] = {}
-    _tasks: dict[str, "Task"] = {}
+    tasks: dict[str, "Task"] = {}
     _cm_stack: list[contextmanager] = []
 
     def __init__(self, *, copy_parent_history: bool = True, **kwargs):
@@ -75,11 +75,11 @@ class Flow(ControlFlowModel):
         self.history.save_messages(thread_id=self.thread_id, messages=messages)
 
     def add_task(self, task: "Task"):
-        if self._tasks.get(task.id, task) is not task:
+        if self.tasks.get(task.id, task) is not task:
             raise ValueError(
                 f"A different task with id '{task.id}' already exists in flow."
             )
-        self._tasks[task.id] = task
+        self.tasks[task.id] = task
 
     @contextmanager
     def create_context(self, create_prefect_flow_context: bool = True):
@@ -94,7 +94,7 @@ class Flow(ControlFlowModel):
         """
         Runs the flow asynchronously.
         """
-        if self._tasks:
+        if self.tasks:
             controller = controlflow.Controller(flow=self)
             await controller.run_async()
 
@@ -102,7 +102,7 @@ class Flow(ControlFlowModel):
         """
         Runs the flow.
         """
-        if self._tasks:
+        if self.tasks:
             controller = controlflow.Controller(flow=self)
             controller.run()
 

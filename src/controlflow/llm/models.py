@@ -1,16 +1,20 @@
+from typing import Any, Optional
+
 from langchain_core.language_models import BaseChatModel
 
 import controlflow
 
 
 def get_default_model() -> BaseChatModel:
-    if controlflow.default_model is None:
+    if getattr(controlflow, "default_model", None) is None:
         return model_from_string(controlflow.settings.llm_model)
     else:
         return controlflow.default_model
 
 
-def model_from_string(model: str, temperature: float = None, **kwargs) -> BaseChatModel:
+def model_from_string(
+    model: str, temperature: Optional[float] = None, **kwargs: Any
+) -> BaseChatModel:
     if "/" not in model:
         provider, model = "openai", model
     provider, model = model.split("/")

@@ -1,5 +1,6 @@
 import logging
 import random
+import re
 import uuid
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Callable, Optional
@@ -24,12 +25,19 @@ def get_default_agent() -> "Agent":
     return controlflow.default_agent
 
 
+def sanitize_name(name):
+    """
+    Replace any invalid characters with `-`, due to restrictions on names in the API
+    """
+    sanitized_string = re.sub(r"[^a-zA-Z0-9_-]", "-", name)
+    return sanitized_string
+
+
 class Agent(ControlFlowModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4().hex[:5]))
     model_config = dict(arbitrary_types_allowed=True)
     name: str = Field(
         description="The name of the agent.",
-        pattern=r"^[a-zA-Z0-9_-]+$",
         default_factory=lambda: random.choice(NAMES),
     )
     description: Optional[str] = Field(
@@ -67,6 +75,10 @@ class Agent(ControlFlowModel):
         tools = controlflow.llm.tools.as_tools(tools)
         # tools are Pydantic 1 objects
         return [t.dict(include={"name", "description"}) for t in tools]
+
+    @field_serializer("name")
+    def _serialize_name(self, name: str):
+        return sanitize_name(name)
 
     def __init__(self, name=None, **kwargs):
         if name is not None:

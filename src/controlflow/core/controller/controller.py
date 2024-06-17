@@ -104,7 +104,7 @@ class Controller(ControlFlowModel):
     @model_validator(mode="after")
     def _finalize(self):
         if self.tasks is None:
-            self.tasks = list(self.flow._tasks.values())
+            self.tasks = list(self.flow.tasks.values())
         for task in self.tasks:
             self.flow.add_task(task)
         return self

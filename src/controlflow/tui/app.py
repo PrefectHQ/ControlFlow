@@ -33,7 +33,7 @@ class TUIApp(App):
 
     def __init__(self, flow: "controlflow.Flow", **kwargs):
         self._flow = flow
-        self._tasks = flow._tasks
+        self._tasks = flow.tasks
         self._is_ready = False
         super().__init__(**kwargs)
 
