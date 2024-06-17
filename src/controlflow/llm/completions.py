@@ -1,4 +1,5 @@
 import math
+import re
 from typing import AsyncGenerator, Callable, Generator, Optional, Union
 
 import langchain_core.language_models as lc_models
@@ -70,6 +71,21 @@ def handle_multiple_talk_to_human_calls(tool_call: ToolCall, message: AIMessage)
     return error
 
 
+def prepare_messages(messages: list[MessageType]) -> list[MessageType]:
+    """
+    Prepare messages for the model by ensuring they are in the correct format.
+
+    - The OpenAI API can not handle message names that contain characters other than [a-zA-Z0-9_-]
+    """
+    new_messages = []
+    for msg in messages:
+        if name := getattr(msg, "name", None):
+            if (safe_name := re.sub(r"[^a-zA-Z0-9_-]", "-", name)) != name:
+                msg = msg.copy(update=dict(name=safe_name))
+        new_messages.append(msg)
+    return new_messages
+
+
 def _completion_generator(
     messages: list[MessageType],
     model: lc_models.BaseChatModel,
@@ -97,6 +113,8 @@ def _completion_generator(
             input_messages = messages + response_messages
             if message_preprocessor is not None:
                 input_messages = message_preprocessor(input_messages)
+
+            input_messages = prepare_messages(input_messages)
 
             if not stream:
                 response_message = model.invoke(input=input_messages, **kwargs)
@@ -196,6 +214,8 @@ async def _completion_async_generator(
             input_messages = messages + response_messages
             if message_preprocessor is not None:
                 input_messages = message_preprocessor(input_messages)
+
+            input_messages = prepare_messages(input_messages)
 
             if not stream:
                 response_message = await model.ainvoke(input=input_messages, **kwargs)
