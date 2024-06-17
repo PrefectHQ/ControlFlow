@@ -1,3 +1,4 @@
+import datetime
 import uuid
 from contextlib import contextmanager, nullcontext
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
@@ -5,7 +6,8 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 from pydantic import Field
 
 import controlflow
-from controlflow.llm.history import get_default_history
+import controlflow.llm
+from controlflow.llm.history import History, get_default_history
 from controlflow.llm.messages import MessageType
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
@@ -22,6 +24,9 @@ class Flow(ControlFlowModel):
     name: Optional[str] = None
     description: Optional[str] = None
     thread_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
+    history: History = Field(
+        default_factory=controlflow.llm.history.get_default_history
+    )
     tools: list[Callable] = Field(
         default_factory=list,
         description="Tools that will be available to every agent in the flow",
@@ -35,7 +40,39 @@ class Flow(ControlFlowModel):
     _tasks: dict[str, "Task"] = {}
     _cm_stack: list[contextmanager] = []
 
-    # --- Prefect kwargs ---
+    def __init__(self, *, copy_parent_history: bool = True, **kwargs):
+        """
+        By default, the flow will copy the history from the parent flow if one
+        exists. Because each flow is a new thread, new messages will not be shared
+        between the parent and child flow.
+        """
+        super().__init__(**kwargs)
+        parent = get_flow()
+        if parent and copy_parent_history:
+            self.add_messages(parent.get_messages())
+
+    def __enter__(self):
+        # use stack so we can enter the context multiple times
+        cm = self.create_context()
+        self._cm_stack.append(cm)
+        return cm.__enter__()
+
+    def __exit__(self, *exc_info):
+        # exit the context manager
+        return self._cm_stack.pop().__exit__(*exc_info)
+
+    def get_messages(
+        self,
+        limit: int = None,
+        before: datetime.datetime = None,
+        after: datetime.datetime = None,
+    ) -> list[MessageType]:
+        return self.history.load_messages(
+            thread_id=self.thread_id, limit=limit, before=before, after=after
+        )
+
+    def add_messages(self, messages: list[MessageType]):
+        self.history.save_messages(thread_id=self.thread_id, messages=messages)
 
     def add_task(self, task: "Task"):
         if self._tasks.get(task.id, task) is not task:
@@ -52,16 +89,6 @@ class Flow(ControlFlowModel):
             prefect_ctx = nullcontext()
         with ctx(flow=self), prefect_ctx:
             yield self
-
-    def __enter__(self):
-        # use stack so we can enter the context multiple times
-        cm = self.create_context()
-        self._cm_stack.append(cm)
-        return cm.__enter__()
-
-    def __exit__(self, *exc_info):
-        # exit the context manager
-        return self._cm_stack.pop().__exit__(*exc_info)
 
     async def run_async(self):
         """

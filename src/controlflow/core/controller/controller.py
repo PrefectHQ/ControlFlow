@@ -15,7 +15,6 @@ from controlflow.core.task import Task
 from controlflow.instructions import get_instructions
 from controlflow.llm.completions import completion, completion_async
 from controlflow.llm.handlers import PrintHandler, ResponseHandler, TUIHandler
-from controlflow.llm.history import History
 from controlflow.llm.messages import AIMessage, MessageType, SystemMessage
 from controlflow.llm.tools import as_tools
 from controlflow.tui.app import TUIApp as TUI
@@ -91,9 +90,6 @@ class Controller(ControlFlowModel):
         description="Tasks that the controller will complete.",
     )
     agents: Union[list[Agent], None] = None
-    history: History = Field(
-        default_factory=controlflow.llm.history.get_default_history
-    )
     context: dict = {}
     model_config: dict = dict(extra="forbid")
     enable_tui: bool = Field(default_factory=lambda: controlflow.settings.enable_tui)
@@ -203,7 +199,7 @@ class Controller(ControlFlowModel):
 
         # prepare messages
         system_message = SystemMessage(content=instructions)
-        messages = self.history.load_messages(thread_id=self.flow.thread_id)
+        messages = self.flow.get_messages()
 
         # setup handlers
         handlers = []
@@ -244,8 +240,7 @@ class Controller(ControlFlowModel):
                     pass
 
             # save history
-            self.history.save_messages(
-                thread_id=self.flow.thread_id,
+            self.flow.add_messages(
                 messages=response_handler.response_messages,
             )
             self._iteration += 1
@@ -281,8 +276,7 @@ class Controller(ControlFlowModel):
                 pass
 
         # save history
-        self.history.save_messages(
-            thread_id=self.flow.thread_id,
+        self.flow.add_messages(
             messages=response_handler.response_messages,
         )
         self._iteration += 1
