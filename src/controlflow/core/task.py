@@ -589,6 +589,23 @@ class Task(ControlFlowModel):
             return f"{self.friendly_name()} marked skipped by {agent.name}."
         return f"{self.friendly_name()} marked skipped."
 
+    def generate_subtasks(self, instructions: str = None, agent: Agent = None):
+        """
+        Generate subtasks for this task based on the provided instructions.
+        Subtasks can reuse the same tools and agents as this task.
+        """
+        from controlflow.planning.plan import create_plan
+
+        # enter a context to set the parent task
+        with self:
+            create_plan(
+                self.objective,
+                instructions=instructions,
+                planning_agent=agent,
+                agents=self.agents,
+                tools=self.tools,
+            )
+
 
 def generate_result_schema(result_type: type[T]) -> type[T]:
     result_schema = None
