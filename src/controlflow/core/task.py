@@ -28,6 +28,7 @@ from pydantic import (
 
 import controlflow
 import controlflow.core
+from controlflow.core.agent import Agent
 from controlflow.instructions import get_instructions
 from controlflow.llm.tools import Tool
 from controlflow.tools.talk_to_human import talk_to_human
@@ -47,7 +48,6 @@ from controlflow.utilities.types import (
 )
 
 if TYPE_CHECKING:
-    from controlflow.core.agent import Agent
     from controlflow.core.flow import Flow
     from controlflow.core.graph import Graph
 

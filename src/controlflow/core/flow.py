@@ -1,12 +1,14 @@
 import datetime
 import uuid
 from contextlib import contextmanager, nullcontext
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 from pydantic import Field
 
 import controlflow
 import controlflow.llm
+from controlflow.core.agent import Agent
+from controlflow.core.task import Task
 from controlflow.llm.history import History, get_default_history
 from controlflow.llm.messages import MessageType
 from controlflow.utilities.context import ctx
@@ -14,9 +16,6 @@ from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import prefect_flow_context
 from controlflow.utilities.types import ControlFlowModel
 
-if TYPE_CHECKING:
-    from controlflow.core.agent import Agent
-    from controlflow.core.task import Task
 logger = get_logger(__name__)
 
 
@@ -31,13 +30,13 @@ class Flow(ControlFlowModel):
         default_factory=list,
         description="Tools that will be available to every agent in the flow",
     )
-    agents: list["Agent"] = Field(
+    agents: list[Agent] = Field(
         description="The default agents for the flow. These agents will be used "
         "for any task that does not specify agents.",
         default_factory=list,
     )
     context: dict[str, Any] = {}
-    tasks: dict[str, "Task"] = {}
+    tasks: dict[str, Task] = {}
     _cm_stack: list[contextmanager] = []
 
     def __init__(self, *, copy_parent_history: bool = True, **kwargs):
@@ -74,7 +73,7 @@ class Flow(ControlFlowModel):
     def add_messages(self, messages: list[MessageType]):
         self.history.save_messages(thread_id=self.thread_id, messages=messages)
 
-    def add_task(self, task: "Task"):
+    def add_task(self, task: Task):
         if self.tasks.get(task.id, task) is not task:
             raise ValueError(
                 f"A different task with id '{task.id}' already exists in flow."

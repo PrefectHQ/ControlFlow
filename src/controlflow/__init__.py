@@ -1,9 +1,9 @@
 from .settings import settings
 import controlflow.llm
 
-from .core.flow import Flow
-from .core.task import Task
 from .core.agent import Agent
+from .core.task import Task
+from .core.flow import Flow
 from .core.controller.controller import Controller
 
 from .instructions import instructions
