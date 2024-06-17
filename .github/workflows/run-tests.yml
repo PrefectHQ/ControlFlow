@@ -42,7 +42,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      CONTROLFLOW_OPENAI_API_KEY: ${{ secrets.CONTROLFLOW_OPENAI_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     steps:
       - uses: actions/checkout@v4

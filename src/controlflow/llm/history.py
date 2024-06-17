@@ -104,6 +104,3 @@ class FileHistory(History):
         all_messages.extend([msg.model_dump(mode="json") for msg in messages])
         with open(self.path(thread_id), "w") as f:
             json.dump(all_messages, f)
-
-
-DEFAULT_HISTORY = InMemoryHistory()

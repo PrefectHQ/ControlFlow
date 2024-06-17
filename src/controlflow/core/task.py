@@ -28,6 +28,7 @@ from pydantic import (
 
 import controlflow
 import controlflow.core
+from controlflow.core.agent import Agent
 from controlflow.instructions import get_instructions
 from controlflow.llm.tools import Tool
 from controlflow.tools.talk_to_human import talk_to_human
@@ -47,7 +48,6 @@ from controlflow.utilities.types import (
 )
 
 if TYPE_CHECKING:
-    from controlflow.core.agent import Agent
     from controlflow.core.flow import Flow
     from controlflow.core.graph import Graph
 
@@ -57,7 +57,7 @@ logger = get_logger(__name__)
 
 def get_task_run_name() -> str:
     context = TaskRunContext.get()
-    return f'Run {context.parameters['self'].friendly_name()}'
+    return f'Run {context.parameters["self"].friendly_name()}'
 
 
 class TaskStatus(Enum):
@@ -128,11 +128,11 @@ class Task(ControlFlowModel):
     def __init__(
         self,
         objective=None,
-        result_type=None,
+        result_type=NOTSET,
         **kwargs,
     ):
         # allow certain args to be provided as a positional args
-        if result_type is not None:
+        if result_type is not NOTSET:
             kwargs["result_type"] = result_type
         if objective is not None:
             kwargs["objective"] = objective
@@ -442,7 +442,7 @@ class Task(ControlFlowModel):
         """
         return self.is_incomplete() and all(t.is_complete() for t in self.depends_on)
 
-    def _create_success_tool(self) -> Callable:
+    def _create_success_tool(self) -> Tool:
         """
         Create an agent-compatible tool for marking this task as successful.
         """
@@ -466,7 +466,7 @@ class Task(ControlFlowModel):
             metadata=dict(is_task_status_tool=True),
         )
 
-    def _create_fail_tool(self) -> Callable:
+    def _create_fail_tool(self) -> Tool:
         """
         Create an agent-compatible tool for failing this task.
         """
@@ -478,7 +478,7 @@ class Task(ControlFlowModel):
             metadata=dict(is_task_status_tool=True),
         )
 
-    def _create_skip_tool(self) -> Callable:
+    def _create_skip_tool(self) -> Tool:
         """
         Create an agent-compatible tool for skipping this task.
         """
@@ -525,9 +525,10 @@ class Task(ControlFlowModel):
 
             return controlflow.agent_strategies.round_robin
 
-    def get_tools(self) -> list[Callable]:
+    def get_tools(self) -> list[Union[Tool, Callable]]:
         tools = self.tools.copy()
-        if self.is_incomplete():
+        # if this task is ready to run, generate tools
+        if self.is_ready:
             tools.extend([self._create_fail_tool(), self._create_success_tool()])
             # add skip tool if this task has a parent task
             # if self.parent is not None:
