@@ -16,11 +16,11 @@ from .decorators import flow, task
 
 # --- Default history ---
 # assign to controlflow.default_history to change the default history
-from .llm.history import DEFAULT_HISTORY as default_history
+from .llm.history import DEFAULT_HISTORY as default_history, get_default_history
 
 # --- Default agent ---
 # assign to controlflow.default_agent to change the default agent
-from .core.agent.agent import DEFAULT_AGENT as default_agent
+from .core.agent.agent import DEFAULT_AGENT as default_agent, get_default_agent
 
 # --- Version ---
 try:
