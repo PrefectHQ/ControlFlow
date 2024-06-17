@@ -5,6 +5,7 @@ import uuid
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
+from langchain_core.language_models import BaseChatModel
 from pydantic import Field, field_serializer
 
 import controlflow
@@ -60,11 +61,11 @@ class Agent(ControlFlowModel):
         description="The memory object used by the agent. If not specified, an in-memory memory object will be used. Pass None to disable memory.",
     )
 
-    # note: `model` should be typed as a BaseChatModel but V2 models can't have
+    # note: `model` should be typed as Optional[BaseChatModel] but V2 models can't have
     # V1 attributes without erroring, so we have to use Any.
-    model: Any = Field(
+    model: Optional[Any] = Field(
+        None,
         description="The LangChain BaseChatModel used by the agent. If not provided, the default model will be used.",
-        default_factory=get_default_model,
         exclude=True,
     )
 
@@ -84,6 +85,9 @@ class Agent(ControlFlowModel):
         if name is not None:
             kwargs["name"] = name
         super().__init__(**kwargs)
+
+    def get_model(self) -> BaseChatModel:
+        return self.model or get_default_model()
 
     def get_tools(self) -> list[Callable]:
         tools = self.tools.copy()
