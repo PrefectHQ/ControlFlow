@@ -35,9 +35,6 @@ class History(ControlFlowModel, abc.ABC):
 class InMemoryHistory(History):
     _history: ClassVar[dict[str, list[MessageType]]] = {}
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
     def load_messages(
         self,
         thread_id: str,
