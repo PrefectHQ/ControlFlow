@@ -57,7 +57,7 @@ logger = get_logger(__name__)
 
 def get_task_run_name() -> str:
     context = TaskRunContext.get()
-    return f'Run {context.parameters['self'].friendly_name()}'
+    return f'Run {context.parameters["self"].friendly_name()}'
 
 
 class TaskStatus(Enum):
