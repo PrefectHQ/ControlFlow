@@ -228,7 +228,7 @@ class Controller(ControlFlowModel):
             with ctx(agent=agent, flow=self.flow, controller=self):
                 response_gen = await completion_async(
                     messages=payload["messages"],
-                    model=agent.model,
+                    model=agent.get_model(),
                     tools=payload["tools"],
                     handlers=payload["handlers"],
                     max_iterations=1,
@@ -264,7 +264,7 @@ class Controller(ControlFlowModel):
         with ctx(agent=agent, flow=self.flow, controller=self):
             response_gen = completion(
                 messages=payload["messages"],
-                model=agent.model,
+                model=agent.get_model(),
                 tools=payload["tools"],
                 handlers=payload["handlers"],
                 max_iterations=1,
