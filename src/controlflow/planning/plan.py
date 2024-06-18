@@ -38,6 +38,7 @@ def create_plan(
     planning_agent: Agent = None,
     agents: list[Agent] = None,
     tools: list[Union[callable, Tool]] = None,
+    context: dict = None,
 ) -> list[Task]:
     """
     Given an objective and instructions for achieving it, generate a plan for
@@ -56,11 +57,23 @@ def create_plan(
             Create a plan consisting of multiple tasks to complete the provided objective.
             """,
         instructions="""
-            Use your tool to create the plan. Do not post a message or talk out loud.
+            Use your mark_successful tool to create the plan. Do not post a
+            message or talk out loud.
 
-            Each task should be a discrete, actionable step that contributes to the overall objective.
+            Each task should be a discrete, actionable step that contributes to
+            the overall objective. Do not waste time on uneccessary or redundant
+            steps. Make sure to use your tools. 
             
-            - Use `depends_on` to indicate which tasks must be completed before others can start. Tasks can only depend on tasks that come before them in your plan. 
+            When creating tasks, imagine that you had to complete the plan
+            yourself. What steps would you take? What tools would you use? What
+            information would you need? Remember that each task has a token cost
+            (both in its evaluation and needing to mark it complete), so try to
+            organize objectives by outcomes and dependencies, not by the actions
+            you'd need to take.
+            
+            - Use `depends_on` to indicate which tasks must be completed before
+              others can start. Tasks can only depend on tasks that come before
+              them in your plan. 
             - Use `parent` to indicate tasks that are subtasks of others.
             
         """,
@@ -69,7 +82,9 @@ def create_plan(
             plan_instructions=instructions,
             plan_agents=agent_dict,
             plan_tools=tool_dict,
-        ),
+        )
+        | context
+        or {},
         agents=[planning_agent] if planning_agent else None,
         result_type=list[PlanTask],
     )
@@ -83,13 +98,24 @@ def create_plan(
     task_ids = {}
 
     for t in plan:
+        try:
+            task_agents = [agent_dict[i] for i in t.agents] if t.agents else None
+        except KeyError:
+            task_agents = None
+
+        try:
+            task_tools = [tool_dict[i] for i in t.tools]
+        except KeyError:
+            task_tools = []
+
         task_ids[t.id] = Task(
             objective=t.objective,
             instructions=t.instructions,
             depends_on=[task_ids[i] for i in t.depends_on],
             parent=task_ids[t.parent] if t.parent else None,
-            agents=[agent_dict[i] for i in t.agents] if t.agents else None,
-            tools=[tool_dict[i] for i in t.tools],
+            agents=task_agents,
+            tools=task_tools,
+            context=context,
         )
 
     return list(task_ids.values())

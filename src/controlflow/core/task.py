@@ -604,6 +604,7 @@ class Task(ControlFlowModel):
                 planning_agent=agent,
                 agents=self.agents,
                 tools=self.tools,
+                context=self.context,
             )
 
 
