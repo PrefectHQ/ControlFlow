@@ -1,0 +1,136 @@
+---
+title: ControlFlow
+sidebarTitle: Welcome!
+---
+
+## What is ControlFlow?
+
+**ControlFlow is a Python framework for building agentic AI workflows.**
+
+<Note>
+An **agentic workflow** is a process that delegates at least some of its work to an LLM agent. An agent is an autonomous entity that is invoked repeatedly to make decisions and perform complex tasks. To learn more, see the [AI glossary](/glossary/agentic-workflow).
+</Note>
+
+LLMs are powerful AI models that can be applied to a wide range of tasks. However, building applications with LLMs can be challenging due to their complexity, unpredictability, and potential for hallucinating or generating irrelevant outputs.
+
+ControlFlow provides a structured framework for defining workflows and delegating work to LLMs, without sacrificing control or transparency:
+
+
+- Create discrete, observable [tasks](/concepts/tasks) for an AI to solve.
+- Assign one or more specialized [AI agents](/concepts/agents) to each task.
+- Combine tasks into a [flow](/concepts/flows) to orchestrate more complex behaviors.
+
+
+
+<CodeGroup>
+```python Example: Restaurant recommendations
+from controlflow import flow, Task
+from pydantic import BaseModel
+
+class Preferences(BaseModel):
+    location: str
+    cuisine: str
+
+class Restaurant(BaseModel):
+    name: str
+    description: str
+
+@flow
+def restaurant_recommendations(n:int) -> list[Restaurant]:
+    """
+    An agentic workflow that asks the user for preferences, 
+    then recommends restaurants based on their input.
+    """
+    
+    # get preferences from the user
+    preferences = Task(
+        "Get the user's preferences", 
+        result_type=Preferences, 
+        user_access=True,
+    )
+    
+    # generate the recommendations
+    recommendations = Task(
+        f"Recommend {n} restaurants to the user", 
+        context=dict(preferences=preferences),
+        result_type=list[Restaurant], 
+    )
+
+    return recommendations
+
+recs = restaurant_recs(n=3)
+print(recs)
+```
+```python Result
+# >> Agent: Hi there! To help find the best restaurant 
+# for you, could you please tell me your location and 
+# the type of cuisine you're interested in?
+
+# >> User: I'm in DC looking for a cafe
+
+[
+    Restaurant(
+        name="Compass Coffee",
+        description="A popular coffee shop known for its quality coffee and relaxed atmosphere.",
+    ),
+    Restaurant(
+        name="The Wydown Coffee Bar",
+        description="A stylish cafe offering specialty coffee, pastries, and a cozy environment.",
+    ),
+    Restaurant(
+        name="Tryst Coffeehouse",
+        description="A vibrant coffeehouse with great coffee, food options, and a welcoming ambiance.",
+    ),
+]
+```
+</CodeGroup>
+## Design Principles
+
+ControlFlow's core insight is that LLMs work best when they focus on small, clearly defined tasks. By splitting complex workflows into a series of manageable steps, each handled by a specialized AI agent, the overall system becomes more reliable and easier to understand. This approach reduces the risk of errors or irrelevant outputs from the AI.
+
+However, the real magic happens when you put these small tasks back together. ControlFlow's orchestration layer lets you create powerful, multi-step workflows that demonstrate complex agentic behavior while still maintaining the simplicity and transparency of individual tasks. The framework balances AI control and AI autonomy by letting you define exactly when and what work should be delegated to your agents.
+
+This belief leads to three core design principles that underpin ControlFlow's architecture:
+
+### 🛠️ Simple Over Complex
+
+ControlFlow allows you to deploy specialized LLMs to a series of small problems, rather than use a monolithic model that tries to do everything. These single-serving LLMs are more effective and efficient, ensuring that each task is handled by the right tool, with the right context, leading to higher-quality results.
+
+Get started by creating a specialized [agent](/concepts/agents) or writing a discrete [task](/concepts/tasks).
+
+
+### 🎯 Outcome Over Process
+
+ControlFlow takes a declarative approach to defining AI workflows. By focusing on outcomes instead of attempting to steer every action and decision of the LLM, you can create more predictable and controllable workflows, making it easier to achieve your goals.
+
+Get started by defining your [tasks](/concepts/tasks) and composing them into [flows](/concepts/flows).
+
+### ⌨️ Code Over Chat
+
+ControlFlow helps you automate AI-powered workflows with confidence. While your workflows may require human interaction, ControlFlow is code first, chat second. That means that even when your agents talk to a user, the artifacts of your workflow are always structured data, not a list of messages. This makes it easier to debug, monitor, and maintain your AI-enhanced applications.
+
+### 🦾 Control Over Autonomy
+
+ControlFlow is designed to give you control over your AI workflows, but the power of AI agents often comes from their autonomy. The framework finds a balance between these two ideas by using tasks to define the scope and constraints of any work that you delegate to your agents. This allows you to choose exactly when and how much autonomy to give to your agents, ensuring that they operate within the boundaries you set.
+
+## Why ControlFlow?
+
+ControlFlow's design principles lead to a number of key features that make it a powerful tool for building AI-powered applications:
+
+### 🧩 Task-Centric Design
+
+ControlFlow breaks down AI workflows into discrete, self-contained tasks, each with a specific objective and set of requirements. This declarative, modular approach lets you focus on the high-level logic of your applications while allowing the framework to manage the details of coordinating agents and data flow between tasks.
+
+### 🕵️ Agent Orchestration
+
+ControlFlow's orchestration engine coordinates your agents, assigning tasks to the most appropriate models and managing the flow of data between them, while maintaining consistent context and history. The engine uses knowledge of the entire workflow to optimize agent instructions and ensure that every task contributes to the overall goal of the workflow.
+
+### 🔍 Native Debugging and Observability
+
+ControlFlow prioritizes transparency and ease of debugging by providing native tools for monitoring and inspecting the execution of AI tasks. You can easily track the progress of your workflows, identify bottlenecks or issues, and gain insights into the behavior of individual agents, ensuring that your AI applications are functioning as intended.
+
+### 🤝 Seamless Integration
+
+ControlFlow is designed to integrate seamlessly with any Python script or codebase, elevating AI tasks to first-class citizens in your application logic. You can build end-to-end AI workflows, or only delegate a single step of a large process to an AI. This allows for gradual and controlled adoption of AI agents, reducing the risk and complexity of introducing AI into existing systems.
+
+Together, these features make ControlFlow a powerful and flexible framework for building AI-powered applications that are transparent, maintainable, and aligned with software engineering best practices.
