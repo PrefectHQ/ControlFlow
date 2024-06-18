@@ -39,7 +39,7 @@
         {
             "group": "Get Started",
             "pages": [
-                "introduction",
+                "welcome",
                 "installation",
                 "tutorial",
                 "concepts"
