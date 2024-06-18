@@ -90,7 +90,7 @@ If you run the task a second time, it will immediately return the previous resul
 
 ### User input
 
-By default, agents can not interact with (human) users. ControlFlow is designed primarily to be an agentic workflow orchestrator, not a chatbot. However, there are times when user input is necessary to complete a task. In these cases, you can set the `user_access` parameter to `True` when creating a task. 
+By default, agents cannot interact with (human) users. ControlFlow is designed primarily to be an agentic workflow orchestrator, not a chatbot. However, there are times when user input is necessary to complete a task. In these cases, you can set the `user_access` parameter to `True` when creating a task. 
 
 Let's create a task to ask the user for their name. We'll also create a Pydantic model to represent the user's name, which will allow us to apply complex typing or validation, if needed.
 <CodeGroup>
@@ -119,7 +119,7 @@ Name(first='Marvin', last=None)
 ```
 </CodeGroup>
 
-If you run the above code, the agent will ask for your name in your terminal. You can respond with something like "My name is Marvin" even refuse to respond. The agent will continue to prompt you until it has enough information to complete the task.
+If you run the above code, the agent will ask for your name in your terminal. You can respond with something like "My name is Marvin" or even refuse to respond. The agent will continue to prompt you until it has enough information to complete the task.
 
 This is the essence of an agentic workflow: you declare what you need, and the agent figures out how to get it.
 
@@ -284,9 +284,9 @@ An endless quest to reach the sky.
 `hello_flow` is now a portable agentic workflow that can be run anywhere. On every call, it will automatically create a flow context for all tasks inside the flow, ensuring that they share the same state and history.
 
 ### Eager execution
-Notice that in the above flow, we never explicitly ran the `name` task, nor we did we access its `result` attribute at the end. That's because `@flow`-decorated functions are executed eagerly by default. This means that when you call a flow function, all tasks inside the flow are run automatically and any tasks returned from the flow are replaced with their result values.
+Notice that in the above flow, we never explicitly ran the `name` task, nor did we access its `result` attribute at the end. That's because `@flow`-decorated functions are executed eagerly by default. This means that when you call a flow function, all tasks inside the flow are run automatically and any tasks returned from the flow are replaced with their result values.
 
-Most of the time, you'll use eagerly-executed `@flows` and lazily-executed `Tasks` in your workflows. Eager flows are more intuitive and easier to work with, since the behave like normal functions, while lazy tasks allow the orchestrator to take advantage of observed dependencies to optimize task execution and agent selection, though it's possible to customize both behaviors.
+Most of the time, you'll use eagerly-executed `@flows` and lazily-executed `Tasks` in your workflows. Eager flows are more intuitive and easier to work with, since they behave like normal functions, while lazy tasks allow the orchestrator to take advantage of observed dependencies to optimize task execution and agent selection, though it's possible to customize both behaviors.
 
 However, you'll frequently need a task's result inside your flow function. In this case, you can eagerly run the task by calling its `.run()` method, then use the task's `result` attribute as needed.
 
