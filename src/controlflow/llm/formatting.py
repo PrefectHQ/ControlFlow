@@ -26,7 +26,8 @@ ROLE_NAMES = {
 
 
 def format_timestamp(timestamp: datetime.datetime) -> str:
-    return timestamp.strftime("%l:%M:%S %p")
+    local_timestamp = timestamp.astimezone()
+    return local_timestamp.strftime("%l:%M:%S %p")
 
 
 def format_message(
