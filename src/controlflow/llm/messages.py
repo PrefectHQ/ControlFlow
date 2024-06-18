@@ -1,12 +1,17 @@
 import datetime
+import re
 import uuid
-from typing import Any, Literal, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 import langchain_core.messages
 from langchain_core.messages import InvalidToolCall, ToolCall
 from pydantic.v1 import Field as v1_Field
+from pydantic.v1 import validator as v1_validator
 
 from controlflow.utilities.jinja import jinja_env
+
+if TYPE_CHECKING:
+    from controlflow.core.agent.agent import Agent
 
 
 class MessageMixin(langchain_core.messages.BaseMessage):
@@ -33,13 +38,35 @@ class MessageMixin(langchain_core.messages.BaseMessage):
         return self.copy(update=dict(content=content))
 
 
+class AIMessageMixin(MessageMixin):
+    """
+    Base class for AI messages and chunks.
+    """
+
+    role: Literal["ai"] = v1_Field("ai", exclude=True)
+    # Agents are Pydantic v2 models, so we store them as dicts here.
+    # they will be automatically converted.
+    agent: Optional[dict] = v1_Field(None, exclude=True)
+    name: Optional[str] = v1_Field(None)
+
+    def __init__(self, agent: "Agent" = None, **data):
+        if agent is not None and data.get("name") is None:
+            data["name"] = agent.name
+        super().__init__(agent=agent, **data)
+
+    @v1_validator("name", always=True)
+    def _sanitize_name(cls, v):
+        # sanitize name for API compatibility - OpenAI API only allows alphanumeric characters, dashes, and underscores
+        if v is not None:
+            v = re.sub(r"[^a-zA-Z0-9_-]", "-", v).strip("-")
+        return v
+
+
 class HumanMessage(langchain_core.messages.HumanMessage, MessageMixin):
     role: Literal["human"] = v1_Field("human", exclude=True)
 
 
-class AIMessage(langchain_core.messages.AIMessage, MessageMixin):
-    role: Literal["ai"] = v1_Field("ai", exclude=True)
-
+class AIMessage(langchain_core.messages.AIMessage, AIMessageMixin):
     def __init__(self, **data):
         super().__init__(**data)
 
@@ -57,9 +84,7 @@ class AIMessage(langchain_core.messages.AIMessage, MessageMixin):
         return cls(**dict(message) | kwargs | {"role": "ai"})
 
 
-class AIMessageChunk(langchain_core.messages.AIMessageChunk, AIMessage):
-    role: Literal["ai"] = v1_Field("ai", exclude=True)
-
+class AIMessageChunk(langchain_core.messages.AIMessageChunk, AIMessageMixin):
     def has_tool_calls(self) -> bool:
         return any(self.tool_call_chunks)
 
@@ -76,6 +101,7 @@ class AIMessageChunk(langchain_core.messages.AIMessageChunk, AIMessage):
         result = super().__add__(other)
         result.timestamp = self.timestamp
         result.name = self.name
+        result.agent = self.agent
         return result
 
 

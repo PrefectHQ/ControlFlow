@@ -31,6 +31,7 @@ class AgentTemplate(Template):
         You are an AI agent. 
         
         - Your name: "{{ agent.name }}"
+        - Your ID: {{ agent.id }}
         {% if agent.description -%}
         - Your description: "{{ agent.description }}"
         {% endif %}

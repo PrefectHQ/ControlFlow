@@ -46,16 +46,17 @@ def create_messages_markdown_artifact(messages, thread_id):
     )
 
 
-def add_agent_name_to_messages(messages: list[MessageType]) -> list[MessageType]:
+def add_agent_info_to_messages(messages: list[MessageType]) -> list[MessageType]:
     """
-    If the message is from a named assistant, prefix the message with the assistant's name.
+    If the message is from an agent, add a system message to clarify which agent
+    it is from. This helps the system follow multi-agent conversations.
     """
     new_messages = []
     for msg in messages:
-        if isinstance(msg, AIMessage) and msg.name:
+        if isinstance(msg, AIMessage) and msg.agent:
             new_messages.append(
                 SystemMessage(
-                    content=f'The following message is from agent "{msg.name}".'
+                    content=f'The following message is from agent "{msg.agent.name}" with id {msg.agent.id}.'
                 )
             )
         new_messages.append(msg)
@@ -233,8 +234,8 @@ class Controller(ControlFlowModel):
                     handlers=payload["handlers"],
                     max_iterations=1,
                     stream=True,
-                    ai_name=agent.name,
-                    message_preprocessor=add_agent_name_to_messages,
+                    agent=agent,
+                    pre_messages_hook=add_agent_info_to_messages,
                 )
                 async for _ in response_gen:
                     pass
@@ -269,8 +270,8 @@ class Controller(ControlFlowModel):
                 handlers=payload["handlers"],
                 max_iterations=1,
                 stream=True,
-                ai_name=agent.name,
-                message_preprocessor=add_agent_name_to_messages,
+                agent=agent,
+                pre_messages_hook=add_agent_info_to_messages,
             )
             for _ in response_gen:
                 pass
