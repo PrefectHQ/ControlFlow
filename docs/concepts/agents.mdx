@@ -8,11 +8,16 @@ To create an agent, you can use the `Agent` class provided by ControlFlow. Here'
 ```python
 from controlflow import Agent
 
+# minimal agent
+agent = Agent()
+
+# agent with options
 agent = Agent(
     name="DataAnalyst",
     description="An AI agent specialized in data analysis",
     instructions="Perform data analysis tasks efficiently and accurately",
-    tools=[pandas_tool, matplotlib_tool]
+    tools=[search_web, generate_plot],
+    model=gpt_35_turbo,
 )
 ```
 
@@ -22,22 +27,32 @@ In this example, we create an agent named "DataAnalyst" with a description and s
 
 An agent has the following key properties:
 
-- `name` (str): The name of the agent, which serves as an identifier and is visible to other agents in the workflow.
-- `description` (str, optional): A brief description of the agent's role or specialization, which is also visible to other agents.
-- `instructions` (str, optional): Specific instructions or guidelines for the agent to follow during task execution. These instructions are private to the agent and not visible to other agents.
-- `tools` (List[Callable], optional): A list of tools available to the agent. Tools are Python functions that the agent can call to perform specific actions or computations.
-- `user_access` (bool, default=False): Indicates whether the agent has access to user interactions. If set to `True`, the agent will be provided with the `talk_to_human` tool to communicate with users.
+- `name`: The name of the agent, which serves as an identifier and is visible to other agents in the workflow. Names do not have to be unique, as agents also have IDs, but it is good practice to use unique names to avoid confusion.
+- `description`: A brief description of the agent's role or specialization. This information is visible to other agents.
+- `instructions`: Specific instructions or guidelines for the agent to follow during task execution. These instructions are private and not shared with other agents.
+- `tools`: A list of tools available to the agent. Tools are Python functions that the agent can call to perform specific actions or computations.
+- `model`: A LangChain model that powers the agent responses.
+- `user_access`: Indicates whether the agent has access to user interactions. If set to `True`, the agent will be provided with the `talk_to_human` tool to communicate with users.
 
 These properties help define the agent's characteristics, behavior, and capabilities within the flow.
 
+<Tip>
+Note that instructions, tools, and user access are all agent-level settings that can also be provided or enabled at the task level. For example, a task that permits user access will allow any agent assigned to it to interact with users while working on that task, even if the agent itself does not have user access enabled.
+
+</Tip>
 ## Assigning Agents to Tasks
 
-To assign an agent to a task, you can use the `agents` parameter when creating a task. Here's an example:
+To assign an agent to a task, you can use the `agents` parameter when creating a task. Each task requires at least one assigned agent, and will use a default agent if none are provided. 
+
+Here's an example of assigning multiple agents to a task:
 
 ```python
-from controlflow import Task
+import controlflow as cf
 
-task = Task(
+data_analyst = cf.Agent(name="Data Analyst")
+data_visualizer = cf.Agent(name="Data Visualizer")
+
+task = cf.Task(
     objective="Analyze sales data",
     agents=[data_analyst, data_visualizer]
 )
@@ -45,24 +60,19 @@ task = Task(
 
 In this example, we create a task with the objective "Analyze sales data" and assign two agents, `data_analyst` and `data_visualizer`, to it. Agents can only work on tasks they are assigned to.
 
-## Running Agents
+## Specifying an Agent's Model
 
-The `Agent` class provides a `run()` method to take low-level control of an agent's execution. Here's an example of how to run an agent:
+Each agent is backed by a specific LLM that powers its responses and interactions. This allows you to choose the most suitable model for your needs, based on factors such as performance, latency, and cost.
 
+To customize the LLM, provide a model when creating your agent:
 ```python
-from controlflow import Agent, Task, Flow
+import controlflow as cf
+from langchain_openai import ChatOpenAI
 
-agent = Agent(name="DataAnalyst")
-task = Task(objective="Analyze sales data", agents=[agent])
-
-with Flow():
-    while task.is_incomplete():
-        agent.run(task)
+gpt_35_agent = cf.Agent(model=ChatOpenAI(model="gpt-3.5-turbo"))
 ```
+For a full guide on how to use LLMs in ControlFlow, including changing the default globally, please refer to the [LLMs guide](/guides/llms).
 
-In this example, we create an agent and a task, and assign the agent to the task. We then use a while loop to run the agent repeatedly until the task is marked as complete.
-
-Agents can not be run manually outside a flow context, because the flow is necessary for maintaining the shared history and context across invocations.
 
 ## User Access and Interaction
 
@@ -72,7 +82,7 @@ Agents with the `user_access` flag set to `True` have the ability to interact wi
 from controlflow import Agent
 
 agent = Agent(
-    name="UserAssistant",
+    name="Support Agent",
     description="An AI agent that interacts with users",
     user_access=True
 )

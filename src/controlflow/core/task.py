@@ -246,7 +246,7 @@ class Task(ControlFlowModel):
     def _serialize_agents(self, agents: Optional[list["Agent"]]):
         agents = self.get_agents()
         return [
-            a.model_dump(include={"name", "description", "tools", "user_access"})
+            a.model_dump(include={"name", "id", "description", "tools", "user_access"})
             for a in agents
         ]
 

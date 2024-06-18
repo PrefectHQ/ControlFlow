@@ -45,7 +45,8 @@ class Settings(ControlFlowSettings):
     # ------------ display and logging settings ------------
 
     log_prints: bool = Field(
-        True, description="Whether to log prints to eh Prefect logger by default."
+        False,
+        description="Whether to log workflow prints to the Prefect logger by default.",
     )
 
     # ------------ flow settings ------------
