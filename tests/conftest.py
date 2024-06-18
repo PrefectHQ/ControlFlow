@@ -8,14 +8,14 @@ from .fixtures import *
 
 @pytest.fixture(autouse=True, scope="session")
 def temp_controlflow_settings():
-    with temporary_settings(
-        max_task_iterations=3,
-        enable_tui=False,
-    ):
-        try:
-            yield
-        finally:
-            pass
+    with temporary_settings(max_task_iterations=3, enable_tui=False):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def reset_settings_after_each_test():
+    with temporary_settings():
+        yield
 
 
 @pytest.fixture(autouse=True, scope="session")
