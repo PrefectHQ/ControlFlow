@@ -1,10 +1,12 @@
+import copy
 import os
 from contextlib import contextmanager
-from copy import deepcopy
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
-from pydantic import Field, field_validator
+import prefect.logging.configuration
+import prefect.settings
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 if TYPE_CHECKING:
@@ -19,7 +21,7 @@ class ControlFlowSettings(BaseSettings):
             if os.getenv("CONTROLFLOW_TEST_MODE")
             else ("~/.controlflow/.env", ".env")
         ),
-        extra="allow",
+        extra="ignore",
         arbitrary_types_allowed=True,
         validate_assignment=True,
     )
@@ -45,7 +47,8 @@ class Settings(ControlFlowSettings):
     # ------------ display and logging settings ------------
 
     log_prints: bool = Field(
-        True, description="Whether to log prints to eh Prefect logger by default."
+        True,
+        description="Whether to log workflow prints to the Prefect logger by default.",
     )
 
     # ------------ flow settings ------------
@@ -90,7 +93,7 @@ class Settings(ControlFlowSettings):
     # ------------ Debug settings ------------
 
     raise_on_tool_error: bool = Field(
-        True, description="If True, an error in a tool call will raise an exception."
+        False, description="If True, an error in a tool call will raise an exception."
     )
 
     print_handler_width: Optional[int] = Field(
@@ -99,12 +102,56 @@ class Settings(ControlFlowSettings):
         "the terminal will be used. Useful for screenshots and examples that need to fit a known width. For docs, use 50.",
     )
 
+    # ------------ Prefect settings ------------
+    #
+    # Default settings for Prefect when used with ControlFlow. They can be
+    # overridden by setting standard Prefect env vars
+
+    prefect_log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
+        default="WARNING",
+        description="The log level for Prefect.",
+        alias="PREFECT_LOGGING_LEVEL",
+    )
+
+    _prefect_context: contextmanager = None
+
     @field_validator("home_path", mode="before")
     def _validate_home_path(cls, v: Union[str, Path]) -> Path:
         v = Path(v).expanduser()
         if not v.exists():
             v.mkdir(parents=True, exist_ok=True)
         return v
+
+    @model_validator(mode="after")
+    def _apply_prefect_settings(self):
+        """
+        Prefect settings are set at runtime by opening a settings context.
+        We check if any prefect-specific settings have been changed and apply them.
+        """
+        if self._prefect_context is not None:
+            self._prefect_context.__exit__(None, None, None)
+            self._prefect_context = None
+
+        settings_map = {"prefect_log_level": prefect.settings.PREFECT_LOGGING_LEVEL}
+
+        prefect_settings = {}
+
+        for cf_setting, v in self.model_dump().items():
+            if cf_setting.startswith("prefect_"):
+                p_setting = settings_map[cf_setting]
+                if p_setting.value() != v:
+                    prefect_settings[settings_map[cf_setting]] = v
+
+        if prefect_settings:
+            self._prefect_context = prefect.settings.temporary_settings(
+                prefect_settings
+            )
+            self._prefect_context.__enter__()
+
+        # Configure logging
+        prefect.logging.configuration.setup_logging()
+
+        return self
 
 
 settings = Settings()
@@ -113,47 +160,31 @@ settings = Settings()
 @contextmanager
 def temporary_settings(**kwargs: Any):
     """
-    Temporarily override ControlFlow setting values, including nested settings objects.
-
-    To override nested settings, use `__` to separate nested attribute names.
+    Temporarily override ControlFlow setting values.
 
     Args:
         **kwargs: The settings to override, including nested settings.
 
     Example:
-        Temporarily override log level and OpenAI API key:
+        Temporarily override a setting:
         ```python
         import controlflow
         from controlflow.settings import temporary_settings
 
-        # Override top-level settings
-        with temporary_settings(log_level="INFO"):
-            assert controlflow.settings.log_level == "INFO"
-        assert controlflow.settings.log_level == "DEBUG"
-
-        # Override nested settings
-        with temporary_settings(openai__api_key="new-api-key"):
-            assert controlflow.settings.openai.api_key.get_secret_value() == "new-api-key"
-        assert controlflow.settings.openai.api_key.get_secret_value().startswith("sk-")
+        with temporary_settings(raise_on_tool_error=True):
+            assert controlflow.settings.raise_on_tool_error is True
+        assert controlflow.settings.raise_on_tool_error is False
         ```
     """
-    old_env = os.environ.copy()
-    old_settings = deepcopy(settings)
-
-    def set_nested_attr(obj: object, attr_path: str, value: Any):
-        parts = attr_path.split("__")
-        for part in parts[:-1]:
-            obj = getattr(obj, part)
-        setattr(obj, parts[-1], value)
+    old_settings = copy.deepcopy(settings.model_dump(exclude={"_prefect_context"}))
 
     try:
-        for attr_path, value in kwargs.items():
-            set_nested_attr(settings, attr_path, value)
+        # apply the new settings
+        for attr, value in kwargs.items():
+            setattr(settings, attr, value)
         yield
 
     finally:
-        os.environ.clear()
-        os.environ.update(old_env)
-
-        for attr, value in old_settings:
-            set_nested_attr(settings, attr, value)
+        # restore the old settings
+        for attr in kwargs:
+            setattr(settings, attr, old_settings[attr])
