@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional, Union
 
 import prefect
 from pydantic import BaseModel, ConfigDict
@@ -8,7 +8,7 @@ NOTSET = "__NOTSET__"
 
 
 class ControlFlowModel(BaseModel):
-    model_config: dict = ConfigDict(
+    model_config = ConfigDict(
         validate_assignment=True,
         extra="forbid",
         ignored_types=(prefect.Flow, prefect.Task),
@@ -22,21 +22,22 @@ class PandasDataFrame(ControlFlowModel):
         list[list[Union[str, int, float, bool]]],
         dict[str, list[Union[str, int, float, bool]]],
     ]
-    columns: list[str] = None
-    index: list[str] = None
-    dtype: dict[str, str] = None
+    columns: Optional[list[str]] = None
+    index: Optional[list[str]] = None
+    dtype: Optional[dict[str, str]] = None
 
 
 class PandasSeries(ControlFlowModel):
     """Schema for a pandas series"""
 
     data: list[Union[str, int, float]]
-    index: list[str] = None
-    name: str = None
-    dtype: str = None
+    index: Optional[list[str]] = None
+    name: Optional[str] = None
+    dtype: Optional[str] = None
 
 
 class _OpenAIBaseType(ControlFlowModel):
-    model_config = dict(extra="allow")
+    model_config = ConfigDict(extra="allow")
 
-    # ---- end openai fields
+
+__all__ = ["ControlFlowModel", "PandasDataFrame", "PandasSeries", "_OpenAIBaseType"]

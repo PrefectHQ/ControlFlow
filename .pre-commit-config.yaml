@@ -1,7 +1,7 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.3.4
+    rev: v0.4.9
     hooks:
       # Run the linter.
       - id: ruff
@@ -10,14 +10,14 @@ repos:
       - id: ruff-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.9.0
+    rev: v1.10.0
     hooks:
       - id: mypy
         additional_dependencies:
           - pydantic>=2,<3.0.0
+          - prefect==3.0.0rc3
           - langchain_core
           - langchain_anthropic
           - langchain_openai
           - langchain_google_genai
-        files: ^(src/controlflow/llm/models.py)$
-        args: [--strict]
+        files: ^(src/controlflow/utilities/types.py)$
