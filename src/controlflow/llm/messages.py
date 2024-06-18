@@ -58,7 +58,7 @@ class AIMessageMixin(MessageMixin):
     def _sanitize_name(cls, v):
         # sanitize name for API compatibility - OpenAI API only allows alphanumeric characters, dashes, and underscores
         if v is not None:
-            v = re.sub(r"[^a-zA-Z0-9_-]", "-", v)
+            v = re.sub(r"[^a-zA-Z0-9_-]", "-", v).strip("-")
         return v
 
 
