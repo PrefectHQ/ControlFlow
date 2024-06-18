@@ -78,27 +78,28 @@
             ]
         },
         {
-            "group": "LLMs",
+            "group": "LLM Glossary",
             "pages": [
                 "glossary/llm",
                 "glossary/prompt-engineering",
+                "glossary/agents",
+                "glossary/agentic-workflows",
                 "glossary/flow-engineering",
-                "glossary/agentic-workflow",
                 "glossary/fine-tuning"
             ]
         },
         {
-            "group": "ControlFlow",
+            "group": "ControlFlow Glossary",
             "pages": [
-                "glossary/task",
-                "glossary/flow",
-                "glossary/agent",
+                "glossary/cf-task",
+                "glossary/cf-agent",
+                "glossary/cf-flow",
                 "glossary/tools",
                 "glossary/dependencies"
             ]
         },
         {
-            "group": "Orchestration",
+            "group": "Orchestration Glossary",
             "pages": [
                 "glossary/task-orchestration",
                 "glossary/flow-orchestration",
