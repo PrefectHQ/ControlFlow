@@ -27,6 +27,10 @@ ControlFlow's design reflects the opinion that AI agents are most effective when
 
 ## Get Started
 
+```bash
+pip install controlflow
+```
+
 Please note that ControlFlow is under active development.
 
 ```bash
