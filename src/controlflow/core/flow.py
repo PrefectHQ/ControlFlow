@@ -89,6 +89,22 @@ class Flow(ControlFlowModel):
         with ctx(flow=self), prefect_ctx:
             yield self
 
+    async def run_once_async(self):
+        """
+        Runs one step of the flow asynchronously.
+        """
+        if self.tasks:
+            controller = controlflow.Controller(flow=self)
+            await controller.run_once_async()
+
+    def run_once(self):
+        """
+        Runs one step of the flow.
+        """
+        if self.tasks:
+            controller = controlflow.Controller(flow=self)
+            controller.run_once()
+
     async def run_async(self):
         """
         Runs the flow asynchronously.

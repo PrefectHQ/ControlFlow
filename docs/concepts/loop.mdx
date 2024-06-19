@@ -1,0 +1,198 @@
+---
+title: The Agentic Loop
+sidebarTitle: "Agentic Loop"
+---
+
+The **agentic loop** is a fundamental concept in agentic workflows, representing the iterative process of invoking AI agents to make progress towards a goal. It is at the heart of every agentic workflow because agents almost always require multiple invocations to complete complex tasks.
+
+## What is the Agentic Loop?
+
+The agentic loop describes the cyclical process of invoking AI agents to perform tasks, evaluate their progress, and make decisions about what to do next. It has a few conceptual steps:
+
+<Steps>
+<Step title='Prompt'>
+All available or relevant information is gathered and compiled into an LLM prompt
+</Step>
+<Step title='Invoke'>
+The prompt is passed to an AI agent, which generates a response
+</Step>
+<Step title='Evaluate'>
+The response is evaluated to determine whether the agent wants to use a tool, post a message, or take some other action
+</Step>
+<Step title='Repeat'>
+The result of the evaluation is used to generate a new prompt, and the loop begins again
+</Step>
+</Steps>
+
+A common failure mode for agentic workflows is that once the loop starts, it can be difficult to stop -- or even understand. LLMs process and return sequences of natural language tokens, which prohibit traditional software mechanisms from controlling the flow of execution. This is where ControlFlow comes in.
+
+## Controlling the Loop
+
+ControlFlow is a framework designed to give developers fine-grained control over the agentic loop, enabling them to work with this natural language iterative process using familiar software development paradigms. It provides tools and abstractions to define, manage, and execute the agentic loop in a way that addresses the challenges inherent in agentic workflows.
+
+
+## Challenges
+
+In this section, we'll explore how ControlFlow helps developers control the agentic loop by addressing key challenges and providing mechanisms for managing agentic workflows effectively.
+
+### Stopping the Loop
+
+One of the key challenges in controlling the agentic loop is determining when to stop. Without clear checkpoints or completion criteria, the loop can continue indefinitely, leading to unpredictable results or wasted resources. Worse, agents can get "stuck" in a loop if they are unable to tell the system that progress is impossible.
+
+ControlFlow addresses this challenge by introducing the concept of `tasks`. Tasks serve as discrete, observable checkpoints with well-defined objectives and typed results. When a task is assigned to an agent, the agent has the autonomy to take actions and make decisions to complete the task. Agents can mark tasks as either successful or failed, providing a clear signal to the system about the completion status. However, the system will continue to invoke the agent until the task is marked as complete. 
+
+```python
+import controlflow as cf
+
+task = cf.Task("Say hello in 5 different languages")
+
+assert task.is_incomplete()  # True
+task.run()
+assert task.is_successful()  # True
+```
+
+In this way, tasks act as contracts between the developer and the agents. The developer specifies the expected result type and objective, and the agent is granted autonomy as long as it delivers the expected result.
+
+
+
+### Starting the Loop
+
+Another challenge in agentic workflows is controlling the execution of the loop - including starting it! Developers need the ability to run the loop until completion or step through it iteratively for finer control and debugging. Since there is no single software object that represents the loop itself, ControlFlow ensures that developers have a variety of tools for managing its execution.
+
+Most ControlFlow objects provide two methods for executing the agentic loop: `run()` and `run_once()`:
+
+- `run()`: Executes the loop until the object is in a completed state. For tasks, this means running until that task is complete; For flows, it means running until all tasks within the flow are complete. At each step, the system will make decisions about what to do next based on the current state of the workflow.
+- `run_once()`: Executes a single iteration of the loop, allowing developers to step through the workflow incrementally. For example, developers could use this method to control exactly which agent is invoked at each step, or to provide ad-hoc instructions to the agent that only last for a single iteration.
+
+Consider the following illustrative setup, which involves two dependent tasks in a flow:
+```python
+import controlflow as cf
+
+with cf.Flow() as flow:
+    t1 = cf.Task('Choose a language')
+    t2 = cf.Task('Say hello', context=dict(language=t1))
+```
+
+#### The `run()` Method
+Now, let's explore how the `run()` and `run_once()` methods can be used to control the execution of the loop. First, the behavior of the various `run()` methods:
+
+- Calling `t1.run()` would execute the loop until `t1` is complete.
+- Calling `t2.run()` would execute the loop until both `t2` is complete, which would also require completing `t1` because it is a dependency of `t2`.
+- Calling `flow.run()` would execute the loop until both `t1` and `t2` are complete.
+
+In general, `run()` tells the system to run the loop until the object is complete (and has a result available). It is the most common way to eagerly run workflows using the [imperative API](/guides/apis).
+
+#### The `run_once()` Method
+Next, the behavior of the various `run_once()` methods:
+
+- Calling `t1.run_once()` would execute a single iteration of the loop, starting with `t1`.
+- Calling `t2.run_once()` would execute a single iteration of the loop, starting with `t1`.
+- Calling `flow.run_once()` would execute a single iteration of the loop, starting with `t1`.
+
+Note that since `run_once()` always runs a single iteration, in all three cases it would focus on the first task in the flow, which is `t1`. However, the behavior of these three calls in practice could be different. For example, you could call `t1.run_once()` before `t2` was created, in which case knowledge of `t2` would not be included in the prompt. This could lead to different behavior than if you called `t2.run_once()`, even though both methods would start by running `t1`.
+
+By offering these execution methods, ControlFlow gives developers the flexibility to either let the loop run autonomously or manually guide its execution, depending on their specific requirements.
+
+<Tip>
+Note that when using the `@task` and `@flow` decorators in the [functional API](/guides/apis), the `run()` method is automatically called when the decorated function is invoked. This is because the functional API uses [eager execution](/guides/execution-modes) by default.
+</Tip>
+
+### Compiling Prompts
+
+Each iteration of the agentic loop requires compiling a prompt that provides the necessary context and instructions for the agent. Manually constructing these prompts can be tedious and error-prone, especially as workflows become more complex.
+
+ControlFlow simplifies prompt compilation through the `Controller`. The `Controller` automatically gathers all available information about the workflow, including the DAG of tasks, dependencies, tools, instructions, assigned agents, and more. It identifies tasks that are ready to run (i.e., all dependencies are completed), chooses an available agent, and compiles a comprehensive prompt.
+
+Importantly, the `Controller` generates tools so the agent can complete its tasks. Tools are only provided for tasks that are ready to run, ensuring that agents do not "run ahead" of the workflow.
+
+The compiled prompt includes the task objectives, relevant context from previous tasks, and any additional instructions provided by the developer. This ensures that the agent has all the necessary information to make progress on the assigned tasks.
+
+### Validating Results
+
+In an agentic workflow, it's crucial to validate the progress and results of agent actions. Relying solely on conversational responses can make it difficult to determine when a task is truly complete and whether the results meet the expected format and quality.
+
+ControlFlow tackles this challenge by requiring tasks to be satisfied using structured, validated results. Each task specifies a `result_type` that defines the expected type of the result. Instead of relying on freeform conversational responses, agents must use special tools to provide structured outputs that conform to the expected type of the task.
+
+Once a task is complete, you can access its result in your workflow and use it like any other data. This structured approach ensures that the results are reliable and consistent, making it easier to validate agent progress and maintain the integrity of the workflow.
+
+```python
+import controlflow as cf
+from pydantic import BaseModel
+
+class Person(BaseModel):
+    name: str
+    age: int
+    country: str
+
+people_task = cf.Task(
+    objective="Generate 5 characters for my story",
+    result_type=list[Person],
+)
+
+people_task.run()
+print(people_task.result)
+```
+By enforcing structured results, ControlFlow provides a reliable way to validate agent progress and ensure that the workflow remains on track.
+
+### Ad-hoc Instructions
+
+While tasks provide a structured way to define objectives and deliverables, there may be situations where developers need to provide ad-hoc guidance or instructions to agents without modifying the task definition or requiring a result. For example, if an agent is writing a post, you might want to tell it to focus on a specific topic or tone, or meet a certain minimum or maximum length. If an agent is communicating with a user, you might tell it to adopt a particular persona or use a specific style of language.
+
+ControlFlow addresses this need through the `instructions()` context manager. With `instructions()`, developers can temporarily provide additional guidance to agents without altering the underlying task. These instructions are included in the compiled prompt for the next iteration of the loop.
+
+```python
+import controlflow as cf
+
+task = cf.Task("Get the user's name", user_acces=True)
+
+with instructions("Talk like a pirate"):
+    task.run()
+```
+
+This feature allows developers to dynamically steer agent behavior based on runtime conditions or specific requirements that arise during the workflow execution.
+
+### Structuring Workflows
+
+As agentic workflows become more complex, managing the dependencies and flow of information between tasks can become challenging. Without a clear structure, it becomes difficult to reason about the workflow and ensure that agents have access to the necessary context and results from previous tasks.
+
+ControlFlow introduces the concept of `flows` to address this challenge. Flows allow developers to define the overall structure of the workflow, specifying the order of tasks, dependencies, and data flow. By organizing tasks into flows, developers can create clear and maintainable workflows that are easy to understand and modify.
+
+Creating a flow is simple: enter a `Flow` context, or use the `@flow` decorator on a function, then create tasks within that context. At a minimum, ControlFlow will ensure that all tasks share common context and history, making it easier for agents to make informed decisions and generate meaningful results.
+
+In addition, there are various ways to create explicit task dependencies that the system will enforce during execution:
+- By specifying `depends_on` when creating a task, you can ensure that the task will only run after its dependencies have completed.
+- By specificying `context` when creating a task, you can provide additional context that will be available to the agent when the task is run, including the results of other tasks
+- By specifying a `parent` when creating a task, you ensure that the parent will only run after the child has completed. This is useful breaking up a task into subtasks.
+
+Flows ensure that tasks are executed in the correct order, and they automatically manage the flow of data between tasks. This provides agents with access to the results of upstream tasks, allowing them to make informed decisions and generate meaningful results.
+
+### Customizing Agents
+
+Agents in an agentic workflow may have different capabilities, tools, and models that are suited for specific tasks. Customizing agent behavior and leveraging their unique strengths can greatly impact the effectiveness and efficiency of the workflow.
+
+ControlFlow allows developers to define agents with specific tools, instructions, and LLM models. By assigning different agents to tasks based on their capabilities, developers can optimize the agentic loop and ensure that the most suitable agent is working on each task.
+
+```python
+import controlflow as cf
+
+data_analyst = cf.Agent(
+    name="DataAnalyst",
+    description="Specializes in data analysis and statistical modeling",
+    tools=[warehouse_query, analyze_data, create_plot],
+    model=gpt_5,
+)
+```
+
+Customizing agent behavior through tools, instructions, and models gives developers fine-grained control over how agents approach tasks and allows them to tailor the workflow to their specific domain and requirements.
+
+### Multi-agent Collaboration
+
+Many agentic workflows involve multiple agents with different specialties and capabilities. Enabling these agents to collaborate and share information is essential for tackling complex problems effectively.
+
+ControlFlow supports multi-agent collaboration through message passing and shared context. Agents can post messages to other agents within the workflow, allowing them to exchange information, request assistance, or coordinate their actions.
+
+The `Flow` maintains a shared history and context that is accessible to all agents. This shared context ensures that agents have a common understanding of the workflow state and can build upon each other's results.
+
+By creating nested flows, you can let agents have private conversations that are not visible to the parent flow. Subflows inherit the parent flow's history, so this is a good way to let agents have "sidebar" conversations to solve a problem without creating noise for all the other agents.
+
+
