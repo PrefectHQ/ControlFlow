@@ -11,31 +11,76 @@ sidebarTitle: Welcome!
 An **agentic workflow** is a process that delegates at least some of its work to an LLM agent. An agent is an autonomous entity that is invoked repeatedly to make decisions and perform complex tasks. To learn more, see the [AI glossary](/glossary/agentic-workflow).
 </Note>
 
-LLMs are powerful AI models that can be applied to a wide range of tasks. However, building applications with LLMs can be challenging due to their complexity, unpredictability, and potential for hallucinating or generating irrelevant outputs.
 
-ControlFlow provides a structured framework for defining workflows and delegating work to LLMs, without sacrificing control or transparency:
-
+ControlFlow provides a structured, developer-focused framework for defining workflows and delegating work to LLMs, without sacrificing control or transparency:
 
 - Create discrete, observable [tasks](/concepts/tasks) for an AI to solve.
-- Assign one or more specialized [AI agents](/concepts/agents) to each task.
+- Assign one or more specialized AI [agents](/concepts/agents) to each task.
 - Combine tasks into a [flow](/concepts/flows) to orchestrate more complex behaviors.
 
 
 
 <CodeGroup>
-```python Example: Restaurant recommendations
-from controlflow import flow, Task
+```python Hello World
+import controlflow as cf
+from pydantic import BaseModel, Field
+
+
+class Name(BaseModel):
+    first: str = Field(min_length=1)
+    last: str = Field(min_length=1)
+
+
+@cf.flow
+def demo():
+
+    # - create a task to get the user's name as a `Name` object
+    # - run the task eagerly with ad-hoc instructions
+    # - validate that the response was not 'Marvin'
+
+    name_task = cf.Task("Get the user's name", result_type=Name, user_access=True)
+    
+    with cf.instructions("Talk like a pirate!"):
+        name_task.run()
+
+    if name_task.result.first == 'Marvin':
+        raise ValueError("Hey, that's my name!")
+
+
+    # - create a custom agent that loves limericks
+    # - have the agent write a poem
+    # - indicate that the poem depends on the name from the previous task
+
+    poetry_bot = cf.Agent(name="poetry-bot", instructions="you love limericks")
+
+    poem_task = cf.Task(
+        "Write a poem about AI workflows, based on the user's name",
+        agents=[poetry_bot],
+        context={"name": name_task},
+    )
+    
+    return poem_task
+
+
+if __name__ == "__main__":
+    print(demo())
+```
+```python Restaurant recommendations
+import controlflow as cf
 from pydantic import BaseModel
+
 
 class Preferences(BaseModel):
     location: str
     cuisine: str
 
+
 class Restaurant(BaseModel):
     name: str
     description: str
 
-@flow
+
+@cf.flow
 def restaurant_recommendations(n:int) -> list[Restaurant]:
     """
     An agentic workflow that asks the user for preferences, 
@@ -43,14 +88,14 @@ def restaurant_recommendations(n:int) -> list[Restaurant]:
     """
     
     # get preferences from the user
-    preferences = Task(
+    preferences = cf.Task(
         "Get the user's preferences", 
         result_type=Preferences, 
         user_access=True,
     )
     
     # generate the recommendations
-    recommendations = Task(
+    recommendations = cf.Task(
         f"Recommend {n} restaurants to the user", 
         context=dict(preferences=preferences),
         result_type=list[Restaurant], 
@@ -58,39 +103,24 @@ def restaurant_recommendations(n:int) -> list[Restaurant]:
 
     return recommendations
 
-recs = restaurant_recs(n=3)
-print(recs)
-```
-```python Result
-# >> Agent: Hi there! To help find the best restaurant 
-# for you, could you please tell me your location and 
-# the type of cuisine you're interested in?
 
-# >> User: I'm in DC looking for a cafe
-
-[
-    Restaurant(
-        name="Compass Coffee",
-        description="A popular coffee shop known for its quality coffee and relaxed atmosphere.",
-    ),
-    Restaurant(
-        name="The Wydown Coffee Bar",
-        description="A stylish cafe offering specialty coffee, pastries, and a cozy environment.",
-    ),
-    Restaurant(
-        name="Tryst Coffeehouse",
-        description="A vibrant coffeehouse with great coffee, food options, and a welcoming ambiance.",
-    ),
-]
+if __name__ == "__main__":
+    print(restaurant_recommendations(n=3))
 ```
 </CodeGroup>
-## Design Principles
 
-ControlFlow's core insight is that LLMs work best when they focus on small, clearly defined tasks. By splitting complex workflows into a series of manageable steps, each handled by a specialized AI agent, the overall system becomes more reliable and easier to understand. This approach reduces the risk of errors or irrelevant outputs from the AI.
+## Why ControlFlow?
 
-However, the real magic happens when you put these small tasks back together. ControlFlow's orchestration layer lets you create powerful, multi-step workflows that demonstrate complex agentic behavior while still maintaining the simplicity and transparency of individual tasks. The framework balances AI control and AI autonomy by letting you define exactly when and what work should be delegated to your agents.
+The goal of this framework is to let you build AI workflows with confidence. 
 
-This belief leads to a few key design principles that underpin ControlFlow's architecture:
+ControlFlow's design reflects the opinion that AI agents are most effective when given clear, well-defined tasks and constraints. By breaking down complex goals into manageable tasks that can be composed into a larger workflow, we can harness the power of AI while maintaining precise control over its overall direction and outcomes.
+
+At the core of every agentic workflow is a loop that repeatedly invokes an LLM to make progress towards a goal. At every step of this loop, ControlFlow lets you continuously tune how much autonomy your agents have. This allows you to strategically balance control and autonomy throughout the workflow, ensuring that the AI's actions align closely with your objectives while still leveraging its creative capabilities. For some tasks, you may provide specific, constrained instructions; for others, you can give the AI more open-ended goals.
+
+ControlFlow provides the tools and abstractions to help you find this balance, letting you build agentic workflows tailored to your specific needs and objectives. You can delegate only as much - or as little - work to your agents as you need, while maintaining full visibility and control over the entire process. 
+
+These objectives lead to a few key design principles that underpin ControlFlow's architecture:
+
 
 ### 🛠️ Simple Over Complex
 
@@ -107,13 +137,13 @@ Get started by defining your [tasks](/concepts/tasks) and composing them into [f
 
 ### ⌨️ Code Over Chat
 
-ControlFlow helps you automate AI-powered workflows with confidence. While your workflows may require human interaction, ControlFlow is code first, chat second. That means that even when your agents talk to a user, the artifacts of your workflow are always structured data, not a list of messages. This makes it easier to debug, monitor, and maintain your AI-enhanced applications.
+ControlFlow helps you automate AI-powered workflows with confidence. While your workflows may involve human conversations, ControlFlow is code first, chat second. That means that even when your agents talk to a user, the artifacts of your workflow are always structured data, not a list of messages. This makes it easier to debug, monitor, and maintain your AI-enhanced applications.
 
 ### 🦾 Control Over Autonomy
 
 ControlFlow is designed to give you control over your AI workflows, but the power of AI agents often comes from their autonomy. The framework finds a balance between these two ideas by using tasks to define the scope and constraints of any work that you delegate to your agents. This allows you to choose exactly when and how much autonomy to give to your agents, ensuring that they operate within the boundaries you set.
 
-## Why ControlFlow?
+## Key Features
 
 ControlFlow's design principles lead to a number of key features that make it a powerful tool for building AI-powered applications:
 
