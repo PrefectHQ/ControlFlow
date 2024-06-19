@@ -86,6 +86,10 @@ if __name__ == "__main__":
     print(demo())
 ```
 
+You can follow your flow's execution in the Prefect UI:
+
+<img width="1353" alt="image" src="https://github.com/PrefectHQ/ControlFlow/assets/153965/7a837d77-79e7-45b7-bf58-cd292f726414">
+
 ## Development
 
 To install for development:
