@@ -7,23 +7,50 @@
 ControlFlow takes a structured, declarative approach to AI workflows, allowing you to define `tasks` and assign `agents` to complete them. The framework handles the details of coordinating agents, tracking dependencies, and maintaining a shared history, letting you focus on the higher-level logic of your workflow.
 
 
+
+## Core Concepts
+
+- **[Tasks](https://controlflow.ai/concepts/tasks):** Define clear, manageable tasks that specify goals, constraints, and agent instructions. Tasks ensure agents have the context they need to perform optimally.
+
+- **[Agents](https://controlflow.ai/concepts/agents):** Assign tasks to specialized agents with defined capabilities, optimizing performance with specific instructions while allowing for strategic autonomy.
+
+- **[Flows](https://controlflow.ai/concepts/flows):** Compose tasks into a more complex workflow, enabling agents to tailor their actions to the overall goals of the workflow while maintaining control over their activities and outcomes.
+
 ## Why ControlFlow?
 
-The goal of this framework is to let you build AI workflows with confidence. 
+ControlFlow's design reflects a belief that AI agents are most effective when given clear, well-defined objectives and constraints. By expressing complex goals as a series of discrete tasks with structured inputs and outputs, you can maintain control over the workflow's progress and direction while still allowing agents to leverage their capabilities effectively.
 
-ControlFlow's design reflects the opinion that AI agents are most effective when given clear, well-defined tasks and constraints. By breaking down complex goals into manageable tasks that can be composed into a larger workflow, we can harness the power of AI while maintaining precise control over its overall direction and outcomes.
+The key insight behind ControlFlow is that by composing those well-defined tasks into a larger workflow structure, you can recover the complex agentic behavior that makes AI so powerful, without the downsides of sacrificing observability or control. Each task steers the agents toward the ultimate goal, leading to more coherent, reproducible results.
 
-At the core of every agentic workflow is a loop that repeatedly invokes an LLM to make progress towards a goal. At every step of this loop, ControlFlow lets you continuously tune how much autonomy your agents have. This allows you to strategically balance control and autonomy throughout the workflow, ensuring that the AI's actions align closely with your objectives while still leveraging its creative capabilities. For some tasks, you may provide specific, constrained instructions; for others, you can give the AI more open-ended goals.
-
-ControlFlow provides the tools and abstractions to help you find this balance, letting you build agentic workflows tailored to your specific needs and objectives. You can delegate only as much - or as little - work to your agents as you need, while maintaining full visibility and control over the entire process. 
+ControlFlow lets you to build workflows that are both directed and dynamic. You can choose how to balance control and autonomy at every step by delegating only as much work to your agents as necessary.
 
 With ControlFlow, you can:
 
-- Split your workflow into well-defined [tasks](https://controlflow.ai/concepts/tasks), each with clear objectives and constraints
-- Assign tasks to specialized AI [agents](https://controlflow.ai/concepts/agents), each with its own capabilities, instructions, and LLM model
-- Seamlessly integrate AI-generated results back into your [application](https://controlflow.ai/concepts/flows), including non-agentic workflow logic
-  
+- Define clear, manageable tasks with structured results
+- Assign specialized agents to tasks based on their capabilities
+- Compose tasks into larger flows with well-defined dependencies
+- Provide agents with necessary context to collaborate and complete tasks
+- Dynamically plan and adapt workflows based on intermediate results
+
+
 To learn more about the principles behind ControlFlow's design, check out the [documentation](https://controlflow.ai/welcome).
+
+## Key Features
+
+- **Intuitive API:** ControlFlow provides a clean, Pythonic API for composing tasks, agents, and flows, with support for both functional and imperative programming styles.
+
+- **Intelligent Orchestration:** ControlFlow automatically builds a dependency graph of your tasks, optimizing agent orchestration and dataflow to get the best results.
+
+- **Dynamic Planning:** You (or your agents) can dynamically generate new tasks based on intermediate results, enabling adaptive and flexible workflows.
+
+- **Flexible Execution:** Choose between eager and lazy execution to balance proactive results with optimizations based on knowledge of the entire workflow.
+
+- **Extensive Ecosystem:** Leverage the full LangChain ecosystem of LLMs, tools, and AI providers to incorporate the most current AI capabilities into your workflows.
+
+- **Seamless Integration:** Mix and match AI tasks with traditional Python functions to incrementally add agentic behaviors to your existing workflows.
+
+- **Native Observability:** Built on Prefect 3.0, ControlFlow offers comprehensive debugging and observability features for your entire workflow.
+
 
 ## Documentation
 

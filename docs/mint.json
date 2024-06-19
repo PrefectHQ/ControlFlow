@@ -50,7 +50,8 @@
             "pages": [
                 "concepts/tasks",
                 "concepts/flows",
-                "concepts/agents"
+                "concepts/agents",
+                "concepts/loop"
             ]
         },
         {
