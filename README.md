@@ -25,6 +25,10 @@ With ControlFlow, you can:
   
 To learn more about the principles behind ControlFlow's design, check out the [documentation](https://controlflow.ai/welcome).
 
+## Documentation
+
+ControlFlow's docs, including [tutorials](https://controlflow.ai/tutorial), [guides](https://controlflow.ai/guides/llms), and an [AI Glossary](https://controlflow.ai/glossary/glossary), are always available at [controlflow.ai](https://controlflow.ai/).
+
 ## Get Started
 
 🚧 Please note that ControlFlow is under active development!
@@ -32,7 +36,6 @@ To learn more about the principles behind ControlFlow's design, check out the [d
 ```bash
 pip install controlflow
 ```
-
 
 ## Example
 
@@ -82,9 +85,6 @@ def demo():
 if __name__ == "__main__":
     print(demo())
 ```
-## Documentation
-
-ControlFlow's docs are available at [controlflow.ai](https://controlflow.ai/).
 
 ## Development
 
