@@ -1,7 +1,7 @@
 import controlflow
 import pytest
 from controlflow.llm.messages import MessageType
-from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
+from controlflow.utilities.testing import FakeLLM
 
 
 @pytest.fixture(autouse=True)
@@ -16,11 +16,11 @@ def restore_defaults(monkeypatch):
 
 
 @pytest.fixture()
-def fake_llm() -> FakeMessagesListChatModel:
-    return FakeMessagesListChatModel(responses=[])
+def fake_llm() -> FakeLLM:
+    return FakeLLM(responses=[])
 
 
 @pytest.fixture()
-def default_fake_llm(fake_llm, restore_defaults) -> FakeMessagesListChatModel:
-    controlflow.default_agent = fake_llm
+def default_fake_llm(fake_llm) -> FakeLLM:
+    controlflow.default_model = fake_llm
     return fake_llm

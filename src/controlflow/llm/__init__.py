@@ -1,1 +1,2 @@
-from . import models, messages, history, tools, handlers, completions
+from ..core.flow import history
+from . import models, messages, tools, handlers, completions

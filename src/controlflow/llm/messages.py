@@ -92,7 +92,7 @@ class AIMessageChunk(langchain_core.messages.AIMessageChunk, AIMessageMixin):
     def from_chunk(
         cls, chunk: langchain_core.messages.AIMessageChunk, **kwargs
     ) -> "AIMessageChunk":
-        return cls(**dict(chunk) | kwargs | {"role": "ai"})
+        return cls(**chunk.dict(exclude={"type"}) | kwargs | {"role": "ai"})
 
     def to_message(self, **kwargs) -> AIMessage:
         return AIMessage(**self.dict(exclude={"type"}) | kwargs)
