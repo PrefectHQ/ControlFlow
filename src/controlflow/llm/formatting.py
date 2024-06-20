@@ -128,9 +128,15 @@ def format_tool_message(message: ToolMessage, width: Optional[int] = None) -> Pa
         )
     elif not message.tool_metadata.get("is_task_status_tool"):
         content_type = "json" if isinstance(message.tool_result, (dict, list)) else ""
+        if len(message.content) > 3000:
+            msg_content = (
+                "(showing first 3000 characters) " + message.content[:3000] + "..."
+            )
+        else:
+            msg_content = message.content or ""
         content = Group(
             f"✅ Received output from the [markdown.code]{message.tool_call['name']}[/] tool.\n",
-            Markdown(f"```{content_type}\n{message.content or ''}\n```"),
+            Markdown(f"```{content_type}\n{msg_content}\n```"),
         )
     else:
         return ""
