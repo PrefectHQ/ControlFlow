@@ -87,7 +87,7 @@ class Task(ControlFlowModel):
         "context, they are automatically added as `depends_on`",
     )
     parent: Optional["Task"] = Field(
-        NOTSET,
+        None,
         description="The parent task of this task. Subtasks are considered"
         " upstream dependencies of their parents.",
         validate_default=True,
