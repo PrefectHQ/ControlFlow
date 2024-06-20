@@ -86,10 +86,9 @@ Let's create three agents: a `writer`, an `editor`, and a `manager`.
 
 - The writer begins the workflow by drafting a paragraph.
 - The editor refines the draft.
-- The manager reviews the final result.
-The manager has private instructions to be strict in its assessment.
+- The manager reviews the final result and approves if its criteria is met.
 
-The `approval_task` function is run at the end of each iteration to see if the manager approves the paragraph.
+The `approval_task` function is run at the end of each iteration to see if the manager approved the paragraph.
 If not, the editing process continues until approval is granted.
 
 ```python
