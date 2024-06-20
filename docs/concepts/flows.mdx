@@ -70,6 +70,35 @@ In general, users should prefer the `@flow` decorator for its simplicity and eas
 
 The `Flow` class is only recommended for use when a group of tasks need to be quickly placed into a separate flow to isolate their work from the main flow. This circumstance is rare and can also be achieved by using the `@flow` decorator with a separate function.
 
+## Flow Histories
+
+Each flow maintains a shared history of all agent messages, actions, and tasks that were executed within it. This history is accessible to all agents and tasks within the flow, allowing them to share information and context. The shared history enables agents to collaborate, coordinate, and communicate effectively, leading to more intelligent and adaptive behavior. Every flow has a `thread_id` that uniquely identifies its history, allowing agents to distinguish between different flows and maintain separate histories.
+
+### Private Histories
+
+In general, every action an agent takes -- including sending messages, using tools, and getting tool results -- is recorded in the flow's history as a series of agent messages. Sometimes, you may want to let agents work in isolation without making their activity visible to other agents. For example, if an agent is summarizing a large document, then it will have the entire text of the document somewhere in its own history; there's no need to share that with other agents.
+
+Because each flow creates a new thread, the simplest way to create a private history is to create a new flow. To facilitate this, flows automatically inherit a copy of their parent flow's history.
+
+```python
+import controlflow as cf
+
+@cf.flow
+def study_documents():
+
+    # ... other tasks
+
+    # creating a nested flow will also create a private history 
+    # for the summary task; the full document text will not be 
+    # visible to agents in the main `study_documents` flow
+    with cf.Flow() as document_flow:
+        summary = cf.Task('summarize the document', tools=[load_document]).run()
+
+    cf.Task('analyze the summary', context=dict(summary=summary))
+
+    # ... other tasks
+```
+
 ## Flow Properties
 
 Flows have several key properties that define their behavior and configuration.
