@@ -87,7 +87,7 @@ class Task(ControlFlowModel):
         "context, they are automatically added as `depends_on`",
     )
     parent: Optional["Task"] = Field(
-        None,
+        NOTSET,
         description="The parent task of this task. Subtasks are considered"
         " upstream dependencies of their parents.",
         validate_default=True,
@@ -127,8 +127,9 @@ class Task(ControlFlowModel):
 
     def __init__(
         self,
-        objective=None,
-        result_type=NOTSET,
+        objective: str = None,
+        result_type: Any = NOTSET,
+        infer_parent: bool = True,
         **kwargs,
     ):
         # allow certain args to be provided as a positional args
@@ -136,7 +137,9 @@ class Task(ControlFlowModel):
             kwargs["result_type"] = result_type
         if objective is not None:
             kwargs["objective"] = objective
-
+        # if parent is None and infer parent is False, set parent to NOTSET
+        if not infer_parent and kwargs.get("parent") is None:
+            kwargs["parent"] = NOTSET
         if additional_instructions := get_instructions():
             kwargs["instructions"] = (
                 kwargs.get("instructions")
@@ -179,7 +182,8 @@ class Task(ControlFlowModel):
         if v is None:
             parent_tasks = ctx.get("tasks", [])
             v = parent_tasks[-1] if parent_tasks else None
-
+        elif v is NOTSET:
+            v = None
         return v
 
     @field_validator("agents", mode="before")
@@ -264,7 +268,15 @@ class Task(ControlFlowModel):
         return f"Task {self.id} ({objective})"
 
     def as_graph(self) -> "Graph":
-        return controlflow.core.graph.Graph.from_tasks(tasks=[self])
+        from controlflow.core.graph import Graph
+
+        return Graph.from_tasks(tasks=[self])
+
+    @property
+    def subtasks(self) -> list["Task"]:
+        from controlflow.core.graph import Graph
+
+        return Graph.from_tasks(tasks=self._subtasks).topological_sort()
 
     def add_subtask(self, task: "Task"):
         """
@@ -601,7 +613,7 @@ class Task(ControlFlowModel):
             create_plan(
                 self.objective,
                 instructions=instructions,
-                planning_agent=agent,
+                planning_agent=agent or self.agents,
                 agents=self.agents,
                 tools=self.tools,
                 context=self.context,

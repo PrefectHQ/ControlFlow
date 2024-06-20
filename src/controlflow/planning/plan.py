@@ -75,6 +75,7 @@ def create_plan(
               others can start. Tasks can only depend on tasks that come before
               them in your plan. 
             - Use `parent` to indicate tasks that are subtasks of others.
+            - Don't create needless tasks like "document the findings"
             
         """,
         context=dict(
@@ -87,6 +88,7 @@ def create_plan(
         or {},
         agents=[planning_agent] if planning_agent else None,
         result_type=list[PlanTask],
+        infer_parent=False,
     )
 
     # create a new flow to avoid polluting the main flow's history
