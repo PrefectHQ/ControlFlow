@@ -22,7 +22,7 @@ from controlflow.llm.tools import (
 )
 
 if TYPE_CHECKING:
-    from controlflow.core.agent.agent import Agent
+    from controlflow.agents.agent import Agent
 
 
 def handle_delta_events(

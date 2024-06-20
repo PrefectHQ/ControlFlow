@@ -52,24 +52,24 @@ class TestToolFunctions:
     def test_tool_gets_docstring_from_description(self, style):
         def roll_die():
             """Roll a die."""
+            return random.randint(1, 6)
 
         if style == "class":
             roll_die_tool = Tool.from_function(roll_die)
         elif style == "decorator":
             roll_die_tool = tool(roll_die)
-            return random.randint(1, 6)
 
         assert roll_die_tool.description == "Roll a die."
 
     def test_tool_gets_name_from_function_name(self, style):
         def roll_die():
             """Roll a die."""
+            return random.randint(1, 6)
 
         if style == "class":
             roll_die_tool = Tool.from_function(roll_die)
         elif style == "decorator":
             roll_die_tool = tool(roll_die)
-            return random.randint(1, 6)
 
         assert roll_die_tool.name == "roll_die"
 

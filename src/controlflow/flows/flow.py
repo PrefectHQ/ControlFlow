@@ -7,10 +7,10 @@ from pydantic import Field
 
 import controlflow
 import controlflow.llm
-from controlflow.core.agent import Agent
-from controlflow.core.flow.history import History, get_default_history
-from controlflow.core.task import Task
+from controlflow.agents import Agent
+from controlflow.flows.history import History, get_default_history
 from controlflow.llm.messages import MessageType
+from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import prefect_flow_context

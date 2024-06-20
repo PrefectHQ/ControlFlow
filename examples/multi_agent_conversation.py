@@ -1,7 +1,5 @@
 from controlflow import Agent, Task, flow
 
-# from controlflow.core.controller.moderators import Moderator
-
 jerry = Agent(
     name="Jerry",
     description="The observational comedian and natural leader.",

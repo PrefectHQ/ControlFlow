@@ -4,7 +4,7 @@ from math import inf
 from pydantic import BaseModel
 
 from controlflow import Task
-from controlflow.core.flow import Flow
+from controlflow.flows import Flow
 from controlflow.llm.messages import AIMessage
 from controlflow.tui.app import TUIApp
 

@@ -3,8 +3,8 @@ from typing import Any, Callable, Literal, Optional, TypeVar, Union
 
 from pydantic import Field
 
-from controlflow.core.agent import Agent
-from controlflow.core.task import Task
+from controlflow.agents import Agent
+from controlflow.tasks.task import Task
 from controlflow.utilities.types import ControlFlowModel
 
 ToolLiteral = TypeVar("ToolLiteral", bound=str)

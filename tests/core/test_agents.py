@@ -1,7 +1,7 @@
 import controlflow
-from controlflow.core.agent import Agent, get_default_agent
-from controlflow.core.agent.names import NAMES
-from controlflow.core.task import Task
+from controlflow.agents import Agent, get_default_agent
+from controlflow.agents.names import NAMES
+from controlflow.tasks.task import Task
 from langchain_openai import ChatOpenAI
 
 

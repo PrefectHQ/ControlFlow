@@ -1,10 +1,10 @@
 from functools import partial
 
 import pytest
-from controlflow.core.agent import Agent, get_default_agent
-from controlflow.core.flow import Flow
-from controlflow.core.graph import EdgeType
-from controlflow.core.task import Task, TaskStatus
+from controlflow.agents import Agent, get_default_agent
+from controlflow.controllers.graph import EdgeType
+from controlflow.flows import Flow
+from controlflow.tasks.task import Task, TaskStatus
 from controlflow.utilities.context import ctx
 
 SimpleTask = partial(Task, objective="test", result_type=None)

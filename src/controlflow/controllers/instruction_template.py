@@ -1,8 +1,8 @@
 import inspect
 
-from controlflow.core.agent import Agent
-from controlflow.core.flow import Flow
-from controlflow.core.task import Task
+from controlflow.agents import Agent
+from controlflow.flows import Flow
+from controlflow.tasks.task import Task
 from controlflow.utilities.jinja import jinja_env
 from controlflow.utilities.types import ControlFlowModel
 

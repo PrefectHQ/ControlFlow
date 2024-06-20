@@ -11,7 +11,7 @@ from pydantic.v1 import validator as v1_validator
 from controlflow.utilities.jinja import jinja_env
 
 if TYPE_CHECKING:
-    from controlflow.core.agent.agent import Agent
+    from controlflow.agents.agent import Agent
 
 
 class MessageMixin(langchain_core.messages.BaseMessage):

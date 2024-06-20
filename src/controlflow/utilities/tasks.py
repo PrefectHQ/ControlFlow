@@ -8,7 +8,7 @@ from typing import (
 from controlflow.utilities.logging import get_logger
 
 if TYPE_CHECKING:
-    from controlflow.core.task import Task
+    from controlflow.tasks.task import Task
 
 T = TypeVar("T")
 logger = get_logger(__name__)
@@ -30,7 +30,7 @@ def visit_task_collection(
         list["Task"]: The modified task collection after applying the visitor function.
 
     """
-    from controlflow.core.task import Task
+    from controlflow.tasks.task import Task
 
     if _counter >= recursion_limit:
         return val

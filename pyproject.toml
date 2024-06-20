@@ -48,7 +48,6 @@ tests = [
     "pytest>=7.0",
     "pytest-timeout",
     "pytest-xdist",
-    "pandas",
 ]
 dev = [
     "controlflow[tests]",
