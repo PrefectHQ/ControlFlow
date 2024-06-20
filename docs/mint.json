@@ -41,6 +41,7 @@
             "pages": [
                 "welcome",
                 "installation",
+                "quickstart",
                 "tutorial",
                 "concepts"
             ]
