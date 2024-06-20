@@ -2,6 +2,8 @@ import math
 from typing import TYPE_CHECKING, AsyncGenerator, Callable, Generator, Optional, Union
 
 import langchain_core.language_models as lc_models
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import trim_messages
 
 import controlflow
 import controlflow.llm.models
@@ -73,13 +75,6 @@ def handle_multiple_talk_to_human_calls(tool_call: ToolCall, message: AIMessage)
     return error
 
 
-def prepare_messages(messages: list[MessageType]) -> list[MessageType]:
-    """
-    Make any necessary modifications to the messages before they are passed to the model.
-    """
-    return messages
-
-
 def _completion_generator(
     messages: list[MessageType],
     model: lc_models.BaseChatModel,
@@ -108,7 +103,14 @@ def _completion_generator(
             if pre_messages_hook is not None:
                 input_messages = pre_messages_hook(input_messages)
 
-            input_messages = prepare_messages(input_messages)
+            input_messages = trim_messages(
+                messages=input_messages,
+                max_tokens=controlflow.settings.max_input_tokens,
+                include_system=True,
+                token_counter=model
+                if isinstance(model, BaseChatModel)
+                else model.bound,
+            )
 
             if not stream:
                 response_message = model.invoke(input=input_messages, **kwargs)
@@ -207,7 +209,14 @@ async def _completion_async_generator(
             if pre_messages_hook is not None:
                 input_messages = pre_messages_hook(input_messages)
 
-            input_messages = prepare_messages(input_messages)
+            input_messages = trim_messages(
+                messages=input_messages,
+                max_tokens=controlflow.settings.max_input_tokens,
+                include_system=True,
+                token_counter=model
+                if isinstance(model, BaseChatModel)
+                else model.bound,
+            )
 
             if not stream:
                 response_message = await model.ainvoke(input=input_messages, **kwargs)
