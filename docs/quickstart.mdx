@@ -5,30 +5,40 @@ description: Build your first agentic workflow in under five minutes
 
 import Installation from '/snippets/installation.mdx';
 
-This quickstart is designed to **show** you how ControlFlow works, rather than **teach** you. For a more detailed introduction, check out the full [tutorial](/tutorial).
+This quickstart is designed to **show** you how ControlFlow works, rather than **teach** you.
+For a more detailed introduction, check out the full [tutorial](/tutorial).
 
 <Installation />
 
-## Tasks and Tools
+## Define Tasks and Tools
 
-In ControlFlow, you define your agentic workflows using tasks and tools.
+You define agentic workflows using tasks and tools.
 
-A **task** represents a discrete objective that you want an AI agent to complete, such as "write a poem" or "summarize this article". Tasks are the building blocks of your agentic workflows. They can depend on the results of other tasks, allowing you to create complex, multi-step processes.
+<CardGroup>
+  <Card title="Tasks" icon="list-check" iconType="duotone" href="/concepts/tasks">
+    Discrete objectives that you want an AI agent to complete, such as "write a poem" or "summarize this article".
+  </Card>
+  <Card title="Tools" icon="hammer" iconType="duotone" href="/concepts/tasks#providing-tools">
+    Additional functionality that agents can use to complete tasks.
+    For example, a calculator or a database query tool.
+  </Card>
+</CardGroup>
 
-**Tools** help your agents extend their capabilities by providing them with additional functions they can use to complete tasks. For example, you might provide a calculator tool to help an agent perform arithmetic calculations, or a database query tool to retrieve information from a database.
+Let's define a flow with two dependent tasks:
 
-Let's see tasks and tools in action:
+1. Ask the user for input.
+2. Roll some dice.
 
+The `roll_dice` function is a tool that the second task uses to complete its objective.
 
 ```python
 import controlflow as cf
 import random
 
-# this function will be used as a tool 
+# this function will be used as a tool by task 2
 def roll_dice(n: int) -> int:
     '''Roll n dice'''
     return [random.randint(1, 6) for _ in range(n)]
-
 
 @cf.flow
 def dice_flow():
@@ -50,37 +60,37 @@ def dice_flow():
 
     return dice_task
 
-
 result = dice_flow()
 print(f"The result is: {result}")
 ```
-
-In this example, we define a flow with two dependent tasks: the first asks the user for input, and the second rolls some dice. The `roll_dice` function is provided as a tool to the second task, allowing the agent to use it to generate the result.
 
 <Tip>
 All tasks in a `@flow` function are run automatically when the function is called, but you can run tasks eagerly by calling `task.run()`.
 </Tip>
 
+## Assign Agents to a Flow
 
-### Recap
-<Check>
-**What we learned**
-- Tasks are how you create goals for agents
-- Tasks have a `result_type` that determines the type of data they return
-- Tasks have a `context` that can include results of other tasks. These dependencies permit complex multi-step workflows
-- If `tools` or `user_access` is provided, the agent can use them to complete the task
-</Check>  
+Agents collaborate with each other using flows.
 
+<CardGroup>
+  <Card title="Agents" icon="robot" iconType="duotone" href="/concepts/agents">
+    AI models that complete tasks in your workflows.
+    You can create agents that are optimized for particular tasks.
+  </Card>
+  <Card title="Flows" icon="arrow-progress" iconType="duotone" href="/concepts/flows">
+    Containers that group tasks and let multiple agents share context while working towards a larger objective.
+  </Card>
+</CardGroup>
 
----
+Let's create three agents: a `writer`, an `editor`, and a `manager`.
 
-## Agents and Flows
+- The writer begins the workflow by drafting a paragraph.
+- The editor refines the draft.
+- The manager reviews the final result.
+The manager has private instructions to be strict in its assessment.
 
-**Agents** are AI models that complete tasks in your workflows. In the previous example, we didn't specify which agent should complete each task. By default, ControlFlow uses a generic agent that is capable of handling a wide variety of tasks. However, you can also create specialized agents that are optimized for particular types of tasks.
-
-A **flow** is a container that ensures that all agents share a common context and history. In addition to grouping tasks, as is the previous example, this allows multiple agents to collaborate on a larger objective by working on individual tasks within the flow, even if they are backed by different LLM models.
-
-Let's see an example of three specialized agents collaborating in a flow:
+The `approval_task` function is run at the end of each iteration to see if the manager approves the paragraph.
+If not, the editing process continues until approval is granted.
 
 ```python
 import controlflow as cf
@@ -106,7 +116,6 @@ manager = cf.Agent(
         these criteria.
         """,
 )
-
 
 @cf.flow
 def writing_flow():
@@ -137,33 +146,24 @@ def writing_flow():
 
     return approved, edit_task.result
 
-
 approved, draft = writing_flow()
 print(f'{"Approved" if approved else "Rejected"} paragraph:\n{draft}')
 ```
 
-In this example, we create three agents: a `writer`, an `editor`, and a `manager`. The writer begins the workflow by drafting a paragraph. Then the editor refines the draft, and the manager reviews the final result. The manager has private instructions to be strict in its assessment.
+## Conclusion
 
-The edit process is a dynamic loop, continuing until the manager approves the paragraph. To accomplish this, we eagerly run the `approval_task` at the end of each iteration to see if approval was granted. Because of the dependency structure, running the approval task also triggers the edit task.
+Here's what you learned today:
 
-### Recap
-<Check>
-**What we learned**
-
-- Agents are AIs that complete tasks and can be specialized with different capabilities, tools, instructions, and even LLM models
-- Agents can be assigned to tasks
-- Flows can involve dynamic control flow like loops, based on eager task result
-- Flows allow multiple agents to collaborate on a larger objective with shared history
-</Check>
-
----
+- **Tasks** are how you create goals for agents.
+They have a `result_type` that determines the type of data they return.
+They have a `context` that can include results of other tasks, enabling multi-step workflows.
+If `tools` or `user_access` is provided, the agent can use them to complete the task.
+- **Agents** are AI models that complete tasks and can be specialized with different capabilities, tools, instructions, and even LLM models.
+Agents can be assigned to tasks.
+- **Flows** can involve dynamic control flow like loops, based on eager task result.
+They allow multiple agents to collaborate on a larger objective with shared history.
 
 ## What's Next? 
 
-Congratulations, you've completed the ControlFlow quickstart! You've learned how to:
-
-- Create tasks and equip them with tools
-- Define specialized agents and assign them to tasks
-- Orchestrate multiple agents in a flow to collaborate on a larger objective
-
+Congratulations, you've completed the ControlFlow quickstart!
 To continue learning, please explore the full [ControlFlow tutorial](/tutorial).
