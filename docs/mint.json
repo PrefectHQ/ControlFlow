@@ -50,9 +50,8 @@
             "group": "Concepts",
             "pages": [
                 "concepts/tasks",
-                "concepts/flows",
                 "concepts/agents",
-                "concepts/loop"
+                "concepts/flows"
             ]
         },
         {
@@ -60,9 +59,10 @@
             "pages": [
                 "guides/apis",
                 "guides/execution-modes",
-                "guides/dependencies",
                 "guides/planning",
                 "guides/llms",
+                "guides/agentic-loop",
+                "guides/dependencies",
                 "guides/orchestration"
             ]
         },
