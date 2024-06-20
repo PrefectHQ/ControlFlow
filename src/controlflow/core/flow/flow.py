@@ -8,8 +8,8 @@ from pydantic import Field
 import controlflow
 import controlflow.llm
 from controlflow.core.agent import Agent
+from controlflow.core.flow.history import History, get_default_history
 from controlflow.core.task import Task
-from controlflow.llm.history import History, get_default_history
 from controlflow.llm.messages import MessageType
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
@@ -23,9 +23,7 @@ class Flow(ControlFlowModel):
     name: Optional[str] = None
     description: Optional[str] = None
     thread_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
-    history: History = Field(
-        default_factory=controlflow.llm.history.get_default_history
-    )
+    history: History = Field(default_factory=get_default_history)
     tools: list[Callable] = Field(
         default_factory=list,
         description="Tools that will be available to every agent in the flow",

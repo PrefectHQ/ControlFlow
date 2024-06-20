@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
 
 import controlflow
-from controlflow.llm.history import InMemoryHistory
+from controlflow.core.flow.history import InMemoryHistory
 
 
 class FakeLLM(FakeMessagesListChatModel):
@@ -14,12 +14,6 @@ class FakeLLM(FakeMessagesListChatModel):
     def get_num_tokens_from_messages(self, messages: list) -> int:
         """Approximate token counter for messages"""
         return len(str(messages))
-
-
-class RecordedHistory(InMemoryHistory):
-    """SubClass InMemoryHistory to avoid polluting the _history class variable."""
-
-    pass
 
 
 @contextmanager
@@ -36,7 +30,7 @@ def record_messages(
     assert messages[0].content == "Hello!"
 
     """
-    history = RecordedHistory()
+    history = InMemoryHistory(history={})
     old_default_history = controlflow.default_history
     controlflow.default_history = history
 
@@ -48,7 +42,7 @@ def record_messages(
         controlflow.default_history = old_default_history
 
         _messages_buffer = []
-        for _, thread_messages in history._history.items():
+        for _, thread_messages in history.history.items():
             for message in thread_messages:
                 message = message.copy()
                 if hasattr(message, "additional_kwargs") and remove_additional_kwargs:
