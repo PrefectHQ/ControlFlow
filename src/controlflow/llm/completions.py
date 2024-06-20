@@ -64,6 +64,62 @@ def handle_done_events(message: AIMessage):
         )
 
 
+def handle_tool_calls(
+    message: AIMessage, tools: list[Callable], response_messages: list[MessageType]
+):
+    """
+    Emit events for the given message when it has tool calls.
+    """
+    for tool_call in message.tool_calls:
+        yield CompletionEvent(
+            type="tool_result_created",
+            payload=dict(message=message, tool_call=tool_call),
+        )
+        error = handle_multiple_talk_to_human_calls(tool_call, message)
+        tool_result_message = handle_tool_call(tool_call, tools, error=error)
+        response_messages.append(tool_result_message)
+        yield CompletionEvent(
+            type="tool_result_done", payload=dict(message=tool_result_message)
+        )
+
+
+def handle_invalid_tool_calls(message: AIMessage, response_messages: list[MessageType]):
+    """
+    Emit events for the given message when it has invalid tool calls.
+    """
+    for tool_call in message.invalid_tool_calls:
+        yield CompletionEvent(
+            type="tool_result_created",
+            payload=dict(message=message, tool_call=tool_call),
+        )
+        invalid_tool_message = handle_invalid_tool_call(tool_call)
+        response_messages.append(invalid_tool_message)
+        yield CompletionEvent(
+            type="tool_result_done", payload=dict(message=invalid_tool_message)
+        )
+
+
+async def handle_tool_calls_async(
+    message: AIMessage, tools: list[Callable], response_messages: list[MessageType]
+):
+    """
+    Emit events for the given message when it has tool calls.
+    """
+    for tool_call in message.tool_calls:
+        yield CompletionEvent(
+            type="tool_result_created",
+            payload=dict(message=message, tool_call=tool_call),
+        )
+        error = handle_multiple_talk_to_human_calls(tool_call, message)
+        tool_result_message = await handle_tool_call_async(
+            tool_call, tools, error=error
+        )
+        response_messages.append(tool_result_message)
+        yield CompletionEvent(
+            type="tool_result_done", payload=dict(message=tool_result_message)
+        )
+
+
 def handle_multiple_talk_to_human_calls(tool_call: ToolCall, message: AIMessage):
     if (
         tool_call["name"] == "talk_to_human"
@@ -146,29 +202,16 @@ def _completion_generator(
             response_messages.append(response_message)
 
             # handle tool calls
-            for tool_call in response_message.tool_calls:
-                yield CompletionEvent(
-                    type="tool_result_created",
-                    payload=dict(message=response_message, tool_call=tool_call),
-                )
-                error = handle_multiple_talk_to_human_calls(tool_call, response_message)
-                tool_result_message = handle_tool_call(tool_call, tools, error=error)
-                response_messages.append(tool_result_message)
-                yield CompletionEvent(
-                    type="tool_result_done", payload=dict(message=tool_result_message)
-                )
+            yield from handle_tool_calls(
+                message=response_message,
+                tools=tools,
+                response_messages=response_messages,
+            )
 
             # handle invalid tool calls
-            for tool_call in response_message.invalid_tool_calls:
-                yield CompletionEvent(
-                    type="tool_result_created",
-                    payload=dict(message=response_message, tool_call=tool_call),
-                )
-                invalid_tool_message = handle_invalid_tool_call(tool_call)
-                response_messages.append(invalid_tool_message)
-                yield CompletionEvent(
-                    type="tool_result_done", payload=dict(message=invalid_tool_message)
-                )
+            yield from handle_invalid_tool_calls(
+                message=response_message, response_messages=response_messages
+            )
 
             counter += 1
             if counter >= (max_iterations or math.inf):
@@ -254,31 +297,18 @@ async def _completion_async_generator(
             response_messages.append(response_message)
 
             # handle tool calls
-            for tool_call in response_message.tool_calls:
-                yield CompletionEvent(
-                    type="tool_result_created",
-                    payload=dict(message=response_message, tool_call=tool_call),
-                )
-                error = handle_multiple_talk_to_human_calls(tool_call, response_message)
-                tool_result_message = await handle_tool_call_async(
-                    tool_call, tools, error=error
-                )
-                response_messages.append(tool_result_message)
-                yield CompletionEvent(
-                    type="tool_result_done", payload=dict(message=tool_result_message)
-                )
+            async for event in handle_tool_calls_async(
+                message=response_message,
+                tools=tools,
+                response_messages=response_messages,
+            ):
+                yield event
 
             # handle invalid tool calls
-            for tool_call in response_message.invalid_tool_calls:
-                yield CompletionEvent(
-                    type="tool_result_created",
-                    payload=dict(message=response_message, tool_call=tool_call),
-                )
-                invalid_tool_message = handle_invalid_tool_call(tool_call)
-                response_messages.append(invalid_tool_message)
-                yield CompletionEvent(
-                    type="tool_result_done", payload=dict(message=invalid_tool_message)
-                )
+            for event in handle_invalid_tool_calls(
+                message=response_message, response_messages=response_messages
+            ):
+                yield event
 
             counter += 1
             if counter >= (max_iterations or math.inf):
