@@ -43,24 +43,3 @@ prefect server start
 ```
 
 Once the server is running, you can open the Prefect UI by navigating to `http://localhost:4200` in your web browser. The UI provides a visual interface to monitor the execution of your workflows, view task statuses, and access logs and reports.
-
-## Best practices
-When designing workflows in ControlFlow, consider the following best practices:
-
-1. **Define clear task objectives**: Ensure that each task has a clear and specific objective. Provide detailed instructions and context to guide the AI agent in completing the task effectively.
-
-2. **Choose the appropriate API**: Decide whether to use the functional or imperative API based on your workflow requirements. The functional API is suitable for simple workflows and quick prototyping, while the imperative API is beneficial for more complex workflows and advanced customization.
-
-3. **Modularize tasks**: Break down complex tasks into smaller, modular subtasks. This promotes reusability, maintainability, and easier debugging.
-
-4. **Handle errors gracefully**: Implement proper error handling mechanisms to deal with exceptions and task failures. Use `try`-`except` blocks in eager mode and handle exceptions appropriately in lazy mode.
-
-5. **Leverage observability features**: Utilize the observability and monitoring capabilities provided by Prefect. Access the Prefect UI to track task execution, view logs, and gain insights into workflow performance.
-
-6. **Test and debug workflows**: Thoroughly test your workflows to ensure they behave as expected. Use debugging techniques, such as logging statements and breakpoints, to identify and fix issues.
-
-7. **Optimize performance**: Analyze and optimize the performance of your workflows. Identify bottlenecks, minimize unnecessary computations, and leverage parallelism and caching when applicable.
-
-8. **Document and version control**: Maintain clear documentation for your workflows, including task descriptions, dependencies, and usage instructions. Use version control systems to track changes and collaborate effectively.
-
-By following these best practices, you can design robust, efficient, and maintainable workflows in ControlFlow.
