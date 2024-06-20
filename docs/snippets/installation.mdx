@@ -4,27 +4,21 @@ Install ControlFlow with your preferred package manager:
 
 <CodeGroup>
 ```bash pip
-pip install controlflow 
+# ControlFlow requires Python 3.9 or greater
+pip install -U controlflow 
 ```
 
 ```bash uv
-uv pip install controlflow 
+# ControlFlow requires Python 3.9 or greater
+uv pip install -U controlflow 
 ```
 </CodeGroup>
 
-ControlFlow requires Python 3.9 or greater.
-<Warning>
-ControlFlow is under active development, so we recommend frequently updating to the latest version to get new features and bug fixes. To upgrade, pass the `-U` flag when installing. 
+## Provide an API Key
 
-During early development, there may be breaking changes between versions, so we recommend pinning to a specific version for deployment.
-</Warning>
-
-## API Keys
-
-ControlFlow's default LLM is OpenAI's GPT-4o model, which provides excellent performance out of the box. In order to use it, you'll need to provide an API key as an environment variable:
+ControlFlow's default LLM is OpenAI's GPT-4o model, which provides excellent performance out of the box.
+In order to use it, you'll need to provide an API key as an environment variable:
 
 ```bash
 export OPENAI_API_KEY="your-api-key"
 ```
-
-ControlFlow supports many other LLM providers as well. To use a different model as your default, or just on a one-off basis, you'll need to install the appropriate packages and provide any required configuration. See the [LLM documentation](/guides/llms) for more information.
