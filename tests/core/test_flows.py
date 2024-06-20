@@ -1,7 +1,7 @@
-from controlflow.core.agent import Agent
-from controlflow.core.flow import Flow, get_flow
-from controlflow.core.task import Task
+from controlflow.agents import Agent
+from controlflow.flows import Flow, get_flow
 from controlflow.llm.messages import HumanMessage
+from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
 
 

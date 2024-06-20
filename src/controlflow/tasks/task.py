@@ -27,8 +27,7 @@ from pydantic import (
 )
 
 import controlflow
-import controlflow.core
-from controlflow.core.agent import Agent
+from controlflow.agents import Agent
 from controlflow.instructions import get_instructions
 from controlflow.llm.tools import Tool
 from controlflow.tools.talk_to_human import talk_to_human
@@ -43,13 +42,11 @@ from controlflow.utilities.tasks import (
 from controlflow.utilities.types import (
     NOTSET,
     ControlFlowModel,
-    PandasDataFrame,
-    PandasSeries,
 )
 
 if TYPE_CHECKING:
-    from controlflow.core.flow import Flow
-    from controlflow.core.graph import Graph
+    from controlflow.controllers.graph import Graph
+    from controlflow.flows import Flow
 
 T = TypeVar("T")
 logger = get_logger(__name__)
@@ -201,7 +198,7 @@ class Task(ControlFlowModel):
     @model_validator(mode="after")
     def _finalize(self):
         # add task to flow, if exists
-        if flow := controlflow.core.flow.get_flow():
+        if flow := controlflow.flows.get_flow():
             flow.add_task(self)
 
         # create dependencies to tasks passed in as depends_on
@@ -268,13 +265,13 @@ class Task(ControlFlowModel):
         return f"Task {self.id} ({objective})"
 
     def as_graph(self) -> "Graph":
-        from controlflow.core.graph import Graph
+        from controlflow.controllers.graph import Graph
 
         return Graph.from_tasks(tasks=[self])
 
     @property
     def subtasks(self) -> list["Task"]:
-        from controlflow.core.graph import Graph
+        from controlflow.controllers.graph import Graph
 
         return Graph.from_tasks(tasks=self._subtasks).topological_sort()
 
@@ -301,7 +298,7 @@ class Task(ControlFlowModel):
         Runs the task with provided agent. If no agent is provided, one will be selected from the task's agents.
         """
         # run once doesn't create new flows because the history would be lost
-        flow = flow or controlflow.core.flow.get_flow()
+        flow = flow or controlflow.flows.get_flow()
         if flow is None:
             raise ValueError(
                 "Task.run_once() must be called within a flow context or with a flow argument."
@@ -316,7 +313,7 @@ class Task(ControlFlowModel):
         """
 
         # run once doesn't create new flows because the history would be lost
-        flow = flow or controlflow.core.flow.get_flow()
+        flow = flow or controlflow.flows.get_flow()
         if flow is None:
             raise ValueError(
                 "Task.run_once_async() must be called within a flow context or with a flow argument."
@@ -336,7 +333,7 @@ class Task(ControlFlowModel):
         """
         Internal function that can handle both sync and async runs by yielding either the result or the coroutine.
         """
-        from controlflow.core.flow import Flow, get_flow
+        from controlflow.flows import Flow, get_flow
 
         if max_iterations == NOTSET:
             max_iterations = controlflow.settings.max_task_iterations
@@ -507,8 +504,8 @@ class Task(ControlFlowModel):
         elif self.parent:
             return self.parent.get_agents()
         else:
-            from controlflow.core.agent import get_default_agent
-            from controlflow.core.flow import get_flow
+            from controlflow.agents import get_default_agent
+            from controlflow.flows import get_flow
 
             try:
                 flow = get_flow()
@@ -533,9 +530,9 @@ class Task(ControlFlowModel):
         elif self.parent:
             return self.parent.get_agent_strategy()
         else:
-            import controlflow.agent_strategies
+            import controlflow.tasks.agent_strategies
 
-            return controlflow.agent_strategies.round_robin
+            return controlflow.tasks.agent_strategies.round_robin
 
     def get_tools(self) -> list[Union[Tool, Callable]]:
         tools = self.tools.copy()
@@ -629,15 +626,15 @@ def generate_result_schema(result_type: type[T]) -> type[T]:
     except PydanticSchemaGenerationError:
         pass
     # try loading as dataframe
-    try:
-        import pandas as pd
+    # try:
+    #     import pandas as pd
 
-        if result_type is pd.DataFrame:
-            result_schema = PandasDataFrame
-        elif result_type is pd.Series:
-            result_schema = PandasSeries
-    except ImportError:
-        pass
+    #     if result_type is pd.DataFrame:
+    #         result_schema = PandasDataFrame
+    #     elif result_type is pd.Series:
+    #         result_schema = PandasSeries
+    # except ImportError:
+    #     pass
     if result_schema is None:
         raise ValueError(
             f"Could not load or infer schema for result type {result_type}. "
@@ -659,13 +656,13 @@ def validate_result(result: Any, result_type: type[T]) -> T:
                 result = result_type(result)
 
         # Convert DataFrame schema back into pd.DataFrame object
-        if result_type == PandasDataFrame:
-            import pandas as pd
+        # if result_type == PandasDataFrame:
+        #     import pandas as pd
 
-            result = pd.DataFrame(**result)
-        elif result_type == PandasSeries:
-            import pandas as pd
+        #     result = pd.DataFrame(**result)
+        # elif result_type == PandasSeries:
+        #     import pandas as pd
 
-            result = pd.Series(**result)
+        #     result = pd.Series(**result)
 
     return result

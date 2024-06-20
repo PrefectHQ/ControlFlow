@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
 
 import controlflow
-from controlflow.core.flow.history import InMemoryHistory
+from controlflow.flows.history import InMemoryHistory
 
 
 class FakeLLM(FakeMessagesListChatModel):

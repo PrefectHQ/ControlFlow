@@ -1,7 +1,7 @@
 import asyncio
 
 from controlflow import Task
-from controlflow.core.flow import Flow
+from controlflow.flows import Flow
 from controlflow.tui.app import TUIApp
 
 asyncio

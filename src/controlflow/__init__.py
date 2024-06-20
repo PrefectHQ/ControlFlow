@@ -1,10 +1,10 @@
 from .settings import settings
 import controlflow.llm
 
-from .core.agent import Agent
-from .core.task import Task
-from .core.flow import Flow
-from .core.controller.controller import Controller
+from .agents import Agent
+from .tasks import Task
+from .flows import Flow
+from .controllers import Controller
 
 from .instructions import instructions
 from .decorators import flow, task
@@ -12,7 +12,7 @@ from .decorators import flow, task
 # --- Default settings ---
 
 from .llm.models import model_from_string, get_default_model
-from .core.flow.history import InMemoryHistory, get_default_history
+from .flows.history import InMemoryHistory, get_default_history
 
 # assign to controlflow.default_model to change the default model
 default_model = model_from_string(controlflow.settings.llm_model)

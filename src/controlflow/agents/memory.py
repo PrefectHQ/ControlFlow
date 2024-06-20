@@ -74,7 +74,7 @@ class ThreadMemory(Memory):
     _memory: ClassVar[dict[str, list[str]]] = {}
 
     def _get_thread_id(self) -> Optional[str]:
-        from controlflow.core.flow import Flow
+        from controlflow.flows import Flow
 
         if flow := ctx.get("flow", None):  # type: Flow
             flow = cast(Flow, flow)

@@ -1,8 +1,8 @@
-from controlflow.core.agent import Agent
-from controlflow.core.flow import Flow, get_flow_messages
-from controlflow.core.task import Task
+from controlflow.agents import Agent
+from controlflow.flows import Flow, get_flow_messages
 from controlflow.instructions import get_instructions
 from controlflow.llm.classify import classify
+from controlflow.tasks.task import Task
 
 
 def round_robin(

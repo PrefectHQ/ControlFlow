@@ -2,10 +2,10 @@ from typing import Optional, TypeVar, Union
 
 from pydantic import Field
 
-from controlflow.core.agent import Agent
-from controlflow.core.flow import Flow
-from controlflow.core.task import Task
+from controlflow.agents import Agent
+from controlflow.flows import Flow
 from controlflow.llm.tools import Tool, as_tools
+from controlflow.tasks.task import Task
 from controlflow.utilities.types import ControlFlowModel
 
 ToolLiteral = TypeVar("ToolLiteral", bound=str)

@@ -3,7 +3,7 @@ from typing import TypeVar
 
 from pydantic import BaseModel
 
-from controlflow.core.task import Task
+from controlflow.tasks.task import Task
 
 T = TypeVar("T")
 

@@ -2,7 +2,7 @@ from textual.containers import Vertical
 from textual.reactive import reactive
 from textual.widgets import Collapsible, Label, Static
 
-from controlflow.core.task import Task, TaskStatus
+from controlflow.tasks.task import Task, TaskStatus
 
 from .basic import ReactiveLabel, Row
 

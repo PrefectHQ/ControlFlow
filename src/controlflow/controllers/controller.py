@@ -8,15 +8,15 @@ from typing import Callable, Union
 from pydantic import Field, PrivateAttr, model_validator
 
 import controlflow
-from controlflow.core.agent import Agent
-from controlflow.core.flow import Flow, get_flow
-from controlflow.core.graph import Graph
-from controlflow.core.task import Task
+from controlflow.agents import Agent
+from controlflow.controllers.graph import Graph
+from controlflow.flows import Flow, get_flow
 from controlflow.instructions import get_instructions
 from controlflow.llm.completions import completion, completion_async
 from controlflow.llm.handlers import PrintHandler, ResponseHandler, TUIHandler
 from controlflow.llm.messages import AIMessage, MessageType, SystemMessage
 from controlflow.llm.tools import as_tools
+from controlflow.tasks.task import Task
 from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
 from controlflow.utilities.prefect import create_markdown_artifact
@@ -180,7 +180,7 @@ class Controller(ControlFlowModel):
         else:
             agent = agents[0]
 
-        from controlflow.core.controller.instruction_template import MainTemplate
+        from controlflow.controllers.instruction_template import MainTemplate
 
         tools = self.flow.tools + agent.get_tools() + [self._create_end_turn_tool()]
 

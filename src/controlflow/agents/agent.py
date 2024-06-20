@@ -17,7 +17,7 @@ from .memory import Memory
 from .names import NAMES
 
 if TYPE_CHECKING:
-    from controlflow.core.task import Task
+    from controlflow.tasks.task import Task
 logger = logging.getLogger(__name__)
 
 
