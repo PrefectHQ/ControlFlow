@@ -3,13 +3,15 @@ import datetime
 import json
 import math
 from pathlib import Path
-from typing import ClassVar
 
 from pydantic import Field, field_validator
 
 import controlflow
 from controlflow.llm.messages import MessageType
 from controlflow.utilities.types import ControlFlowModel
+
+# This is a global variable that will be shared between all instances of InMemoryHistory
+IN_MEMORY_HISTORY = {}
 
 
 def get_default_history() -> "History":
@@ -33,7 +35,9 @@ class History(ControlFlowModel, abc.ABC):
 
 
 class InMemoryHistory(History):
-    _history: ClassVar[dict[str, list[MessageType]]] = {}
+    history: dict[str, list[MessageType]] = Field(
+        default_factory=lambda: IN_MEMORY_HISTORY
+    )
 
     def load_messages(
         self,
@@ -42,7 +46,7 @@ class InMemoryHistory(History):
         before: datetime.datetime = None,
         after: datetime.datetime = None,
     ) -> list[MessageType]:
-        messages = InMemoryHistory._history.get(thread_id, [])
+        messages = self.history.get(thread_id, [])
         filtered_messages = [
             msg
             for i, msg in enumerate(reversed(messages))
@@ -53,7 +57,7 @@ class InMemoryHistory(History):
         return list(reversed(filtered_messages))
 
     def save_messages(self, thread_id: str, messages: list[MessageType]):
-        InMemoryHistory._history.setdefault(thread_id, []).extend(messages)
+        self.history.setdefault(thread_id, []).extend(messages)
 
 
 class FileHistory(History):
