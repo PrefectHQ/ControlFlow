@@ -17,7 +17,7 @@ Every ControlFlow agent can be assigned a specific LLM. When instantiating an ag
 ControlFlow agents can use any LangChain LLM class that supports chat-based APIs and tool calling. For a complete list of available models, settings, and instructions, please see LangChain's [LLM provider documentation](https://python.langchain.com/docs/integrations/chat/).
 
 <Tip>
-ControlFlow includes OpenAI and Azure OpenAI models by default. To use other models, you'll need to install the corresponding LangChain package first. See the model's documentation for more information.
+ControlFlow includes OpenAI and Azure OpenAI models by default. To use other models, you'll need to first install the corresponding LangChain package and supply any required credentials. See the model's [documentation](https://python.langchain.com/docs/integrations/chat/) for more information.
 </Tip>
 
 
@@ -105,6 +105,12 @@ assert agent.model.temperature == 0.1
 ```
 
 ## Changing the default model
+
+ControlFlow has a few ways to customize the default LLM. 
+
+<Tip>
+ControlFlow includes OpenAI and Azure OpenAI models by default. To use other models, you'll need to first install the corresponding LangChain package and supply any required credentials. See the model's [documentation](https://python.langchain.com/docs/integrations/chat/) for more information.
+</Tip>
 
 ### From a model object
 

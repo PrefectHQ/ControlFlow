@@ -1,8 +1,9 @@
-
+---
+title: Installation & Setup
+---
 
 ## Installation
 
-ControlFlow requires Python 3.9 or greater, as well as Prefect 3.0rc4 or greater.
 
 Install ControlFlow with your preferred package manager:
 <CodeGroup>
@@ -16,20 +17,24 @@ uv pip install controlflow
 ```
 </CodeGroup>
 
-ControlFlow is under active development, so we recommend frequently updating to the latest version to access new features and bug fixes. To upgrade, pass the `-U` flag when installing.
+ControlFlow requires Python 3.9 or greater.
+<Warning>
+ControlFlow is under active development, so we recommend frequently updating to the latest version to get new features and bug fixes. To upgrade, pass the `-U` flag when installing. 
 
+During early development, there may be breaking changes between versions, so we recommend pinning to a specific version for deployment.
+</Warning>
+## API Keys
 
-### Install for development
-
-To install ControlFlow for development, clone the repository and create an editable install with development dependencies:
+ControlFlow's default LLM is OpenAI's GPT-4o model, which provides excellent performance out of the box. In order to use it, you'll need to provide an API key as an environment variable:
 
 ```bash
-git clone https://github.com/PrefectHQ/ControlFlow.git
-cd controlflow
-pip install -e ".[dev]"
+export OPENAI_API_KEY="your-api-key"
 ```
+
+ControlFlow supports many other LLM providers as well. To use a different model as your default, or just on a one-off basis, you'll need to install the appropriate packages and provide any required configuration. See the [LLM documentation](/guides/llms) for more information.
+
 
 ## Next steps
 
-Check out the [tutorial](/tutorial) guide for a step-by-step walkthrough of creating your first ControlFlow workflow.
+Dive right into the [quickstart](/quickstart), or read the [tutorial](/tutorial) for a step-by-step guide to creating your first ControlFlow workflow.
 

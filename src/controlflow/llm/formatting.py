@@ -122,8 +122,9 @@ def format_ai_message_with_tool_calls(
 
 def format_tool_message(message: ToolMessage, width: Optional[int] = None) -> Panel:
     if message.tool_metadata.get("is_failed"):
-        content = (
-            f"❌ The tool call to [markdown.code]{message.tool_call['name']}[/] failed."
+        content = Group(
+            f"❌ The tool call to [markdown.code]{message.tool_call['name']}[/] failed.",
+            Markdown(f"```{message.content or '(No error provided)'}```"),
         )
     elif not message.tool_metadata.get("is_task_status_tool"):
         content_type = "json" if isinstance(message.tool_result, (dict, list)) else ""
