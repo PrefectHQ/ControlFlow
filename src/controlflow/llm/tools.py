@@ -1,6 +1,7 @@
 import functools
 import inspect
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+import typing
+from typing import TYPE_CHECKING, Annotated, Any, Callable, Optional, Union
 
 import langchain_core
 import langchain_core.tools
@@ -29,7 +30,31 @@ class FnArgsSchema:
         self.fn = fn
 
     def schema(self) -> dict:
-        return TypeAdapter(self.fn).json_schema()
+        schema = TypeAdapter(self.fn).json_schema()
+
+        # load parameter descriptions
+        for param in inspect.signature(self.fn).parameters.values():
+            # handle Annotated type hints
+            if (
+                # param.annotation is not inspect.Parameter.empty
+                # and
+                typing.get_origin(param.annotation) is Annotated
+            ):
+                description = " ".join(
+                    str(a) for a in typing.get_args(param.annotation)[1:]
+                )
+
+            # handle pydantic Field descriptions
+            elif param.default is not inspect.Parameter.empty and isinstance(
+                param.default, pydantic.fields.FieldInfo
+            ):
+                description = param.default.description
+            else:
+                continue
+
+            schema["properties"][param.name]["description"] = description
+
+        return schema
 
     def parse_obj(self, args_dict: dict):
         # use validate call to parse the args
@@ -72,10 +97,13 @@ class Tool(langchain_core.tools.StructuredTool):
     @classmethod
     def from_function(cls, fn=None, *args, **kwargs):
         args_schema = FnArgsSchema(fn)
+        if not fn.__doc__ and not kwargs.get("description"):
+            kwargs["description"] = fn.__name__
         if inspect.iscoroutinefunction(fn):
             fn, coro = _sync_wrapper(fn), fn
         else:
             coro = None
+
         return super().from_function(
             *args, func=fn, coroutine=coro, args_schema=args_schema, **kwargs
         )
