@@ -1,6 +1,6 @@
 ---
-title: The Agentic Loop
-sidebarTitle: "Agentic Loop"
+title: Working with the Agentic Loop
+sidebarTitle: "Agentic Loops"
 ---
 
 The **agentic loop** is a fundamental concept in agentic workflows, representing the iterative process of invoking AI agents to make progress towards a goal. It is at the heart of every agentic workflow because agents almost always require multiple invocations to complete complex tasks.
@@ -26,16 +26,15 @@ The result of the evaluation is used to generate a new prompt, and the loop begi
 
 A common failure mode for agentic workflows is that once the loop starts, it can be difficult to stop -- or even understand. LLMs process and return sequences of natural language tokens, which prohibit traditional software mechanisms from controlling the flow of execution. This is where ControlFlow comes in.
 
-## Controlling the Loop
+## Challenges Controlling the Loop
 
 ControlFlow is a framework designed to give developers fine-grained control over the agentic loop, enabling them to work with this natural language iterative process using familiar software development paradigms. It provides tools and abstractions to define, manage, and execute the agentic loop in a way that addresses the challenges inherent in agentic workflows.
 
 
-## Challenges
 
-In this section, we'll explore how ControlFlow helps developers control the agentic loop by addressing key challenges and providing mechanisms for managing agentic workflows effectively.
+In this guide, we'll explore how ControlFlow helps developers control the agentic loop by addressing key challenges and providing mechanisms for managing agentic workflows effectively.
 
-### Stopping the Loop
+## Stopping the Loop
 
 One of the key challenges in controlling the agentic loop is determining when to stop. Without clear checkpoints or completion criteria, the loop can continue indefinitely, leading to unpredictable results or wasted resources. Worse, agents can get "stuck" in a loop if they are unable to tell the system that progress is impossible.
 
@@ -55,7 +54,7 @@ In this way, tasks act as contracts between the developer and the agents. The de
 
 
 
-### Starting the Loop
+## Starting the Loop
 
 Another challenge in agentic workflows is controlling the execution of the loop - including starting it! Developers need the ability to run the loop until completion or step through it iteratively for finer control and debugging. Since there is no single software object that represents the loop itself, ControlFlow ensures that developers have a variety of tools for managing its execution.
 
@@ -73,7 +72,7 @@ with cf.Flow() as flow:
     t2 = cf.Task('Say hello', context=dict(language=t1))
 ```
 
-#### The `run()` Method
+### The `run()` Method
 Now, let's explore how the `run()` and `run_once()` methods can be used to control the execution of the loop. First, the behavior of the various `run()` methods:
 
 - Calling `t1.run()` would execute the loop until `t1` is complete.
@@ -82,7 +81,7 @@ Now, let's explore how the `run()` and `run_once()` methods can be used to contr
 
 In general, `run()` tells the system to run the loop until the object is complete (and has a result available). It is the most common way to eagerly run workflows using the [imperative API](/guides/apis).
 
-#### The `run_once()` Method
+### The `run_once()` Method
 Next, the behavior of the various `run_once()` methods:
 
 - Calling `t1.run_once()` would execute a single iteration of the loop, starting with `t1`.
@@ -97,7 +96,7 @@ By offering these execution methods, ControlFlow gives developers the flexibilit
 Note that when using the `@task` and `@flow` decorators in the [functional API](/guides/apis), the `run()` method is automatically called when the decorated function is invoked. This is because the functional API uses [eager execution](/guides/execution-modes) by default.
 </Tip>
 
-### Compiling Prompts
+## Compiling Prompts
 
 Each iteration of the agentic loop requires compiling a prompt that provides the necessary context and instructions for the agent. Manually constructing these prompts can be tedious and error-prone, especially as workflows become more complex.
 
@@ -107,7 +106,7 @@ Importantly, the `Controller` generates tools so the agent can complete its task
 
 The compiled prompt includes the task objectives, relevant context from previous tasks, and any additional instructions provided by the developer. This ensures that the agent has all the necessary information to make progress on the assigned tasks.
 
-### Validating Results
+## Validating Results
 
 In an agentic workflow, it's crucial to validate the progress and results of agent actions. Relying solely on conversational responses can make it difficult to determine when a task is truly complete and whether the results meet the expected format and quality.
 
@@ -134,7 +133,7 @@ print(people_task.result)
 ```
 By enforcing structured results, ControlFlow provides a reliable way to validate agent progress and ensure that the workflow remains on track.
 
-### Ad-hoc Instructions
+## Ad-hoc Instructions
 
 While tasks provide a structured way to define objectives and deliverables, there may be situations where developers need to provide ad-hoc guidance or instructions to agents without modifying the task definition or requiring a result. For example, if an agent is writing a post, you might want to tell it to focus on a specific topic or tone, or meet a certain minimum or maximum length. If an agent is communicating with a user, you might tell it to adopt a particular persona or use a specific style of language.
 
@@ -151,7 +150,7 @@ with instructions("Talk like a pirate"):
 
 This feature allows developers to dynamically steer agent behavior based on runtime conditions or specific requirements that arise during the workflow execution.
 
-### Structuring Workflows
+## Structuring Workflows
 
 As agentic workflows become more complex, managing the dependencies and flow of information between tasks can become challenging. Without a clear structure, it becomes difficult to reason about the workflow and ensure that agents have access to the necessary context and results from previous tasks.
 
@@ -166,7 +165,7 @@ In addition, there are various ways to create explicit task dependencies that th
 
 Flows ensure that tasks are executed in the correct order, and they automatically manage the flow of data between tasks. This provides agents with access to the results of upstream tasks, allowing them to make informed decisions and generate meaningful results.
 
-### Customizing Agents
+## Customizing Agents
 
 Agents in an agentic workflow may have different capabilities, tools, and models that are suited for specific tasks. Customizing agent behavior and leveraging their unique strengths can greatly impact the effectiveness and efficiency of the workflow.
 
@@ -185,7 +184,7 @@ data_analyst = cf.Agent(
 
 Customizing agent behavior through tools, instructions, and models gives developers fine-grained control over how agents approach tasks and allows them to tailor the workflow to their specific domain and requirements.
 
-### Multi-agent Collaboration
+## Multi-agent Collaboration
 
 Many agentic workflows involve multiple agents with different specialties and capabilities. Enabling these agents to collaborate and share information is essential for tackling complex problems effectively.
 
