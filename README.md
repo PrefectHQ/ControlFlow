@@ -9,11 +9,12 @@ _🚨🚧 Please note that ControlFlow is under active development ahead of its 
 
 ControlFlow provides a structured, developer-focused framework for defining workflows and delegating work to LLMs, without sacrificing control or transparency:
 
-- Create discrete, observable [tasks](/concepts/tasks) for an AI to solve.
-- Assign one or more specialized AI [agents](/concepts/agents) to each task.
-- Combine tasks into a [flow](/concepts/flows) to orchestrate more complex behaviors.
+- Create discrete, observable [tasks](https://controlflow.ai/concepts/tasks) for an AI to solve.
+- Assign one or more specialized AI [agents](https://controlflow.ai/concepts/agents) to each task.
+- Combine tasks into a [flow](https://controlflow.ai/concepts/flows) to orchestrate more complex behaviors.
 
-Check out the docs at [controlflow.ai](https://controlflow.ai/) to learn more about the framework and how to use it.
+This task-centric approach allows you to harness the power of AI for complex workflows while maintaining fine-grained control. By defining clear objectives and constraints for each task, you can balance AI autonomy with precise oversight, letting you build sophisticated AI-powered applications with confidence.
+
 
 ## Installation
 
@@ -36,6 +37,11 @@ import controlflow as cf
 from pydantic import BaseModel
 
 
+# create agents that specialize in user interaction and content creation
+marvin = cf.Agent(name="Marvin", instructions="Focus on helping the user come up with a good topic")
+author = cf.Agent(name="Deep Thought", instructions="Use a formal tone and clear language")
+
+
 class ResearchTopic(BaseModel):
     title: str
     keywords: list[str]
@@ -43,22 +49,28 @@ class ResearchTopic(BaseModel):
 
 @cf.flow
 def research_workflow() -> str:
-    analyst = cf.Agent(name="Analyst", instructions="Find the most interesting topics")
-    
+    # Task 1: have Marvin work with the user to generate a research topic
     topic = cf.Task(
         "Generate a research topic",
         result_type=ResearchTopic,
+        agents=[marvin]
         user_access=True,
     )
-    outline = cf.Task(
-        "Create an outline",
-        context=dict(topic=topic),
-        agents=[analyst],
+
+    # Task 2: have the default agent create an outline based on the topic
+    outline = cf.Task("Create an outline", context=dict(topic=topic))
+    
+    # Task 3: have the author agent write a first draft 
+    draft = cf.Task(
+        "Write a first draft", 
+        context=dict(outline=outline),
+        agents=[author]
     )
-    draft = cf.Task("Write a first draft", context=dict(outline=outline))
+    
     return draft
 
 
+# run the workflow
 result = research_workflow()
 print(result)
 ```
