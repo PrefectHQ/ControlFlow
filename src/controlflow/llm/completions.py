@@ -2,7 +2,8 @@ import math
 from typing import TYPE_CHECKING, AsyncGenerator, Callable, Generator, Optional, Union
 
 import langchain_core.language_models as lc_models
-from langchain_core.language_models import BaseChatModel
+import tiktoken
+from langchain_core.messages import BaseMessage as LCBaseMessage
 from langchain_core.messages import trim_messages
 
 import controlflow
@@ -23,6 +24,11 @@ from controlflow.llm.tools import (
 
 if TYPE_CHECKING:
     from controlflow.agents.agent import Agent
+
+
+def token_counter(message: LCBaseMessage) -> int:
+    # always use gpt-3.5 token counter with the entire message object; we only need to be approximate here
+    return len(tiktoken.encoding_for_model("gpt-3.5-turbo").encode(message.json()))
 
 
 def handle_delta_events(
@@ -163,9 +169,7 @@ def _completion_generator(
                 messages=input_messages,
                 max_tokens=controlflow.settings.max_input_tokens,
                 include_system=True,
-                token_counter=model
-                if isinstance(model, BaseChatModel)
-                else model.bound,
+                token_counter=token_counter,
             )
 
             if not stream:
@@ -256,9 +260,7 @@ async def _completion_async_generator(
                 messages=input_messages,
                 max_tokens=controlflow.settings.max_input_tokens,
                 include_system=True,
-                token_counter=model
-                if isinstance(model, BaseChatModel)
-                else model.bound,
+                token_counter=token_counter,
             )
 
             if not stream:
