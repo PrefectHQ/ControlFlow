@@ -9,6 +9,7 @@ from rich.panel import Panel
 
 from controlflow.llm.messages import (
     AIMessage,
+    AIMessageChunk,
     MessageType,
     ToolMessage,
 )
@@ -36,7 +37,7 @@ def format_message(
     panels = []
     if isinstance(message, ToolMessage):
         return format_tool_message(message, width=width)
-    elif isinstance(message, AIMessage):
+    elif isinstance(message, (AIMessage, AIMessageChunk)):
         if message.content:
             panels.append(format_text_message(message, width=width))
 
