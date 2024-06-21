@@ -56,12 +56,22 @@ def my_flow(data):
 my_flow(data)
 ```
 
+### Running Lazy Tasks Eagerly
+
+You can run a lazy task eagerly by calling its `run()` method. This will run not only the task itself but also any tasks it depends on. This is useful when you need to use a task result immediately or with standard Python control flow or functions.
+
+
 ### Benefits of Lazy Execution
 
 Lazy execution is generally recommended because it permits the orchestration engine to optimize workflow execution based on knowledge of the entire workflow structure. For example, agents may handle a task differently if they know how its result will be used. In some cases, agents may even be able to combine multiple tasks into a single operation or parallelize tasks that are independent of each other.
 
 This can lead to more efficient execution, especially in complex workflows with many dependencies. 
 
-### Running Lazy Tasks Eagerly
+In addition, lazy execution allows you to exercise more precise control over how and when tasks are executed. Instead of running tasks to completion, you can use `run_once()` to run a single step or the agentic loop, or assign a specific agent to work on the task.
 
-You can run a lazy task eagerly by calling its `run()` method. This will run not only the task itself but also any tasks it depends on. This is useful when you need to use a task result immediately or with standard Python control flow or functions.
+### When Do Lazy Tasks Run?
+
+Lazily-executed tasks are run under the following conditions, in order:
+1. When their `run()` method is called.
+2. When they are an upstream dependency of another task that is run
+3. When their parent flow is run
