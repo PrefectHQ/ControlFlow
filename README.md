@@ -37,9 +37,11 @@ import controlflow as cf
 from pydantic import BaseModel
 
 
-# create agents that specialize in user interaction and content creation
-marvin = cf.Agent(name="Marvin", instructions="Focus on helping the user come up with a good topic")
-author = cf.Agent(name="Deep Thought", instructions="Use a formal tone and clear language")
+# create an agent to write a research report
+author = cf.Agent(
+    name="Deep Thought",
+    instructions="Use a formal tone and clear language",
+)
 
 
 class ResearchTopic(BaseModel):
@@ -49,18 +51,17 @@ class ResearchTopic(BaseModel):
 
 @cf.flow
 def research_workflow() -> str:
-    # Task 1: have Marvin work with the user to generate a research topic
+    # Task 1: the default agent will work with the user to choose a topic
     topic = cf.Task(
-        "Generate a research topic",
+        "Work with the user to come up with a research topic",
         result_type=ResearchTopic,
-        agents=[marvin]
         user_access=True,
     )
 
-    # Task 2: have the default agent create an outline based on the topic
+    # Task 2: the default agent will create an outline based on the topic
     outline = cf.Task("Create an outline", context=dict(topic=topic))
     
-    # Task 3: have the author agent write a first draft 
+    # Task 3: the author agent will write a first draft 
     draft = cf.Task(
         "Write a first draft", 
         context=dict(outline=outline),
@@ -75,10 +76,9 @@ result = research_workflow()
 print(result)
 ```
 
-You can follow your flow's execution in the Prefect UI:
+ControlFlow is built on Prefect 3.0, so you can follow your flow's execution in the Prefect UI:
 
-<img width="1353" alt="Prefect UI showing ControlFlow execution" src="https://github.com/PrefectHQ/ControlFlow/assets/153965/7a837d77-79e7-45b7-bf58-cd292f726414">
-
+<img width="1427" alt="Prefect UI showing ControlFlow execution" src="https://github.com/PrefectHQ/ControlFlow/assets/153965/2dfdfb43-3afa-4709-9ec3-c66840084087">
 
 ## Why ControlFlow?
 
