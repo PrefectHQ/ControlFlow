@@ -1,5 +1,5 @@
 ---
-title: Workflow APIs
+title: Imperative and Functional APIs
 ---
 
 ControlFlow offers two primary approaches for defining tasks and workflows: the imperative API using class instantiation, and the functional API using decorators. Each approach has its strengths and use cases, allowing you to choose the most suitable style for your workflow.
@@ -32,7 +32,7 @@ Here, tasks are created by instantiating the `Task` class, allowing explicit spe
 
 <Note>
 
-The imperative API uses **lazy execution** by default. This means tasks and flows are not run until they are explicitly invoked, which can result in better performance. For more information on execution modes, see the [lazy execution](/patterns/execution-modes) pattern.
+The imperative API uses **lazy execution** by default. This means tasks and flows are not run until they are explicitly invoked, which can result in better performance. For more information on execution modes, see the [lazy execution](/guides/execution-modes) pattern.
 
 </Note>
 ## Functional API
@@ -65,7 +65,7 @@ The functional API automatically infers task properties from the function defini
 
 <Note>
 
-The functional API uses eager execution by default. This means tasks and flows are executed immediately when called. For more information on execution modes, see the [lazy execution](/patterns/execution-modes) pattern.
+The functional API uses eager execution by default. This means tasks and flows are executed immediately when called. For more information on execution modes, see the [lazy execution](/guides/execution-modes) pattern.
 
 </Note>
 
