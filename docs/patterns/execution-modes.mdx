@@ -1,0 +1,67 @@
+---
+title: Lazy Execution
+---
+
+ControlFlow supports two execution modes: eager execution and lazy execution. Understanding these modes is essential for controlling the behavior of your workflows and optimizing performance.
+
+## Eager Execution
+
+Eager mode is the default for the [functional API](/patterns/workflow-apis). In this mode, flows and tasks are executed immediately when called.
+
+```python
+import controlflow as cf
+
+@cf.task
+def write_poem(topic: str) -> str:
+    """Write a short poem about the given topic."""
+    pass
+
+@cf.flow
+def my_flow(topic: str):
+    # the poem task is immediately given to an AI agent for execution
+    # and the result is returned
+    poem = write_poem(topic)
+    return poem
+
+result = my_flow("sunset")
+print(result)
+```
+
+In this example, the `write_poem` task is executed by an AI agent as soon as its function is called. The AI agent generates a short poem based on the provided topic, and the generated poem is returned as the `poem` variable.
+
+Eager execution allows you to mix task-decorated functions with normal Python code seamlessly, enabling you to use standard Python control flow statements, such as conditionals and loops, to control the execution of tasks.
+
+## Lazy Execution
+
+Lazy execution means that tasks are not executed when they are created. Instead, ControlFlow builds a directed acyclic graph (DAG) of tasks and their dependencies, and executes them only when necessary.
+
+Lazy execution is the only mode available for the [imperative API](/patterns/workflow-apis), as imperative tasks must be run explicitly. You can also run functional tasks lazily by passing `lazy_=True` when calling the task.
+
+```python
+import controlflow as cf
+
+@cf.task
+def generate_report(insights: dict) -> str:
+    """Generate a report based on the provided insights."""
+    pass
+
+@cf.flow
+def my_flow(data):
+    insights = cf.Task("Analyze the given data and return insights.", context=dict(data=data))
+
+    # `report` is a Task object because generate_report is being called lazily
+    report = generate_report(insights, lazy_=True)
+    return report
+
+my_flow(data)
+```
+
+### Benefits of Lazy Execution
+
+Lazy execution is generally recommended because it permits the orchestration engine to optimize workflow execution based on knowledge of the entire workflow structure. For example, agents may handle a task differently if they know how its result will be used. In some cases, agents may even be able to combine multiple tasks into a single operation or parallelize tasks that are independent of each other.
+
+This can lead to more efficient execution, especially in complex workflows with many dependencies. 
+
+### Running Lazy Tasks Eagerly
+
+You can run a lazy task eagerly by calling its `run()` method. This will run not only the task itself but also any tasks it depends on. This is useful when you need to use a task result immediately or with standard Python control flow or functions.
