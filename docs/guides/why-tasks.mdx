@@ -1,0 +1,268 @@
+---
+title: Task-Centric Architecture
+---
+
+ControlFlow's task-centric architecture represents a paradigm shift in how we approach AI-powered workflows. While many frameworks focus on creating and configuring agents, ControlFlow emphasizes the importance of well-defined tasks and objectives. This guide explores why this approach leads to more effective, controllable, and reliable AI workflows.
+
+## Tasks, Not Agents
+
+At the core of ControlFlow's philosophy is a fundamental shift in focus: from agents to tasks. While many AI frameworks center on creating and configuring agent personalities, ControlFlow prioritizes the definition of clear goals and objectives. This may seem surprising for an "agentic" workflow framework, but the distinction is crucial and has far-reaching implications for the effectiveness and reliability of your AI workflows.
+
+### Implementing Agentic Behavior Through Tasks
+
+In ControlFlow, "agentic" refers to how we interact with LLMs to achieve specific goals. This is implemented through well-defined tasks rather than autonomous agents. Here's how ControlFlow's approach differs from agent-centric frameworks:
+
+1. **Clear Completion Criteria**: Each task in ControlFlow has specific objectives and defined result types, ensuring unambiguous completion.
+
+2. **Objective Evaluation**: With predefined outcomes, it's straightforward to evaluate the success of each task objectively.
+
+3. **Streamlined Complexity**: While ControlFlow allows for specialized agents when beneficial, it doesn't require them for effective workflows, reducing unnecessary complexity.
+
+4. **Enhanced Reproducibility**: The task-centric design simplifies result reproduction and issue debugging by providing clear objectives and outcomes for each step of the workflow.
+
+By focusing on tasks, ControlFlow enables the creation of AI workflows that are not just interactive, but purposeful and measurable. This approach bridges the gap between AI's potential and the practical needs of software development, allowing for AI-powered applications that are both powerful and predictable.
+## Balancing Control and Autonomy
+
+One of ControlFlow's key strengths is its ability to let you continuously tune the balance between control and autonomy in your AI workflows. This flexibility stems from the interplay between well-defined tasks and configurable agents. Here's how you can leverage this feature:
+
+1. **Granular Task Definition**: By defining tasks with varying levels of specificity, you can control how much freedom an agent has in accomplishing a goal. A highly specific task provides more control, while a more open-ended task allows for greater agent autonomy.
+
+   ```python
+   # More controlled task
+   specific_task = cf.Task("Generate a 5-line haiku about spring", result_type=str)
+
+   # More autonomous task
+   open_task = cf.Task("Write a short poem about nature", result_type=str)
+   ```
+
+2. **Agent Specialization**: While tasks define what needs to be done, agents determine how it's accomplished. By creating specialized agents, you can influence the approach taken to complete a task without changing the task itself.
+
+   ```python
+   creative_agent = cf.Agent(name="Creative Writer", instructions="Use vivid imagery and metaphors")
+   technical_agent = cf.Agent(name="Technical Writer", instructions="Focus on clarity and precision")
+
+   poem_task = cf.Task("Write a poem about AI", result_type=str)
+   poem_task.run(agent=creative_agent)  # Results in a more imaginative poem
+   poem_task.run(agent=technical_agent)  # Results in a more straightforward poem
+   ```
+
+3. **Dynamic Agent Assignment**: ControlFlow allows you to dynamically assign agents to tasks, enabling you to adjust the level of specialization or generalization as your workflow progresses.
+
+   ```python
+   @cf.flow
+   def adaptive_workflow(topic):
+       research = cf.Task("Research the topic", context=dict(topic=topic))
+       if research.result_length > 1000:
+           writing_agent = cf.Agent(name="Long-form Writer")
+       else:
+           writing_agent = cf.Agent(name="Concise Writer")
+       summary = cf.Task("Write a summary", context=dict(research=research), agents=[writing_agent])
+       return summary
+   ```
+
+4. **Subtasks for Complex Goals**: For more complex objectives, you can use subtasks to break down the goal into smaller, more manageable pieces. This allows you to apply different levels of control to different aspects of the overall task.
+
+   ```python
+   with cf.Task("Write a research paper", result_type=str) as paper_task:
+       cf.Task("Generate outline", result_type=list[str])
+       cf.Task("Write introduction", result_type=str)
+       cf.Task("Develop main arguments", result_type=list[str])
+       cf.Task("Write conclusion", result_type=str)
+   ```
+
+5. **Context and Instructions**: By adjusting the context provided to a task and the instructions given to an agent, you can fine-tune the balance between guidance and freedom without changing the fundamental structure of your workflow.
+
+   ```python
+   task = cf.Task(
+       "Analyze market trends",
+       context=dict(data=market_data, focus_areas=["tech", "healthcare"]),
+       instructions="Prioritize emerging technologies and their potential impact"
+   )
+   ```
+
+By leveraging these features, ControlFlow enables you to create workflows that are as controlled or as autonomous as your specific use case requires. This flexibility allows you to optimize for efficiency, creativity, or precision at each step of your AI-powered process.
+
+
+## The Centrality of Tasks
+
+In ControlFlow, tasks are the fundamental building blocks of any workflow. Each task represents a discrete, well-defined objective that an AI agent needs to accomplish. This focus on tasks, rather than on the agents themselves, provides several key advantages:
+
+1. **Clear Objectives**: Tasks have explicit goals and expected outcomes.
+2. **Validated Results**: Task results are type-checked and validated.
+3. **Composability**: Complex workflows can be built from simple, reusable tasks.
+4. **Flexibility**: Tasks can be assigned to different agents or even human operators.
+
+Let's look at a simple example to illustrate these points:
+
+```python
+import controlflow as cf
+from pydantic import BaseModel
+
+class ResearchTopic(BaseModel):
+    title: str
+    keywords: list[str]
+
+@cf.flow
+def research_workflow():
+    topic = cf.Task(
+        "Generate a research topic",
+        result_type=ResearchTopic,
+        user_access=True
+    )
+    outline = cf.Task("Create an outline", context=dict(topic=topic))
+    draft = cf.Task("Write a first draft", context=dict(outline=outline))
+    return draft
+
+result = research_workflow()
+print(result)
+```
+
+In this example, we define three tasks: generating a topic, creating an outline, and writing a draft. Each task has a clear objective and a defined result type. The workflow is built by composing these tasks, with each task's output serving as input for the next.
+
+## The Role of Agents in ControlFlow
+
+While tasks are central to ControlFlow, agents still play an important role. However, instead of being the primary focus, agents in ControlFlow are more like specialized tools that can be assigned to tasks as needed. This approach offers several benefits:
+
+1. **Flexibility**: Different agents can be assigned to different tasks, allowing for specialization.
+2. **Interchangeability**: Agents can be swapped out without changing the underlying workflow structure.
+3. **Scalability**: Multiple agents can work on different tasks in parallel.
+
+Here's an example of how agents can be used in ControlFlow:
+
+```python
+import controlflow as cf
+
+researcher = cf.Agent(
+    name="Researcher",
+    description="Specializes in research and data analysis",
+    instructions="Focus on gathering accurate and relevant information."
+)
+
+writer = cf.Agent(
+    name="Writer",
+    description="Specializes in writing and editing",
+    instructions="Emphasize clarity and coherence in your writing."
+)
+
+@cf.flow
+def enhanced_research_workflow():
+    topic = cf.Task(
+        "Generate a research topic",
+        result_type=ResearchTopic,
+        agents=[researcher]
+    )
+    outline = cf.Task(
+        "Create an outline",
+        context=dict(topic=topic),
+        agents=[researcher, writer]
+    )
+    draft = cf.Task(
+        "Write a first draft",
+        context=dict(outline=outline),
+        agents=[writer]
+    )
+    return draft
+
+result = enhanced_research_workflow()
+print(result)
+```
+
+In this enhanced workflow, we've assigned specific agents to each task based on their specialties. However, the core structure of the workflow remains unchanged. This illustrates how ControlFlow allows you to leverage specialized agents without sacrificing the clarity and control provided by the task-centric architecture.
+
+## Why Task-Centric Architecture Excels
+
+ControlFlow's task-centric approach offers several advantages over agent-centric frameworks:
+
+### 1. Predictability and Control
+
+By defining clear, discrete tasks with specific objectives and result types, ControlFlow workflows are inherently more predictable and controllable. There's no ambiguity about what each step of the workflow should accomplish.
+
+```python
+sentiment_task = cf.Task(
+    "Analyze the sentiment of the given text",
+    result_type=float,
+    instructions="Return a float between -1 (very negative) and 1 (very positive)"
+)
+```
+
+In this example, the task has a clear objective and a specific result type. This level of definition ensures that the agent's output will be consistent and usable, regardless of which agent is assigned to the task.
+
+### 2. Composability and Reusability
+
+Tasks in ControlFlow are highly composable and reusable. Complex workflows can be built by combining simple tasks, and tasks can be easily shared across different workflows.
+
+```python
+@cf.flow
+def content_creation_workflow(topic: str):
+    research = cf.Task("Research the given topic", context=dict(topic=topic))
+    outline = cf.Task("Create an outline", context=dict(research=research))
+    draft = cf.Task("Write a first draft", context=dict(outline=outline))
+    edit = cf.Task("Edit the draft", context=dict(draft=draft))
+    return edit
+
+@cf.flow
+def blog_post_workflow(topic: str):
+    content = content_creation_workflow(topic)
+    seo = cf.Task("Optimize for SEO", context=dict(content=content))
+    return seo
+```
+
+Here, we've defined a `content_creation_workflow` that can be reused as part of a larger `blog_post_workflow`. This composability allows for the creation of complex, multi-step workflows while maintaining clarity and organization.
+
+### 3. Easier Debugging and Monitoring
+
+With clearly defined tasks and result types, it's much easier to debug and monitor the progress of a workflow. You can inspect the input, output, and status of each task individually.
+
+```python
+@cf.flow
+def monitored_workflow():
+    task1 = cf.Task("Step 1", result_type=str)
+    task1.run()
+    print(f"Task 1 status: {task1.status}")
+    print(f"Task 1 result: {task1.result}")
+    
+    task2 = cf.Task("Step 2", context=dict(input=task1), result_type=int)
+    task2.run()
+    print(f"Task 2 status: {task2.status}")
+    print(f"Task 2 result: {task2.result}")
+    
+    return task2
+
+result = monitored_workflow()
+```
+
+This level of granularity in monitoring and debugging is much harder to achieve in agent-centric frameworks where the internal state and decision-making process of agents can be opaque.
+
+### 4. Flexibility in Agent Assignment
+
+ControlFlow's task-centric approach allows for great flexibility in how agents are assigned to tasks. You can assign different agents to different tasks, use multiple agents for a single task, or even dynamically assign agents based on the current state of the workflow.
+
+```python
+import random
+
+@cf.flow
+def dynamic_agent_workflow():
+    agents = [cf.Agent(name=f"Agent{i}") for i in range(5)]
+    
+    tasks = [
+        cf.Task(f"Task {i}", agents=[random.choice(agents)])
+        for i in range(10)
+    ]
+    
+    for task in tasks:
+        task.run()
+    
+    return tasks
+
+results = dynamic_agent_workflow()
+```
+
+This flexibility allows you to optimize your workflow by matching tasks with the most suitable agents, without being constrained by a rigid agent-centric structure.
+
+## Conclusion
+
+ControlFlow's task-centric architecture represents a powerful approach to building AI-powered workflows. By focusing on well-defined tasks with clear objectives and validated results, ControlFlow enables the creation of predictable, controllable, and flexible workflows. This approach allows developers to harness the power of AI agents while maintaining precise control over the workflow's structure and outcomes.
+
+While agents still play an important role in ControlFlow, they are treated more like configurable tools rather than the central organizing principle of the workflow. This shift in focus from agents to tasks leads to more robust, reusable, and understandable AI workflows.
+
+By adopting ControlFlow's task-centric approach, developers can build sophisticated AI-powered applications with confidence, knowing that each step of their workflow has a clear purpose and expected outcome. This architecture provides the structure and control needed to create reliable, scalable AI solutions across a wide range of domains and use cases.
