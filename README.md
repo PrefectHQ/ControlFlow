@@ -1,124 +1,158 @@
-![image](https://github.com/jlowin/controlflow/assets/153965/c2a8a2f0-8777-49a6-a79b-a0e101bd4a04)
 
+![ControlFlow Logo](https://github.com/jlowin/controlflow/assets/153965/c2a8a2f0-8777-49a6-a79b-a0e101bd4a04)
 
 _🚨🚧 Please note that ControlFlow is under active development ahead of its initial public release!🚧🚨_
 
 # ControlFlow
 
-**ControlFlow is a Python framework for building agentic LLM workflows.**
+**ControlFlow is a Python framework for building agentic AI workflows.**
 
-ControlFlow takes a structured, declarative approach to AI workflows, allowing you to define `tasks` and assign `agents` to complete them. The framework handles the details of coordinating agents, tracking dependencies, and maintaining a shared history, letting you focus on the higher-level logic of your workflow.
+ControlFlow provides a structured, developer-focused framework for defining workflows and delegating work to LLMs, without sacrificing control or transparency:
 
+- Create discrete, observable [tasks](/concepts/tasks) for an AI to solve.
+- Assign one or more specialized AI [agents](/concepts/agents) to each task.
+- Combine tasks into a [flow](/concepts/flows) to orchestrate more complex behaviors.
 
+Check out the docs at [controlflow.ai](https://controlflow.ai/) to learn more about the framework and how to use it.
 
-## Core Concepts
+## Installation
 
-- **[Tasks](https://controlflow.ai/concepts/tasks):** Define clear, manageable tasks that specify goals, constraints, and agent instructions. Tasks ensure agents have the context they need to perform optimally.
-
-- **[Agents](https://controlflow.ai/concepts/agents):** Assign tasks to specialized agents with defined capabilities, optimizing performance with specific instructions while allowing for strategic autonomy.
-
-- **[Flows](https://controlflow.ai/concepts/flows):** Compose tasks into a more complex workflow, enabling agents to tailor their actions to the overall goals of the workflow while maintaining control over their activities and outcomes.
-
-## Why ControlFlow?
-
-ControlFlow's design reflects a belief that AI agents are most effective when given clear, well-defined objectives and constraints. By expressing complex goals as a series of discrete tasks with structured inputs and outputs, you can maintain control over the workflow's progress and direction while still allowing agents to leverage their capabilities effectively.
-
-The key insight behind ControlFlow is that by composing those well-defined tasks into a larger workflow structure, you can recover the complex agentic behavior that makes AI so powerful, without the downsides of sacrificing observability or control. Each task steers the agents toward the ultimate goal, leading to more coherent, reproducible results.
-
-ControlFlow lets you to build workflows that are both directed and dynamic. You can choose how to balance control and autonomy at every step by delegating only as much work to your agents as necessary.
-
-With ControlFlow, you can:
-
-- Define clear, manageable tasks with structured results
-- Assign specialized agents to tasks based on their capabilities
-- Compose tasks into larger flows with well-defined dependencies
-- Provide agents with necessary context to collaborate and complete tasks
-- Dynamically plan and adapt workflows based on intermediate results
-
-
-To learn more about the principles behind ControlFlow's design, check out the [documentation](https://controlflow.ai/welcome).
-
-## Key Features
-
-- **Intuitive API:** ControlFlow provides a clean, Pythonic API for composing tasks, agents, and flows, with support for both functional and imperative programming styles.
-
-- **Intelligent Orchestration:** ControlFlow automatically builds a dependency graph of your tasks, optimizing agent orchestration and dataflow to get the best results.
-
-- **Dynamic Planning:** You (or your agents) can dynamically generate new tasks based on intermediate results, enabling adaptive and flexible workflows.
-
-- **Flexible Execution:** Choose between eager and lazy execution to balance proactive results with optimizations based on knowledge of the entire workflow.
-
-- **Extensive Ecosystem:** Leverage the full LangChain ecosystem of LLMs, tools, and AI providers to incorporate the most current AI capabilities into your workflows.
-
-- **Seamless Integration:** Mix and match AI tasks with traditional Python functions to incrementally add agentic behaviors to your existing workflows.
-
-- **Native Observability:** Built on Prefect 3.0, ControlFlow offers comprehensive debugging and observability features for your entire workflow.
-
-
-## Documentation
-
-ControlFlow's docs, including [tutorials](https://controlflow.ai/tutorial), [guides](https://controlflow.ai/guides/llms), and an [AI Glossary](https://controlflow.ai/glossary/glossary), are always available at [controlflow.ai](https://controlflow.ai/).
-
-## Get Started
-
-🚧 Please note that ControlFlow is under active development!
+Install ControlFlow with `pip`:
 
 ```bash
 pip install controlflow
 ```
 
-## Example
+You'll also need to configure your LLM provider. ControlFlow's default provider is OpenAI, which requires an API key via the `OPENAI_API_KEY` environment variable:
+```
+export OPENAI_API_KEY=your-api-key
+```
+You can also configure a [different LLM provider](https://controlflow.ai/guides/llms).
 
-You'll need an OpenAI API key to run this example directly, or you can configure a different [default LLM provider](https://controlflow.ai/guides/llms).
+## Example
 
 ```python
 import controlflow as cf
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
-class Name(BaseModel):
-    first: str = Field(min_length=1)
-    last: str = Field(min_length=1)
+class ResearchTopic(BaseModel):
+    title: str
+    keywords: list[str]
 
 
 @cf.flow
-def demo():
-
-    # - create a task to get the user's name as a `Name` object
-    # - run the task eagerly with ad-hoc instructions
-    # - validate that the response was not 'Marvin'
-
-    name_task = cf.Task("Get the user's name", result_type=Name, user_access=True)
+def research_workflow() -> str:
+    analyst = cf.Agent(name="Analyst", instructions="Find the most interesting topics")
     
-    with cf.instructions("Talk like a pirate!"):
-        name_task.run()
-
-    if name_task.result.first == 'Marvin':
-        raise ValueError("Hey, that's my name!")
-
-
-    # - create a custom agent that loves limericks
-    # - have the agent write a poem
-    # - indicate that the poem depends on the name from the previous task
-
-    poetry_bot = cf.Agent(name="poetry-bot", instructions="you love limericks")
-
-    poem_task = cf.Task(
-        "Write a poem about AI workflows, based on the user's name",
-        agents=[poetry_bot],
-        context={"name": name_task},
+    topic = cf.Task(
+        "Generate a research topic",
+        result_type=ResearchTopic,
+        user_access=True,
     )
-    
-    return poem_task
+    outline = cf.Task("Create an outline",
+        context=dict(topic=topic),
+        agents=[analyst],
+    )
+    draft = cf.Task("Write a first draft", context=dict(outline=outline))
+    return draft
 
 
-if __name__ == "__main__":
-    print(demo())
+result = research_workflow()
+print(result)
 ```
 
 You can follow your flow's execution in the Prefect UI:
 
-<img width="1353" alt="image" src="https://github.com/PrefectHQ/ControlFlow/assets/153965/7a837d77-79e7-45b7-bf58-cd292f726414">
+<img width="1353" alt="Prefect UI showing ControlFlow execution" src="https://github.com/PrefectHQ/ControlFlow/assets/153965/7a837d77-79e7-45b7-bf58-cd292f726414">
+
+
+## Why ControlFlow?
+
+ControlFlow is designed to address the challenges of building AI-powered applications that are both powerful and predictable:
+
+### 🧩 Task-Centric Architecture
+
+Break complex AI workflows into manageable, observable steps. This approach ensures that AI agents operate within well-defined boundaries, making it easier to reason about and manage complex workflows.
+
+```python
+topic = cf.Task("Generate a research topic", result_type=ResearchTopic)
+outline = cf.Task("Create an outline", context=dict(topic=topic))
+draft = cf.Task("Write a first draft", context=dict(outline=outline))
+```
+
+### 🔒 Structured Results
+
+Bridge the gap between AI and traditional software with type-safe outputs. By using Pydantic models, you ensure that AI-generated content always matches your application's requirements.
+
+```python
+class ResearchTopic(BaseModel):
+    title: str
+    keywords: list[str]
+
+topic_task = cf.Task("Generate a topic", result_type=ResearchTopic)
+```
+
+### 🤖 Specialized Agents
+
+Deploy task-specific AI agents for efficient problem-solving. Agents can have their own instructions, tools, and even be backed by different LLM models.
+
+```python
+researcher = cf.Agent(name="Researcher", instructions="Conduct thorough research")
+writer = cf.Agent(name="Writer", instructions="Write clear, concise content")
+
+topic_task = cf.Task("Research topic", agents=[researcher])
+draft_task = cf.Task("Write draft", agents=[writer])
+```
+
+### 🔗 Ecosystem Integration
+
+Seamlessly work with your existing code, tools, and the broader AI ecosystem. ControlFlow supports a wide range of LangChain models and tools, making it easy to incorporate cutting-edge AI capabilities.
+
+```python
+from langchain.tools import WikipediaQueryRun
+
+research_task = cf.Task("Research topic", tools=[WikipediaQueryRun()])
+```
+
+### 🎛️ Flexible Control
+
+Continuously tune the balance of control and autonomy in your agentic workflows. Adjust the scope and oversight of your tasks dynamically throughout the process.
+
+```python
+with cf.instructions("Be creative"):
+    brainstorm_task.run()
+
+with cf.instructions("Follow APA style strictly"):
+    formatting_task.run()
+```
+
+### 🕹️ Multi-Agent Orchestration
+
+Coordinate multiple AI agents within a single workflow - or a single task. This allows you to create complex, multi-step AI processes that leverage the strengths of different models and approaches.
+
+```python
+@cf.flow
+def research_paper():
+    topic = cf.Task("Choose topic", agents=[researcher])
+    outline = cf.Task("Create outline", agents=[researcher, writer])
+    draft = cf.Task("Write draft", agents=[writer])
+    return draft
+```
+
+### 🔍 Native Observability and Debugging
+
+Built on Prefect 3.0, ControlFlow allows you to combine agentic and traditional workflows and monitor them all in one place. This observability is crucial for debugging, optimizing performance, and ensuring that your AI applications function as intended.
+
+```python
+@cf.flow(retries=2)
+def enhance_data():
+    data = etl_pipeline()
+    enhanced_data = cf.Task("Add topics to data", context=dict(data=data))
+    return enhanced_data
+```
+
+ControlFlow empowers you to build AI workflows with confidence, maintaining control and visibility throughout the process. It offers a powerful and flexible framework for creating AI-powered applications that are transparent, maintainable, and aligned with software engineering best practices.
 
 ## Development
 
