@@ -50,7 +50,8 @@ def research_workflow() -> str:
         result_type=ResearchTopic,
         user_access=True,
     )
-    outline = cf.Task("Create an outline",
+    outline = cf.Task(
+        "Create an outline",
         context=dict(topic=topic),
         agents=[analyst],
     )
