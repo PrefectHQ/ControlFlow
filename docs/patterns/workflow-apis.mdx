@@ -1,0 +1,119 @@
+---
+title: Workflow APIs
+---
+
+ControlFlow offers two primary approaches for defining tasks and workflows: the imperative API using class instantiation, and the functional API using decorators. Each approach has its strengths and use cases, allowing you to choose the most suitable style for your workflow.
+
+## Imperative API
+
+The imperative API uses class instantiation to create tasks and flows explicitly. This approach offers more fine-grained control over task and flow properties.
+
+```python
+import controlflow as cf
+
+with cf.Flow() as greeting_flow:
+
+    name_task = cf.Task(
+        "Get the user's name",
+        result_type=str,
+        user_access=True
+    )
+    
+    greeting_task = cf.Task(
+        "Generate a greeting",
+        result_type=str,
+        context={"name": name_task}
+    )
+    
+greeting_flow.run()
+```
+
+Here, tasks are created by instantiating the `Task` class, allowing explicit specification of properties like `result_type`, `user_access`, and `context`.
+
+<Note>
+
+The imperative API uses **lazy execution** by default. This means tasks and flows are not run until they are explicitly invoked, which can result in better performance. For more information on execution modes, see the [lazy execution](/patterns/execution-modes) pattern.
+
+</Note>
+## Functional API
+
+The functional API uses decorators to transform Python functions into ControlFlow tasks and flows. This approach is more concise and often more intuitive, especially for those familiar with Python decorators.
+
+```python
+import controlflow as cf
+
+@cf.task(user_access=True)
+def get_user_name() -> str:
+    "Ask the user for their name"
+    pass
+
+@cf.task
+def generate_greeting(name: str) -> str:
+    "Generate a greeting message"
+    pass
+
+@cf.flow
+def greeting_flow():
+    name = get_user_name()
+    return generate_greeting(name)
+
+result = greeting_flow()
+print(result)
+```
+
+The functional API automatically infers task properties from the function definition, such as the result type from the return annotation and the task description from the docstring.
+
+<Note>
+
+The functional API uses eager execution by default. This means tasks and flows are executed immediately when called. For more information on execution modes, see the [lazy execution](/patterns/execution-modes) pattern.
+
+</Note>
+
+## Combining APIs
+
+ControlFlow allows you to mix and match the functional and imperative APIs. This flexibility enables you to choose the most appropriate style for each task or flow based on your specific requirements.
+
+```python
+import controlflow as cf
+
+@cf.flow
+def research_flow(topic: str):
+    gather_sources = cf.Task(
+        "Gather research sources",
+        result_type=list[str],
+        context={"topic": topic}
+    )
+    
+    analyze_sources = cf.Task(
+        "Analyze gathered sources",
+        result_type=dict,
+        context={"sources": gather_sources}
+    )
+    
+    write_report = cf.Task(
+        "Write research report",
+        result_type=str,
+        context={"analysis": analyze_sources}
+    )
+    
+    return write_report
+
+result = research_flow("AI ethics")
+print(result)
+```
+
+This approach combines the simplicity of the `@flow` decorator for overall workflow structure with the flexibility of `Task` for individual task definition.
+
+## Which API Should I Use?
+
+<Tip>
+**tldr;** Use the functional API for flows and start with the imperative API for tasks.
+</Tip>
+
+Most users should use the functional `@flow` decorator for defining workflows. This provides a simple, intuitive way to structure your workflow as a function with clear inputs and outputs.
+
+For tasks, we recommend most users start with imperative `Task` objects. This approach allows for more dynamic task creation and fine-grained control over task properties. It also lets your workflow benefit from lazy execution optimizations, which can enhance performance. 
+
+However, the functional API is a great choice for simple tasks where you want to quickly define a task with minimal boilerplate.
+
+

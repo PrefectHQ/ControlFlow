@@ -1,0 +1,80 @@
+---
+title: User Input
+---
+
+ControlFlow agents are primarily designed to solve problems by working autonomously. However, there are situations where user input is necessary to guide the agent's decision-making process. By incorporating user input into your ControlFlow workflows, you can create more dynamic, interactive AI applications that adapt to user needs in real-time.
+
+By default, agents are not able to interact with users directly. To allow it, you need to explicitly enable user access, either at the task or agent level. If applied to a task, all assigned agents will be able to interact with the user. If applied to an agent, the agent will be able to interact with the user in all of its tasks.
+
+When `user_access=True`, the agent is given a tool for that it can use to send messages to the user. The user can then respond to these messages, and the agent can use the responses to make decisions or perform actions. By default, ControlFlow collects inputs directly in your terminal, but input can also be sent remotely via the Prefect API.
+
+
+### Basic Inputs
+
+To enable user input for a task, set `user_access=True`:
+
+```python
+import controlflow as cf
+
+user_input_task = cf.Task(
+    "Get user's favorite color",
+    result_type=str,
+    user_access=True,
+)
+
+color = user_input_task.run()
+print(f"The user's favorite color is: {color}")
+```
+
+When the above task is run, the agent will prompt you to enter your favorite color. You can interact with the agent repeatedly; it will continue to prompt you until you provide a valid input so it can mark the task complete.
+
+## Structured Inputs
+
+For more complex user inputs, you can use Pydantic models as the `result_type`. This ensures that the user input is properly structured and validated. See the [result types](#result-types) pattern for more details.
+
+```python
+import controlflow as cf
+from pydantic import BaseModel
+
+class UserPreferences(BaseModel):
+    name: str
+    age: int
+    favorite_color: str
+
+preferences_task = cf.Task(
+    "Get user preferences",
+    result_type=UserPreferences,
+    user_access=True,
+)
+
+preferences = preferences_task.run()
+print(f"Hello, {preferences.name}!")
+```
+
+### Passing Inputs to Other Tasks
+
+You will frequently need to collect user input in one task (with `user_access=True`) and process that input in another task. You can pass the user input to subsequent tasks using the `context` parameter:
+
+```python
+import controlflow as cf
+
+@cf.flow
+def interactive_research_flow():
+    topic_task = cf.Task(
+        "Get research topic from user",
+        result_type=str,
+        user_access=True,
+        instructions="If the user doesn't provide a topic, suggest 'AI'.",
+    )
+
+    # this task depends on the user input    
+    research_task = cf.Task(
+        "Conduct research on the provided topic",
+        context={"topic": topic_task},
+        result_type=str,
+    )
+        
+    return research_task
+
+interactive_research_flow()
+```
