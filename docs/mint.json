@@ -61,18 +61,16 @@
                 "patterns/dependencies",
                 "patterns/subtasks",
                 "patterns/user-input",
-                "patterns/workflow-apis",
-                "patterns/execution-modes",
+                "patterns/planning",
                 "patterns/stopping-tasks-early"
             ]
         },
         {
             "group": "Guides",
             "pages": [
-                "guides/apis",
-                "guides/execution-modes",
-                "guides/planning",
                 "guides/llms",
+                "guides/workflow-apis",
+                "guides/execution-modes",
                 "guides/agentic-loop",
                 "guides/orchestration"
             ]
