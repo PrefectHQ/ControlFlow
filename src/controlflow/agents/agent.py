@@ -9,6 +9,7 @@ from pydantic import Field, field_serializer
 
 import controlflow
 from controlflow.llm.models import get_default_model
+from controlflow.llm.rules import LLMRules
 from controlflow.tools.talk_to_human import talk_to_human
 from controlflow.utilities.context import ctx
 from controlflow.utilities.types import ControlFlowModel
@@ -74,7 +75,16 @@ class Agent(ControlFlowModel):
         super().__init__(**kwargs)
 
     def get_model(self) -> BaseChatModel:
+        """
+        Retrieve the LLM model for this agent
+        """
         return self.model or get_default_model()
+
+    def get_llm_rules(self) -> LLMRules:
+        """
+        Retrieve the LLM rules for this agent's model
+        """
+        return controlflow.llm.rules.rules_for_model(self.get_model())
 
     def get_tools(self) -> list[Callable]:
         tools = self.tools.copy()

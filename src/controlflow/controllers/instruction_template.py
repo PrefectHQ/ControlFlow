@@ -45,7 +45,12 @@ class AgentTemplate(Template):
         assigned to you. You complete a task by using the appropriate tool to
         supply a result that satisfies all of the task's requirements. If
         multiple tasks are ready, you can work on them at the same time.
-                
+        
+        {% if agent.get_llm_rules().system_message_must_be_first %}        
+        Any messages you receive prefixed with "SYSTEM:" are from the workflow
+        system, not an actual human. Do not respond to them.
+        {% endif -%}
+        
         You must follow your instructions at all times.
         
         {% if agent.instructions %}

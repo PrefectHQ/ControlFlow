@@ -144,7 +144,6 @@ def _completion_generator(
     max_iterations: int,
     stream: bool,
     agent: Optional["Agent"] = None,
-    pre_messages_hook: Callable = None,
     **kwargs,
 ) -> Generator[CompletionEvent, None, None]:
     response_messages = []
@@ -162,8 +161,6 @@ def _completion_generator(
         # there is no response message yet)
         while not response_message or response_message.tool_calls:
             input_messages = messages + response_messages
-            if pre_messages_hook is not None:
-                input_messages = pre_messages_hook(input_messages)
 
             input_messages = trim_messages(
                 messages=input_messages,
@@ -235,7 +232,6 @@ async def _completion_async_generator(
     max_iterations: int,
     stream: bool,
     agent: Optional["Agent"] = None,
-    pre_messages_hook: Callable = None,
     **kwargs,
 ) -> AsyncGenerator[CompletionEvent, None]:
     response_messages = []
@@ -253,8 +249,6 @@ async def _completion_async_generator(
         # there is no response message yet)
         while not response_message or response_message.tool_calls:
             input_messages = messages + response_messages
-            if pre_messages_hook is not None:
-                input_messages = pre_messages_hook(input_messages)
 
             input_messages = trim_messages(
                 messages=input_messages,
@@ -355,7 +349,6 @@ def completion(
     handlers: list[CompletionHandler] = None,
     stream: bool = False,
     agent: Optional["Agent"] = None,
-    pre_messages_hook: Callable = None,
     **kwargs,
 ) -> Union[list[MessageType], Generator[MessageType, None, None]]:
     if model is None:
@@ -372,7 +365,6 @@ def completion(
         max_iterations=max_iterations,
         stream=stream,
         agent=agent,
-        pre_messages_hook=pre_messages_hook,
         **kwargs,
     )
 
@@ -394,7 +386,6 @@ async def completion_async(
     handlers: list[CompletionHandler] = None,
     stream: bool = False,
     agent: Optional["Agent"] = None,
-    pre_messages_hook: Callable = None,
     **kwargs,
 ) -> Union[list[MessageType], Generator[MessageType, None, None]]:
     if model is None:
@@ -411,7 +402,6 @@ async def completion_async(
         max_iterations=max_iterations,
         stream=stream,
         agent=agent,
-        pre_messages_hook=pre_messages_hook,
         **kwargs,
     )
 
