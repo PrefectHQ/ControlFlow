@@ -1,0 +1,54 @@
+---
+title: Rock, Paper, Scissors
+---
+
+How do you play rock, paper, scissors against an AI without letting it cheat?
+
+This example uses a private conversation (flow) to keep the user's choice hidden from the AI. Only after both the user's and AI's choices are made do we reveal the user's choice to the AI to determine the winner.
+
+
+```python
+import controlflow as cf
+
+user_helper = cf.Agent(
+    "RPS Helper",
+    instructions="""
+        Get the user's choice of rock, paper, or scissors. You can assure them that
+        you won't share their answer with the Ai playing against them.
+        """,
+)
+
+
+@cf.task
+def get_ai_choice() -> ["rock", "paper", "scissors"]:
+    """Choose rock paper or scissors"""
+
+
+@cf.task(user_access=True, agents=[user_helper])
+def get_user_choice() -> ["rock", "paper", "scissors"]:
+    """Ask the user to choose rock, paper, or scissors."""
+
+
+@cf.task(user_access=True)
+def check_play_again(user_choice, ai_choice) -> bool:
+    """
+    Tell the user if they won, then find out if they want to play again.
+    """
+
+
+@cf.flow
+def rock_paper_scissors():
+    keep_playing = True
+
+    while keep_playing:
+        # use a separate flow to keep the user's conversation private
+        with cf.Flow():
+            user_choice = get_user_choice()
+
+        ai_choice = get_ai_choice()
+
+        keep_playing = check_play_again(user_choice, ai_choice)
+
+
+rock_paper_scissors()
+````

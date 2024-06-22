@@ -83,6 +83,13 @@
             ]
         },
         {
+            "group": "Examples",
+            "pages": [
+                "examples/library",
+                "examples/rock_paper_scissors"
+            ]
+        },
+        {
             "group": "Overview",
             "pages": [
                 "glossary/glossary"
@@ -119,6 +126,10 @@
         }
     ],
     "tabs": [
+        {
+            "name": "Examples",
+            "url": "examples"
+        },
         {
             "name": "AI Glossary",
             "url": "glossary"
