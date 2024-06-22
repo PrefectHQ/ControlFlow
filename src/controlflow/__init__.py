@@ -1,5 +1,5 @@
 from .settings import settings
-import controlflow.llm
+from . import llm
 
 from .agents import Agent
 from .tasks import Task
@@ -15,7 +15,7 @@ from .llm.models import model_from_string, get_default_model
 from .flows.history import InMemoryHistory, get_default_history
 
 # assign to controlflow.default_model to change the default model
-default_model = model_from_string(controlflow.settings.llm_model)
+default_model = model_from_string(settings.llm_model)
 del model_from_string
 
 # assign to controlflow.default_history to change the default history

@@ -38,7 +38,7 @@ def format_message(
     if isinstance(message, ToolMessage):
         return format_tool_message(message, width=width)
     elif isinstance(message, (AIMessage, AIMessageChunk)):
-        if message.content:
+        if message.str_content:
             panels.append(format_text_message(message, width=width))
 
         if message.tool_calls or message.invalid_tool_calls:
@@ -56,7 +56,7 @@ def format_text_message(message: MessageType, width: Optional[int] = None) -> Pa
         title = ROLE_NAMES.get(message.role, "Agent")
 
     return Panel(
-        Markdown(message.content or ""),
+        Markdown(message.str_content or ""),
         title=f"[bold]{title}[/]",
         subtitle=f"[italic]{format_timestamp(message.timestamp)}[/]",
         title_align="left",
@@ -125,16 +125,16 @@ def format_tool_message(message: ToolMessage, width: Optional[int] = None) -> Pa
     if message.tool_metadata.get("is_failed"):
         content = Group(
             f"❌ The tool call to [markdown.code]{message.tool_call['name']}[/] failed.",
-            Markdown(f"```{message.content or '(No error provided)'}```"),
+            Markdown(f"```{message.str_content or '(No error provided)'}```"),
         )
     elif not message.tool_metadata.get("is_task_status_tool"):
         content_type = "json" if isinstance(message.tool_result, (dict, list)) else ""
-        if len(message.content) > 3000:
+        if len(message.str_content) > 3000:
             msg_content = (
-                "(showing first 3000 characters) " + message.content[:3000] + "..."
+                "(showing first 3000 characters) " + message.str_content[:3000] + "..."
             )
         else:
-            msg_content = message.content or ""
+            msg_content = message.str_content or ""
         content = Group(
             f"✅ Received output from the [markdown.code]{message.tool_call['name']}[/] tool.\n",
             Markdown(f"```{content_type}\n{msg_content}\n```"),

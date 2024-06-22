@@ -10,11 +10,12 @@ from pydantic import Field, PrivateAttr, model_validator
 import controlflow
 from controlflow.agents import Agent
 from controlflow.controllers.graph import Graph
+from controlflow.controllers.messages import process_messages
 from controlflow.flows import Flow, get_flow
 from controlflow.instructions import get_instructions
 from controlflow.llm.completions import completion, completion_async
 from controlflow.llm.handlers import PrintHandler, ResponseHandler, TUIHandler
-from controlflow.llm.messages import AIMessage, MessageType, SystemMessage
+from controlflow.llm.messages import MessageType, SystemMessage
 from controlflow.llm.tools import as_tools
 from controlflow.tasks.task import Task
 from controlflow.tui.app import TUIApp as TUI
@@ -44,23 +45,6 @@ def create_messages_markdown_artifact(messages, thread_id):
             )
         ),
     )
-
-
-def add_agent_info_to_messages(messages: list[MessageType]) -> list[MessageType]:
-    """
-    If the message is from an agent, add a system message to clarify which agent
-    it is from. This helps the system follow multi-agent conversations.
-    """
-    new_messages = []
-    for msg in messages:
-        if isinstance(msg, AIMessage) and msg.agent:
-            new_messages.append(
-                SystemMessage(
-                    content=f'The following message is from agent "{msg.agent.name}" with id {msg.agent.id}.'
-                )
-            )
-        new_messages.append(msg)
-    return new_messages
 
 
 class Controller(ControlFlowModel):
@@ -202,6 +186,9 @@ class Controller(ControlFlowModel):
         system_message = SystemMessage(content=instructions)
         messages = self.flow.get_messages()
 
+        rules = agent.get_llm_rules()
+        messages = process_messages(messages, rules=rules, tools=tools)
+
         # setup handlers
         handlers = []
         if controlflow.settings.enable_tui:
@@ -235,7 +222,6 @@ class Controller(ControlFlowModel):
                     max_iterations=1,
                     stream=True,
                     agent=agent,
-                    pre_messages_hook=add_agent_info_to_messages,
                 )
                 async for _ in response_gen:
                     pass
@@ -262,7 +248,11 @@ class Controller(ControlFlowModel):
         response_handler = ResponseHandler()
         payload["handlers"].append(response_handler)
 
-        with ctx(agent=agent, flow=self.flow, controller=self):
+        with ctx(
+            agent=agent,
+            flow=self.flow,
+            controller=self,
+        ):
             response_gen = completion(
                 messages=payload["messages"],
                 model=agent.get_model(),
@@ -271,7 +261,6 @@ class Controller(ControlFlowModel):
                 max_iterations=1,
                 stream=True,
                 agent=agent,
-                pre_messages_hook=add_agent_info_to_messages,
             )
             for _ in response_gen:
                 pass

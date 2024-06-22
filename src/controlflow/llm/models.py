@@ -1,6 +1,8 @@
 from typing import Any, Optional
 
+from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models import BaseChatModel
+from langchain_openai import ChatOpenAI
 
 import controlflow
 
@@ -23,29 +25,13 @@ def model_from_string(
         temperature = controlflow.settings.llm_temperature
 
     if provider == "openai":
-        try:
-            from langchain_openai import ChatOpenAI
-        except ImportError:
-            raise ImportError(
-                "To use OpenAI models, please install the `langchain-openai` package."
-            )
         cls = ChatOpenAI
-    elif provider == "azure-openai":
-        try:
-            from langchain_openai import AzureChatOpenAI
-        except ImportError:
-            raise ImportError(
-                "To use Azure OpenAI models, please install the `langchain-openai` package."
-            )
-        cls = AzureChatOpenAI
     elif provider == "anthropic":
-        try:
-            from langchain_anthropic import ChatAnthropic
-        except ImportError:
-            raise ImportError(
-                "To use Anthropic models, please install the `langchain-anthropic` package."
-            )
         cls = ChatAnthropic
+    elif provider == "azure-openai":
+        from langchain_openai import AzureChatOpenAI
+
+        cls = AzureChatOpenAI
     elif provider == "google":
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI

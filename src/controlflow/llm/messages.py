@@ -29,6 +29,10 @@ class MessageMixin(langchain_core.messages.BaseMessage):
             data["id"] = uuid.uuid4().hex
         super().__init__(**data)
 
+    @property
+    def str_content(self) -> str:
+        return str(self.content or "")
+
     def render(self, **kwargs) -> "MessageType":
         """
         Renders the content as a jinja template with the given keyword arguments
