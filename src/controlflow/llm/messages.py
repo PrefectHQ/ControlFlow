@@ -119,9 +119,10 @@ class ToolMessage(langchain_core.messages.ToolMessage, MessageMixin):
 
     role: Literal["tool"] = v1_Field("tool", exclude=True)
 
-    tool_call: ToolCall
+    tool_call: ToolCall = None
     tool_result: Any = v1_Field(exclude=True)
     tool_metadata: dict[str, Any] = v1_Field(default_factory=dict)
+    agent_id: str = v1_Field(None)
 
 
 class InvalidToolMessage(ToolMessage):

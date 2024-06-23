@@ -127,7 +127,7 @@ def format_tool_message(message: ToolMessage, width: Optional[int] = None) -> Pa
             f"❌ The tool call to [markdown.code]{message.tool_call['name']}[/] failed.",
             Markdown(f"```{message.str_content or '(No error provided)'}```"),
         )
-    elif not message.tool_metadata.get("is_task_status_tool"):
+    else:
         content_type = "json" if isinstance(message.tool_result, (dict, list)) else ""
         if len(message.str_content) > 3000:
             msg_content = (
@@ -139,8 +139,6 @@ def format_tool_message(message: ToolMessage, width: Optional[int] = None) -> Pa
             f"✅ Received output from the [markdown.code]{message.tool_call['name']}[/] tool.\n",
             Markdown(f"```{content_type}\n{msg_content}\n```"),
         )
-    else:
-        return ""
 
     return Panel(
         content,
