@@ -11,7 +11,7 @@ from textual.widgets import Footer, Header, Label
 import controlflow
 import controlflow.utilities
 import controlflow.utilities.asyncio
-from controlflow.llm.messages import AIMessage, HumanMessage, ToolMessage
+from controlflow.llm.messages import AIMessage, ToolMessage, UserMessage
 
 from .basic import Column, Row
 from .task import TUITask
@@ -116,7 +116,7 @@ class TUIApp(App):
             self.query_one("#tasks-container", Column).mount(new_task)
             new_task.scroll_visible()
 
-    def update_message(self, message: Union[HumanMessage, AIMessage]):
+    def update_message(self, message: Union[UserMessage, AIMessage]):
         try:
             component = self.query_one(f"#message-{message.id}", TUIMessage)
             component.message = message

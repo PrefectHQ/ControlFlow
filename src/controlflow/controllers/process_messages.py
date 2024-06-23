@@ -3,10 +3,10 @@ from typing import Optional, Union
 from controlflow.agents.agent import Agent
 from controlflow.llm.messages import (
     AIMessage,
-    HumanMessage,
     MessageType,
     SystemMessage,
     ToolMessage,
+    UserMessage,
 )
 from controlflow.llm.rules import LLMRules
 from controlflow.llm.tools import Tool
@@ -14,14 +14,14 @@ from controlflow.llm.tools import Tool
 
 def create_system_message(
     content: str, rules: LLMRules
-) -> Union[SystemMessage, HumanMessage]:
+) -> Union[SystemMessage, UserMessage]:
     """
     Creates a SystemMessage or HumanMessage with SYSTEM: prefix, depending on the rules.
     """
     if rules.system_message_must_be_first:
         return SystemMessage(content=content)
     else:
-        return HumanMessage(content=f"SYSTEM: {content}")
+        return UserMessage(content=f"SYSTEM: {content}")
 
 
 def handle_agent_info_in_messages(
@@ -66,7 +66,7 @@ def handle_system_messages_must_be_first(messages: list[MessageType], rules: LLM
         # replace all other SystemMessages with HumanMessages
         for i, msg in enumerate(messages[len(new_messages) :]):
             if isinstance(msg, SystemMessage):
-                msg = HumanMessage(content=f"SYSTEM: {msg.content}")
+                msg = UserMessage(content=f"SYSTEM: {msg.content}")
             new_messages.append(msg)
 
         return new_messages
@@ -79,7 +79,7 @@ def handle_user_message_must_be_first_after_system(
 ):
     if rules.user_message_must_be_first_after_system:
         if not messages:
-            messages.append(HumanMessage(content="SYSTEM: Begin."))
+            messages.append(UserMessage(content="SYSTEM: Begin."))
 
         # else get first non-system message
         else:
@@ -87,9 +87,9 @@ def handle_user_message_must_be_first_after_system(
             while i < len(messages) and isinstance(messages[i], SystemMessage):
                 i += 1
             if i == len(messages) or (
-                i < len(messages) and not isinstance(messages[i], HumanMessage)
+                i < len(messages) and not isinstance(messages[i], UserMessage)
             ):
-                messages.insert(i, HumanMessage(content="SYSTEM: Begin."))
+                messages.insert(i, UserMessage(content="SYSTEM: Begin."))
     return messages
 
 
@@ -97,9 +97,9 @@ def handle_private_tool_calls(messages: list[MessageType], agent: Agent):
     new_messages = []
     for msg in messages:
         if isinstance(msg, ToolMessage):
-            if agent.id != msg.agent.id:
+            if agent.name != msg.agent.name:
                 msg = ToolMessage(
-                    content=f"The result of this tool call only visible to agent {msg.agent.id}",
+                    content=f'The result of this tool call only visible to agent "{msg.agent.name}"',
                     tool_call_id=msg.tool_call_id,
                     tool_metadata=msg.tool_metadata | {"is_private": True},
                 )

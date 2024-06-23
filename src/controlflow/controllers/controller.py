@@ -21,7 +21,7 @@ from controlflow.tasks.task import Task
 from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
 from controlflow.utilities.prefect import create_markdown_artifact
-from controlflow.utilities.prefect import task as prefect_task
+from controlflow.utilities.prefect import prefect_task as prefect_task
 from controlflow.utilities.tasks import all_complete, any_incomplete
 from controlflow.utilities.types import ControlFlowModel
 

@@ -7,8 +7,8 @@ from controlflow.agents import Agent
 from controlflow.flows import Flow
 from controlflow.tasks.task import Task
 from controlflow.utilities.logging import get_logger
-from controlflow.utilities.prefect import flow as prefect_flow
-from controlflow.utilities.prefect import task as prefect_task
+from controlflow.utilities.prefect import prefect_flow as prefect_flow
+from controlflow.utilities.prefect import prefect_task as prefect_task
 
 # from controlflow.utilities.marvin import patch_marvin
 from controlflow.utilities.tasks import resolve_tasks

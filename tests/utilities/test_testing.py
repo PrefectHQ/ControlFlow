@@ -15,23 +15,25 @@ def test_record_task_messages(default_fake_llm):
     task = controlflow.Task("say hello")
 
     response = AIMessage(
-        content="",
-        response_metadata={"finish_reason": "tool_calls"},
-        name="Marvin",
-        id="run-0e56d606-f1fd-408d-a270-aa81c5f71c9c",
+        agent=dict(name="Marvin"),
+        id="run-2af8bb73-661f-4ec3-92ff-d7d8e3074926",
         timestamp=datetime.datetime(
-            2024, 6, 20, 15, 11, 29, 321853, tzinfo=datetime.timezone.utc
+            2024, 6, 23, 17, 12, 24, 91830, tzinfo=datetime.timezone.utc
         ),
+        role="ai",
+        content="",
+        name="Marvin",
         tool_calls=[
             {
                 "name": f"mark_task_{task.id}_successful",
                 "args": {"result": "Hello!"},
-                "id": "call_Fdo3MmYA0Bg7hn5vviTrfMuJ",
+                "id": "call_ZEPdV8mCgeBe5UHjKzm6e3pe",
             }
         ],
+        is_delta=False,
     )
 
-    default_fake_llm.responses = [response]
+    default_fake_llm.set_responses([response])
     with record_messages() as rec_messages:
         task.run()
 
@@ -40,71 +42,22 @@ def test_record_task_messages(default_fake_llm):
     assert rec_messages[0].tool_calls == response.tool_calls
 
     expected_tool_message = ToolMessage(
-        content=f'Task {task.id} ("say hello") marked successful by Marvin.',
-        id="3a5a2ddaef764b6986e97d79e8d0418f",
+        agent=dict(name="Marvin"),
+        id="cb84bb8f3e0f4245bbf5eefeee9272b2",
         timestamp=datetime.datetime(
-            2024, 6, 20, 15, 11, 29, 508201, tzinfo=datetime.timezone.utc
+            2024, 6, 23, 17, 12, 24, 187384, tzinfo=datetime.timezone.utc
         ),
-        tool_call_id="call_Fdo3MmYA0Bg7hn5vviTrfMuJ",
+        role="tool",
+        content=f'Task {task.id} ("say hello") marked successful by Marvin.',
+        name="Marvin",
+        tool_call_id="call_ZEPdV8mCgeBe5UHjKzm6e3pe",
         tool_call={
             "name": f"mark_task_{task.id}_successful",
             "args": {"result": "Hello!"},
-            "id": "call_Fdo3MmYA0Bg7hn5vviTrfMuJ",
+            "id": "call_ZEPdV8mCgeBe5UHjKzm6e3pe",
         },
-        tool_result=f'Task {task.id} ("say hello") marked successful by Marvin.',
+        tool_metadata={"ignore_result": True},
     )
-
     assert rec_messages[1].content == expected_tool_message.content
     assert rec_messages[1].tool_call_id == expected_tool_message.tool_call_id
     assert rec_messages[1].tool_call == expected_tool_message.tool_call
-
-
-def test_record_task_messages_removes_extra_information(default_fake_llm):
-    task = controlflow.Task("say hello")
-
-    # note the hardcoded IDs in the kwargs/chunks, which will be removed
-    default_fake_llm.responses = [
-        AIMessage(
-            content="",
-            additional_kwargs={
-                "tool_calls": [
-                    {
-                        "index": 0,
-                        "id": "call_Fdo3MmYA0Bg7hn5vviTrfMuJ",
-                        "function": {
-                            "arguments": '{"result":"Hello!"}',
-                            "name": f"mark_task_{task.id}_successful",
-                        },
-                        "type": "function",
-                    }
-                ]
-            },
-            response_metadata={"finish_reason": "tool_calls"},
-            name="Marvin",
-            id="run-0e56d606-f1fd-408d-a270-aa81c5f71c9c",
-            timestamp=datetime.datetime(
-                2024, 6, 20, 15, 11, 29, 321853, tzinfo=datetime.timezone.utc
-            ),
-            tool_calls=[
-                {
-                    "name": f"mark_task_{task.id}_successful",
-                    "args": {"result": "Hello!"},
-                    "id": "call_Fdo3MmYA0Bg7hn5vviTrfMuJ",
-                }
-            ],
-            tool_call_chunks=[
-                {
-                    "name": f"mark_task_{task.id}_successful",
-                    "args": '{"result":"Hello!"}',
-                    "id": "call_Fdo3MmYA0Bg7hn5vviTrfMuJ",
-                    "index": 0,
-                }
-            ],
-        )
-    ]
-
-    with record_messages() as rec_messages:
-        task.run()
-
-    assert rec_messages[0].additional_kwargs == {}
-    assert rec_messages[0].tool_call_chunks == []

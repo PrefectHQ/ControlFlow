@@ -33,7 +33,6 @@ class CompletionHandler:
         if event.type in [
             "message_done",
             "tool_call_done",
-            "invalid_tool_call_done",
             "tool_result_done",
         ]:
             # only fire the on_response_message hook once per message
@@ -67,9 +66,6 @@ class CompletionHandler:
         pass
 
     def on_tool_call_done(self, message: AIMessage):
-        pass
-
-    def on_invalid_tool_call_done(self, message: AIMessage):
         pass
 
     def on_tool_result_created(self, message: AIMessage, tool_call: ToolCall):
@@ -121,7 +117,7 @@ class PrintHandler(CompletionHandler):
     def __init__(self):
         self.width: int = controlflow.settings.print_handler_width
         self.messages: dict[str, MessageType] = {}
-        self.live: Live = Live(auto_refresh=False, console=cf_console)
+        self.live: Live = Live(auto_refresh=True, console=cf_console)
         self.paused_id: str = None
         super().__init__()
 

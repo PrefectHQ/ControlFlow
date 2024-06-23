@@ -1,6 +1,6 @@
 from controlflow.agents import Agent
 from controlflow.flows import Flow, get_flow
-from controlflow.llm.messages import HumanMessage
+from controlflow.llm.messages import UserMessage
 from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
 
@@ -92,7 +92,7 @@ class TestFlowHistory:
     def test_add_messages_with_history(self):
         flow = Flow()
         flow.add_messages(
-            messages=[HumanMessage(content="hello"), HumanMessage(content="world")]
+            messages=[UserMessage(content="hello"), UserMessage(content="world")]
         )
         messages = flow.get_messages()
         assert len(messages) == 2
@@ -101,7 +101,7 @@ class TestFlowHistory:
     def test_copy_parent_history(self):
         flow1 = Flow()
         flow1.add_messages(
-            messages=[HumanMessage(content="hello"), HumanMessage(content="world")]
+            messages=[UserMessage(content="hello"), UserMessage(content="world")]
         )
 
         with flow1:
@@ -118,7 +118,7 @@ class TestFlowHistory:
     def test_disable_copying_parent_history(self):
         flow1 = Flow()
         flow1.add_messages(
-            messages=[HumanMessage(content="hello"), HumanMessage(content="world")]
+            messages=[UserMessage(content="hello"), UserMessage(content="world")]
         )
 
         with flow1:
@@ -134,12 +134,12 @@ class TestFlowHistory:
     def test_child_flow_messages_dont_go_to_parent(self):
         flow1 = Flow()
         flow1.add_messages(
-            messages=[HumanMessage(content="hello"), HumanMessage(content="world")]
+            messages=[UserMessage(content="hello"), UserMessage(content="world")]
         )
 
         with flow1:
             flow2 = Flow()
-            flow2.add_messages(messages=[HumanMessage(content="goodbye")])
+            flow2.add_messages(messages=[UserMessage(content="goodbye")])
 
         messages1 = flow1.get_messages()
         assert len(messages1) == 2

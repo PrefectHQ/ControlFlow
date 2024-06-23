@@ -1,39 +1,71 @@
 import functools
 import inspect
+import json
 import typing
 from typing import TYPE_CHECKING, Annotated, Any, Callable, Optional, Union
 
-import langchain_core
 import langchain_core.tools
 import pydantic
 import pydantic.v1
-from langchain_core.messages import InvalidToolCall, ToolCall
+from langchain_core.messages import ToolCall
 from prefect.utilities.asyncutils import run_coro_as_sync
-from pydantic import TypeAdapter
+from pydantic import Field, TypeAdapter
 
 import controlflow
-from controlflow.llm.messages import InvalidToolMessage, ToolMessage
-from controlflow.utilities.prefect import wrap_prefect_tool
+from controlflow.llm.messages import ToolMessage
+from controlflow.utilities.prefect import (
+    TOOL_CALL_FUNCTION_RESULT_TEMPLATE,
+    create_markdown_artifact,
+    prefect_task,
+)
+from controlflow.utilities.types import ControlFlowModel
 
 if TYPE_CHECKING:
     from controlflow.agents import Agent
 
 
-class FnArgsSchema:
-    """
-    A dropin replacement for LangChain's StructuredTool args_schema objects
-    that can be created from any function that has type hints.
-    Used in ControlFlow to create Tool objects from functions.
-    """
+class Tool(ControlFlowModel):
+    name: str
+    description: str
+    parameters: dict
+    metadata: dict = Field({}, exclude_none=True)
+    fn: Callable = Field(None, exclude=True)
 
-    def __init__(self, fn):
-        self.fn = fn
+    def to_lc_tool(self) -> dict:
+        return self.model_dump(include={"name", "description", "parameters"})
 
-    def schema(self) -> dict:
-        schema = TypeAdapter(self.fn).json_schema()
+    @prefect_task(task_run_name="Tool call: {self.name}")
+    def run(self, input: dict):
+        result = self.fn(**input)
+        if inspect.isawaitable(result):
+            result = run_coro_as_sync(result)
+
+        # prepare artifact
+        passed_args = inspect.signature(self.fn).bind(**input).arguments
+        try:
+            # try to pretty print the args
+            passed_args = json.dumps(passed_args, indent=2)
+        except Exception:
+            pass
+        create_markdown_artifact(
+            markdown=TOOL_CALL_FUNCTION_RESULT_TEMPLATE.format(
+                name=self.name,
+                description=self.description or "(none provided)",
+                args=passed_args,
+                result=result,
+            ),
+            key="tool-result",
+        )
+        return result
+
+    @classmethod
+    def from_function(
+        cls, fn: Callable, name: str = None, description: str = None, **kwargs
+    ):
+        parameters = TypeAdapter(fn).json_schema()
 
         # load parameter descriptions
-        for param in inspect.signature(self.fn).parameters.values():
+        for param in inspect.signature(fn).parameters.values():
             # handle Annotated type hints
             if (
                 # param.annotation is not inspect.Parameter.empty
@@ -52,67 +84,29 @@ class FnArgsSchema:
             else:
                 continue
 
-            schema["properties"][param.name]["description"] = description
+            parameters["properties"][param.name]["description"] = description
 
-        return schema
-
-    def parse_obj(self, args_dict: dict):
-        # use validate call to parse the args
-        # using a function with the same signature as the real one, but just returning the kwargs
-        @pydantic.validate_call
-        @functools.wraps(self.fn)
-        def get_kwargs(**kwargs):
-            return kwargs
-
-        return get_kwargs(**args_dict)
-
-
-def _sync_wrapper(coro):
-    """
-    Wrapper that runs a coroutine as a synchronous function with deferred args
-    """
-
-    @functools.wraps(coro)
-    def wrapper(*args, **kwargs):
-        return run_coro_as_sync(coro(*args, **kwargs))
-
-    return wrapper
-
-
-class Tool(langchain_core.tools.StructuredTool):
-    """
-    A subclass of StructuredTool that is compatible with functions whose
-    signatures include either Pydantic v1 models (which Langchain uses) or v2
-    models (which ControlFlow users).
-
-    Note that THIS class is a Pydantic v1 model because it subclasses the Langchain
-    class.
-    """
-
-    args_schema: Optional[
-        Union[type[pydantic.v1.BaseModel], type[pydantic.BaseModel], FnArgsSchema]
-    ]
-    metadata: dict[str, Any] = pydantic.v1.Field(default_factory=dict)
-
-    @classmethod
-    def from_function(cls, fn=None, *args, **kwargs):
-        args_schema = FnArgsSchema(fn)
-        if not fn.__doc__ and not kwargs.get("description"):
-            kwargs["description"] = fn.__name__
-        if inspect.iscoroutinefunction(fn):
-            fn, coro = _sync_wrapper(fn), fn
-        else:
-            coro = None
-
-        return super().from_function(
-            *args, func=fn, coroutine=coro, args_schema=args_schema, **kwargs
+        return cls(
+            name=name or fn.__name__,
+            description=description or fn.__doc__ or fn.__name__,
+            parameters=parameters,
+            fn=fn,
+            **kwargs,
         )
 
-    def _parse_input(self, tool_input: Union[str, dict]) -> Union[str, dict[str, Any]]:
-        if isinstance(self.args_schema, FnArgsSchema):
-            return self.args_schema.parse_obj(tool_input)
+    @classmethod
+    def from_lc_tool(cls, tool: langchain_core.tools.BaseTool, **kwargs):
+        if isinstance(tool, langchain_core.tools.StructuredTool):
+            fn = tool.func
         else:
-            return super()._parse_input(tool_input)
+            fn = lambda *a, **k: None  # noqa
+        return cls(
+            name=tool.name,
+            description=tool.description,
+            parameters=tool.args_schema.schema(),
+            fn=fn,
+            **kwargs,
+        )
 
 
 def tool(
@@ -135,7 +129,7 @@ def tool(
 
 
 def as_tools(
-    tools: list[Union[Callable, Tool]], wrap_prefect: bool = True
+    tools: list[Union[Callable, langchain_core.tools.BaseTool, Tool]],
 ) -> list[Tool]:
     """
     Converts a list of tools (either Tool objects or callables) into a list of
@@ -147,14 +141,21 @@ def as_tools(
     seen = set()
     new_tools = []
     for t in tools:
-        if not isinstance(t, Tool):
+        if isinstance(t, Tool):
+            pass
+        elif isinstance(t, langchain_core.tools.BaseTool):
+            t = Tool.from_lc_tool(t)
+        elif inspect.isfunction(t):
             t = Tool.from_function(t)
-        if (t.name, t.func, t.coroutine) in seen:
+        elif isinstance(t, dict):
+            t = Tool(**t)
+        else:
+            raise ValueError(f"Invalid tool: {t}")
+
+        if (t.name, t.description, t.fn) in seen:
             continue
-        if wrap_prefect:
-            t = wrap_prefect_tool(t)
         new_tools.append(t)
-        seen.add((t.name, t.func, t.coroutine))
+        seen.add((t.name, t.description, t.fn))
     return new_tools
 
 
@@ -163,13 +164,13 @@ def output_to_string(output: Any) -> str:
     Function outputs must be provided as strings
     """
     if output is None:
-        output = ""
-    elif not isinstance(output, str):
-        try:
-            output = pydantic.TypeAdapter(type(output)).dump_json(output).decode()
-        except Exception:
-            output = str(output)
-    return output
+        return ""
+    elif isinstance(output, str):
+        return output
+    try:
+        return pydantic.TypeAdapter(type(output)).dump_json(output).decode()
+    except Exception:
+        return str(output)
 
 
 def handle_tool_call(
@@ -192,9 +193,10 @@ def handle_tool_call(
             tool = tool_lookup[fn_name]
             metadata.update(getattr(tool, "metadata", {}))
             fn_args = tool_call["args"]
-            fn_output = tool.invoke(input=fn_args)
-            if inspect.isawaitable(fn_output):
-                fn_output = run_coro_as_sync(fn_output)
+            if isinstance(tool, Tool):
+                fn_output = tool.run(input=fn_args)
+            elif isinstance(tool, langchain_core.tools.BaseTool):
+                fn_output = tool.invoke(input=fn_args)
     except Exception as exc:
         fn_output = f'Error calling function "{fn_name}": {exc}'
         metadata["is_failed"] = True
@@ -209,57 +211,5 @@ def handle_tool_call(
         tool_call=tool_call,
         tool_result=fn_output,
         tool_metadata=metadata,
-        agent=agent,
-    )
-
-
-async def handle_tool_call_async(
-    tool_call: ToolCall,
-    tools: list[Tool],
-    error: str = None,
-    agent: "Agent" = None,
-) -> ToolMessage:
-    tool_lookup = {t.name: t for t in tools}
-    fn_name = tool_call["name"]
-    metadata = {}
-    try:
-        if error:
-            fn_output = error
-            metadata["is_failed"] = True
-        elif fn_name not in tool_lookup:
-            fn_output = f'Function "{fn_name}" not found.'
-            metadata["is_failed"] = True
-        else:
-            tool = tool_lookup[fn_name]
-            metadata.update(getattr(tool, "metadata", {}))
-            fn_args = tool_call["args"]
-            fn_output = await tool.ainvoke(input=fn_args)
-    except Exception as exc:
-        fn_output = f'Error calling function "{fn_name}": {exc}'
-        metadata["is_failed"] = True
-        if controlflow.settings.raise_on_tool_error:
-            raise
-
-    from controlflow.llm.messages import ToolMessage
-
-    return ToolMessage(
-        content=output_to_string(fn_output),
-        tool_call_id=tool_call["id"],
-        tool_call=tool_call,
-        tool_result=fn_output,
-        tool_metadata=metadata,
-        agent=agent,
-    )
-
-
-def handle_invalid_tool_call(
-    tool_call: InvalidToolCall, agent: str = None
-) -> ToolMessage:
-    return InvalidToolMessage(
-        content=tool_call["error"] or "",
-        tool_call_id=tool_call["id"],
-        tool_call=tool_call,
-        tool_result=tool_call["error"],
-        tool_metadata=dict(is_failed=True, is_invalid=True),
         agent=agent,
     )

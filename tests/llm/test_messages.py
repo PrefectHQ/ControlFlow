@@ -3,12 +3,11 @@ from controlflow.llm.messages import AgentReference, AIMessage
 
 
 class TestAIMessage:
-    def test_agent_stored_as_dict(self):
+    def test_agent(self):
         agent = controlflow.Agent(name="Test Agent!")
         message = AIMessage(content="", agent=agent)
         assert isinstance(message.agent, AgentReference)
         assert message.agent.name == "Test Agent!"
-        assert message.agent.id == agent.id
 
     def test_name_loaded_from_agent(self):
         agent = controlflow.Agent(name="Test Agent!")

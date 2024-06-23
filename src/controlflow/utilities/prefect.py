@@ -10,6 +10,7 @@ from typing import (
 from uuid import UUID
 
 import prefect
+import prefect.cache_policies
 import prefect.tasks
 from prefect import get_client as get_prefect_client
 from prefect.artifacts import ArtifactRequest
@@ -42,17 +43,18 @@ if TYPE_CHECKING:
     from controlflow.llm.tools import Tool
 
 
-def task(*args, **kwargs):
+def prefect_task(*args, **kwargs):
     """
     A decorator that creates a Prefect task with ControlFlow defaults
     """
 
     kwargs.setdefault("log_prints", controlflow.settings.log_prints)
+    kwargs.setdefault("cache_policy", prefect.cache_policies.NONE)
 
     return prefect.task(*args, **kwargs)
 
 
-def flow(*args, **kwargs):
+def prefect_flow(*args, **kwargs):
     """
     A decorator that creates a Prefect flow with ControlFlow defaults
     """
@@ -72,7 +74,6 @@ def create_markdown_artifact(
     """
     Create a Markdown artifact.
     """
-
     tr_context = TaskRunContext.get()
     fr_context = FlowRunContext.get()
 
@@ -171,50 +172,12 @@ def wrap_prefect_tool(tool: "Tool") -> "Tool":
     # for functions, we modify the function to become a Prefect task and
     # publish an artifact that contains details about the function call
 
-    if isinstance(tool.func, prefect.tasks.Task) or isinstance(
-        tool.coroutine, prefect.tasks.Task
-    ):
+    if isinstance(tool.fn, prefect.tasks.Task):
         return tool
-
-    if tool.coroutine is not None:
-
-        async def modified_coroutine(
-            # provide args with default values to avoid a late-binding issue
-            original_coroutine: Callable = tool.coroutine,
-            tool: "Tool" = tool,
-            **kwargs,
-        ):
-            # call fn
-            result = await original_coroutine(**kwargs)
-
-            # prepare artifact
-            passed_args = inspect.signature(original_coroutine).bind(**kwargs).arguments
-            try:
-                # try to pretty print the args
-                passed_args = json.dumps(passed_args, indent=2)
-            except Exception:
-                pass
-            create_markdown_artifact(
-                markdown=TOOL_CALL_FUNCTION_RESULT_TEMPLATE.format(
-                    name=tool.name,
-                    description=tool.description or "(none provided)",
-                    args=passed_args,
-                    result=result,
-                ),
-                key="tool-result",
-            )
-
-            # return result
-            return result
-
-        tool.coroutine = prefect.task(
-            modified_coroutine,
-            task_run_name=f"Tool call: {tool.name}",
-        )
 
     def modified_fn(
         # provide args with default values to avoid a late-binding issue
-        original_func: Callable = tool.func,
+        original_func: Callable = tool.fn,
         tool: "Tool" = tool,
         **kwargs,
     ):
@@ -242,7 +205,7 @@ def wrap_prefect_tool(tool: "Tool") -> "Tool":
         return result
 
     # replace the function with the modified version
-    tool.func = prefect.task(
+    tool.fn = prefect_task(
         modified_fn,
         task_run_name=f"Tool call: {tool.name}",
     )
@@ -375,7 +338,7 @@ def prefect_task_context(**kwargs):
         )
 
     @contextmanager
-    @task(**kwargs)
+    @prefect_task(**kwargs)
     def task_context():
         yield
 
@@ -409,7 +372,7 @@ def prefect_flow_context(**kwargs):
         )
 
     @contextmanager
-    @flow(**kwargs)
+    @prefect_flow(**kwargs)
     def flow_context():
         yield
 
