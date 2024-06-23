@@ -7,7 +7,7 @@ from prefect.input.run_input import receive_input
 from rich.prompt import Prompt as RichPrompt
 
 import controlflow
-from controlflow.llm.tools import tool
+from controlflow.tools import tool
 
 if TYPE_CHECKING:
     pass

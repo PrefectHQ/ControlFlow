@@ -65,7 +65,7 @@ class Agent(ControlFlowModel):
 
     @field_serializer("tools")
     def _serialize_tools(self, tools: list[Callable]):
-        tools = controlflow.llm.tools.as_tools(tools)
+        tools = controlflow.tools.as_tools(tools)
         # tools are Pydantic 1 objects
         return [t.dict(include={"name", "description"}) for t in tools]
 

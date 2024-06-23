@@ -1,10 +1,7 @@
-import inspect
-import json
 from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Optional,
 )
 from uuid import UUID
@@ -40,7 +37,7 @@ import controlflow
 from controlflow.utilities.types import ControlFlowModel
 
 if TYPE_CHECKING:
-    from controlflow.llm.tools import Tool
+    pass
 
 
 def prefect_task(*args, **kwargs):
@@ -141,76 +138,6 @@ def create_python_artifact(
         task_run_id=task_run_id,
         flow_run_id=flow_run_id,
     )
-
-
-TOOL_CALL_FUNCTION_RESULT_TEMPLATE = inspect.cleandoc(
-    """
-    # Tool call: {name}
-    
-    **Description:** {description}
-    
-    ## Arguments
-    
-    ```json
-    {args}
-    ```
-    
-    ## Result
-    
-    ```
-    {result}
-    ```
-    """
-)
-
-
-def wrap_prefect_tool(tool: "Tool") -> "Tool":
-    """
-    Wrap an Agent tool in a Prefect task.
-    """
-
-    # for functions, we modify the function to become a Prefect task and
-    # publish an artifact that contains details about the function call
-
-    if isinstance(tool.fn, prefect.tasks.Task):
-        return tool
-
-    def modified_fn(
-        # provide args with default values to avoid a late-binding issue
-        original_func: Callable = tool.fn,
-        tool: "Tool" = tool,
-        **kwargs,
-    ):
-        # call fn
-        result = original_func(**kwargs)
-
-        # prepare artifact
-        passed_args = inspect.signature(original_func).bind(**kwargs).arguments
-        try:
-            # try to pretty print the args
-            passed_args = json.dumps(passed_args, indent=2)
-        except Exception:
-            pass
-        create_markdown_artifact(
-            markdown=TOOL_CALL_FUNCTION_RESULT_TEMPLATE.format(
-                name=tool.name,
-                description=tool.description or "(none provided)",
-                args=passed_args,
-                result=result,
-            ),
-            key="tool-result",
-        )
-
-        # return result
-        return result
-
-    # replace the function with the modified version
-    tool.fn = prefect_task(
-        modified_fn,
-        task_run_name=f"Tool call: {tool.name}",
-    )
-
-    return tool
 
 
 class PrefectTrackingTask(ControlFlowModel):

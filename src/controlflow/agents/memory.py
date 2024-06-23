@@ -4,7 +4,7 @@ from typing import ClassVar, Optional, cast
 
 from pydantic import Field
 
-from controlflow.llm.tools import Tool
+from controlflow.tools import Tool
 from controlflow.utilities.context import ctx
 from controlflow.utilities.types import ControlFlowModel
 

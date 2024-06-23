@@ -16,8 +16,8 @@ from controlflow.instructions import get_instructions
 from controlflow.llm.completions import completion, completion_async
 from controlflow.llm.handlers import PrintHandler, ResponseHandler, TUIHandler
 from controlflow.llm.messages import MessageType, SystemMessage, ToolMessage
-from controlflow.llm.tools import as_tools
 from controlflow.tasks.task import Task
+from controlflow.tools import as_tools
 from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
 from controlflow.utilities.prefect import create_markdown_artifact

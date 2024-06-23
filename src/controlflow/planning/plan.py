@@ -4,8 +4,8 @@ from pydantic import Field
 
 from controlflow.agents import Agent
 from controlflow.flows import Flow
-from controlflow.llm.tools import Tool, as_tools
 from controlflow.tasks.task import Task
+from controlflow.tools import Tool, as_tools
 from controlflow.utilities.types import ControlFlowModel
 
 ToolLiteral = TypeVar("ToolLiteral", bound=str)
