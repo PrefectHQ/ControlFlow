@@ -97,9 +97,9 @@ def handle_private_tool_calls(messages: list[MessageType], agent: Agent):
     new_messages = []
     for msg in messages:
         if isinstance(msg, ToolMessage):
-            if agent.id != msg.agent_id:
+            if agent.id != msg.agent.id:
                 msg = ToolMessage(
-                    content=f"The result of this tool call only visible to agent {msg.agent_id}",
+                    content=f"The result of this tool call only visible to agent {msg.agent.id}",
                     tool_call_id=msg.tool_call_id,
                     tool_metadata=msg.tool_metadata | {"is_private": True},
                 )
