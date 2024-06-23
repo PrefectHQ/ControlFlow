@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, AsyncGenerator, Callable, Generator, Optional,
 import langchain_core.language_models as lc_models
 import tiktoken
 from langchain_core.messages import BaseMessage as LCBaseMessage
-from langchain_core.messages import trim_messages
+from langchain_core.messages.utils import trim_messages
 
 import controlflow
 import controlflow.llm.models
@@ -71,7 +71,10 @@ def handle_done_events(message: AIMessage):
 
 
 def handle_tool_calls(
-    message: AIMessage, tools: list[Callable], response_messages: list[MessageType]
+    message: AIMessage,
+    tools: list[Callable],
+    response_messages: list[MessageType],
+    agent_id: str = None,
 ):
     """
     Emit events for the given message when it has tool calls.
@@ -82,14 +85,18 @@ def handle_tool_calls(
             payload=dict(message=message, tool_call=tool_call),
         )
         error = handle_multiple_talk_to_human_calls(tool_call, message)
-        tool_result_message = handle_tool_call(tool_call, tools, error=error)
+        tool_result_message = handle_tool_call(
+            tool_call, tools, error=error, agent_id=agent_id
+        )
         response_messages.append(tool_result_message)
         yield CompletionEvent(
             type="tool_result_done", payload=dict(message=tool_result_message)
         )
 
 
-def handle_invalid_tool_calls(message: AIMessage, response_messages: list[MessageType]):
+def handle_invalid_tool_calls(
+    message: AIMessage, response_messages: list[MessageType], agent_id: str = None
+):
     """
     Emit events for the given message when it has invalid tool calls.
     """
@@ -98,7 +105,7 @@ def handle_invalid_tool_calls(message: AIMessage, response_messages: list[Messag
             type="tool_result_created",
             payload=dict(message=message, tool_call=tool_call),
         )
-        invalid_tool_message = handle_invalid_tool_call(tool_call)
+        invalid_tool_message = handle_invalid_tool_call(tool_call, agent_id=agent_id)
         response_messages.append(invalid_tool_message)
         yield CompletionEvent(
             type="tool_result_done", payload=dict(message=invalid_tool_message)
@@ -106,7 +113,10 @@ def handle_invalid_tool_calls(message: AIMessage, response_messages: list[Messag
 
 
 async def handle_tool_calls_async(
-    message: AIMessage, tools: list[Callable], response_messages: list[MessageType]
+    message: AIMessage,
+    tools: list[Callable],
+    response_messages: list[MessageType],
+    agent_id: str = None,
 ):
     """
     Emit events for the given message when it has tool calls.
@@ -118,7 +128,7 @@ async def handle_tool_calls_async(
         )
         error = handle_multiple_talk_to_human_calls(tool_call, message)
         tool_result_message = await handle_tool_call_async(
-            tool_call, tools, error=error
+            tool_call, tools, error=error, agent_id=agent_id
         )
         response_messages.append(tool_result_message)
         yield CompletionEvent(
@@ -207,6 +217,7 @@ def _completion_generator(
                 message=response_message,
                 tools=tools,
                 response_messages=response_messages,
+                agent_id=agent.id,
             )
 
             # handle invalid tool calls
@@ -297,6 +308,7 @@ async def _completion_async_generator(
                 message=response_message,
                 tools=tools,
                 response_messages=response_messages,
+                agent_id=agent.id,
             ):
                 yield event
 

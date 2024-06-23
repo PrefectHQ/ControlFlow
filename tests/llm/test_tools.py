@@ -228,3 +228,28 @@ class TestHandleTools:
         message = handle_invalid_tool_call(tool_call, tools=[])
         assert message.content == 'Function "foo" not found.'
         assert message.tool_metadata["is_failed"]
+
+    def handle_tool_call_with_agent_id(self):
+        @tool
+        def foo():
+            return 2
+
+        tool_call = {"name": "foo", "args": {}}
+        message = handle_tool_call(tool_call, tools=[foo], agent_id="test-agent")
+        assert message.agent_id == "test-agent"
+
+    async def handle_async_tool_call_with_agent_id(self):
+        @tool
+        async def foo():
+            return 2
+
+        tool_call = {"name": "foo", "args": {}}
+        message = await handle_tool_call_async(
+            tool_call, tools=[foo], agent_id="test-agent"
+        )
+        assert message.agent_id == "test-agent"
+
+    def handle_invalid_tool_call_with_agent_id(self):
+        tool_call = {"name": "foo", "args": {}}
+        message = handle_invalid_tool_call(tool_call, tools=[], agent_id="test-agent")
+        assert message.agent_id == "test-agent"

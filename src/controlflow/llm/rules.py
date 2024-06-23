@@ -13,10 +13,13 @@ class LLMRules:
     necessary.
     """
 
-    # messages
-    always_start_with_user_message: bool = False
-    allow_last_message_has_ai_role_with_tools: bool = True
+    # system messages can only be provided as the very first message in a thread
     system_message_must_be_first: bool = False
+    # other than a system message, the first message must be from the user
+    user_message_must_be_first_after_system: bool = False
+    # the last message in a thread can't be from an AI if tool use is allowed
+    allow_last_message_has_ai_role_with_tools: bool = True
+    # consecutive AI messages must be separated by a user message
     allow_consecutive_ai_messages: bool = True
 
 
@@ -25,8 +28,8 @@ class OpenAIRules(LLMRules):
 
 
 class AnthropicRules(LLMRules):
-    always_start_with_user_message: bool = True
     system_message_must_be_first: bool = True
+    user_message_must_be_first_after_system: bool = True
     allow_last_message_has_ai_role_with_tools: bool = False
     allow_consecutive_ai_messages: bool = False
 

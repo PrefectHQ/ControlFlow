@@ -169,7 +169,10 @@ def output_to_string(output: Any) -> str:
 
 
 def handle_tool_call(
-    tool_call: ToolCall, tools: list[Tool], error: str = None
+    tool_call: ToolCall,
+    tools: list[Tool],
+    error: str = None,
+    agent_id: str = None,
 ) -> "ToolMessage":
     tool_lookup = {t.name: t for t in tools}
     fn_name = tool_call["name"]
@@ -201,11 +204,15 @@ def handle_tool_call(
         tool_call=tool_call,
         tool_result=fn_output,
         tool_metadata=metadata,
+        agent_id=agent_id,
     )
 
 
 async def handle_tool_call_async(
-    tool_call: ToolCall, tools: list[Tool], error: str = None
+    tool_call: ToolCall,
+    tools: list[Tool],
+    error: str = None,
+    agent_id: str = None,
 ) -> "ToolMessage":
     tool_lookup = {t.name: t for t in tools}
     fn_name = tool_call["name"]
@@ -235,14 +242,18 @@ async def handle_tool_call_async(
         tool_call=tool_call,
         tool_result=fn_output,
         tool_metadata=metadata,
+        agent_id=agent_id,
     )
 
 
-def handle_invalid_tool_call(tool_call: InvalidToolCall) -> "ToolMessage":
+def handle_invalid_tool_call(
+    tool_call: InvalidToolCall, agent_id: str = None
+) -> "ToolMessage":
     return InvalidToolMessage(
         content=tool_call["error"] or "",
         tool_call_id=tool_call["id"],
         tool_call=tool_call,
         tool_result=tool_call["error"],
         tool_metadata=dict(is_failed=True, is_invalid=True),
+        agent_id=agent_id,
     )

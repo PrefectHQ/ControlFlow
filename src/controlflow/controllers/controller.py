@@ -10,7 +10,7 @@ from pydantic import Field, PrivateAttr, model_validator
 import controlflow
 from controlflow.agents import Agent
 from controlflow.controllers.graph import Graph
-from controlflow.controllers.messages import process_messages
+from controlflow.controllers.messages import prepare_messages
 from controlflow.flows import Flow, get_flow
 from controlflow.instructions import get_instructions
 from controlflow.llm.completions import completion, completion_async
@@ -187,7 +187,13 @@ class Controller(ControlFlowModel):
         messages = self.flow.get_messages()
 
         rules = agent.get_llm_rules()
-        messages = process_messages(messages, rules=rules, tools=tools)
+        messages = prepare_messages(
+            agent=agent,
+            system_message=system_message,
+            messages=messages,
+            rules=rules,
+            tools=tools,
+        )
 
         # setup handlers
         handlers = []
@@ -198,7 +204,7 @@ class Controller(ControlFlowModel):
         # yield the agent payload
         return dict(
             agent=agent,
-            messages=[system_message] + messages,
+            messages=messages,
             tools=as_tools(tools),
             handlers=handlers,
         )
