@@ -13,15 +13,30 @@ from pydantic import Field, TypeAdapter
 
 import controlflow
 from controlflow.llm.messages import ToolMessage
-from controlflow.utilities.prefect import (
-    TOOL_CALL_FUNCTION_RESULT_TEMPLATE,
-    create_markdown_artifact,
-    prefect_task,
-)
+from controlflow.utilities.prefect import create_markdown_artifact, prefect_task
 from controlflow.utilities.types import ControlFlowModel
 
 if TYPE_CHECKING:
     from controlflow.agents import Agent
+
+
+TOOL_CALL_FUNCTION_RESULT_TEMPLATE = """
+# Tool call: {name}
+
+**Description:** {description}
+
+## Arguments
+
+```json
+{args}
+```
+
+## Result
+
+```
+{result}
+```
+"""
 
 
 class Tool(ControlFlowModel):

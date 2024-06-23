@@ -29,7 +29,7 @@ from pydantic import (
 import controlflow
 from controlflow.agents import Agent
 from controlflow.instructions import get_instructions
-from controlflow.llm.tools import Tool
+from controlflow.tools import Tool
 from controlflow.tools.talk_to_human import talk_to_human
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
@@ -253,7 +253,7 @@ class Task(ControlFlowModel):
 
     @field_serializer("tools")
     def _serialize_tools(self, tools: list[Callable]):
-        tools = controlflow.llm.tools.as_tools(tools)
+        tools = controlflow.tools.as_tools(tools)
         # tools are Pydantic 1 objects
         return [t.dict(include={"name", "description"}) for t in tools]
 

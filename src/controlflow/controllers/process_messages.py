@@ -9,7 +9,7 @@ from controlflow.llm.messages import (
     UserMessage,
 )
 from controlflow.llm.rules import LLMRules
-from controlflow.llm.tools import Tool
+from controlflow.tools import Tool
 
 
 def create_system_message(

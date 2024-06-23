@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import controlflow as cf
-from controlflow.llm.tools import tool
+from controlflow.tools import tool
 from langchain_openai import OpenAIEmbeddings
 
 try:
