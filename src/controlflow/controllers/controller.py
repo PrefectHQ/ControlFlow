@@ -15,7 +15,7 @@ from controlflow.flows import Flow, get_flow
 from controlflow.instructions import get_instructions
 from controlflow.llm.completions import completion, completion_async
 from controlflow.llm.handlers import PrintHandler, ResponseHandler, TUIHandler
-from controlflow.llm.messages import MessageType, SystemMessage
+from controlflow.llm.messages import MessageType, SystemMessage, ToolMessage
 from controlflow.llm.tools import as_tools
 from controlflow.tasks.task import Task
 from controlflow.tui.app import TUIApp as TUI
@@ -155,12 +155,24 @@ class Controller(ControlFlowModel):
         if not ready_tasks:
             return
 
+        messages = self.flow.get_messages()
+
         # get an agent from the next ready task
         agents = ready_tasks[0].get_agents()
         if len(agents) != 1:
-            strategy_fn = ready_tasks[0].get_agent_strategy()
-            agent = strategy_fn(agents=agents, task=ready_tasks[0], flow=self.flow)
-            ready_tasks[0]._iteration += 1
+            agent = None
+            # if the last message was a tool call result that the calling agent
+            # should see, use that agent
+            if (
+                messages
+                and isinstance(messages[-1], ToolMessage)
+                and not messages[-1].tool_metadata.get("ignore_result")
+            ):
+                agent = next((a for a in agents if a.id == messages[-1].agent_id), None)
+            if agent is None:
+                strategy_fn = ready_tasks[0].get_agent_strategy()
+                agent = strategy_fn(agents=agents, task=ready_tasks[0], flow=self.flow)
+                ready_tasks[0]._iteration += 1
         else:
             agent = agents[0]
 
@@ -184,9 +196,9 @@ class Controller(ControlFlowModel):
 
         # prepare messages
         system_message = SystemMessage(content=instructions)
-        messages = self.flow.get_messages()
 
         rules = agent.get_llm_rules()
+
         messages = prepare_messages(
             agent=agent,
             system_message=system_message,

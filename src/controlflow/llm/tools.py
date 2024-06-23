@@ -89,10 +89,10 @@ class Tool(langchain_core.tools.StructuredTool):
     class.
     """
 
-    tags: dict[str, Any] = pydantic.v1.Field(default_factory=dict)
     args_schema: Optional[
         Union[type[pydantic.v1.BaseModel], type[pydantic.BaseModel], FnArgsSchema]
     ]
+    metadata: dict[str, Any] = pydantic.v1.Field(default_factory=dict)
 
     @classmethod
     def from_function(cls, fn=None, *args, **kwargs):
@@ -120,14 +120,18 @@ def tool(
     *,
     name: Optional[str] = None,
     description: Optional[str] = None,
-    tags: Optional[dict] = None,
+    metadata: Optional[dict] = None,
 ) -> Tool:
     """
     Decorator for turning a function into a Tool
     """
     if fn is None:
-        return functools.partial(tool, name=name, description=description, tags=tags)
-    return Tool.from_function(fn, name=name, description=description, tags=tags or {})
+        return functools.partial(
+            tool, name=name, description=description, metadata=metadata
+        )
+    return Tool.from_function(
+        fn, name=name, description=description, metadata=metadata or {}
+    )
 
 
 def as_tools(
@@ -186,6 +190,7 @@ def handle_tool_call(
             metadata["is_failed"] = True
         else:
             tool = tool_lookup[fn_name]
+            metadata.update(getattr(tool, "metadata", {}))
             fn_args = tool_call["args"]
             fn_output = tool.invoke(input=fn_args)
             if inspect.isawaitable(fn_output):
@@ -226,6 +231,7 @@ async def handle_tool_call_async(
             metadata["is_failed"] = True
         else:
             tool = tool_lookup[fn_name]
+            metadata.update(getattr(tool, "metadata", {}))
             fn_args = tool_call["args"]
             fn_output = await tool.ainvoke(input=fn_args)
     except Exception as exc:

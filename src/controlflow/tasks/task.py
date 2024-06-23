@@ -472,7 +472,7 @@ class Task(ControlFlowModel):
             succeed,
             name=f"mark_task_{self.id}_successful",
             description=f"Mark task {self.id} as successful.",
-            metadata=dict(is_task_status_tool=True),
+            metadata=dict(ignore_result=True),
         )
 
     def _create_fail_tool(self) -> Tool:
@@ -484,7 +484,7 @@ class Task(ControlFlowModel):
             self.mark_failed,
             name=f"mark_task_{self.id}_failed",
             description=f"Mark task {self.id} as failed. Only use when technical errors prevent success.",
-            metadata=dict(is_task_status_tool=True),
+            metadata=dict(ignore_result=True),
         )
 
     def _create_skip_tool(self) -> Tool:
@@ -495,7 +495,7 @@ class Task(ControlFlowModel):
             self.mark_skipped,
             name=f"mark_task_{self.id}_skipped",
             description=f"Mark task {self.id} as skipped. Only use when completing a parent task early.",
-            metadata=dict(is_task_status_tool=True),
+            metadata=dict(ignore_result=True),
         )
 
     def get_agents(self) -> list["Agent"]:

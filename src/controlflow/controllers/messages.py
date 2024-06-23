@@ -12,7 +12,12 @@ from controlflow.llm.rules import LLMRules
 from controlflow.llm.tools import Tool
 
 
-def system_message(content: str, rules: LLMRules) -> Union[SystemMessage, HumanMessage]:
+def create_system_message(
+    content: str, rules: LLMRules
+) -> Union[SystemMessage, HumanMessage]:
+    """
+    Creates a SystemMessage or HumanMessage with SYSTEM: prefix, depending on the rules.
+    """
     if rules.system_message_must_be_first:
         return SystemMessage(content=content)
     else:
@@ -107,7 +112,7 @@ def prepare_messages(
 
     if not rules.allow_last_message_has_ai_role_with_tools:
         if messages and tools and isinstance(messages[-1], AIMessage):
-            messages.append(system_message("Continue.", rules))
+            messages.append(create_system_message("Continue.", rules))
 
     if not rules.allow_consecutive_ai_messages:
         if messages:
@@ -116,8 +121,8 @@ def prepare_messages(
                 if isinstance(messages[i], AIMessage) and isinstance(
                     messages[i - 1], AIMessage
                 ):
-                    messages.insert(i, system_message("Continue.", rules))
-                    i += 1
+                    messages.insert(i, create_system_message("Continue.", rules))
+                i += 1
 
     messages = handle_system_messages_must_be_first(messages, rules)
     messages = handle_user_message_must_be_first_after_system(messages, rules)
