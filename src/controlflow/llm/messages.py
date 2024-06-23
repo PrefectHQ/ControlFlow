@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 import langchain_core.messages
 from langchain_core.messages import InvalidToolCall, ToolCall
+from pydantic.v1 import BaseModel as v1_BaseModel
 from pydantic.v1 import Field as v1_Field
 from pydantic.v1 import validator as v1_validator
 
@@ -42,6 +43,18 @@ class MessageMixin(langchain_core.messages.BaseMessage):
         return self.copy(update=dict(content=content))
 
 
+class AgentReference(v1_BaseModel):
+    """
+    A simplified representation of an agent for use in messages.
+
+    ControlFlow agents that are passed to AgentReference fields should be automatically
+    serialized to this format.
+    """
+
+    id: str = v1_Field(None)
+    name: str = v1_Field(None)
+
+
 class AIMessageMixin(MessageMixin):
     """
     Base class for AI messages and chunks.
@@ -50,7 +63,7 @@ class AIMessageMixin(MessageMixin):
     role: Literal["ai"] = v1_Field("ai", exclude=True)
     # Agents are Pydantic v2 models, so we store them as dicts here.
     # they will be automatically converted.
-    agent: Optional[dict] = v1_Field(None, exclude=True)
+    agent: Optional[AgentReference] = v1_Field(None, exclude=True)
     name: Optional[str] = v1_Field(None)
 
     def __init__(self, agent: "Agent" = None, **data):
@@ -122,11 +135,12 @@ class ToolMessage(langchain_core.messages.ToolMessage, MessageMixin):
     tool_call: ToolCall = None
     tool_result: Any = v1_Field(exclude=True)
     tool_metadata: dict[str, Any] = v1_Field(default_factory=dict)
-    agent_id: str = v1_Field(None)
+    agent: Optional[AgentReference] = v1_Field(None)
 
 
 class InvalidToolMessage(ToolMessage):
     tool_call: InvalidToolCall
+    agent: Optional[AgentReference] = v1_Field(None)
 
 
 MessageType = Union[

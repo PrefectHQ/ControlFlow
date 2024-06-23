@@ -12,11 +12,11 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from pydantic import TypeAdapter
 
 import controlflow
-from controlflow.llm.messages import InvalidToolMessage
+from controlflow.llm.messages import InvalidToolMessage, ToolMessage
 from controlflow.utilities.prefect import wrap_prefect_tool
 
 if TYPE_CHECKING:
-    from controlflow.llm.messages import ToolMessage
+    from controlflow.agents import Agent
 
 
 class FnArgsSchema:
@@ -176,8 +176,8 @@ def handle_tool_call(
     tool_call: ToolCall,
     tools: list[Tool],
     error: str = None,
-    agent_id: str = None,
-) -> "ToolMessage":
+    agent: "Agent" = None,
+) -> ToolMessage:
     tool_lookup = {t.name: t for t in tools}
     fn_name = tool_call["name"]
     metadata = {}
@@ -209,7 +209,7 @@ def handle_tool_call(
         tool_call=tool_call,
         tool_result=fn_output,
         tool_metadata=metadata,
-        agent_id=agent_id,
+        agent=agent,
     )
 
 
@@ -217,8 +217,8 @@ async def handle_tool_call_async(
     tool_call: ToolCall,
     tools: list[Tool],
     error: str = None,
-    agent_id: str = None,
-) -> "ToolMessage":
+    agent: "Agent" = None,
+) -> ToolMessage:
     tool_lookup = {t.name: t for t in tools}
     fn_name = tool_call["name"]
     metadata = {}
@@ -248,18 +248,18 @@ async def handle_tool_call_async(
         tool_call=tool_call,
         tool_result=fn_output,
         tool_metadata=metadata,
-        agent_id=agent_id,
+        agent=agent,
     )
 
 
 def handle_invalid_tool_call(
-    tool_call: InvalidToolCall, agent_id: str = None
-) -> "ToolMessage":
+    tool_call: InvalidToolCall, agent: str = None
+) -> ToolMessage:
     return InvalidToolMessage(
         content=tool_call["error"] or "",
         tool_call_id=tool_call["id"],
         tool_call=tool_call,
         tool_result=tool_call["error"],
         tool_metadata=dict(is_failed=True, is_invalid=True),
-        agent_id=agent_id,
+        agent=agent,
     )

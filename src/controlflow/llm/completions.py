@@ -74,7 +74,7 @@ def handle_tool_calls(
     message: AIMessage,
     tools: list[Callable],
     response_messages: list[MessageType],
-    agent_id: str = None,
+    agent: Optional["Agent"] = None,
 ):
     """
     Emit events for the given message when it has tool calls.
@@ -86,7 +86,7 @@ def handle_tool_calls(
         )
         error = handle_multiple_talk_to_human_calls(tool_call, message)
         tool_result_message = handle_tool_call(
-            tool_call, tools, error=error, agent_id=agent_id
+            tool_call, tools, error=error, agent=agent
         )
         response_messages.append(tool_result_message)
         yield CompletionEvent(
@@ -95,7 +95,9 @@ def handle_tool_calls(
 
 
 def handle_invalid_tool_calls(
-    message: AIMessage, response_messages: list[MessageType], agent_id: str = None
+    message: AIMessage,
+    response_messages: list[MessageType],
+    agent: Optional["Agent"] = None,
 ):
     """
     Emit events for the given message when it has invalid tool calls.
@@ -105,7 +107,7 @@ def handle_invalid_tool_calls(
             type="tool_result_created",
             payload=dict(message=message, tool_call=tool_call),
         )
-        invalid_tool_message = handle_invalid_tool_call(tool_call, agent_id=agent_id)
+        invalid_tool_message = handle_invalid_tool_call(tool_call, agent=agent)
         response_messages.append(invalid_tool_message)
         yield CompletionEvent(
             type="tool_result_done", payload=dict(message=invalid_tool_message)
@@ -116,7 +118,7 @@ async def handle_tool_calls_async(
     message: AIMessage,
     tools: list[Callable],
     response_messages: list[MessageType],
-    agent_id: str = None,
+    agent: Optional["Agent"] = None,
 ):
     """
     Emit events for the given message when it has tool calls.
@@ -128,7 +130,7 @@ async def handle_tool_calls_async(
         )
         error = handle_multiple_talk_to_human_calls(tool_call, message)
         tool_result_message = await handle_tool_call_async(
-            tool_call, tools, error=error, agent_id=agent_id
+            tool_call, tools, error=error, agent=agent
         )
         response_messages.append(tool_result_message)
         yield CompletionEvent(
@@ -217,7 +219,7 @@ def _completion_generator(
                 message=response_message,
                 tools=tools,
                 response_messages=response_messages,
-                agent_id=agent.id,
+                agent=agent,
             )
 
             # handle invalid tool calls
@@ -308,7 +310,7 @@ async def _completion_async_generator(
                 message=response_message,
                 tools=tools,
                 response_messages=response_messages,
-                agent_id=agent.id,
+                agent=agent,
             ):
                 yield event
 

@@ -10,7 +10,7 @@ from pydantic import Field, PrivateAttr, model_validator
 import controlflow
 from controlflow.agents import Agent
 from controlflow.controllers.graph import Graph
-from controlflow.controllers.messages import prepare_messages
+from controlflow.controllers.process_messages import prepare_messages
 from controlflow.flows import Flow, get_flow
 from controlflow.instructions import get_instructions
 from controlflow.llm.completions import completion, completion_async
@@ -58,7 +58,6 @@ class Controller(ControlFlowModel):
     mechanisms should be used to orchestrate multiple agents invocations. This
     is done by the controller to avoid tying e.g. agents to tasks or even a
     specific flow.
-
     """
 
     # the flow is tracked by the Controller, not the Task, so that tasks can be
