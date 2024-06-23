@@ -34,7 +34,7 @@ from controlflow.tools.talk_to_human import talk_to_human
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import PrefectTrackingTask
-from controlflow.utilities.prefect import task as prefect_task
+from controlflow.utilities.prefect import prefect_task as prefect_task
 from controlflow.utilities.tasks import (
     collect_tasks,
     visit_task_collection,

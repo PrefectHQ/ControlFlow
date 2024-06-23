@@ -5,7 +5,7 @@ from textual.reactive import reactive
 from textual.widgets import Static
 
 from controlflow.llm.formatting import format_message, format_tool_message
-from controlflow.llm.messages import AIMessage, HumanMessage, ToolMessage
+from controlflow.llm.messages import AIMessage, ToolMessage, UserMessage
 
 
 def format_timestamp(timestamp: datetime.datetime) -> str:
@@ -13,11 +13,11 @@ def format_timestamp(timestamp: datetime.datetime) -> str:
 
 
 class TUIMessage(Static):
-    message: reactive[Union[HumanMessage, AIMessage]] = reactive(
+    message: reactive[Union[UserMessage, AIMessage]] = reactive(
         None, always_update=True, layout=True
     )
 
-    def __init__(self, message: Union[HumanMessage, AIMessage], **kwargs):
+    def __init__(self, message: Union[UserMessage, AIMessage], **kwargs):
         super().__init__(**kwargs)
         self.message = message
 

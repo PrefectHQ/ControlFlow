@@ -1,13 +1,13 @@
 import controlflow
-from controlflow.llm.messages import AIMessage
+from controlflow.llm.messages import AgentReference, AIMessage
 
 
 class TestAIMessage:
-    def test_agent_stored_as_dict(self):
+    def test_agent(self):
         agent = controlflow.Agent(name="Test Agent!")
         message = AIMessage(content="", agent=agent)
-        assert isinstance(message.agent, dict)
-        assert message.agent["name"] == "Test Agent!"
+        assert isinstance(message.agent, AgentReference)
+        assert message.agent.name == "Test Agent!"
 
     def test_name_loaded_from_agent(self):
         agent = controlflow.Agent(name="Test Agent!")

@@ -15,12 +15,19 @@ class LLMRules:
 
     # system messages can only be provided as the very first message in a thread
     system_message_must_be_first: bool = False
+
     # other than a system message, the first message must be from the user
     user_message_must_be_first_after_system: bool = False
+
     # the last message in a thread can't be from an AI if tool use is allowed
     allow_last_message_has_ai_role_with_tools: bool = True
+
     # consecutive AI messages must be separated by a user message
     allow_consecutive_ai_messages: bool = True
+
+    # add system messages to identify speakers in multi-agent conversations
+    # (some APIs can use the `name` field for this purpose, but others can't)
+    add_system_messages_for_multi_agent: bool = False
 
 
 class OpenAIRules(LLMRules):

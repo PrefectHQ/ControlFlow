@@ -9,7 +9,6 @@ from rich.panel import Panel
 
 from controlflow.llm.messages import (
     AIMessage,
-    AIMessageChunk,
     MessageType,
     ToolMessage,
 )
@@ -37,11 +36,11 @@ def format_message(
     panels = []
     if isinstance(message, ToolMessage):
         return format_tool_message(message, width=width)
-    elif isinstance(message, (AIMessage, AIMessageChunk)):
+    elif isinstance(message, AIMessage):
         if message.str_content:
             panels.append(format_text_message(message, width=width))
 
-        if message.tool_calls or message.invalid_tool_calls:
+        if message.tool_calls:
             panels.append(format_ai_message_with_tool_calls(message, width=width))
 
     if len(panels) == 1:
@@ -93,21 +92,6 @@ def format_ai_message_with_tool_calls(
             Panel(
                 content,
                 title=f"[bold]{title}[/]",
-                subtitle=f"[italic]{format_timestamp(message.timestamp)}[/]",
-                title_align="left",
-                subtitle_align="right",
-                border_style=ROLE_COLORS.get(message.role, "red"),
-                box=box.ROUNDED,
-                width=width or 100,
-                expand=True,
-                padding=(1, 2),
-            )
-        )
-    for invalid_tool_call in message.invalid_tool_calls:
-        panels.append(
-            Panel(
-                f"❌ Invalid tool call: {invalid_tool_call['name']}",
-                title="Tool Call",
                 subtitle=f"[italic]{format_timestamp(message.timestamp)}[/]",
                 title_align="left",
                 subtitle_align="right",

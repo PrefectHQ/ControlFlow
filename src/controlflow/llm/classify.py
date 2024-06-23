@@ -5,7 +5,7 @@ from langchain_openai import AzureChatOpenAI, ChatOpenAI
 from pydantic import TypeAdapter
 
 import controlflow
-from controlflow.llm.messages import AIMessage, HumanMessage, SystemMessage
+from controlflow.llm.messages import AIMessage, SystemMessage, UserMessage
 from controlflow.llm.models import BaseChatModel
 
 
@@ -41,7 +41,7 @@ def classify(
             {% endfor %}
             """
         ).render(labels=label_strings),
-        HumanMessage(
+        UserMessage(
             """
             ## Information to classify
             

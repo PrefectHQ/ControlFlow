@@ -1,12 +1,25 @@
 from contextlib import contextmanager
+from typing import Union
 
+import langchain_core.messages
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
 
 import controlflow
 from controlflow.flows.history import InMemoryHistory
+from controlflow.llm.messages import BaseMessage, MessageType
 
 
 class FakeLLM(FakeMessagesListChatModel):
+    def set_responses(
+        self, responses: list[Union[MessageType, langchain_core.messages.BaseMessage]]
+    ):
+        new_responses = []
+        for msg in responses:
+            if isinstance(msg, BaseMessage):
+                msg = msg.to_langchain_message()
+            new_responses.append(msg)
+        self.responses = new_responses
+
     def bind_tools(self, *args, **kwargs):
         """When binding tools, passthrough"""
         return self
