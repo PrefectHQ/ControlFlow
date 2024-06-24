@@ -74,6 +74,15 @@ class Agent(ControlFlowModel):
             kwargs["name"] = name
         super().__init__(**kwargs)
 
+    def serialize_for_prompt(self) -> dict:
+        dct = self.model_dump(
+            include={"name", "id", "description", "tools", "user_access"}
+        )
+        # seeing user access = False can confuse agents on tasks with user access
+        if not dct["user_access"]:
+            dct.pop("user_access")
+        return dct
+
     def get_model(self) -> BaseChatModel:
         """
         Retrieve the LLM model for this agent
@@ -107,11 +116,17 @@ class Agent(ControlFlowModel):
     def __exit__(self, *exc_info):
         return self._cm_stack.pop().__exit__(*exc_info)
 
+    def run_once(self, task: "Task"):
+        return task.run_once(agents=[self])
+
+    async def run_once_async(self, task: "Task"):
+        return await task.run_once_async(agents=[self])
+
     def run(self, task: "Task"):
-        return task.run_once(agent=self)
+        return task.run(agents=[self])
 
     async def run_async(self, task: "Task"):
-        return await task.run_once_async(agent=self)
+        return await task.run_async(agents=[self])
 
 
 DEFAULT_AGENT = Agent(name="Marvin")

@@ -3,9 +3,9 @@ import logging
 import math
 from collections import defaultdict
 from contextlib import asynccontextmanager
-from typing import Callable, Union
+from typing import Callable
 
-from pydantic import Field, PrivateAttr, model_validator
+from pydantic import Field, PrivateAttr, field_validator, model_validator
 
 import controlflow
 from controlflow.agents import Agent
@@ -71,7 +71,11 @@ class Controller(ControlFlowModel):
     tasks: list[Task] = Field(
         description="Tasks that the controller will complete.",
     )
-    agents: Union[list[Agent], None] = None
+    agents: dict[Task, list[Agent]] = Field(
+        default_factory=dict,
+        description="Optionally assign agents to complete tasks. The provided mapping must be task"
+        " -> [agents]. Any tasks that aren't included will use their default agents.",
+    )
     context: dict = {}
     model_config: dict = dict(extra="forbid")
     enable_experimental_tui: bool = Field(
@@ -87,6 +91,12 @@ class Controller(ControlFlowModel):
     @property
     def graph(self) -> Graph:
         return Graph.from_tasks(self.flow.tasks.values())
+
+    @field_validator("agents", mode="before")
+    def _default_agents(cls, v):
+        if v is None:
+            v = {}
+        return v
 
     @model_validator(mode="after")
     def _finalize(self):
@@ -144,15 +154,6 @@ class Controller(ControlFlowModel):
                 f"Controller has exceeded maximum iterations of {self.max_iterations}."
             )
         ready_tasks = [t for t in self.tasks if t.is_ready()]
-        # get up to 50 upstream and 50 downstream tasks
-        upstream_tasks = self.graph.topological_sort(
-            [t for t in self.graph.tasks if t.is_complete()]
-        )
-        upstream_tasks = upstream_tasks[-50:]
-        downstream_tasks = self.graph.topological_sort(
-            [t for t in self.graph.tasks if t.is_incomplete() and t not in ready_tasks]
-        )
-        downstream_tasks = downstream_tasks[:50]
 
         # if there are no ready tasks, return. This will usually happen because
         # all the tasks are complete.
@@ -171,9 +172,8 @@ class Controller(ControlFlowModel):
         messages = self.flow.get_messages()
 
         # get an agent from the next ready task
-        if self.agents:
-            agents = self.agents
-        else:
+        agents = self.agents.get(ready_tasks[0], None)
+        if agents is None:
             agents = ready_tasks[0].get_agents()
         if len(agents) == 1:
             agent = agents[0]
@@ -198,18 +198,17 @@ class Controller(ControlFlowModel):
 
         # add tools for any ready tasks that the agent is assigned to
         for task in ready_tasks:
-            if agent in task.get_agents():
+            if agent in self.agents.get(task, []) or agent in task.get_agents():
                 tools.extend(task.get_tools())
 
         instructions_template = MainTemplate(
             agent=agent,
             controller=self,
             ready_tasks=ready_tasks,
-            upstream_tasks=upstream_tasks,
-            downstream_tasks=downstream_tasks,
             current_task=ready_tasks[0],
             context=self.context,
             instructions=get_instructions(),
+            agent_assignments=self.agents,
         )
         instructions = instructions_template.render()
 
