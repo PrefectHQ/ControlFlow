@@ -31,7 +31,7 @@
         "github": "https://github.com/PrefectHQ/ControlFlow"
     },
     "logo": {
-        "dark": "/assets/brand/controlflow_logo_pink_bg.svg",
+        "dark": "/assets/brand/controlflow_logo_pink_black_bg.svg",
         "light": "/assets/brand/controlflow_logo.svg"
     },
     "name": "ControlFlow",
