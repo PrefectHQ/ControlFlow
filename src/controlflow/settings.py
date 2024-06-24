@@ -84,13 +84,13 @@ class Settings(ControlFlowSettings):
         description="If True, the PrintHandler will be enabled. Superseded by the enable_tui setting.",
     )
 
-    enable_tui: bool = Field(
+    enable_experimental_tui: bool = Field(
         default=False,
-        description="If True, the TUI will be enabled. If False, the TUI will be disabled.",
+        description="If True, the experimental TUI will be enabled. If False, the TUI will be disabled.",
     )
     run_tui_headless: bool = Field(
         default=False,
-        description="If True, the TUI will run in headless mode, which is useful for debugging.",
+        description="If True, the experimental TUI will run in headless mode, which is useful for debugging.",
     )
 
     # ------------ Debug settings ------------

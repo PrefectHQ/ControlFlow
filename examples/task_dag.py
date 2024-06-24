@@ -1,7 +1,7 @@
 import controlflow
 from controlflow import Task, flow
 
-controlflow.settings.enable_tui = True
+controlflow.settings.enable_experimental_tui = True
 
 
 @flow

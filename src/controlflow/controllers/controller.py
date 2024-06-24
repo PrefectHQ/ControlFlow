@@ -76,7 +76,9 @@ class Controller(ControlFlowModel):
     agents: Union[list[Agent], None] = None
     context: dict = {}
     model_config: dict = dict(extra="forbid")
-    enable_tui: bool = Field(default_factory=lambda: controlflow.settings.enable_tui)
+    enable_experimental_tui: bool = Field(
+        default_factory=lambda: controlflow.settings.enable_experimental_tui
+    )
     _iteration: int = 0
     _should_stop: bool = False
     _end_turn_counts: dict = PrivateAttr(default_factory=lambda: defaultdict(int))
@@ -124,7 +126,7 @@ class Controller(ControlFlowModel):
     async def tui(self):
         if tui := ctx.get("tui"):
             yield tui
-        elif controlflow.settings.enable_tui:
+        elif self.enable_experimental_tui:
             from controlflow.tui.app import TUIApp as TUI
 
             tui = TUI(flow=self.flow)
@@ -220,9 +222,9 @@ class Controller(ControlFlowModel):
 
         # setup handlers
         handlers = []
-        if controlflow.settings.enable_tui:
+        if self.enable_experimental_tui:
             handlers.append(TUIHandler())
-        if controlflow.settings.enable_print_handler:
+        elif controlflow.settings.enable_print_handler:
             handlers.append(PrintHandler())
         # yield the agent payload
         return dict(
