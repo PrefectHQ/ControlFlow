@@ -163,10 +163,12 @@ def format_message(message: MessageType, tool_results: dict = None) -> Panel:
 
 
 def format_tool_call(tool_call: ToolCall) -> Panel:
-    return status(Spinner("dots"), f'Tool call: "{tool_call['name']}"')
+    name = tool_call["name"]
+    return status(Spinner("dots"), f'Tool call: "{name}"')
 
 
 def format_tool_result(message: ToolMessage) -> Panel:
+    name = message.tool_call["name"]
     if message.is_error:
-        return status(":x:", f'Tool call: "{message.tool_call['name']}"')
-    return status(":white_check_mark:", f'Tool call: "{message.tool_call['name']}"')
+        return status(":x:", f'Tool call: "{name}"')
+    return status(":white_check_mark:", f'Tool call: "{name}"')
