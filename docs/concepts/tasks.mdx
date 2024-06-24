@@ -246,7 +246,7 @@ print(poem_task.result)
 
 When you run a task, ControlFlow orchestrates the execution of the task and its dependencies in a loop, ensuring that each step is completed successfully before proceeding to the next one. The `run()` method exits when the task is completed, at which point the task's result is available (if it succeeded) or an exception is raised (if it failed).
 
-You can limit the number of iterations in the task loop by passing `max_iterations=n` to the `run()` method, or set a global limit using `controlflow.settings.max_task_iterations`. There is no defaul limit.
+You can limit the number of iterations in the task loop by passing `max_iterations=n` to the `run()` method, or set a global limit using `controlflow.settings.max_iterations`. There is no default limit.
 
 <Tip>
 **Do I need to create a flow?** 
