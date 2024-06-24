@@ -10,7 +10,7 @@ from pydantic import Field, field_serializer
 import controlflow
 from controlflow.llm.models import get_default_model
 from controlflow.llm.rules import LLMRules
-from controlflow.tools.talk_to_human import talk_to_human
+from controlflow.tools.talk_to_user import talk_to_user
 from controlflow.utilities.context import ctx
 from controlflow.utilities.types import ControlFlowModel
 
@@ -89,7 +89,7 @@ class Agent(ControlFlowModel):
     def get_tools(self) -> list[Callable]:
         tools = self.tools.copy()
         if self.user_access:
-            tools.append(talk_to_human)
+            tools.append(talk_to_user)
         if self.memory is not None:
             tools.extend(self.memory.get_tools())
         return tools

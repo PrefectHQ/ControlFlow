@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import TypeVar
+from typing import Optional, TypeVar
 
 from pydantic import BaseModel
 
@@ -111,38 +111,133 @@ class Graph(BaseModel):
             self._cache["downstream_edges"] = graph
         return self._cache["downstream_edges"]
 
-    def topological_sort(self) -> list[Task]:
+    def upstream_tasks(
+        self, start_tasks: list[Task], immediate: bool = False
+    ) -> list[Task]:
         """
-        Perform a topological sort on the graph and return the sorted tasks.
+        Retrieve the upstream tasks (ancestors) of the given start tasks in topological order.
 
-        This is a depth-first search algorithm that visits each node and its
-        upstream dependencies. This maintains context as much as possible
-        when traversing the graph (e.g. all else equal, the graph will visit
-        as many dependent tasks in a row before jumping to a "new" branch).
+        Args:
+            start_tasks (list[Task]): The list of starting tasks.
+            immediate (bool): If True, only retrieve immediate upstream tasks.
+                              If False, retrieve all upstream tasks recursively.
 
         Returns:
-            list: A list of tasks in the order of their dependencies.
+            list[Task]: A list of upstream tasks in topological order.
         """
-        if "topological_sort" not in self._cache:
+        cache_key = (
+            f"upstream_{'immediate' if immediate else 'all'}_{tuple(start_tasks)}"
+        )
+        if cache_key not in self._cache:
+            result = set()
             visited = set()
-            stack = []
 
-            dependencies = self.upstream_edges()
-            created_at = {task: task.created_at for task in self.tasks}
-
-            def dfs(task):
+            def _upstream(task):
+                if task in visited:
+                    return
                 visited.add(task)
-                for dependent in sorted(
-                    dependencies.get(task, []), key=lambda x: created_at[x.upstream]
-                ):
-                    if dependent.upstream not in visited:
-                        dfs(dependent.upstream)
-                stack.append(task)
+                for edge in self.upstream_edges().get(task, []):
+                    if (
+                        edge.upstream not in visited
+                        and edge.upstream not in start_tasks
+                    ):
+                        result.add(edge.upstream)
+                        if not immediate:
+                            _upstream(edge.upstream)
 
-            all_tasks = self.tasks
-            for task in sorted(all_tasks, key=lambda x: created_at[x]):
-                if task not in visited:
-                    dfs(task)
+            for task in start_tasks:
+                _upstream(task)
 
-            self._cache["topological_sort"] = stack
-        return self._cache["topological_sort"]
+            # Perform a focused topological sort on the result
+            sorted_tasks = self.topological_sort(list(result))
+            self._cache[cache_key] = sorted_tasks
+
+        return self._cache[cache_key]
+
+    def downstream_tasks(
+        self, start_tasks: list[Task], immediate: bool = False
+    ) -> list[Task]:
+        """
+        Retrieve the downstream tasks (descendants) of the given start tasks in topological order.
+
+        Args:
+            start_tasks (list[Task]): The list of starting tasks.
+            immediate (bool): If True, only retrieve immediate downstream tasks.
+                              If False, retrieve all downstream tasks recursively.
+
+        Returns:
+            list[Task]: A list of downstream tasks in topological order.
+        """
+        cache_key = (
+            f"downstream_{'immediate' if immediate else 'all'}_{tuple(start_tasks)}"
+        )
+        if cache_key not in self._cache:
+            result = set()
+            visited = set()
+
+            def _downstream(task):
+                if task in visited:
+                    return
+                visited.add(task)
+                for edge in self.downstream_edges().get(task, []):
+                    if (
+                        edge.downstream not in visited
+                        and edge.downstream not in start_tasks
+                    ):
+                        result.add(edge.downstream)
+                        if not immediate:
+                            _downstream(edge.downstream)
+
+            for task in start_tasks:
+                _downstream(task)
+
+            # Perform a focused topological sort on the result
+            sorted_tasks = self.topological_sort(list(result))
+            self._cache[cache_key] = sorted_tasks
+
+        return self._cache[cache_key]
+
+    def topological_sort(self, tasks: Optional[list[Task]] = None) -> list[Task]:
+        """
+        Perform a topological sort on the provided tasks or all tasks in the graph.
+
+        Args:
+            tasks (Optional[list[Task]]): A list of tasks to sort topologically.
+                                        If None, all tasks in the graph are sorted.
+
+        Returns:
+            list[Task]: A list of tasks in topological order (upstream tasks first).
+        """
+        if tasks is None:
+            tasks_to_sort = self.tasks
+        else:
+            tasks_to_sort = set(tasks)
+
+        # Create a dictionary of tasks and their dependencies within tasks_to_sort
+        dependencies = {task: set() for task in tasks_to_sort}
+        for edge in self.edges:
+            if edge.downstream in tasks_to_sort and edge.upstream in tasks_to_sort:
+                dependencies[edge.downstream].add(edge.upstream)
+
+        # Kahn's algorithm for topological sorting
+        result = []
+        no_incoming = [task for task in tasks_to_sort if not dependencies[task]]
+
+        while no_incoming:
+            task = no_incoming.pop(0)
+            result.append(task)
+
+            # Remove the task from the dependencies of its neighbors
+            for dependent_task in tasks_to_sort:
+                if task in dependencies[dependent_task]:
+                    dependencies[dependent_task].remove(task)
+                    if not dependencies[dependent_task]:
+                        no_incoming.append(dependent_task)
+
+        # Check for cycles
+        if len(result) != len(tasks_to_sort):
+            raise ValueError(
+                "The graph contains a cycle and cannot be topologically sorted"
+            )
+
+        return result

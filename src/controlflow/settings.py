@@ -81,28 +81,22 @@ class Settings(ControlFlowSettings):
 
     enable_print_handler: bool = Field(
         default=True,
-        description="If True, the PrintHandler will be enabled. Superseded by the enable_tui setting.",
+        description="If True, the PrintHandler will be enabled.",
     )
 
-    enable_tui: bool = Field(
+    enable_experimental_tui: bool = Field(
         default=False,
-        description="If True, the TUI will be enabled. If False, the TUI will be disabled.",
+        description="If True, the experimental TUI will be enabled. If False, the TUI will be disabled.",
     )
     run_tui_headless: bool = Field(
         default=False,
-        description="If True, the TUI will run in headless mode, which is useful for debugging.",
+        description="If True, the experimental TUI will run in headless mode, which is useful for debugging.",
     )
 
     # ------------ Debug settings ------------
 
     raise_on_tool_error: bool = Field(
         False, description="If True, an error in a tool call will raise an exception."
-    )
-
-    print_handler_width: Optional[int] = Field(
-        default=None,
-        description="The number of coloumns to use for the print handler. If None, the width of "
-        "the terminal will be used. Useful for screenshots and examples that need to fit a known width. For docs, use 50.",
     )
 
     # ------------ Prefect settings ------------
@@ -184,10 +178,13 @@ def temporary_settings(**kwargs: Any):
     try:
         # apply the new settings
         for attr, value in kwargs.items():
+            if not hasattr(settings, attr):
+                raise AttributeError(f"Setting {attr} does not exist.")
             setattr(settings, attr, value)
         yield
 
     finally:
         # restore the old settings
         for attr in kwargs:
-            setattr(settings, attr, old_settings[attr])
+            if hasattr(settings, attr):
+                setattr(settings, attr, old_settings[attr])

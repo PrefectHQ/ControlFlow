@@ -12,13 +12,13 @@ from controlflow.agents import Agent
 from controlflow.controllers.graph import Graph
 from controlflow.controllers.process_messages import prepare_messages
 from controlflow.flows import Flow, get_flow
+from controlflow.handlers.print_handler import PrintHandler
 from controlflow.instructions import get_instructions
 from controlflow.llm.completions import completion, completion_async
-from controlflow.llm.handlers import PrintHandler, ResponseHandler, TUIHandler
+from controlflow.llm.handlers import ResponseHandler, TUIHandler
 from controlflow.llm.messages import MessageType, SystemMessage, ToolMessage
 from controlflow.tasks.task import Task
 from controlflow.tools import as_tools
-from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
 from controlflow.utilities.prefect import create_markdown_artifact
 from controlflow.utilities.prefect import prefect_task as prefect_task
@@ -76,14 +76,16 @@ class Controller(ControlFlowModel):
     agents: Union[list[Agent], None] = None
     context: dict = {}
     model_config: dict = dict(extra="forbid")
-    enable_tui: bool = Field(default_factory=lambda: controlflow.settings.enable_tui)
+    enable_experimental_tui: bool = Field(
+        default_factory=lambda: controlflow.settings.enable_experimental_tui
+    )
     _iteration: int = 0
     _should_stop: bool = False
     _end_turn_counts: dict = PrivateAttr(default_factory=lambda: defaultdict(int))
 
     @property
     def graph(self) -> Graph:
-        return Graph.from_tasks(self.tasks)
+        return Graph.from_tasks(self.flow.tasks.values())
 
     @model_validator(mode="after")
     def _finalize(self):
@@ -124,7 +126,9 @@ class Controller(ControlFlowModel):
     async def tui(self):
         if tui := ctx.get("tui"):
             yield tui
-        elif controlflow.settings.enable_tui:
+        elif self.enable_experimental_tui:
+            from controlflow.tui.app import TUIApp as TUI
+
             tui = TUI(flow=self.flow)
             with ctx(tui=tui):
                 async with tui.run_context():
@@ -136,9 +140,21 @@ class Controller(ControlFlowModel):
         """
         Generate the payload for a single run of the controller.
         """
-        # TODO: show the agent the entire graph, not just immediate upstreams
-        tasks = self.graph.topological_sort()
-        ready_tasks = [t for t in tasks if t.is_ready]
+        ready_tasks = [t for t in self.tasks if t.is_ready()]
+        # get up to 50 upstream and 50 downstream tasks
+        upstream_tasks = self.graph.topological_sort(
+            [t for t in self.graph.tasks if t.is_complete()]
+        )
+        upstream_tasks = upstream_tasks[-50:]
+        downstream_tasks = self.graph.topological_sort(
+            [t for t in self.graph.tasks if t.is_incomplete() and t not in ready_tasks]
+        )
+        downstream_tasks = downstream_tasks[:50]
+
+        # if there are no ready tasks, return. This will usually happen because
+        # all the tasks are complete.
+        if not ready_tasks:
+            return
 
         # start tracking tasks
         for task in ready_tasks:
@@ -149,16 +165,13 @@ class Controller(ControlFlowModel):
                     ]
                 )
 
-        # if there are no ready tasks, return. This will usually happen because
-        # all the tasks are complete.
-        if not ready_tasks:
-            return
-
         messages = self.flow.get_messages()
 
         # get an agent from the next ready task
         agents = ready_tasks[0].get_agents()
-        if len(agents) != 1:
+        if len(agents) == 1:
+            agent = agents[0]
+        else:
             agent = None
             # if the last message was a tool call result that the calling agent
             # should see, use that agent
@@ -172,8 +185,6 @@ class Controller(ControlFlowModel):
                 strategy_fn = ready_tasks[0].get_agent_strategy()
                 agent = strategy_fn(agents=agents, task=ready_tasks[0], flow=self.flow)
                 ready_tasks[0]._iteration += 1
-        else:
-            agent = agents[0]
 
         from controlflow.controllers.instruction_template import MainTemplate
 
@@ -187,7 +198,10 @@ class Controller(ControlFlowModel):
         instructions_template = MainTemplate(
             agent=agent,
             controller=self,
-            tasks=tasks,
+            ready_tasks=ready_tasks,
+            upstream_tasks=upstream_tasks,
+            downstream_tasks=downstream_tasks,
+            current_task=ready_tasks[0],
             context=self.context,
             instructions=get_instructions(),
         )
@@ -208,9 +222,9 @@ class Controller(ControlFlowModel):
 
         # setup handlers
         handlers = []
-        if controlflow.settings.enable_tui:
+        if self.enable_experimental_tui:
             handlers.append(TUIHandler())
-        if controlflow.settings.enable_print_handler:
+        elif controlflow.settings.enable_print_handler:
             handlers.append(PrintHandler())
         # yield the agent payload
         return dict(

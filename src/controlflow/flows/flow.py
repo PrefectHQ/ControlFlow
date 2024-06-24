@@ -37,16 +37,20 @@ class Flow(ControlFlowModel):
     tasks: dict[str, Task] = {}
     _cm_stack: list[contextmanager] = []
 
-    def __init__(self, *, copy_parent_history: bool = True, **kwargs):
+    def __init__(self, *, copy_parent: bool = True, **kwargs):
         """
         By default, the flow will copy the history from the parent flow if one
-        exists. Because each flow is a new thread, new messages will not be shared
-        between the parent and child flow.
+        exists, including all completed tasks. Because each flow is a new
+        thread, new messages will not be shared between the parent and child
+        flow.
         """
         super().__init__(**kwargs)
         parent = get_flow()
-        if parent and copy_parent_history:
+        if parent and copy_parent:
             self.add_messages(parent.get_messages())
+            for task in parent.tasks.values():
+                if task.is_complete():
+                    self.add_task(task)
 
     def __enter__(self):
         # use stack so we can enter the context multiple times

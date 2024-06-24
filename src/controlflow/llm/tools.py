@@ -196,14 +196,15 @@ def handle_tool_call(
 ) -> ToolMessage:
     tool_lookup = {t.name: t for t in tools}
     fn_name = tool_call["name"]
+    is_error = False
     metadata = {}
     try:
         if error:
             fn_output = error
-            metadata["is_failed"] = True
+            is_error = True
         elif fn_name not in tool_lookup:
             fn_output = f'Function "{fn_name}" not found.'
-            metadata["is_failed"] = True
+            is_error = True
         else:
             tool = tool_lookup[fn_name]
             metadata.update(getattr(tool, "metadata", {}))
@@ -214,7 +215,7 @@ def handle_tool_call(
                 fn_output = tool.invoke(input=fn_args)
     except Exception as exc:
         fn_output = f'Error calling function "{fn_name}": {exc}'
-        metadata["is_failed"] = True
+        is_error = True
         if controlflow.settings.raise_on_tool_error:
             raise
 
@@ -226,5 +227,6 @@ def handle_tool_call(
         tool_call=tool_call,
         tool_result=fn_output,
         tool_metadata=metadata,
+        is_error=is_error,
         agent=agent,
     )
