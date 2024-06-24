@@ -81,7 +81,7 @@ class Settings(ControlFlowSettings):
 
     enable_print_handler: bool = Field(
         default=True,
-        description="If True, the PrintHandler will be enabled. Superseded by the enable_tui setting.",
+        description="If True, the PrintHandler will be enabled.",
     )
 
     enable_experimental_tui: bool = Field(
@@ -178,10 +178,13 @@ def temporary_settings(**kwargs: Any):
     try:
         # apply the new settings
         for attr, value in kwargs.items():
+            if not hasattr(settings, attr):
+                raise AttributeError(f"Setting {attr} does not exist.")
             setattr(settings, attr, value)
         yield
 
     finally:
         # restore the old settings
         for attr in kwargs:
-            setattr(settings, attr, old_settings[attr])
+            if hasattr(settings, attr):
+                setattr(settings, attr, old_settings[attr])
