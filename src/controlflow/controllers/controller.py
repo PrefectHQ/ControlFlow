@@ -167,7 +167,9 @@ class Controller(ControlFlowModel):
 
         # get an agent from the next ready task
         agents = ready_tasks[0].get_agents()
-        if len(agents) != 1:
+        if len(agents) == 1:
+            agent = agents[0]
+        else:
             agent = None
             # if the last message was a tool call result that the calling agent
             # should see, use that agent
@@ -181,8 +183,6 @@ class Controller(ControlFlowModel):
                 strategy_fn = ready_tasks[0].get_agent_strategy()
                 agent = strategy_fn(agents=agents, task=ready_tasks[0], flow=self.flow)
                 ready_tasks[0]._iteration += 1
-        else:
-            agent = agents[0]
 
         from controlflow.controllers.instruction_template import MainTemplate
 

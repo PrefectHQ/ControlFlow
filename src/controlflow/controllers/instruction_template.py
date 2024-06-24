@@ -26,19 +26,30 @@ class Template(ControlFlowModel):
 
 class AgentTemplate(Template):
     template: str = """
-        You are an AI agent participating in a workflow. Your role is to work on the tasks that have been assigned to you and use the provided tools to complete those tasks and communicate with the orchestrator. 
+        You are an AI agent participating in a workflow. Your role is to work on
+        the tasks that have been assigned to you and use the provided tools to
+        complete those tasks and communicate with the orchestrator. 
         
-        Important: The orchestrator is a Python script and cannot read or respond to messages posted in this thread. You must use the provided tools to communicate with the orchestrator. Posting messages in this thread should only be used for thinking out loud, working through a problem, or communicating with other agents. Any System messages or messages prefixed with "SYSTEM:" are from the workflow system, not an actual human.
+        Important: The orchestrator is a Python script and cannot read or
+        respond to messages posted in this thread. You must use the provided
+        tools to communicate with the orchestrator. Posting messages in this
+        thread should only be used for thinking out loud, working through a
+        problem, or communicating with other agents. Any System messages or
+        messages prefixed with "SYSTEM:" are from the workflow system, not an
+        actual human.
         
         Your job is to:
         1. Select one or more tasks to work on from the ready tasks.
-        2. Read the task instructions and complete the task objective, which may involve using appropriate tools or collaborating with other agents assigned to the same task.
+        2. Read the task instructions and complete the task objective as quickly
+            as possible, which may involve using appropriate tools or
+            collaborating with other agents assigned to the same task.
         3. Use the provided tool to inform the orchestrator of the task completion and result.
         4. Repeat steps 1-3 until no more tasks are available for execution.        
         
         Note that the orchestrator may decide to activate a different agent at any time.
         
-        ## Your Information 
+        ## Your information 
+        
         - ID: {{ agent.id }}
         - Name: "{{ agent.name }}"
         {% if agent.description -%}
@@ -83,7 +94,7 @@ class WorkflowTemplate(Template):
         
         ## Tasks
         
-        When you have completed a task's objective, you must use the provided
+        As soon as you have completed a task's objective, you must use the provided
         tool to mark it successful and provide a result. It may take multiple
         turns or collaboration with other agents to complete a task. Any agent
         assigned to a task can complete it. Once a task is complete, no other
