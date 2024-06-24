@@ -5,7 +5,6 @@ from controlflow.llm.messages import (
     AIMessage,
     MessageType,
     SystemMessage,
-    ToolMessage,
     UserMessage,
 )
 from controlflow.llm.rules import LLMRules
@@ -93,20 +92,6 @@ def handle_user_message_must_be_first_after_system(
     return messages
 
 
-def handle_private_tool_calls(messages: list[MessageType], agent: Agent):
-    new_messages = []
-    for msg in messages:
-        if isinstance(msg, ToolMessage):
-            if agent.name != msg.agent.name:
-                msg = ToolMessage(
-                    content=f'The result of this tool call only visible to agent "{msg.agent.name}"',
-                    tool_call_id=msg.tool_call_id,
-                    tool_metadata=msg.tool_metadata | {"is_private": True},
-                )
-        new_messages.append(msg)
-    return new_messages
-
-
 def prepare_messages(
     agent: Agent,
     messages: list[MessageType],
@@ -138,6 +123,5 @@ def prepare_messages(
 
     messages = handle_system_messages_must_be_first(messages, rules=rules)
     messages = handle_user_message_must_be_first_after_system(messages, rules=rules)
-    messages = handle_private_tool_calls(messages, agent=agent)
 
     return messages

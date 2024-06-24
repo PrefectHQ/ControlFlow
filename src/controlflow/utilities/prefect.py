@@ -8,6 +8,7 @@ from uuid import UUID
 
 import prefect
 import prefect.cache_policies
+import prefect.serializers
 import prefect.tasks
 from prefect import get_client as get_prefect_client
 from prefect.artifacts import ArtifactRequest
@@ -47,6 +48,7 @@ def prefect_task(*args, **kwargs):
 
     kwargs.setdefault("log_prints", controlflow.settings.log_prints)
     kwargs.setdefault("cache_policy", prefect.cache_policies.NONE)
+    kwargs.setdefault("result_serializer", prefect.serializers.JSONSerializer())
 
     return prefect.task(*args, **kwargs)
 

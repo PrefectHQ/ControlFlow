@@ -68,7 +68,7 @@ def demo(topic: str):
         agents=[jerry, george, elaine, kramer, newman],
         result_type=None,
         context=dict(topic=topic),
-        instructions="every agent should speak at least once. only one agent per turn.",
+        instructions="every agent should speak at least once. only one agent per turn. Keep responses 1-2 paragraphs max.",
     )
     return task
 

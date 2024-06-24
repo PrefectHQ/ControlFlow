@@ -107,3 +107,49 @@ def test_topological_sort_with_fan_in_and_fan_out():
     assert sorted_tasks.index(task1) < sorted_tasks.index(task2)
     assert sorted_tasks.index(task1) < sorted_tasks.index(task3)
     assert sorted_tasks.index(task2) < sorted_tasks.index(task3)
+
+    assert graph.topological_sort(tasks=[task3, task1]) == [task1, task3]
+
+
+def test_upstream_tasks():
+    task1 = Task(objective="Task 1")
+    task2 = Task(objective="Task 2")
+    task3 = Task(objective="Task 3")
+
+    edge1 = Edge(upstream=task1, downstream=task2, type=EdgeType.DEPENDENCY)
+    edge2 = Edge(upstream=task1, downstream=task3, type=EdgeType.DEPENDENCY)
+    edge3 = Edge(upstream=task2, downstream=task3, type=EdgeType.DEPENDENCY)
+
+    graph = Graph()
+    graph.add_edge(edge1)
+    graph.add_edge(edge2)
+    graph.add_edge(edge3)
+
+    assert graph.upstream_tasks([task3]) == [task1, task2]
+    assert graph.upstream_tasks([task2]) == [task1]
+    assert graph.upstream_tasks([task1]) == []
+
+    # never include a start task in the usptream list
+    assert graph.upstream_tasks([task1, task3]) == [task2]
+
+
+def test_downstream_tasks():
+    task1 = Task(objective="Task 1")
+    task2 = Task(objective="Task 2")
+    task3 = Task(objective="Task 3")
+
+    edge1 = Edge(upstream=task1, downstream=task2, type=EdgeType.DEPENDENCY)
+    edge2 = Edge(upstream=task1, downstream=task3, type=EdgeType.DEPENDENCY)
+    edge3 = Edge(upstream=task2, downstream=task3, type=EdgeType.DEPENDENCY)
+
+    graph = Graph()
+    graph.add_edge(edge1)
+    graph.add_edge(edge2)
+    graph.add_edge(edge3)
+
+    assert graph.downstream_tasks([task3]) == []
+    assert graph.downstream_tasks([task2]) == [task3]
+    assert graph.downstream_tasks([task1]) == [task2, task3]
+
+    # never include a start task in the downstream list
+    assert graph.downstream_tasks([task1, task3]) == [task2]

@@ -20,7 +20,6 @@ from pydantic import (
     Field,
     PydanticSchemaGenerationError,
     TypeAdapter,
-    computed_field,
     field_serializer,
     field_validator,
     model_validator,
@@ -30,7 +29,7 @@ import controlflow
 from controlflow.agents import Agent
 from controlflow.instructions import get_instructions
 from controlflow.tools import Tool
-from controlflow.tools.talk_to_human import talk_to_human
+from controlflow.tools.talk_to_user import talk_to_user
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import PrefectTrackingTask
@@ -106,6 +105,7 @@ class Task(ControlFlowModel):
         description="Tools available to every agent working on this task.",
     )
     user_access: bool = False
+    private: bool = False
     agent_strategy: Optional[Callable] = Field(
         None,
         description="A function that returns an agent, used for customizing how "
@@ -245,11 +245,16 @@ class Task(ControlFlowModel):
 
     @field_serializer("agents")
     def _serialize_agents(self, agents: Optional[list["Agent"]]):
-        agents = self.get_agents()
-        return [
-            a.model_dump(include={"name", "id", "description", "tools", "user_access"})
-            for a in agents
-        ]
+        agents = []
+        for a in self.get_agents():
+            d = a.model_dump(
+                include={"name", "id", "description", "tools", "user_access"}
+            )
+            # seeing user access = False can confuse agents on tasks with user access
+            if not d["user_access"]:
+                d.pop("user_access")
+            agents.append(d)
+        return agents
 
     @field_serializer("tools")
     def _serialize_tools(self, tools: list[Callable]):
@@ -443,8 +448,6 @@ class Task(ControlFlowModel):
     def is_skipped(self) -> bool:
         return self.status == TaskStatus.SKIPPED
 
-    @computed_field
-    @property
     def is_ready(self) -> bool:
         """
         Returns True if all dependencies are complete and this task is incomplete.
@@ -537,13 +540,13 @@ class Task(ControlFlowModel):
     def get_tools(self) -> list[Union[Tool, Callable]]:
         tools = self.tools.copy()
         # if this task is ready to run, generate tools
-        if self.is_ready:
+        if self.is_ready():
             tools.extend([self._create_fail_tool(), self._create_success_tool()])
             # add skip tool if this task has a parent task
             # if self.parent is not None:
             #     tools.append(self._create_skip_tool())
         if self.user_access:
-            tools.append(talk_to_human)
+            tools.append(talk_to_user)
         return tools
         # return [wrap_prefect_tool(t) for t in tools]
 

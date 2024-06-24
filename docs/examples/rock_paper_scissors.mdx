@@ -10,11 +10,12 @@ This example uses a private conversation (flow) to keep the user's choice hidden
 ```python
 import controlflow as cf
 
+
 user_helper = cf.Agent(
     "RPS Helper",
     instructions="""
         Get the user's choice of rock, paper, or scissors. You can assure them that
-        you won't share their answer with the Ai playing against them.
+        you won't share their answer with the AI playing against them.
         """,
 )
 
@@ -30,9 +31,10 @@ def get_user_choice() -> ["rock", "paper", "scissors"]:
 
 
 @cf.task(user_access=True)
-def check_play_again(user_choice, ai_choice) -> bool:
+def report_score(user_choice, ai_choice) -> bool:
     """
-    Tell the user if they won, then find out if they want to play again.
+    Tell the user if they won, the overall score, 
+    then find out if they want to play again.
     """
 
 
@@ -47,8 +49,9 @@ def rock_paper_scissors():
 
         ai_choice = get_ai_choice()
 
-        keep_playing = check_play_again(user_choice, ai_choice)
+        keep_playing = report_score(user_choice, ai_choice)
 
 
-rock_paper_scissors()
+if __name__ == "__main__":
+    rock_paper_scissors()
 ````

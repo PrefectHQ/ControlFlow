@@ -1,9 +1,3 @@
-import rich
-from rich.console import Group
-from rich.live import Live
-
-import controlflow
-from controlflow.llm.formatting import format_message
 from controlflow.llm.messages import (
     AIMessage,
     AIMessageChunk,
@@ -12,7 +6,6 @@ from controlflow.llm.messages import (
     ToolMessage,
 )
 from controlflow.utilities.context import ctx
-from controlflow.utilities.rich import console as cf_console
 from controlflow.utilities.types import ControlFlowModel
 
 
@@ -111,73 +104,3 @@ class TUIHandler(CompletionHandler):
     def on_tool_result_done(self, message: ToolMessage):
         if tui := ctx.get("tui"):
             tui.update_tool_result(message=message)
-
-
-class PrintHandler(CompletionHandler):
-    def __init__(self):
-        self.width: int = controlflow.settings.print_handler_width
-        self.messages: dict[str, MessageType] = {}
-        self.live: Live = Live(auto_refresh=True, console=cf_console)
-        self.paused_id: str = None
-        super().__init__()
-
-    def on_start(self):
-        try:
-            self.live.start()
-        except rich.errors.LiveError:
-            pass
-
-    def on_end(self):
-        self.live.stop()
-
-    def on_exception(self, exc: Exception):
-        self.live.stop()
-
-    def update_live(self, latest: MessageType = None):
-        # sort by timestamp, using the custom message id as a tiebreaker
-        # in case the same message appears twice (e.g. tool call and message)
-        messages = sorted(self.messages.items(), key=lambda m: (m[1].timestamp, m[0]))
-        content = []
-        for _, message in messages:
-            content.append(format_message(message, width=self.width))
-
-        if self.live.is_started:
-            self.live.update(Group(*content), refresh=True)
-        elif latest:
-            cf_console.print(format_message(latest, width=self.width))
-
-    def on_message_delta(self, delta: AIMessageChunk, snapshot: AIMessageChunk):
-        self.messages[snapshot.id] = snapshot
-        self.update_live()
-
-    def on_message_done(self, message: AIMessage):
-        self.messages[message.id] = message
-        self.update_live(latest=message)
-
-    def on_tool_call_delta(self, delta: AIMessageChunk, snapshot: AIMessageChunk):
-        self.messages[snapshot.id] = snapshot
-        self.update_live()
-
-    def on_tool_call_done(self, message: AIMessage):
-        self.messages[message.id] = message
-        self.update_live(latest=message)
-
-    def on_tool_result_created(self, message: AIMessage, tool_call: ToolCall):
-        # if collecting input on the terminal, pause the live display
-        # to avoid overwriting the input prompt
-        if tool_call["name"] == "talk_to_human":
-            self.paused_id = tool_call["id"]
-            self.live.stop()
-            self.messages.clear()
-
-    def on_tool_result_done(self, message: ToolMessage):
-        self.messages[f"tool-result:{message.tool_call_id}"] = message
-
-        # if we were paused, resume the live display
-        if self.paused_id and self.paused_id == message.tool_call_id:
-            self.paused_id = None
-            # print newline to avoid odd formatting issues
-            print()
-            self.live = Live(auto_refresh=False)
-            self.live.start()
-        self.update_live(latest=message)

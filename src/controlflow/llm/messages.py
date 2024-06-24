@@ -237,6 +237,7 @@ class ToolMessage(BaseMessage, AgentMessageMixin):
     tool_call: Union[ToolCall, InvalidToolCall]
     tool_result: Any = Field(None, exclude=True)
     tool_metadata: dict[str, Any] = {}
+    is_error: bool = False
 
     def to_langchain_message(self) -> langchain_core.messages.BaseMessage:
         if self._langchain_message is not None:

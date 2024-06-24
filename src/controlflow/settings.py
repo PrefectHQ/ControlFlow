@@ -99,12 +99,6 @@ class Settings(ControlFlowSettings):
         False, description="If True, an error in a tool call will raise an exception."
     )
 
-    print_handler_width: Optional[int] = Field(
-        default=None,
-        description="The number of coloumns to use for the print handler. If None, the width of "
-        "the terminal will be used. Useful for screenshots and examples that need to fit a known width. For docs, use 50.",
-    )
-
     # ------------ Prefect settings ------------
     #
     # Default settings for Prefect when used with ControlFlow. They can be

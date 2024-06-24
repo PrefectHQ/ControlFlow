@@ -39,7 +39,7 @@ def handle_tool_calls(
             type="tool_result_created",
             payload=dict(message=message, tool_call=tool_call),
         )
-        error = handle_multiple_talk_to_human_calls(tool_call, message)
+        error = handle_multiple_talk_to_user_calls(tool_call, message)
         tool_result_message = handle_tool_call(
             tool_call, tools, error=error, agent=agent
         )
@@ -91,12 +91,12 @@ def handle_done_events(message: AIMessage):
         yield CompletionEvent(type="tool_call_done", payload=dict(message=message))
 
 
-def handle_multiple_talk_to_human_calls(tool_call: ToolCall, message: AIMessage):
+def handle_multiple_talk_to_user_calls(tool_call: ToolCall, message: AIMessage):
     if (
-        tool_call["name"] == "talk_to_human"
-        and len([t for t in message.tool_calls if t["name"] == "talk_to_human"]) > 1
+        tool_call["name"] == "talk_to_user"
+        and len([t for t in message.tool_calls if t["name"] == "talk_to_user"]) > 1
     ):
-        error = 'Tool call "talk_to_human" can only be used once per turn.'
+        error = 'Tool call "talk_to_user" can only be used once per turn.'
     else:
         error = None
     return error

@@ -178,34 +178,34 @@ def test_validate_subtask_dependencies_on_success():
 
 def test_task_ready():
     task1 = SimpleTask()
-    assert task1.is_ready
+    assert task1.is_ready()
 
 
 def test_task_not_ready_if_successful():
     task1 = SimpleTask()
     task1.mark_successful()
-    assert not task1.is_ready
+    assert not task1.is_ready()
 
 
 def test_task_not_ready_if_failed():
     task1 = SimpleTask()
     task1.mark_failed()
-    assert not task1.is_ready
+    assert not task1.is_ready()
 
 
 def test_task_not_ready_if_dependencies_are_ready():
     task1 = SimpleTask()
     task2 = SimpleTask(depends_on=[task1])
-    assert task1.is_ready
-    assert not task2.is_ready
+    assert task1.is_ready()
+    assert not task2.is_ready()
 
 
 def test_task_ready_if_dependencies_are_ready():
     task1 = SimpleTask()
     task2 = SimpleTask(depends_on=[task1])
     task1.mark_successful()
-    assert not task1.is_ready
-    assert task2.is_ready
+    assert not task1.is_ready()
+    assert task2.is_ready()
 
 
 def test_task_hash():
@@ -216,7 +216,7 @@ def test_task_hash():
 
 def test_ready_task_adds_tools():
     task = SimpleTask()
-    assert task.is_ready
+    assert task.is_ready()
 
     tools = task.get_tools()
     assert any(tool.name == f"mark_task_{task.id}_failed" for tool in tools)

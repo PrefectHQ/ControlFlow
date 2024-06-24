@@ -15,7 +15,7 @@ class EmojiStatus(Label):
     task: Task = reactive(None, always_update=True)
 
     def render(self) -> str:
-        if self.task.is_ready:
+        if self.task.is_ready():
             return "🔜"
         elif self.task.status == TaskStatus.INCOMPLETE:
             return "⏳"
@@ -49,7 +49,7 @@ class TUITask(Static):
         if task is None:
             return
 
-        if task.is_ready:
+        if task.is_ready():
             self.status = "READY"
         else:
             self.status = task.status.value

@@ -27,7 +27,7 @@ def flow(
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[float, int]] = None,
     timeout_seconds: Optional[Union[float, int]] = None,
-    prefect_kwargs: Optional[dict[str, Any]] = None,
+    kwargs: Optional[dict[str, Any]] = None,
 ):
     """
     A decorator that wraps a function as a ControlFlow flow.
@@ -66,7 +66,7 @@ def flow(
             retries=retries,
             retry_delay_seconds=retry_delay_seconds,
             timeout_seconds=timeout_seconds,
-            prefect_kwargs=prefect_kwargs,
+            kwargs=kwargs,
         )
 
     sig = inspect.signature(fn)
@@ -76,7 +76,7 @@ def flow(
         timeout_seconds=timeout_seconds,
         retries=retries,
         retry_delay_seconds=retry_delay_seconds,
-        **prefect_kwargs or {},
+        **kwargs or {},
     )
     @functools.wraps(fn)
     def wrapper(
@@ -143,7 +143,7 @@ def task(
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[float, int]] = None,
     timeout_seconds: Optional[Union[float, int]] = None,
-    prefect_kwargs: Optional[dict[str, Any]] = None,
+    **task_kwargs: Optional[dict[str, Any]],
 ):
     """
     A decorator that turns a Python function into a Task. The Task objective is
@@ -185,7 +185,7 @@ def task(
             retries=retries,
             retry_delay_seconds=retry_delay_seconds,
             timeout_seconds=timeout_seconds,
-            prefect_kwargs=prefect_kwargs,
+            **task_kwargs,
         )
 
     sig = inspect.signature(fn)
@@ -202,7 +202,6 @@ def task(
         timeout_seconds=timeout_seconds,
         retries=retries,
         retry_delay_seconds=retry_delay_seconds,
-        **prefect_kwargs or {},
     )
     @functools.wraps(fn)
     def wrapper(*args, lazy_: bool = None, **kwargs):
@@ -218,6 +217,7 @@ def task(
             result_type=result_type,
             user_access=user_access or False,
             tools=tools or [],
+            **task_kwargs,
         )
 
         # Determine if we should run eagerly or lazily

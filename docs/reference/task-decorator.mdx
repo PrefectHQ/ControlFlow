@@ -39,7 +39,7 @@ By specifying tools using the `@task` decorator, you empower the AI agents to ta
 <ParamField path="user_access" type="bool">
 The `user_access` parameter indicates whether the task requires human interaction or input during its execution. It is a boolean flag that, when set to `True`, signifies that the task involves user communication.
 
-When a task has `user_access` set to `True`, the AI agents are provided with a special `talk_to_human` tool that enables them to send messages to the user and receive responses. This allows for a conversational flow between the agents and the user, facilitating the exchange of information required for the task.
+When a task has `user_access` set to `True`, the AI agents are provided with a special `talk_to_user` tool that enables them to send messages to the user and receive responses. This allows for a conversational flow between the agents and the user, facilitating the exchange of information required for the task.
 
 By default, `user_access` is set to `False`. It can be explicitly set to `True` using the `@task` decorator when the task requires human interaction.
 </ParamField>

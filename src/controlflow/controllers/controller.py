@@ -12,13 +12,13 @@ from controlflow.agents import Agent
 from controlflow.controllers.graph import Graph
 from controlflow.controllers.process_messages import prepare_messages
 from controlflow.flows import Flow, get_flow
+from controlflow.handlers.print_handler import PrintHandler
 from controlflow.instructions import get_instructions
 from controlflow.llm.completions import completion, completion_async
-from controlflow.llm.handlers import PrintHandler, ResponseHandler, TUIHandler
+from controlflow.llm.handlers import ResponseHandler, TUIHandler
 from controlflow.llm.messages import MessageType, SystemMessage, ToolMessage
 from controlflow.tasks.task import Task
 from controlflow.tools import as_tools
-from controlflow.tui.app import TUIApp as TUI
 from controlflow.utilities.context import ctx
 from controlflow.utilities.prefect import create_markdown_artifact
 from controlflow.utilities.prefect import prefect_task as prefect_task
@@ -83,7 +83,7 @@ class Controller(ControlFlowModel):
 
     @property
     def graph(self) -> Graph:
-        return Graph.from_tasks(self.tasks)
+        return Graph.from_tasks(self.flow.tasks.values())
 
     @model_validator(mode="after")
     def _finalize(self):
@@ -125,6 +125,8 @@ class Controller(ControlFlowModel):
         if tui := ctx.get("tui"):
             yield tui
         elif controlflow.settings.enable_tui:
+            from controlflow.tui.app import TUIApp as TUI
+
             tui = TUI(flow=self.flow)
             with ctx(tui=tui):
                 async with tui.run_context():
@@ -136,9 +138,21 @@ class Controller(ControlFlowModel):
         """
         Generate the payload for a single run of the controller.
         """
-        # TODO: show the agent the entire graph, not just immediate upstreams
-        tasks = self.graph.topological_sort()
-        ready_tasks = [t for t in tasks if t.is_ready]
+        ready_tasks = [t for t in self.tasks if t.is_ready()]
+        # get up to 50 upstream and 50 downstream tasks
+        upstream_tasks = self.graph.topological_sort(
+            [t for t in self.graph.tasks if t.is_complete()]
+        )
+        upstream_tasks = upstream_tasks[-50:]
+        downstream_tasks = self.graph.topological_sort(
+            [t for t in self.graph.tasks if t.is_incomplete() and t not in ready_tasks]
+        )
+        downstream_tasks = downstream_tasks[:50]
+
+        # if there are no ready tasks, return. This will usually happen because
+        # all the tasks are complete.
+        if not ready_tasks:
+            return
 
         # start tracking tasks
         for task in ready_tasks:
@@ -148,11 +162,6 @@ class Controller(ControlFlowModel):
                         t.result for t in task.depends_on if t.result is not None
                     ]
                 )
-
-        # if there are no ready tasks, return. This will usually happen because
-        # all the tasks are complete.
-        if not ready_tasks:
-            return
 
         messages = self.flow.get_messages()
 
@@ -187,7 +196,10 @@ class Controller(ControlFlowModel):
         instructions_template = MainTemplate(
             agent=agent,
             controller=self,
-            tasks=tasks,
+            ready_tasks=ready_tasks,
+            upstream_tasks=upstream_tasks,
+            downstream_tasks=downstream_tasks,
+            current_task=ready_tasks[0],
             context=self.context,
             instructions=get_instructions(),
         )

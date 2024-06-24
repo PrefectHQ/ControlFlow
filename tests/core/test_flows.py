@@ -122,7 +122,7 @@ class TestFlowHistory:
         )
 
         with flow1:
-            flow2 = Flow(copy_parent_history=False)
+            flow2 = Flow(copy_parent=False)
 
         messages1 = flow1.get_messages()
         assert len(messages1) == 2
