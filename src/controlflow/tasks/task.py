@@ -332,7 +332,10 @@ class Task(ControlFlowModel):
 
     @prefect_task(task_run_name=get_task_run_name)
     def run(
-        self, raise_on_error: bool = True, flow: "Flow" = None
+        self,
+        agents: Optional[list["Agent"]] = None,
+        raise_on_error: bool = True,
+        flow: "Flow" = None,
     ) -> Generator[T, None, None]:
         """
         Internal function that can handle both sync and async runs by yielding either the result or the coroutine.
@@ -348,10 +351,10 @@ class Task(ControlFlowModel):
                 )
             else:
                 flow = Flow()
-        # enter a flow context
-        with flow:
-            while self.is_incomplete():
-                self.run_once(flow=flow)
+
+        controller = controlflow.Controller(tasks=[self], flow=flow, agents=agents)
+        controller.run()
+
         if self.is_successful():
             return self.result
         elif self.is_failed() and raise_on_error:
@@ -359,7 +362,10 @@ class Task(ControlFlowModel):
 
     @prefect_task(task_run_name=get_task_run_name)
     async def run_async(
-        self, raise_on_error: bool = True, flow: "Flow" = None
+        self,
+        agents: Optional[list["Agent"]] = None,
+        raise_on_error: bool = True,
+        flow: "Flow" = None,
     ) -> Generator[T, None, None]:
         """
         Internal function that can handle both sync and async runs by yielding either the result or the coroutine.
@@ -376,10 +382,9 @@ class Task(ControlFlowModel):
             else:
                 flow = Flow()
 
-        # enter a flow context
-        with flow:
-            while self.is_incomplete():
-                await self.run_once_async(flow=flow)
+        controller = controlflow.Controller(tasks=[self], flow=flow, agents=agents)
+        await controller.run_async()
+
         if self.is_successful():
             return self.result
         elif self.is_failed() and raise_on_error:

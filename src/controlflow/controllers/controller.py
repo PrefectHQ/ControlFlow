@@ -325,9 +325,13 @@ class Controller(ControlFlowModel):
 
         messages = []
         async with self.tui():
-            while any(t.is_incomplete() for t in self.tasks) and not self._should_stop:
-                new_messages = await self.run_once_async()
-                messages.extend(new_messages)
+            # enter a flow context
+            with self.flow:
+                while (
+                    any(t.is_incomplete() for t in self.tasks) and not self._should_stop
+                ):
+                    new_messages = await self.run_once_async()
+                    messages.extend(new_messages)
             self._should_stop = False
             return messages
 
@@ -340,8 +344,10 @@ class Controller(ControlFlowModel):
             return
 
         messages = []
-        while any(t.is_incomplete() for t in self.tasks) and not self._should_stop:
-            new_messages = self.run_once()
-            messages.extend(new_messages)
+        # enter a flow context
+        with self.flow:
+            while any(t.is_incomplete() for t in self.tasks) and not self._should_stop:
+                new_messages = self.run_once()
+                messages.extend(new_messages)
         self._should_stop = False
         return messages
