@@ -27,9 +27,8 @@ def demo():
     )
     task.run()
 
-    task2 = Task(
+    task2 = Task[a1.name, a2.name](
         "which argument do you find more compelling?",
-        result_type=[a1.name, a2.name],
         agents=[a3],
     )
     task2.run()

@@ -21,9 +21,8 @@ class TestFlowDecorator:
 
         @flow
         def test_flow():
-            task = Task(
+            task = Task[str](
                 "say hello",
-                result_type=str,
                 result="Task completed successfully",
             )
             tasks.append(task)
@@ -85,7 +84,7 @@ class TestTaskEagerMode:
         assert mock_controller_run_agent.call_count == 0
         assert isinstance(result, Task)
         assert result.objective == "return_42"
-        assert result.result_type == int
+        assert type(result) == int
         assert result.instructions == "Return the number 42"
 
     def test_task_eager_mode_loads_default_setting(self, mock_controller_run_agent):
@@ -100,7 +99,7 @@ class TestTaskEagerMode:
         assert mock_controller_run_agent.call_count == 0
         assert isinstance(result, Task)
         assert result.objective == "return_42"
-        assert result.result_type == int
+        assert type(result) == int
         assert result.instructions == "Return the number 42"
 
     @pytest.mark.parametrize("eager_mode", [True, False])

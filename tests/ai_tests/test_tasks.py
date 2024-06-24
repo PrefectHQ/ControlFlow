@@ -12,19 +12,18 @@ class Name(BaseModel):
 @pytest.mark.usefixtures("unit_test_instructions")
 class TestTaskResults:
     def test_task_int_result(self):
-        task = Task("return 3", result_type=int)
+        task = Task[int]("return 3")
         assert task.run() == 3
 
     def test_task_pydantic_result(self):
-        task = Task("the name is John Doe", result_type=Name)
+        task = Task[Name]("the name is John Doe")
         result = task.run()
         assert isinstance(result, Name)
         assert result == Name(first="John", last="Doe")
 
     def test_task_dataframe_result(self):
-        task = Task(
+        task = Task[pd.DataFrame](
             'return a dataframe with column "x" that has values 1 and 2 and column "y" that has values 3 and 4',
-            result_type=pd.DataFrame,
         )
         result = task.run()
         assert isinstance(result, pd.DataFrame)

@@ -26,8 +26,8 @@ def demo():
         name = get_user_name()
 
         # define an AI task imperatively
-        interests = Task(
-            "ask user for three interests", result_type=list[str], user_access=True
+        interests = Task[list[str]](
+            "ask user for three interests", user_access=True
         )
         interests.run()
 

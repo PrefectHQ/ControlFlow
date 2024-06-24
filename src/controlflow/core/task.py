@@ -7,12 +7,9 @@ from typing import (
     Any,
     Callable,
     Generator,
-    GenericAlias,
-    Literal,
     Optional,
     TypeVar,
     Union,
-    _LiteralGenericAlias,
     Generic
 )
 
@@ -113,12 +110,9 @@ class Task(ControlFlowModel, Generic[T]):
     def __init__(
         self,
         objective=None,
-        result_type=None,
         **kwargs,
     ):
         # allow certain args to be provided as a positional args
-        if result_type is not None:
-            kwargs["result_type"] = result_type
         if objective is not None:
             kwargs["objective"] = objective
 
@@ -143,12 +137,6 @@ class Task(ControlFlowModel, Generic[T]):
     def _validate_agents(cls, v):
         if v == []:
             raise ValueError("At least one agent is required.")
-        return v
-
-    @field_validator("result_type", mode="before")
-    def _turn_list_into_literal_result_type(cls, v):
-        if isinstance(v, (list, tuple, set)):
-            return Literal[tuple(v)]  # type: ignore
         return v
 
     @model_validator(mode="after")
@@ -187,17 +175,6 @@ class Task(ControlFlowModel, Generic[T]):
             return f"<Result from task {task.id}>"
 
         return visit_task_collection(context, visitor)
-
-    @field_serializer("result_type")
-    def _serialize_result_type(self, result_type: list["Task"]):
-        if result_type is None:
-            return None
-        try:
-            schema = TypeAdapter(result_type).json_schema()
-        except PydanticSchemaGenerationError:
-            schema = "<schema could not be generated>"
-
-        return dict(type=repr(result_type), schema=schema)
 
     @field_serializer("agents")
     def _serialize_agents(self, agents: Optional[list["Agent"]]):
@@ -403,18 +380,10 @@ class Task(ControlFlowModel, Generic[T]):
         """
         Create an agent-compatible tool for marking this task as successful.
         """
-        # generate tool for result_type=None
-        if self.result_type is None:
+        result_schema = generate_result_schema(T)
 
-            def succeed() -> str:
-                return self.mark_successful(result=None)
-
-        # generate tool for other result types
-        else:
-            result_schema = generate_result_schema(self.result_type)
-
-            def succeed(result: result_schema) -> str:  # type: ignore
-                return self.mark_successful(result=result)
+        def succeed(result: result_schema) -> str:  # type: ignore
+            return self.mark_successful(result=result)
 
         return Tool.from_function(
             succeed,
@@ -514,13 +483,13 @@ class Task(ControlFlowModel, Generic[T]):
                     f"are: {', '.join(t.friendly_name() for t in self._subtasks if t.is_incomplete())}"
                 )
 
-        self.result = validate_result(result)
+        self.result = validate_result(result, T)
         self.set_status(TaskStatus.SUCCESSFUL)
         if agent := ctx.get("controller_agent"):
             return f"{self.friendly_name()} marked successful by {agent.name}."
         return f"{self.friendly_name()} marked successful."
 
-    def mark_failed(self, message: Union[str, None] = None):
+    def mark_failed(self, message: Optional[str] = None):
         self.error = message
         self.set_status(TaskStatus.FAILED)
         if agent := ctx.get("controller_agent"):

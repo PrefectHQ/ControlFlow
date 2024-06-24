@@ -75,10 +75,9 @@ class Name(BaseModel):
 
 @cf.flow
 def demo_flow():
-    name_task = cf.Task(
+    name_task = cf.Task[Name](
         objective="Get the user's name",
         user_access=True,
-        result_type=Name,
     )
     
     # add ad-hoc instructions and run the task immediately
@@ -86,9 +85,8 @@ def demo_flow():
         name_task.run()
 
     # create two dependent tasks
-    interests_task = cf.Task(
+    interests_task = cf.Task[list[str]](
         objective="Ask user for three interests",
-        result_type=list[str],
         user_access=True,
     )
     

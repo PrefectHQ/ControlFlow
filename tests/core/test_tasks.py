@@ -289,7 +289,7 @@ class TestTaskRun:
         assert result is None
 
     def test_run_task_mark_successful_with_result(self, mock_run: AsyncMock):
-        task = Task(objective="Say hello", result_type=int)
+        task = Task[int](objective="Say hello")
 
         def mark_complete():
             task.mark_successful(result=42)

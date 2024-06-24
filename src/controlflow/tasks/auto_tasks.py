@@ -8,7 +8,7 @@ from controlflow.core.task import Task
 from controlflow.utilities.types import AssistantTool, ControlFlowModel
 
 ToolLiteral = TypeVar("ToolLiteral", bound=str)
-
+T = TypeVar("T")
 
 class SimpleType(Enum):
     NONE = "NONE"
@@ -78,13 +78,12 @@ class AgentTemplate(ControlFlowModel, Generic[ToolLiteral]):
     )
 
 
-class TaskTemplate(ControlFlowModel, Generic[ToolLiteral]):
+class TaskTemplate(ControlFlowModel, Generic[T], Generic[ToolLiteral]):
     id: int
     objective: str = Field(description="The task's objective.")
     instructions: Optional[str] = Field(
         None, description="Instructions for completing the task."
     )
-    result_type: Optional[Union[SimpleType, ListType, DictType, UnionType]] = None
     context: dict[str, Union[TaskReference, Any]] = Field(
         default_factory=dict,
         description="The task's context, which can include TaskReferences to create dependencies.",
@@ -134,14 +133,9 @@ def create_tasks(
 
     # create tasks from templates
     for task_template in task_templates.values():
-        tasks[task_template.id] = Task(
+        tasks[task_template.id] = Task[type[T]](
             objective=task_template.objective,
             instructions=task_template.instructions,
-            result_type=(
-                task_template.result_type.to_type()
-                if task_template.result_type
-                else None
-            ),
             tools=[tools[tool] for tool in task_template.tools],
         )
 
@@ -183,7 +177,7 @@ def auto_tasks(
     else:
         literal_tool_names = None
 
-    task = Task(
+    task = Task[Templates[literal_tool_names]](
         objective="""
         Generate the minimal set of tasks required to complete the provided
         `description` of an objective. Also reference any tools or agents (or
@@ -201,7 +195,6 @@ def auto_tasks(
         agents for your tasks, the default agent will be used. Do not post messages, just return your
         result.
         """,
-        result_type=Templates[literal_tool_names],
         context=dict(
             description=description,
             available_agents=available_agents,

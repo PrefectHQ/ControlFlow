@@ -65,10 +65,9 @@ newman = Agent(
 
 @flow
 def demo(topic: str):
-    task = Task(
+    task = Task[None](
         "Discuss a topic",
         agents=[jerry, george, elaine, kramer, newman],
-        result_type=None,
         context=dict(topic=topic),
         instructions="every agent should speak at least once. only one agent per turn.",
     )

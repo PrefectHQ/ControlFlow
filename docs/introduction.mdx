@@ -36,17 +36,15 @@ def restaurant_recommendations(n:int) -> list[Restaurant]:
     """
     
     # get preferences from the user
-    preferences = Task(
+    preferences = Task[Preferences](
         "Get the user's preferences", 
-        result_type=Preferences, 
         user_access=True,
     )
     
     # generate the recommendations
-    recommendations = Task(
+    recommendations = Task[list[Restaurant]](
         f"Recommend {n} restaurants to the user", 
         context=dict(preferences=preferences),
-        result_type=list[Restaurant], 
     )
 
     return recommendations

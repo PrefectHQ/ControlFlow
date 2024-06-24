@@ -9,7 +9,7 @@ a2 = Agent(
 
 @flow
 def demo():
-    task = Task("choose a number between 1 and 100", agents=[a1, a2], result_type=int)
+    task = Task[int]("choose a number between 1 and 100", agents=[a1, a2])
     return task.run()
 
 

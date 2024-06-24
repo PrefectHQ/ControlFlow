@@ -185,12 +185,11 @@ def task(
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
 
-        task = Task(
+        task = Task[result_type](
             objective=objective,
             instructions=instructions,
             agents=agents,
             context=bound.arguments,
-            result_type=result_type,
             user_access=user_access or False,
             tools=tools or [],
         )

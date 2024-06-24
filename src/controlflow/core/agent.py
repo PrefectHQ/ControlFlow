@@ -22,7 +22,7 @@ class Agent(ControlFlowModel):
     name: str = Field(
         ...,
         description="The name of the agent. This is used to identify the agent in the system and should be unique per assigned task.",
-        pattern=r"^[a-zA-Z0-9_-]+$",
+        pattern=r"^[a-zA-Z0-9_\s-]+$",
     )
     description: Optional[str] = Field(
         None, description="A description of the agent, visible to other agents."

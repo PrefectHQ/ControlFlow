@@ -21,10 +21,9 @@ def restaurant_recs(n: int) -> list[Restaurant]:
     cuisine = Task("Get a preferred cuisine", user_access=True)
 
     # generate the recommendations from the user's input
-    recs = Task(
+    recs = Task[list[Restaurant]](
         f"Recommend {n} restaurants to the user",
         context=dict(location=location, cuisine=cuisine),
-        result_type=list[Restaurant],
     )
     return recs
 

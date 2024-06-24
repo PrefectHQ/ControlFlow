@@ -17,26 +17,22 @@ class Name(BaseModel):
 # Example usage with mock data
 
 with Flow() as flow:
-    # t = Task("get the user's name", result_type=str, user_access=True)
-    t0 = Task(
+    # t = Task[str]("get the user's name", user_access=True)
+    t0 = Task[str](
         "Introduce yourself",
         # status="SUCCESSFUL",
-        result_type=str,
         # result="this is my result",
     )
-    t1 = Task(
+    t1 = Task[str](
         objective="Come up with a book title",
-        result_type=str,
         depends_on=[t0],
     )
-    t2 = Task(
+    t2 = Task[str](
         objective="write a short summary of the book",
-        result_type=str,
         context=dict(title=t1),
     )
-    t3 = Task(
+    t3 = Task[int](
         objective="rate the book from 1-5 and write a paragraph on why",
-        result_type=int,
         depends_on=[t2],
     )
 

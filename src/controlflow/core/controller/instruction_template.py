@@ -97,7 +97,6 @@ class TasksTemplate(Template):
         {% if jtask.is_ready %}
         #### Task {{ jtask.id }}
         - objective: {{ jtask.objective }}
-        - result_type: {{ jtask.result_type }}
         - context: {{ jtask.context }}
         - instructions: {{ jtask.instructions}}
         - depends_on: {{ jtask.depends_on }}
@@ -118,7 +117,6 @@ class TasksTemplate(Template):
         #### Task {{ jtask.id }}
         - objective: {{ jtask.objective }}
         - status: {{ jtask.status }}
-        - result_type: {{ jtask.result_type }}
         - result: {{ jtask.result }}
         - error: {{ jtask.error }}
         - context: {{ jtask.context }}
@@ -143,7 +141,7 @@ class TasksTemplate(Template):
         
         A task's result is an artifact that represents its objective. If the
         objective requires action that can not be formatted as a result (e.g.
-        the result_type is None or compressed), then you should take those
+        the result type is None or compressed), then you should take those
         actions or post messages to satisfy the task's requirements. If a task
         says to post messages or otherwise "talk out loud," post messages
         directly to the thread. Otherwise, you should provide a result that

@@ -14,15 +14,13 @@ def book_ideas():
         context=dict(genre=genre),
     )
 
-    abstract = Task(
+    abstract = Task[str](
         "pick one idea and write a short abstract",
-        result_type=str,
         context=dict(ideas=ideas, genre=genre),
     )
 
-    title = Task(
+    title = Task[str](
         "pick a title",
-        result_type=str,
         context=dict(abstract=abstract),
     )
 
