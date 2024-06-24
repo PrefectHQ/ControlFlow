@@ -26,13 +26,13 @@
         "light": "#E44BF4",
         "primary": "#2D6DF6"
     },
-    "favicon": "/assets/ControlFlow.jpg",
+    "favicon": "/assets/brand/controlflow_logo.svg",
     "footerSocials": {
         "github": "https://github.com/PrefectHQ/ControlFlow"
     },
     "logo": {
-        "dark": "/assets/ControlFlow.jpg",
-        "light": "/assets/ControlFlow.jpg"
+        "dark": "/assets/brand/controlflow_logo_pink_bg.svg",
+        "light": "/assets/brand/controlflow_logo.svg"
     },
     "name": "ControlFlow",
     "navigation": [

@@ -1,5 +1,5 @@
 
-![ControlFlow Logo](https://github.com/jlowin/controlflow/assets/153965/c2a8a2f0-8777-49a6-a79b-a0e101bd4a04)
+![ControlFlow Banner](/docs/assets/brand/controlflow_banner.png)
 
 _🚨🚧 Please note that ControlFlow is under active development ahead of its initial public release!🚧🚨_
 
