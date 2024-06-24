@@ -246,16 +246,8 @@ class Task(ControlFlowModel):
 
     @field_serializer("agents")
     def _serialize_agents(self, agents: Optional[list["Agent"]]):
-        agents = []
-        for a in self.get_agents():
-            d = a.model_dump(
-                include={"name", "id", "description", "tools", "user_access"}
-            )
-            # seeing user access = False can confuse agents on tasks with user access
-            if not d["user_access"]:
-                d.pop("user_access")
-            agents.append(d)
-        return agents
+        agents = self.get_agents()
+        return [a.serialize_for_prompt() for a in agents]
 
     @field_serializer("tools")
     def _serialize_tools(self, tools: list[Callable]):
@@ -310,7 +302,9 @@ class Task(ControlFlowModel):
                 "Task.run_once() must be called within a flow context or with a flow argument."
             )
 
-        controller = controlflow.Controller(tasks=[self], agents=agents, flow=flow)
+        controller = controlflow.Controller(
+            tasks=[self], flow=flow, agents={self: agents} if agents else None
+        )
         controller.run_once()
 
     async def run_once_async(
@@ -327,7 +321,9 @@ class Task(ControlFlowModel):
                 "Task.run_once_async() must be called within a flow context or with a flow argument."
             )
 
-        controller = controlflow.Controller(tasks=[self], agents=agents, flow=flow)
+        controller = controlflow.Controller(
+            tasks=[self], flow=flow, agents={self: agents} if agents else None
+        )
         await controller.run_once_async()
 
     @prefect_task(task_run_name=get_task_run_name)
@@ -352,7 +348,9 @@ class Task(ControlFlowModel):
             else:
                 flow = Flow()
 
-        controller = controlflow.Controller(tasks=[self], flow=flow, agents=agents)
+        controller = controlflow.Controller(
+            tasks=[self], flow=flow, agents={self: agents} if agents else None
+        )
         controller.run()
 
         if self.is_successful():
@@ -382,7 +380,9 @@ class Task(ControlFlowModel):
             else:
                 flow = Flow()
 
-        controller = controlflow.Controller(tasks=[self], flow=flow, agents=agents)
+        controller = controlflow.Controller(
+            tasks=[self], flow=flow, agents={self: agents} if agents else None
+        )
         await controller.run_async()
 
         if self.is_successful():

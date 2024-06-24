@@ -27,8 +27,8 @@ class Template(ControlFlowModel):
 class AgentTemplate(Template):
     template: str = """
         You are an AI agent participating in a workflow. Your role is to work on
-        the tasks that have been assigned to you and use the provided tools to
-        complete those tasks and communicate with the orchestrator. 
+        your tasks and use the provided tools to complete those tasks and
+        communicate with the orchestrator. 
         
         Important: The orchestrator is a Python script and cannot read or
         respond to messages posted in this thread. You must use the provided
@@ -219,16 +219,30 @@ class MainTemplate(ControlFlowModel):
     agent: Agent
     controller: Controller
     ready_tasks: list[Task]
-    upstream_tasks: list[Task]
-    downstream_tasks: list[Task]
     current_task: Task
     context: dict
     instructions: list[str]
+    agent_assignments: dict[Task, list[Agent]]
 
     def render(self):
+        # get up to 50 upstream and 50 downstream tasks
+        g = self.controller.graph
+        upstream_tasks = g.topological_sort([t for t in g.tasks if t.is_complete()])[
+            -50:
+        ]
+        downstream_tasks = g.topological_sort(
+            [t for t in g.tasks if t.is_incomplete() and t not in self.ready_tasks]
+        )[:50]
+
         ready_tasks = [t.model_dump() for t in self.ready_tasks]
-        upstream_tasks = [t.model_dump() for t in self.upstream_tasks]
-        downstream_tasks = [t.model_dump() for t in self.downstream_tasks]
+        upstream_tasks = [t.model_dump() for t in upstream_tasks]
+        downstream_tasks = [t.model_dump() for t in downstream_tasks]
+
+        # update agent assignments
+        assignments = {t.id: a for t, a in self.agent_assignments.items()}
+        for t in ready_tasks + upstream_tasks + downstream_tasks:
+            if t["id"] in assignments:
+                t["agents"] = assignments[t["id"]]
 
         templates = [
             AgentTemplate(
