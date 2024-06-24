@@ -46,6 +46,8 @@ def prefect_task(*args, **kwargs):
     A decorator that creates a Prefect task with ControlFlow defaults
     """
 
+    # TODO: only open in Flow context?
+
     kwargs.setdefault("log_prints", controlflow.settings.log_prints)
     kwargs.setdefault("cache_policy", prefect.cache_policies.NONE)
     kwargs.setdefault("result_serializer", prefect.serializers.JSONSerializer())
