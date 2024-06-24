@@ -120,6 +120,7 @@ class Task(ControlFlowModel):
     _iteration: int = 0
     _cm_stack: list[contextmanager] = []
     _prefect_task: Optional[PrefectTrackingTask] = None
+
     model_config = dict(extra="forbid", arbitrary_types_allowed=True)
 
     def __init__(
@@ -298,7 +299,7 @@ class Task(ControlFlowModel):
         self.depends_on.add(task)
         task._downstreams.add(self)
 
-    def run_once(self, agent: "Agent" = None, flow: "Flow" = None):
+    def run_once(self, agents: Optional[list["Agent"]] = None, flow: "Flow" = None):
         """
         Runs the task with provided agent. If no agent is provided, one will be selected from the task's agents.
         """
@@ -309,10 +310,12 @@ class Task(ControlFlowModel):
                 "Task.run_once() must be called within a flow context or with a flow argument."
             )
 
-        controller = controlflow.Controller(tasks=[self], agents=agent, flow=flow)
+        controller = controlflow.Controller(tasks=[self], agents=agents, flow=flow)
         controller.run_once()
 
-    async def run_once_async(self, agent: "Agent" = None, flow: "Flow" = None):
+    async def run_once_async(
+        self, agents: Optional[list["Agent"]] = None, flow: "Flow" = None
+    ):
         """
         Runs the task with provided agent. If no agent is provided, one will be selected from the task's agents.
         """
@@ -324,26 +327,44 @@ class Task(ControlFlowModel):
                 "Task.run_once_async() must be called within a flow context or with a flow argument."
             )
 
-        controller = controlflow.Controller(tasks=[self], agents=agent, flow=flow)
+        controller = controlflow.Controller(tasks=[self], agents=agents, flow=flow)
         await controller.run_once_async()
 
     @prefect_task(task_run_name=get_task_run_name)
-    def _run(
-        self,
-        raise_on_error: bool = True,
-        max_iterations: int = NOTSET,
-        flow: "Flow" = None,
-        run_async: bool = False,
+    def run(
+        self, raise_on_error: bool = True, flow: "Flow" = None
     ) -> Generator[T, None, None]:
         """
         Internal function that can handle both sync and async runs by yielding either the result or the coroutine.
         """
         from controlflow.flows import Flow, get_flow
 
-        if max_iterations == NOTSET:
-            max_iterations = controlflow.settings.max_task_iterations
-        if max_iterations is None:
-            max_iterations = float("inf")
+        flow = flow or get_flow()
+        if flow is None:
+            if controlflow.settings.strict_flow_context:
+                raise ValueError(
+                    "Task.run() must be called within a flow context or with a "
+                    "flow argument if implicit flows are disabled."
+                )
+            else:
+                flow = Flow()
+        # enter a flow context
+        with flow:
+            while self.is_incomplete():
+                self.run_once(flow=flow)
+        if self.is_successful():
+            return self.result
+        elif self.is_failed() and raise_on_error:
+            raise ValueError(f"{self.friendly_name()} failed: {self.error}")
+
+    @prefect_task(task_run_name=get_task_run_name)
+    async def run_async(
+        self, raise_on_error: bool = True, flow: "Flow" = None
+    ) -> Generator[T, None, None]:
+        """
+        Internal function that can handle both sync and async runs by yielding either the result or the coroutine.
+        """
+        from controlflow.flows import Flow, get_flow
 
         flow = flow or get_flow()
         if flow is None:
@@ -355,69 +376,14 @@ class Task(ControlFlowModel):
             else:
                 flow = Flow()
 
-        counter = 0
-        while self.is_incomplete():
-            if counter >= max_iterations:
-                raise ValueError(
-                    f"{self.friendly_name()} did not complete after {max_iterations} iterations."
-                )
-            if run_async:
-                yield self.run_once_async(flow=flow)
-            else:
-                yield self.run_once(flow=flow)
-            counter += 1
+        # enter a flow context
+        with flow:
+            while self.is_incomplete():
+                await self.run_once_async(flow=flow)
         if self.is_successful():
             return self.result
         elif self.is_failed() and raise_on_error:
             raise ValueError(f"{self.friendly_name()} failed: {self.error}")
-
-    def run(
-        self,
-        raise_on_error: bool = True,
-        max_iterations: int = NOTSET,
-        flow: "Flow" = None,
-    ) -> T:
-        """
-        Runs the task with provided agents until it is complete.
-
-        If max_iterations is provided, the task will run at most that many times before raising an error.
-        """
-
-        gen = self._run(
-            raise_on_error=raise_on_error,
-            max_iterations=max_iterations,
-            flow=flow,
-            run_async=False,
-        )
-        while True:
-            try:
-                next(gen)
-            except StopIteration as e:
-                return e.value
-
-    async def run_async(
-        self,
-        raise_on_error: bool = True,
-        max_iterations: int = NOTSET,
-        flow: "Flow" = None,
-    ) -> T:
-        """
-        Runs the task with provided agents until it is complete.
-
-        If max_iterations is provided, the task will run at most that many times before raising an error.
-        """
-
-        gen = self._run(
-            raise_on_error=raise_on_error,
-            max_iterations=max_iterations,
-            flow=flow,
-            run_async=True,
-        )
-        while True:
-            try:
-                await next(gen)
-            except StopIteration as e:
-                return e.value
 
     @contextmanager
     def create_context(self):

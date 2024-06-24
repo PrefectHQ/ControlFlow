@@ -22,7 +22,6 @@ from controlflow.tools import as_tools
 from controlflow.utilities.context import ctx
 from controlflow.utilities.prefect import create_markdown_artifact
 from controlflow.utilities.prefect import prefect_task as prefect_task
-from controlflow.utilities.tasks import all_complete, any_incomplete
 from controlflow.utilities.types import ControlFlowModel
 
 logger = logging.getLogger(__name__)
@@ -70,7 +69,6 @@ class Controller(ControlFlowModel):
         validate_default=True,
     )
     tasks: list[Task] = Field(
-        None,
         description="Tasks that the controller will complete.",
     )
     agents: Union[list[Agent], None] = None
@@ -78,6 +76,9 @@ class Controller(ControlFlowModel):
     model_config: dict = dict(extra="forbid")
     enable_experimental_tui: bool = Field(
         default_factory=lambda: controlflow.settings.enable_experimental_tui
+    )
+    max_iterations: int = Field(
+        default_factory=lambda: controlflow.settings.max_iterations
     )
     _iteration: int = 0
     _should_stop: bool = False
@@ -89,8 +90,6 @@ class Controller(ControlFlowModel):
 
     @model_validator(mode="after")
     def _finalize(self):
-        if self.tasks is None:
-            self.tasks = list(self.flow.tasks.values())
         for task in self.tasks:
             self.flow.add_task(task)
         return self
@@ -140,6 +139,10 @@ class Controller(ControlFlowModel):
         """
         Generate the payload for a single run of the controller.
         """
+        if self._iteration >= (self.max_iterations or math.inf):
+            raise ValueError(
+                f"Controller has exceeded maximum iterations of {self.max_iterations}."
+            )
         ready_tasks = [t for t in self.tasks if t.is_ready()]
         # get up to 50 upstream and 50 downstream tasks
         upstream_tasks = self.graph.topological_sort(
@@ -168,7 +171,10 @@ class Controller(ControlFlowModel):
         messages = self.flow.get_messages()
 
         # get an agent from the next ready task
-        agents = ready_tasks[0].get_agents()
+        if self.agents:
+            agents = self.agents
+        else:
+            agents = ready_tasks[0].get_agents()
         if len(agents) == 1:
             agent = agents[0]
         else:
@@ -314,22 +320,14 @@ class Controller(ControlFlowModel):
         """
         Run the controller until all tasks are complete.
         """
-        max_task_iterations = controlflow.settings.max_task_iterations or math.inf
-        start_iteration = self._iteration
-        if all_complete(self.tasks):
+        if all(t.is_complete() for t in self.tasks):
             return
 
         messages = []
         async with self.tui():
-            while any_incomplete(self.tasks) and not self._should_stop:
+            while any(t.is_incomplete() for t in self.tasks) and not self._should_stop:
                 new_messages = await self.run_once_async()
                 messages.extend(new_messages)
-                if self._iteration > start_iteration + max_task_iterations * len(
-                    self.tasks
-                ):
-                    raise ValueError(
-                        f"Task iterations exceeded maximum of {max_task_iterations} for each task."
-                    )
             self._should_stop = False
             return messages
 
@@ -338,20 +336,12 @@ class Controller(ControlFlowModel):
         """
         Run the controller until all tasks are complete.
         """
-        max_task_iterations = controlflow.settings.max_task_iterations or math.inf
-        start_iteration = self._iteration
-        if all_complete(self.tasks):
+        if all(t.is_complete() for t in self.tasks):
             return
 
         messages = []
-        while any_incomplete(self.tasks) and not self._should_stop:
+        while any(t.is_incomplete() for t in self.tasks) and not self._should_stop:
             new_messages = self.run_once()
             messages.extend(new_messages)
-            if self._iteration > start_iteration + max_task_iterations * len(
-                self.tasks
-            ):
-                raise ValueError(
-                    f"Task iterations exceeded maximum of {max_task_iterations} for each task."
-                )
         self._should_stop = False
         return messages

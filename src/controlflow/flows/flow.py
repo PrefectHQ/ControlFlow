@@ -84,11 +84,14 @@ class Flow(ControlFlowModel):
 
     @contextmanager
     def create_context(self, create_prefect_flow_context: bool = True):
-        if create_prefect_flow_context:
+        ctx_args = dict(flow=self)
+        if create_prefect_flow_context and ctx.get("prefect_flow") is not self:
             prefect_ctx = prefect_flow_context(name=self.name)
+            ctx_args["prefect_flow"] = self
         else:
             prefect_ctx = nullcontext()
-        with ctx(flow=self), prefect_ctx:
+
+        with ctx(**ctx_args), prefect_ctx:
             yield self
 
     async def run_once_async(self):
@@ -96,7 +99,10 @@ class Flow(ControlFlowModel):
         Runs one step of the flow asynchronously.
         """
         if self.tasks:
-            controller = controlflow.Controller(flow=self)
+            controller = controlflow.Controller(
+                flow=self,
+                tasks=list(self.flow.tasks.values()),
+            )
             await controller.run_once_async()
 
     def run_once(self):
@@ -104,7 +110,10 @@ class Flow(ControlFlowModel):
         Runs one step of the flow.
         """
         if self.tasks:
-            controller = controlflow.Controller(flow=self)
+            controller = controlflow.Controller(
+                flow=self,
+                tasks=list(self.flow.tasks.values()),
+            )
             controller.run_once()
 
     async def run_async(self):
@@ -112,7 +121,10 @@ class Flow(ControlFlowModel):
         Runs the flow asynchronously.
         """
         if self.tasks:
-            controller = controlflow.Controller(flow=self)
+            controller = controlflow.Controller(
+                flow=self,
+                tasks=list(self.flow.tasks.values()),
+            )
             await controller.run_async()
 
     def run(self):
@@ -120,7 +132,10 @@ class Flow(ControlFlowModel):
         Runs the flow.
         """
         if self.tasks:
-            controller = controlflow.Controller(flow=self)
+            controller = controlflow.Controller(
+                flow=self,
+                tasks=list(self.flow.tasks.values()),
+            )
             controller.run()
 
 
