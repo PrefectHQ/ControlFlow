@@ -1,7 +1,7 @@
 import pytest
 from controlflow import Agent, Task, flow
 
-# define assistants
+# define agents
 
 a = Agent(name="a")
 b = Agent(name="b")
@@ -30,9 +30,9 @@ def view_guestbook():
 def guestbook_flow():
     task = Task(
         """
-        Add your name to the list using the `sign` tool. All assistants must
+        Add your name to the list using the `sign` tool. All agents must
         sign their names for the task to be complete. You can read the sign to
-        see if that has happened yet. You can not sign for another assistant.
+        see if that has happened yet. You can not sign for another agent.
         """,
         agents=[a, b, c],
         tools=[sign, view_guestbook],

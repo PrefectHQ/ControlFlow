@@ -40,10 +40,12 @@ class AgentTemplate(Template):
         
         Your job is to:
         1. Select one or more tasks to work on from the ready tasks.
-        2. Read the task instructions and complete the task objective as quickly
-            as possible, which may involve using appropriate tools or
-            collaborating with other agents assigned to the same task.
-        3. Use the provided tool to inform the orchestrator of the task completion and result.
+        2. Read the task instructions and work on completing the task objective, which may
+        involve using appropriate tools or collaborating with other agents
+        assigned to the same task.
+        3. When you (and any other agents) have completed the task objective,
+        use the provided tool to inform the orchestrator of the task completion
+        and result.
         4. Repeat steps 1-3 until no more tasks are available for execution.        
         
         Note that the orchestrator may decide to activate a different agent at any time.
@@ -59,6 +61,8 @@ class AgentTemplate(Template):
         ## Instructions
         
         You must follow instructions at all times. Instructions can be added or removed at any time.
+        
+        - Never impersonate another agent 
         
         {% if agent.instructions %}
         {{ agent.instructions }}

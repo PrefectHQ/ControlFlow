@@ -101,7 +101,7 @@ class Flow(ControlFlowModel):
         if self.tasks:
             controller = controlflow.Controller(
                 flow=self,
-                tasks=list(self.flow.tasks.values()),
+                tasks=list(self.tasks.values()),
             )
             await controller.run_once_async()
 
@@ -112,7 +112,7 @@ class Flow(ControlFlowModel):
         if self.tasks:
             controller = controlflow.Controller(
                 flow=self,
-                tasks=list(self.flow.tasks.values()),
+                tasks=list(self.tasks.values()),
             )
             controller.run_once()
 
@@ -123,7 +123,7 @@ class Flow(ControlFlowModel):
         if self.tasks:
             controller = controlflow.Controller(
                 flow=self,
-                tasks=list(self.flow.tasks.values()),
+                tasks=list(self.tasks.values()),
             )
             await controller.run_async()
 
@@ -134,7 +134,7 @@ class Flow(ControlFlowModel):
         if self.tasks:
             controller = controlflow.Controller(
                 flow=self,
-                tasks=list(self.flow.tasks.values()),
+                tasks=list(self.tasks.values()),
             )
             controller.run()
 

@@ -105,7 +105,7 @@ class Controller(ControlFlowModel):
         return self
 
     def _create_end_turn_tool(self) -> Callable:
-        def emergency_end_turn():
+        def end_turn():
             """
             This tool is for emergencies only; you should not use it normally.
             If you find yourself in a situation where you are repeatedly invoked
@@ -129,7 +129,7 @@ class Controller(ControlFlowModel):
                 " more uses will abort the workflow."
             )
 
-        return emergency_end_turn
+        return end_turn
 
     @asynccontextmanager
     async def tui(self):
@@ -186,7 +186,9 @@ class Controller(ControlFlowModel):
                 and isinstance(messages[-1], ToolMessage)
                 and not messages[-1].tool_metadata.get("ignore_result")
             ):
-                agent = next((a for a in agents if a.id == messages[-1].agent_id), None)
+                agent = next(
+                    (a for a in agents if a.name == messages[-1].agent.name), None
+                )
             if agent is None:
                 strategy_fn = ready_tasks[0].get_agent_strategy()
                 agent = strategy_fn(agents=agents, task=ready_tasks[0], flow=self.flow)
