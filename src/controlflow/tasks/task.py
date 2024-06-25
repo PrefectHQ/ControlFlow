@@ -390,6 +390,9 @@ class Task(ControlFlowModel):
         elif self.is_failed() and raise_on_error:
             raise ValueError(f"{self.friendly_name()} failed: {self.error}")
 
+    def copy(self):
+        return self.model_copy()
+
     @contextmanager
     def create_context(self):
         stack = ctx.get("tasks", [])

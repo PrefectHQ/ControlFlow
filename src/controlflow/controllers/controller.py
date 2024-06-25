@@ -16,7 +16,7 @@ from controlflow.handlers.print_handler import PrintHandler
 from controlflow.instructions import get_instructions
 from controlflow.llm.completions import completion, completion_async
 from controlflow.llm.handlers import ResponseHandler, TUIHandler
-from controlflow.llm.messages import MessageType, SystemMessage, ToolMessage
+from controlflow.llm.messages import MessageType, SystemMessage
 from controlflow.tasks.task import Task
 from controlflow.tools import as_tools
 from controlflow.utilities.context import ctx
@@ -178,21 +178,9 @@ class Controller(ControlFlowModel):
         if len(agents) == 1:
             agent = agents[0]
         else:
-            agent = None
-            # if the last message was a tool call result that the calling agent
-            # should see, use that agent
-            if (
-                messages
-                and isinstance(messages[-1], ToolMessage)
-                and not messages[-1].tool_metadata.get("ignore_result")
-            ):
-                agent = next(
-                    (a for a in agents if a.name == messages[-1].agent.name), None
-                )
-            if agent is None:
-                strategy_fn = ready_tasks[0].get_agent_strategy()
-                agent = strategy_fn(agents=agents, task=ready_tasks[0], flow=self.flow)
-                ready_tasks[0]._iteration += 1
+            strategy_fn = ready_tasks[0].get_agent_strategy()
+            agent = strategy_fn(agents=agents, task=ready_tasks[0], flow=self.flow)
+            ready_tasks[0]._iteration += 1
 
         from controlflow.controllers.instruction_template import MainTemplate
 

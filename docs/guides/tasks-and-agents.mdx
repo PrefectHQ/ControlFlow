@@ -1,0 +1,382 @@
+---
+title: Tasks and/or Agents
+---
+<Tip>
+Build repeatable, dependable AI workflows by balancing structured tasks with flexible agents.
+</Tip>
+
+ControlFlow is an agentic workflow framework that takes a unique, task-centric approach to AI-powered applications. This design philosophy is crucial for creating high-quality, repeatable AI workflows that seamlessly integrate with traditional software development practices. In this guide, we'll dive deep into the core concepts of tasks and agents, explore how they work together, and provide practical advice on using them effectively in your ControlFlow applications.
+
+## Separation of Concerns
+
+At the heart of ControlFlow lies a fundamental separation of concerns:
+
+- Tasks define **WHAT** needs to be done
+- Agents determine **HOW** it will be done
+
+This separation is key to creating AI workflows that are both powerful and predictable. To better understand this relationship, consider the metaphor of a theater production:
+
+- **Tasks are like the script of a play**. They outline what needs to happen, in what order, and with what results. The script provides structure, ensuring that the story unfolds as intended.
+
+- **Agents are like the actors**. They interpret the script and bring it to life, each with their own unique style and expertise. Different actors might approach the same role in varied ways, bringing depth and nuance to the performance.
+
+Just as a great theater production needs both a well-written script and talented actors, an effective ControlFlow workflow requires well-defined tasks and capable agents. This metaphor will help us understand the roles and interactions of tasks and agents throughout the rest of this guide.
+
+## Tasks as Objectives
+
+At the core of ControlFlow are tasks. A task represents a discrete, well-defined objective that needs to be accomplished within your AI workflow. Tasks are not just simple instructions; they are the bridge between the structured world of traditional software and the more fluid, adaptive world of AI.
+
+Consider a task as a contract between you and the AI. You specify:
+- What needs to be done (the objective)
+- What form the result should take (the result type)
+- Any specific instructions or constraints
+
+The AI, in turn, commits to delivering a result that meets these criteria. This contract-like nature of tasks is what makes ControlFlow workflows so powerful and predictable.
+
+For example:
+
+```python
+import controlflow as cf
+
+summarize_task = cf.Task(
+    "Summarize the key points of the provided research paper",
+    result_type=list[str],
+    instructions="Provide a bullet-point list of the main findings, limited to 5 key points."
+)
+```
+
+In this task, we've clearly defined what we want (a summary), how we want it (as a list of strings), and provided specific instructions on the format and length. This level of specificity allows us to seamlessly integrate the AI's output into our broader application logic.
+
+## Agents as Configuration
+
+If tasks are the "what" in ControlFlow, agents are the "how". An agent in ControlFlow is essentially a configurable AI worker, equipped with specific skills, knowledge, and behaviors. Think of agents as specialized performers, each bringing their unique talents to the stage.
+
+Agents in ControlFlow are more than just LLM instances. They are portable configurations that can include:
+- Specialized instructions or "personality traits"
+- Access to specific tools or APIs
+- Tailored model parameters or even entirely different underlying models
+
+Here's an example of creating a specialized agent:
+
+```python
+import controlflow as cf
+from langchain_openai import ChatOpenAI
+
+research_agent = cf.Agent(
+    name="ResearchAnalyst",
+    instructions="""
+        You are an expert in analyzing scientific research. 
+        Focus on identifying methodological strengths and weaknesses, 
+        and always consider potential real-world applications of the findings.
+        """,
+    tools=[search_scientific_databases, calculate_statistical_significance],
+    model=ChatOpenAI(temperature=0.2)  # Using a more deterministic setting
+)
+```
+
+This agent is specifically tailored for research analysis tasks. It has a clear "personality" defined by its instructions, access to relevant tools, and uses a specific model configuration optimized for analytical tasks.
+
+## Tasks WITH Agents
+
+The real power of ControlFlow comes from the interplay between tasks and agents. When you assign an agent to a task, you're not just giving an AI a job to do. You're creating a structured environment where the agent's specialized capabilities can be applied to a well-defined objective.
+
+This synergy allows for:
+
+1. **Predictable Innovation**: The task provides guardrails, ensuring the agent's creativity is channeled towards specific goals.
+
+2. **Flexible Specialization**: Different agents can approach the same task in unique ways, allowing for diverse solutions while maintaining a consistent objective.
+
+3. **Measurable Outcomes**: The task's result type and criteria provide clear benchmarks for success, even when dealing with complex, non-deterministic AI outputs.
+
+4. **Iterative Refinement**: Tasks can be chained together, with each agent building upon the work of others, creating sophisticated workflows that leverage multiple AI specialties.
+
+
+### Balancing Structure and Flexibility
+
+One of ControlFlow's key strengths is that it lets you continuously tune the balance between control and autonomy in your AI workflows. This flexibility comes from the interplay between well-defined tasks and configurable agents:
+
+1. **Task Specificity**: You can define tasks with varying levels of detail. A highly specific task provides more control, while a more open-ended task allows for greater agent autonomy.
+
+   ```python
+   import controlflow as cf
+   
+   # More controlled task
+   specific_task = cf.Task(
+       "Generate a 5-line haiku about spring",
+       result_type=str,
+       instructions="Follow the 5-7-5 syllable structure strictly."
+   )
+
+   # More open-ended task
+   open_task = cf.Task(
+       "Write a short poem about nature",
+       result_type=str,
+       instructions="Feel free to choose any poetic form that fits the theme."
+   )
+   ```
+
+2. **Agent Specialization**: While tasks define what needs to be done, agents determine how it's accomplished. By creating specialized agents, you can influence the approach taken to complete a task without changing the task itself.
+
+   ```python
+   import controlflow as cf
+
+   creative_agent = cf.Agent(
+       name="Creative Writer",
+       instructions="Use vivid imagery and metaphors in your writing."
+   )
+   technical_agent = cf.Agent(
+       name="Technical Writer",
+       instructions="Focus on clarity and precision in your explanations."
+   )
+
+   writing_task = cf.Task("Write an article about AI", result_type=str)
+   creative_article = writing_task.copy().run(agent=creative_agent)
+   technical_article = writing_task.copy().run(agent=technical_agent)
+   ```
+
+3. **Dynamic Workflows**: ControlFlow allows you to create adaptive workflows that adjust based on intermediate results or changing conditions.
+
+   ```python
+   import controlflow as cf
+
+   creative_agent = cf.Agent(
+       name="Creative Writer",
+       instructions="Use vivid imagery and metaphors in your writing."
+   )
+   technical_agent = cf.Agent(
+       name="Technical Writer",
+       instructions="Focus on clarity and precision in your explanations."
+   )
+   
+   @cf.flow
+   def adaptive_writing_flow(topic: str, target_audience: str):
+       research = cf.Task("Research the topic", context=dict(topic=topic))
+       
+       if target_audience == "technical":
+           writing_agent = technical_agent
+       else:
+           writing_agent = creative_agent
+       
+       article = cf.Task(
+           "Write an article",
+           context=dict(research=research, audience=target_audience),
+           agents=[writing_agent]
+       )
+       
+       return article
+
+   result = adaptive_writing_flow("Quantum Computing", "general")
+   ```
+
+### Bridging AI and Traditional Software
+
+ControlFlow's task-centric approach provides a natural bridge between AI capabilities and traditional software development practices. This integration offers several benefits:
+
+1. **Clear Objectives and Validation**: Tasks have explicit goals and expected result types, making it easier to validate outputs and integrate them into your broader application.
+
+   ```python
+   import controlflow as cf
+
+   sentiment_task = cf.Task(
+       "Analyze the sentiment of the given text",
+       result_type=float,
+       instructions="Return a float between -1 (very negative) and 1 (very positive)"
+   )
+
+   # The result can be easily used in traditional Python code
+   sentiment = sentiment_task.run()
+   if sentiment > 0.5:
+       print("The text is very positive!")
+   ```
+
+2. **Composability**: Complex workflows can be built by combining simple, reusable tasks. This modularity aligns well with software engineering best practices.
+
+   ```python
+   import controlflow as cf
+   
+   @cf.flow
+   def content_creation_workflow(topic: str):
+       research = cf.Task("Research the topic", context=dict(topic=topic))
+       outline = cf.Task("Create an outline", context=dict(research=research))
+       draft = cf.Task("Write a first draft", context=dict(outline=outline))
+       return draft
+
+   @cf.flow
+   def blog_post_workflow(topic: str):
+       content = content_creation_workflow(topic)
+       seo_optimization = cf.Task("Optimize for SEO", context=dict(content=content))
+       return seo_optimization
+
+   final_post = blog_post_workflow("AI in Healthcare")
+   ```
+
+3. **Improved Debugging and Monitoring**: With clearly defined tasks and result types, it's easier to track the progress of a workflow and identify issues.
+
+   ```python
+   import controlflow as cf
+
+   @cf.flow
+   def monitored_workflow():
+       task1 = cf.Task("Step 1", result_type=str)
+       task1.run()
+       print(f"Task 1 status: {task1.status}, result: {task1.result}")
+       
+       task2 = cf.Task("Step 2", context=dict(input=task1), result_type=int)
+       task2.run()
+       print(f"Task 2 status: {task2.status}, result: {task2.result}")
+       
+       return task2
+
+   result = monitored_workflow()
+   ```
+
+By combining the structure of tasks with the flexibility of agents, ControlFlow enables you to create AI workflows that are both powerful and predictable. This approach allows you to harness the full potential of AI while maintaining the control and reliability needed for production-grade applications.
+
+
+### Multi-Agent Tasks
+
+ControlFlow's task-centric approach shines even brighter when we consider multi-agent collaboration. By assigning multiple agents to a single task or creating workflows with interconnected tasks, we can create AI systems that leverage diverse perspectives and capabilities.
+
+This approach allows for:
+
+1. **Emergent Problem-Solving**: Different agents can work together on complex tasks, potentially discovering solutions that no single agent could have devised alone.
+
+2. **Specialized Contributions**: Each agent can focus on its area of expertise, contributing to a part of the task that best matches its capabilities.
+
+3. **Built-in Peer Review**: Agents can check and validate each other's work, leading to more robust and reliable outcomes.
+
+4. **Dynamic Task Generation**: In advanced scenarios, agents can even create new tasks on the fly, adapting the workflow to unexpected challenges or opportunities.
+
+While the full power of multi-agent collaboration in ControlFlow is still evolving, the framework's task-centric design lays the groundwork for these advanced capabilities.
+
+
+## When Should I Use Tasks or Agents?
+
+Now that we understand the concepts behind tasks and agents in ControlFlow, let's explore how to use them effectively in practice.
+
+### Start with Tasks
+
+When building a ControlFlow application, you should almost always start by defining your workflow with tasks. This sets clear objectives and structures your application logic. Here's why:
+
+1. **Define Your Workflow**: Tasks allow you to outline the steps of your process clearly. They create a roadmap for your AI application.
+2. **Set Clear Objectives**: Each task has a specific goal and expected output type, making it easier to measure success and integrate with your broader application.
+3. **Maintain Control**: Tasks give you fine-grained control over what the AI does at each step, ensuring your application behaves predictably.
+
+For many workflows, this may be enough! When you create a task without providing an agent, ControlFlow will automatically assign a default agent. This is a good starting point for simple tasks or when you're still exploring the problem space.
+
+### Add Agents to Steer Behavior
+
+Once you have your basic workflow defined with tasks, introduce agents to fine-tune the behavior of your AI. Agents are particularly useful when you need:
+
+1. **Specialized Expertise**: When a task requires specific knowledge or skills.
+2. **Consistent Personality**: To maintain a particular tone or approach across multiple tasks.
+3. **Access to Specific Tools**: When certain tasks require the use of specialized functions or APIs.
+
+Here's a comparison of a simple analysis workflow using only tasks and an advanced version with specialized agents. Notice that the only real difference is the assignment of agents to configure how each task is performed:
+
+<CodeGroup>
+```python Only Tasks
+import controlflow as cf
+
+@cf.flow
+def simple_analysis_flow(text: str):
+    sentiment_task = cf.Task(
+        "Analyze the sentiment of the given text",
+        context={"text": text},
+        result_type=float
+    )
+    
+    summary_task = cf.Task(
+        "Summarize the main points of the text in bullet points",
+        context={"text": text},
+        result_type=list[str]
+    )
+    
+    recommendation_task = cf.Task(
+        "Based on the sentiment and summary, provide a recommendation",
+        context={"sentiment": sentiment_task, "summary": summary_task},
+        result_type=str
+    )
+    
+    return {
+        "sentiment": sentiment_task,
+        "summary": summary_task,
+        "recommendation": recommendation_task
+    }
+
+result = simple_analysis_flow(
+    """
+    There is a theory which states that if ever anyone discovers exactly what the
+    Universe is for and why it is here, it will instantly disappear and be replaced
+    by something even more bizarrely inexplicable.
+
+    There is another theory which states that this has already happened.
+    """)
+```
+
+```python Tasks and Agents
+import controlflow as cf
+
+sentiment_analyst = cf.Agent(
+    name="SentimentExpert",
+    instructions="Focus on nuanced emotional cues in the text. Consider context and potential sarcasm."
+)
+
+summarizer = cf.Agent(
+    name="Summarizer",
+    instructions="Prioritize conciseness. Aim for no more than 5 main points in bullet-point format."
+)
+
+strategist = cf.Agent(
+    name="StrategicAdvisor",
+    instructions="Provide actionable recommendations based on the sentiment and key points. Consider both positive and negative scenarios."
+)
+
+@cf.flow
+def advanced_analysis_flow(text: str):
+    sentiment_task = cf.Task(
+        "Analyze the sentiment of the given text",
+        context={"text": text},
+        result_type=float,
+        agents=[sentiment_analyst]
+    )
+    
+    summary_task = cf.Task(
+        "Summarize the main points of the text in bullet points",
+        context={"text": text},
+        result_type=list[str],
+        agents=[summarizer]
+    )
+    
+    recommendation_task = cf.Task(
+        "Based on the sentiment and summary, provide a recommendation",
+        context={"sentiment": sentiment_task, "summary": summary_task},
+        result_type=str,
+        agents=[strategist]
+    )
+    
+    return {
+        "sentiment": sentiment_task,
+        "summary": summary_task,
+        "recommendation": recommendation_task
+    }
+
+result = advanced_analysis_flow(
+    """
+    There is a theory which states that if ever anyone discovers exactly what the
+    Universe is for and why it is here, it will instantly disappear and be replaced
+    by something even more bizarrely inexplicable.
+
+    There is another theory which states that this has already happened.
+    """)
+```
+</CodeGroup>
+### Advanced Agent Usage
+
+As you become more comfortable with ControlFlow and your use cases become more complex, you can explore advanced agent features:
+
+1. **Multi-Agent Collaboration**: Assign multiple agents to a single task to leverage diverse perspectives.
+2. **Dynamic Task Generation**: Use agents to create new tasks on the fly based on intermediate results.
+3. **Agent-Specific Memory**: Leverage the unique perspectives and "memories" of different agents to solve complex problems.
+
+However, these advanced features should be introduced gradually and only when necessary. Always start with a clear task structure and add complexity incrementally.

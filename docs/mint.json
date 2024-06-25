@@ -7,11 +7,6 @@
             "url": "https://github.com/PrefectHQ/ControlFlow"
         },
         {
-            "icon": "book-open-cover",
-            "name": "Docs",
-            "url": "welcome"
-        },
-        {
             "icon": "slack",
             "name": "Community",
             "url": "https://prefect.io/slack?utm_source=controlflow&utm_medium=docs"
@@ -70,6 +65,7 @@
         {
             "group": "Guides",
             "pages": [
+                "guides/tasks-and-agents",
                 "guides/llms",
                 "guides/workflow-apis",
                 "guides/execution-modes",
@@ -88,7 +84,8 @@
             "group": "Examples",
             "pages": [
                 "examples/library",
-                "examples/rock_paper_scissors"
+                "examples/rock-paper-scissors",
+                "examples/call-routing"
             ]
         },
         {
@@ -140,7 +137,6 @@
             "url": "glossary"
         }
     ],
-    "theme": "quill",
     "topbarCtaButton": {
         "type": "github",
         "url": "https://github.com/PrefectHQ/ControlFlow"
