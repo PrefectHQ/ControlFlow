@@ -93,8 +93,12 @@ class Settings(ControlFlowSettings):
 
     # ------------ Debug settings ------------
 
-    raise_on_tool_error: bool = Field(
+    tools_raise_on_error: bool = Field(
         False, description="If True, an error in a tool call will raise an exception."
+    )
+
+    tools_verbose: bool = Field(
+        False, description="If True, tools will log additional information."
     )
 
     # ------------ Prefect settings ------------
@@ -166,9 +170,9 @@ def temporary_settings(**kwargs: Any):
         import controlflow
         from controlflow.settings import temporary_settings
 
-        with temporary_settings(raise_on_tool_error=True):
-            assert controlflow.settings.raise_on_tool_error is True
-        assert controlflow.settings.raise_on_tool_error is False
+        with temporary_settings(tools_raise_on_error=True):
+            assert controlflow.settings.tools_raise_on_error is True
+        assert controlflow.settings.tools_raise_on_error is False
         ```
     """
     old_settings = copy.deepcopy(settings.model_dump(exclude={"_prefect_context"}))

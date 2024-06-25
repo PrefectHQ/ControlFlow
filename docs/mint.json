@@ -81,10 +81,16 @@
             ]
         },
         {
+            "group": "Library",
+            "pages": [
+                "examples/library"
+            ]
+        },
+        {
             "group": "Examples",
             "pages": [
-                "examples/library",
                 "examples/rock-paper-scissors",
+                "examples/agent-engineer",
                 "examples/call-routing"
             ]
         },

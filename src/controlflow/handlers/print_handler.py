@@ -9,6 +9,7 @@ from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.table import Table
 
+import controlflow
 from controlflow.llm.handlers import CompletionHandler
 from controlflow.llm.messages import (
     AIMessage,
@@ -164,11 +165,22 @@ def format_message(message: MessageType, tool_results: dict = None) -> Panel:
 
 def format_tool_call(tool_call: ToolCall) -> Panel:
     name = tool_call["name"]
+    args = tool_call["args"]
+    if controlflow.settings.tools_verbose:
+        return status(Spinner("dots"), f'Tool call: "{name}"\n\nTool args: {args}')
     return status(Spinner("dots"), f'Tool call: "{name}"')
 
 
 def format_tool_result(message: ToolMessage) -> Panel:
     name = message.tool_call["name"]
+
     if message.is_error:
-        return status(":x:", f'Tool call: "{name}"')
-    return status(":white_check_mark:", f'Tool call: "{name}"')
+        icon = ":x:"
+    else:
+        icon = ":white_check_mark:"
+
+    if controlflow.settings.tools_verbose:
+        msg = f'Tool call: "{name}"\n\nTool result: {message.str_content}'
+    else:
+        msg = f'Tool call: "{name}"'
+    return status(icon, msg)
