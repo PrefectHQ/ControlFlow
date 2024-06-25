@@ -77,33 +77,38 @@ class Tool(ControlFlowModel):
     def from_function(
         cls, fn: Callable, name: str = None, description: str = None, **kwargs
     ):
+        description = description or fn.__doc__ or ""
+
+        signature = inspect.signature(fn)
         parameters = TypeAdapter(fn).json_schema()
 
         # load parameter descriptions
-        for param in inspect.signature(fn).parameters.values():
+        for param in signature.parameters.values():
             # handle Annotated type hints
-            if (
-                # param.annotation is not inspect.Parameter.empty
-                # and
-                typing.get_origin(param.annotation) is Annotated
-            ):
-                description = " ".join(
+            if typing.get_origin(param.annotation) is Annotated:
+                param_description = " ".join(
                     str(a) for a in typing.get_args(param.annotation)[1:]
                 )
-
             # handle pydantic Field descriptions
             elif param.default is not inspect.Parameter.empty and isinstance(
                 param.default, pydantic.fields.FieldInfo
             ):
-                description = param.default.description
+                param_description = param.default.description
             else:
-                continue
+                param_description = None
 
-            parameters["properties"][param.name]["description"] = description
+            if param_description:
+                parameters["properties"][param.name]["description"] = param_description
+
+        # Handle return type description
+        return_type = signature.return_annotation
+        if return_type is not inspect._empty:
+            return_schema = TypeAdapter(return_type).json_schema()
+            description += f"\n\nReturn value schema: {return_schema}"
 
         return cls(
             name=name or fn.__name__,
-            description=description or fn.__doc__ or fn.__name__,
+            description=description,
             parameters=parameters,
             fn=fn,
             **kwargs,

@@ -8,6 +8,7 @@ from .controllers import Controller
 
 from .instructions import instructions
 from .decorators import flow, task
+from .llm.tools import tool
 
 # --- Default settings ---
 
