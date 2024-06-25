@@ -45,7 +45,7 @@ class TestToolFunctions:
         elif style == "decorator":
             roll_die_tool = tool(roll_die)
 
-        assert roll_die_tool.description == "roll_die"
+        assert roll_die_tool.description == "(No description provided)"
 
     def test_tool_gets_docstring_from_description(self, style):
         def roll_die():

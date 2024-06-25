@@ -87,7 +87,12 @@ class Agent(ControlFlowModel):
         """
         Retrieve the LLM model for this agent
         """
-        return self.model or get_default_model()
+        try:
+            return self.model or get_default_model()
+        except Exception as exc:
+            raise ValueError(
+                f"Agent {self.name}: No model provided and no default model could be loaded: {exc}"
+            ) from exc
 
     def get_llm_rules(self) -> LLMRules:
         """

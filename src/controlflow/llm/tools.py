@@ -77,7 +77,7 @@ class Tool(ControlFlowModel):
     def from_function(
         cls, fn: Callable, name: str = None, description: str = None, **kwargs
     ):
-        description = description or fn.__doc__ or ""
+        description = description or fn.__doc__ or "(No description provided)"
 
         signature = inspect.signature(fn)
         parameters = TypeAdapter(fn).json_schema()
