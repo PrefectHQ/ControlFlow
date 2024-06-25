@@ -9,7 +9,7 @@
         {
             "icon": "book-open-cover",
             "name": "Docs",
-            "url": "/"
+            "url": "welcome"
         },
         {
             "icon": "slack",
@@ -28,7 +28,8 @@
     },
     "favicon": "/assets/brand/controlflow_logo.svg",
     "footerSocials": {
-        "github": "https://github.com/PrefectHQ/ControlFlow"
+        "github": "https://github.com/PrefectHQ/ControlFlow",
+        "slack": "https://prefect.io/slack?utm_source=controlflow&utm_medium=docs"
     },
     "logo": {
         "dark": "/assets/brand/controlflow_logo_pink_black_bg.svg",
@@ -126,6 +127,9 @@
             ]
         }
     ],
+    "search": {
+        "prompt": "Ask Marvin..."
+    },
     "tabs": [
         {
             "name": "Examples",
@@ -136,6 +140,7 @@
             "url": "glossary"
         }
     ],
+    "theme": "prism",
     "topbarCtaButton": {
         "type": "github",
         "url": "https://github.com/PrefectHQ/ControlFlow"
