@@ -293,3 +293,5 @@ WRITE_TOOLS = [
     delete,
     concat,
 ]
+
+ALL_TOOLS = READ_TOOLS + WRITE_TOOLS
