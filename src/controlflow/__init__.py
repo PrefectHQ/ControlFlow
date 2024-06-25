@@ -12,12 +12,12 @@ from .llm.tools import tool
 
 # --- Default settings ---
 
-from .llm.models import model_from_string, get_default_model
+from .llm.models import get_default_model, _get_initial_default_model
 from .flows.history import InMemoryHistory, get_default_history
 
 # assign to controlflow.default_model to change the default model
-default_model = model_from_string(settings.llm_model)
-del model_from_string
+default_model = _get_initial_default_model()
+del _get_initial_default_model
 
 # assign to controlflow.default_history to change the default history
 default_history = InMemoryHistory()
