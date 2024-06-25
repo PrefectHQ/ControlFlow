@@ -1,0 +1,73 @@
+---
+title: Customer Call Routing
+---
+
+In this example, two agents interact in a call routing scenario. One agent plays the role of a customer calling into a call center, while the other agent is a trainee customer service representative. The trainee must listen to the customer's story and route them to the correct department based on the information provided.
+
+
+```python
+import random
+from enum import Enum
+import controlflow as cf
+
+
+class Department(Enum):
+    SALES = "sales"
+    SUPPORT = "support"
+    BILLING = "billing"
+    TECHNICAL = "technical"
+    RETURNS = "returns"
+    
+
+
+@cf.flow
+def routing_flow():
+    department = random.choice(list(Department))
+
+    # create an agent to be our "customer"
+    customer = cf.Agent(
+        "Customer",
+        instructions=f"""
+            You are training customer reps by pretending to be a customer
+            calling into a call center. You need to be routed to the
+            {department} department. Come up with a good backstory.""",
+    )
+
+    trainee = cf.Agent(
+        "Trainee",
+        instructions="""
+            You are a trainee customer service representative. You need to
+            listen to the customer's story and route them to the correct
+            department. Note that the customer is another agent training you.""",
+    )
+
+    task = cf.Task(
+        """
+        In this task, the customer agent and the trainee agent will speak to
+        each other. The customer is trying to be routed to the correct
+        department. The trainee will listen and ask questions to determine the
+        correct department. 
+        """,
+        instructions="""
+        Only the trainee can mark the task successful by routing the customer to
+        the correct department. The trainee must begin the conversation by
+        greeting the customer. Agents speak to each other by posting messages
+        directly to the thread. Do not use the `end_turn` tool or try to talk 
+        to a user.
+        """,
+        agents=[trainee, customer],
+        result_type=Department,
+    )
+
+    routed_dapartment = task.run()
+    if routed_dapartment == department:
+        print("Success! The customer was routed to the correct department.")
+    else:
+        print(
+            "Failed. The customer was routed to the wrong department. "
+            f"The correct department was {department}."
+        )
+
+if __name__ == "__main__":
+    routing_flow()
+````
