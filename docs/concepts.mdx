@@ -2,39 +2,58 @@
 title: Core Concepts
 ---
 
+ControlFlow is a Python framework for building AI-powered applications using large language models (LLMs). It provides a structured, task-centric approach to create sophisticated workflows that leverage the power of AI while adhering to traditional software engineering best practices.
 
-ControlFlow is a Python framework for building AI-powered applications using large language models (LLMs). It provides a structured and intuitive way to create sophisticated workflows that leverage the power of AI while adhering to traditional software engineering best practices.
+At the core of ControlFlow are three key concepts: Tasks, Agents, and Flows. Understanding how these elements work together is crucial to building effective AI workflows.
 
-At the core of ControlFlow are three key concepts: Tasks, Flows, and Agents.
+## Tasks: The Building Blocks
 
-## Tasks
+Tasks are the fundamental building blocks of ControlFlow workflows. Each task represents a discrete objective or goal that needs to be accomplished, such as generating text, classifying data, or extracting information from a document. Tasks define WHAT needs to be done in your AI workflow.
 
-Tasks are the building blocks of ControlFlow workflows. Each task represents a discrete objective or goal that an AI agent needs to solve, such as generating text, classifying data, or extracting information from a document. Tasks are defined using a declarative approach, specifying the objective, instructions, expected result type, and any required context or tools.
+Key characteristics of tasks include:
+
+- Clear objectives and expected result types
+- Declarative definition of requirements and constraints
+- Integration with traditional software through validated outputs
 
 ControlFlow provides two ways to create tasks:
 
-1. Using the `Task` class, which allows you to explicitly define all properties of a task.
-2. Using the `@task` decorator on a Python function, which automatically infers task properties from the function definition.
+1. Using the `Task` class for explicit definition of all task properties.
+2. Using the `@task` decorator on Python functions, which automatically infers task properties from the function definition.
 
-Tasks can depend on each other in various ways, such as sequential dependencies (one task must be completed before another can start), context dependencies (the result of one task is used as input for another), or subtask dependencies (a task has subtasks that must be completed before the parent task can be considered done).
+## Agents: The Performers
 
+Agents in ControlFlow are AI "workers" responsible for executing tasks. They determine HOW tasks are accomplished. Each agent can have distinct instructions, personality, and capabilities, tailored to specific roles or domains.
 
-## Agents
+Key aspects of agents include:
 
-Agents are the AI "workers" responsible for executing tasks within a flow. Each agent can have distinct instructions, personality, and capabilities, tailored to specific roles or domains. Agents are assigned to tasks based on their suitability and availability.
+- Specialized configuration for different types of tasks
+- Access to specific tools or APIs
+- Ability to interact with users and other agents when necessary
 
-ControlFlow allows you to create specialized agents equipped with relevant tools and instructions to tackle specific tasks efficiently. Agents can interact with each other and with human users (if given user access) to gather information, make decisions, and complete tasks collaboratively.
+Agents are assigned to tasks based on their suitability and availability. This separation of "what" (tasks) and "how" (agents) allows for flexible and powerful workflows.
 
-## Flows
+## Flows: The Orchestrators
 
-Flows are high-level containers that encapsulate and orchestrate entire AI-powered workflows. They provide a structured way to manage tasks, agents, tools, and shared context. A flow maintains a consistent state across all its components, allowing agents to communicate and collaborate effectively.
+Flows are high-level containers that encapsulate and orchestrate entire AI-powered workflows. They provide a structured way to manage tasks, agents, tools, and shared context.
+
+Key features of flows include:
+
+- Maintaining a consistent state across all components
+- Managing the execution order of tasks based on dependencies
+- Providing a shared context for agent collaboration
 
 ## Putting It All Together
 
-When designing workflows in ControlFlow, you break down your application logic into discrete tasks, define the dependencies and relationships between them, and assign suitable agents to execute them. Flows provide a high-level orchestration mechanism to manage the execution of tasks, handle data flow, and maintain a shared context.
+When designing workflows in ControlFlow:
+
+1. Break down your application logic into discrete tasks.
+2. Define the dependencies and relationships between tasks.
+3. Create specialized agents as needed for specific types of tasks.
+4. Use flows to orchestrate the execution of tasks and manage agent interactions.
 
 ControlFlow seamlessly integrates with existing Python codebases, treating AI tasks as first-class citizens. You can mix imperative and declarative programming styles, leverage Python's control flow and error handling capabilities, and gradually adopt AI capabilities into your applications.
 
 Under the hood, ControlFlow utilizes Prefect, a popular workflow orchestration tool, to provide observability, monitoring, and management features. This allows you to track the progress of your workflows, identify bottlenecks, and optimize performance.
 
-By adhering to software engineering best practices, such as modularity, error handling, and documentation, ControlFlow enables you to build robust, maintainable, and trustworthy AI-powered applications.
+By adhering to software engineering best practices such as modularity, error handling, and clear interfaces between AI and traditional code, ControlFlow enables you to build robust, maintainable, and trustworthy AI-powered applications.
