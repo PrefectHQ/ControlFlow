@@ -8,21 +8,7 @@ env:
 on:
   push:
     branches: ["main"]
-    paths:
-      - .github/workflows/run-tests.yml
-      - src/**
-      - tests/**
-      - pyproject.toml
-      - setup.py
-
   pull_request:
-    paths:
-      - .github/workflows/run-tests.yml
-      - src/**
-      - tests/**
-      - pyproject.toml
-      - setup.py
-
   workflow_dispatch:
 
 permissions:
