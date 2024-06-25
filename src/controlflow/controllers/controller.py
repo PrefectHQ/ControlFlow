@@ -320,7 +320,8 @@ class Controller(ControlFlowModel):
                     any(t.is_incomplete() for t in self.tasks) and not self._should_stop
                 ):
                     new_messages = await self.run_once_async()
-                    messages.extend(new_messages)
+                    if new_messages:
+                        messages.extend(new_messages)
             self._should_stop = False
             return messages
 
@@ -337,6 +338,7 @@ class Controller(ControlFlowModel):
         with self.flow:
             while any(t.is_incomplete() for t in self.tasks) and not self._should_stop:
                 new_messages = self.run_once()
-                messages.extend(new_messages)
+                if new_messages:
+                    messages.extend(new_messages)
         self._should_stop = False
         return messages
