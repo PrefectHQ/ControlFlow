@@ -139,7 +139,7 @@ jsonschema-specifications==2023.12.1
     # via jsonschema
 langchain-anthropic==0.1.15
     # via controlflow
-langchain-core==0.2.4
+langchain-core==0.2.9
     # via controlflow
     # via langchain-anthropic
     # via langchain-openai
