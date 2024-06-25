@@ -140,7 +140,7 @@
             "url": "glossary"
         }
     ],
-    "theme": "prism",
+    "theme": "quill",
     "topbarCtaButton": {
         "type": "github",
         "url": "https://github.com/PrefectHQ/ControlFlow"
