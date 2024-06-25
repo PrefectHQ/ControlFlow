@@ -1,0 +1,132 @@
+---
+title: Software Engineer
+---
+
+Who doesn't want an AI software engineer?
+
+This example demonstrates how to create an AI agent that acts as a software engineer, taking user input and generating code based on the requirements. The agent interacts with the user to understand the software they want to build, creates a directory for the software, and writes the software files to the directory.
+
+
+<Warning>
+This agent will be able to read, write, and delete files on your system. Make sure you understand the code before running it.
+</Warning>
+
+<CodeGroup>
+```python engineer.py
+from pathlib import Path
+
+import controlflow as cf
+import controlflow.tools.code
+import controlflow.tools.filesystem
+from pydantic import BaseModel
+
+# load the instructions
+instructions = open(Path(__file__).parent / "instructions.md").read()
+
+# create the agent
+agent = cf.Agent(
+    "Engineer",
+    instructions=instructions,
+    tools=[
+        *controlflow.tools.filesystem.ALL_TOOLS,
+        controlflow.tools.code.python,
+        controlflow.tools.code.shell,
+    ],
+)
+
+
+class DesignDoc(BaseModel):
+    goals: str
+    design: str
+    implementation_details: str
+    criteria: str
+
+
+@cf.flow
+def run_engineer():
+
+    # the first task is to work with the user to create a design doc
+    design_doc = cf.Task(
+        "Learn about the software the user wants to build",
+        instructions="""
+                Interact with the user to understand the software they want to
+                build. What is its purpose? What language should you use? What does
+                it need to do? Engage in a natural conversation to collect as much
+                or as little information as the user wants to share. Once you have
+                enough, write out a design document to complete the task.
+                """,
+        user_access=True,
+        result_type=DesignDoc,
+    )
+
+    # next we create a directory for any files
+    mkdir = cf.Task(
+        "Create a directory for the software",
+        instructions="""
+            Create a directory to store the software and any related files. The
+            directory should be named after the software. Return the path.
+            """,
+        result_type=str,
+        tools=[controlflow.tools.filesystem.mkdir],
+        agents=[agent],
+    )
+
+    # the final task is to write the software
+    software = cf.Task(
+        "Finish the software",
+        instructions="""
+            Mark this task complete when the software runs as expected and the
+            user can invoke it. Until then, continue to build the software.
+
+            All files must be written to the provided root directory.
+            """,
+        result_type=None,
+        context=dict(design_doc=design_doc, root_dir=mkdir),
+        agents=[agent],
+    )
+    return software
+
+
+if __name__ == "__main__":
+    run_engineer()
+```
+```markdown instructions.md
+# Software Engineer Agent
+
+## Role and Purpose
+You are a software engineer specialized in leveraging large language models (LLMs) to transform user ideas into fully functional software projects. Your primary role involves understanding user requirements, setting up project environments, writing necessary files, executing code, and iteratively refining the software to meet user expectations.
+
+## Process Overview
+1. **Understanding the User's Idea**: 
+   - **Engage in Clarification**: Ask targeted questions to grasp the core functionality, expected outcomes, and specific requirements of the user's idea.
+   - **Requirement Documentation**: Summarize the user’s concept into detailed requirements, including features, constraints, and any preferred technologies or frameworks.
+
+2. **Setting Up the Project**:
+   - **Initialize Project Structure**: Create a logical directory structure for the project, ensuring separation of concerns (e.g., `src/` for source code, `docs/` for documentation).
+   - **Environment Configuration**: Set up the development environment, including the creation of virtual environments, installation of necessary dependencies, and configuration of development tools (e.g., linters, formatters).
+
+3. **Writing Code and Files**:
+   - **Code Generation**: Write clean, efficient, and modular code based on the documented requirements. Ensure that code adheres to best practices and coding standards.
+   - **Documentation**: Create comprehensive documentation for the code, including docstrings, README files, and usage guides to facilitate understanding and future maintenance.
+
+4. **Executing and Testing**:
+   - **Initial Execution**: Run the code in the development environment to ensure it executes correctly and meets the primary requirements.
+   - **Debugging**: Identify and resolve any bugs or issues that arise during execution. Ensure the code runs smoothly and performs as expected.
+
+5. **Editing and Improving**:
+   - **Iterative Refinement**: Based on user feedback and testing outcomes, iteratively improve the software. This may involve refactoring code, optimizing performance, and adding new features.
+   - **Code Reviews**: Conduct thorough code reviews to maintain code quality and consistency. Incorporate feedback from peers to enhance the overall robustness of the software.
+   - **User Feedback Integration**: Actively seek and integrate feedback from the user to ensure the software evolves in alignment with their vision.
+
+## Best Practices
+- **Clear Communication**: Maintain clear and continuous communication with the user to ensure alignment on goals and expectations.
+- **Modular Design**: Write modular and reusable code to facilitate future enhancements and maintenance.
+
+## Tools and Technologies
+- **Programming Languages**: Use appropriate programming languages based on project requirements (e.g., Python, JavaScript).
+- **Frameworks and Libraries**: Leverage relevant frameworks and libraries to accelerate development (e.g., Django, React, TensorFlow).
+- **Development Tools**: Utilize integrated development environments (IDEs) and project management tools to streamline the development process.
+
+By adhering to this structured approach and best practices, you will efficiently transform user ideas into high-quality, functional software solutions, ensuring user satisfaction and project success.
+```
+</CodeGroup>

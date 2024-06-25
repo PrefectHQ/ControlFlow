@@ -7,10 +7,10 @@ from prefect.logging import get_logger
 
 
 def test_temporary_settings():
-    assert controlflow.settings.raise_on_tool_error is False
-    with temporary_settings(raise_on_tool_error=True):
-        assert controlflow.settings.raise_on_tool_error is True
-    assert controlflow.settings.raise_on_tool_error is False
+    assert controlflow.settings.tools_raise_on_error is False
+    with temporary_settings(tools_raise_on_error=True):
+        assert controlflow.settings.tools_raise_on_error is True
+    assert controlflow.settings.tools_raise_on_error is False
 
 
 def test_prefect_settings_apply_at_runtime(caplog):

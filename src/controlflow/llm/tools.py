@@ -221,7 +221,7 @@ def handle_tool_call(
     except Exception as exc:
         fn_output = f'Error calling function "{fn_name}": {exc}'
         is_error = True
-        if controlflow.settings.raise_on_tool_error:
+        if controlflow.settings.tools_raise_on_error:
             raise
 
     from controlflow.llm.messages import ToolMessage

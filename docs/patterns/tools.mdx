@@ -187,16 +187,32 @@ Using Pydantic models for tool return types helps ensure that the data returned 
 
 ## Debugging Tools
 
-If your tool raises an exception during execution, ControlFlow will capture the error and show it to the agent so the agent can try again. However, when devloping or testing workflows you may want to disable this behavior. ControlFlow offers a debug setting for raising exceptions when a tool fails instead of capturing them:
+### Verbose Logging
+
+By default, the PrintHandler will log tool calls and indicate whether the tool was successful or not. You can enable verbose logging to see more detailed information about the tool call, including the input parameters and the output:
 <CodeGroup>
 ```bash As an environment variable
-export CONTROLFLOW_RAISE_ON_TOOL_ERROR=true
+export CONTROLFLOW_TOOLS_VERBOSE=true
 ```
 
 ```python As a runtime setting
 import controlflow as cf
 
-cf.settings.raise_on_tool_error = True
+cf.settings.tools_verbose = True
+```
+</CodeGroup>
+
+### Raising Errors
+If your tool raises an exception during execution, ControlFlow will capture the error and show it to the agent so the agent can try again. However, when devloping or testing workflows you may want to disable this behavior. ControlFlow offers a debug setting for raising exceptions when a tool fails instead of capturing them:
+<CodeGroup>
+```bash As an environment variable
+export CONTROLFLOW_TOOLS_RAISE_ON_ERROR=true
+```
+
+```python As a runtime setting
+import controlflow as cf
+
+cf.settings.tools_raise_on_error = True
 ```
 </CodeGroup>
 
