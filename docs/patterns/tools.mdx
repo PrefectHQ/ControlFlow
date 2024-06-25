@@ -1,0 +1,214 @@
+---
+title: Tools
+---
+
+<Tip>
+Give you agents new abilities with custom tools.
+</Tip>
+
+A tool is a Python function that your agents can use to accomplish tasks. They let you extend the capabilities of your agents beyond their built-in knowledge and abilities, allowing them to interact with external systems, perform calculations, or access specific information. 
+
+Tools can be simple utility functions, complex data processing operations, or API calls to external services. Here's a basic example of a tool for rolling dice:
+
+```python
+import controlflow as cf
+import random
+
+def roll_die() -> int:
+    """Roll a 6-sided diee."""
+    return random.randint(1, 6)
+
+task = cf.Task(
+    objective="Roll a die, then roll again as many times as the first value", 
+    instructions="Report the history of rolls",
+    tools=[roll_die],
+)
+task.run()
+```
+
+## Best Practices
+
+Any Python function can be used as a tool, but you'll get the best performance with the following best practices.
+
+### Clear name and description
+
+The name and description of the tool are two of the most important pieces of information for an agent. They help the agent understand what the tool does and how it can be used. Make sure to provide a clear and concise name and description for your tool.
+
+The description is taken from your function's docstring, so be sure to include a detailed description of what the tool does and how it should be used. You can give natural language instructions on how to use the tool and what parameters it expects.
+
+### Type hints
+
+ControlFlow uses all available information to generate a parameter schema that tells an agent how to call the tool and what type of information to expect it to return. Type hints are a powerful way to provide this information. Here's an example of a tool with type hints:
+
+<CodeGroup>
+```python Weather
+def get_weather(location: str) -> float:
+    """Fetch weather data for the specified location."""
+    # Implementation details...
+```
+```python Velocity
+def calculate_velocity(distance: float, time: float) -> float:
+    """Calculate velocity by dividing distance by time."""
+    if time == 0:
+        raise ValueError("Time cannot be zero.")
+    return distance / time
+```
+</CodeGroup>
+
+
+
+#### Annotations
+If you use type annotations, ControlFlow will include the annotated details in the schema. This lets you give additional information about the expected input and output of the tool in a more structured way.
+<CodeGroup>
+```python Weather
+from typing import Annotated
+
+def get_weather(
+    location: Annotated[str, "The 5 or 9-digit zip code"],
+) -> Annotated[float, "The temperature in Farhenheit"]:
+    """Fetch weather data for the specified location."""
+    ...
+```
+
+
+
+```python Velocity
+from typing import Annotated
+
+def calculate_velocity(
+    distance: Annotated[float, "The distance in meters"],
+    time: Annotated[float, "The time in seconds"],
+) -> Annotated[float, "The velocity in meters per second"]:
+    """Calculate velocity by dividing distance by time."""
+    if time == 0:
+        raise ValueError("Time cannot be zero.")
+    return distance / time
+```
+</CodeGroup>
+
+Note that you can also provide this information in your docstring.
+
+#### Pydantic Models
+
+For tools that return complex data structures, you can use Pydantic models to define the return type. 
+
+```python
+from pydantic import BaseModel
+
+class WeatherData(BaseModel):
+    temperature: float
+    humidity: float
+    conditions: str
+
+@tool
+def get_detailed_weather(location: str) -> WeatherData:
+    """Get detailed weather information for a location."""
+    # Implementation details...
+    
+
+weather_task = cf.Task(
+    "Provide a weather report for New York",
+    tools=[get_detailed_weather]
+)
+```
+
+### Error Messages
+
+If your tool encounters an error, raise an exception with a clear message. The agent will be told that the tool call failed and shown the error message, giving them an opportunity to understand what went wrong and try to fix it.
+
+## Creating Tools
+
+ControlFlow supports the following types of tools:
+- Regular Python functions
+- Asynchronous Python functions (they are automatically run in an asynchronous context)
+- LangChain tools
+
+In most cases, you can use regular Python functions as tools without modification. However, if you need to customize how a function is converted to a tool, you can use the `@tool` decorator to override the inferred name and description. For example, this function has no docstring, so we use the decorator to provide a custom description:
+
+```python
+from controlflow import tool
+
+@tool(description="Get current weather for a location")
+def get_weather(location: str) -> dict:
+    #Implementation details...
+```
+
+## Using Tools
+
+Tools can be provided either to tasks or agents. When a tool is provided to a task, any agent working on that task will have access to the tool. When a tool is provided to an agent, the agent can use the tool in any task it is assigned to.
+
+### Providing Tools to Tasks
+
+You should provide tools to tasks when you know that a task will require specific capabilities to be completed successfully. For example, if a task requires access to a database or an external API, you can provide a tool that handles the interaction with that system:
+
+
+```python
+import controlflow as cf
+
+def search_database(query: str) -> list:
+    """Search the product database for items matching the query."""
+    # Implementation details...    
+
+def format_results(results: list) -> str:
+    """Format a list of search results into a readable string."""
+    # Implementation details...    
+
+product_search_task = cf.Task(
+    "Find and summarize products matching the user's query",
+    tools=[search_database, format_results],
+    user_access=True
+)
+```
+
+In this example, the `product_search_task` is equipped with tools to search a database and format the results. Any agent assigned to this task will have access to these tools.
+
+### Providing Tools to Agents
+
+You can also provide tools directly to agents, allowing them to use the tools in any task they are assigned to. This can be useful when you have an agent that needs to perform a specific action across multiple tasks:
+
+```python
+import controlflow as cf
+
+def search_database(query: str) -> list:
+    """Search the product database for items matching the query."""
+    # Implementation details...    
+
+def format_results(results: list) -> str:
+    """Format a list of search results into a readable string."""
+    # Implementation details...    
+
+agent = cf.Agent(
+    "Product Search Agent",
+    tools=[search_database, format_results]
+)
+```
+
+Using Pydantic models for tool return types helps ensure that the data returned by the tool is properly structured and validated.
+
+## Debugging Tools
+
+If your tool raises an exception during execution, ControlFlow will capture the error and show it to the agent so the agent can try again. However, when devloping or testing workflows you may want to disable this behavior. ControlFlow offers a debug setting for raising exceptions when a tool fails instead of capturing them:
+<CodeGroup>
+```bash As an environment variable
+export CONTROLFLOW_RAISE_ON_TOOL_ERROR=true
+```
+
+```python As a runtime setting
+import controlflow as cf
+
+cf.settings.raise_on_tool_error = True
+```
+</CodeGroup>
+
+## When to Use Tools
+
+Tools are particularly useful in scenarios where:
+
+1. The task requires access to external data or systems
+2. Complex calculations or data processing are needed
+3. The agent needs to perform actions that are beyond its inherent capabilities
+4. You want to ensure consistent handling of certain operations across multiple tasks
+
+By providing appropriate tools, you can significantly enhance the problem-solving capabilities of your AI agents and create more powerful and flexible workflows.
+
+Remember that while tools are powerful, they should be used judiciously. Provide only the tools that are necessary for the task at hand to avoid overwhelming the agent with too many options.

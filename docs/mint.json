@@ -47,7 +47,7 @@
             ]
         },
         {
-            "group": "Concepts",
+            "group": "Core Concepts",
             "pages": [
                 "concepts/tasks",
                 "concepts/agents",
@@ -58,6 +58,7 @@
             "group": "Patterns",
             "pages": [
                 "patterns/result-types",
+                "patterns/tools",
                 "patterns/dependencies",
                 "patterns/subtasks",
                 "patterns/user-input",
