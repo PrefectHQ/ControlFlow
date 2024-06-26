@@ -1,6 +1,7 @@
 import controlflow
 from controlflow.agents import Agent, get_default_agent
 from controlflow.agents.names import NAMES
+from controlflow.instructions import instructions
 from controlflow.tasks.task import Task
 from langchain_openai import ChatOpenAI
 
@@ -25,6 +26,12 @@ class TestAgentInitialization:
         # None indicates it will be loaded from the default model
         assert agent.model is model
         assert agent.get_model() is model
+
+    def test_agent_loads_instructions_at_creation(self):
+        with instructions("test instruction"):
+            agent = Agent()
+
+        assert "test instruction" in agent.instructions
 
 
 class TestDefaultAgent:

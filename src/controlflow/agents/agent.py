@@ -8,6 +8,7 @@ from langchain_core.language_models import BaseChatModel
 from pydantic import Field, field_serializer
 
 import controlflow
+from controlflow.instructions import get_instructions
 from controlflow.llm.models import get_default_model
 from controlflow.llm.rules import LLMRules
 from controlflow.tools.talk_to_user import talk_to_user
@@ -72,6 +73,13 @@ class Agent(ControlFlowModel):
     def __init__(self, name=None, **kwargs):
         if name is not None:
             kwargs["name"] = name
+
+        if additional_instructions := get_instructions():
+            kwargs["instructions"] = (
+                kwargs.get("instructions")
+                or "" + "\n" + "\n".join(additional_instructions)
+            ).strip()
+
         super().__init__(**kwargs)
 
     def serialize_for_prompt(self) -> dict:

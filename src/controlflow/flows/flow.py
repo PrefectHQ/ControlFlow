@@ -5,8 +5,6 @@ from typing import Any, Callable, Optional, Union
 
 from pydantic import Field
 
-import controlflow
-import controlflow.llm
 from controlflow.agents import Agent
 from controlflow.flows.history import History, get_default_history
 from controlflow.llm.messages import MessageType
@@ -99,7 +97,9 @@ class Flow(ControlFlowModel):
         Runs one step of the flow asynchronously.
         """
         if self.tasks:
-            controller = controlflow.Controller(
+            from controlflow.controllers import Controller
+
+            controller = Controller(
                 flow=self,
                 tasks=list(self.tasks.values()),
             )
@@ -110,7 +110,9 @@ class Flow(ControlFlowModel):
         Runs one step of the flow.
         """
         if self.tasks:
-            controller = controlflow.Controller(
+            from controlflow.controllers import Controller
+
+            controller = Controller(
                 flow=self,
                 tasks=list(self.tasks.values()),
             )
@@ -121,7 +123,9 @@ class Flow(ControlFlowModel):
         Runs the flow asynchronously.
         """
         if self.tasks:
-            controller = controlflow.Controller(
+            from controlflow.controllers import Controller
+
+            controller = Controller(
                 flow=self,
                 tasks=list(self.tasks.values()),
             )
@@ -132,7 +136,9 @@ class Flow(ControlFlowModel):
         Runs the flow.
         """
         if self.tasks:
-            controller = controlflow.Controller(
+            from controlflow.controllers import Controller
+
+            controller = Controller(
                 flow=self,
                 tasks=list(self.tasks.values()),
             )

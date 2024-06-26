@@ -8,7 +8,7 @@ logger = get_logger(__name__)
 
 
 @contextmanager
-def instructions(*instructions: str) -> Generator[list[str], None, None]:
+def instructions(instructions: str) -> Generator[list[str], None, None]:
     """
     Temporarily add instructions to the current instruction stack. The
     instruction is removed when the context is exited.
@@ -17,13 +17,9 @@ def instructions(*instructions: str) -> Generator[list[str], None, None]:
         ...
 
     """
-    filtered_instructions = [i for i in instructions if i]
-    if not filtered_instructions:
-        yield
-        return
 
     stack: list[str] = ctx.get("instructions", [])
-    with ctx(instructions=stack + list(filtered_instructions)):
+    with ctx(instructions=stack + [instructions]):
         yield
 
 
