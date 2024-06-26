@@ -1,0 +1,96 @@
+---
+title: Ad-hoc Instructions
+---
+
+<Tip>
+Provide ad-hoc guidance to agents without modifying tasks.
+</Tip>
+
+While tasks provide a structured way to define objectives and deliverables, there may be situations where you need to provide ad-hoc guidance or instructions to your agents. For example, if an agent is writing a post, you might want to tell it to focus on a specific topic or tone, or meet a certain minimum or maximum length. If an agent is communicating with a user, you might tell it to adopt a particular persona or use a specific style of language. You might also want to adjust a task's instructions based on some runtime condition.
+
+ControlFlow addresses this need with the `instructions()` context manager. With `instructions()`, you can provide additional guidance to agents that is either permanent (when creating tasks) or temporary (when running tasks), without altering the underlying task definition.
+
+```python
+import controlflow as cf
+
+task = cf.Task("Get the user's name", user_access=True)
+
+with cf.instructions("Talk like a pirate"):
+    task.run()
+```
+
+This feature allows you to dynamically steer agent behavior based on runtime conditions or specific requirements that arise during the workflow execution.
+
+## When to Use Instructions
+
+Use `instructions()` when you need to:
+
+1. Provide temporary guidance for a specific task execution or agent interaction
+2. Dynamically adjust agent behavior based on runtime conditions or user input
+3. Experiment with different agent personalities or writing styles without modifying the underlying task
+4. Enforce specific constraints or requirements for a portion of the workflow
+
+## Usage
+
+The `instructions()` context manager is used as follows:
+
+```python
+with cf.instructions(guidance):
+    # create or run tasks or agents here
+```
+
+The effect of the instructions depends on whether you're creating or running tasks within the context manager block:
+
+- When creating a task inside an `instructions()` block, the instructions are permanently attached to the task. They will apply whenever the task is run, even outside the block.
+- When running a task inside an `instructions()` block, the instructions are temporary and only apply for that specific execution. They do not permanently modify the task. However, they will be applied to *any* agent activity performed in the block, including working on any incomplete upstream dependencies of the task you ran.
+
+
+### Providing instructions for specific agent interactions
+
+You can use `instructions()` with `run_once()` in a loop to provide targeted, temporary guidance for specific agent interactions within a task. This is particularly useful when you want to steer the agent's behavior based on the current state of the task or external conditions.
+
+```python
+import controlflow as cf
+
+@cf.flow
+def guided_conversation_flow():
+    conversation = cf.Task("Have a conversation with the user", user_access=True)
+
+    while conversation.is_incomplete():
+        if some_condition:
+            with cf.instructions("Steer the conversation towards travel"):
+                conversation.run_once()
+        elif some_other_condition:
+            with cf.instructions("Try to wrap up the conversation politely"):
+                conversation.run_once()
+        else:
+            conversation.run_once()
+
+    return conversation.result
+```
+
+In this example, the instructions provided in each iteration of the loop only apply to that specific agent interaction. This allows you to dynamically guide the conversation based on external conditions without permanently modifying the task.
+
+### Why not just use the `instructions` parameter?
+
+Tasks and agents have an `instructions` parameter that allows you to provide permanent guidance as part of the task definition. If possible, you should use this parameter instead of the context manager to make your intent explicit. 
+
+However, the `instructions()` context manager is useful when you need to:
+
+- Conditionally attach instructions based on runtime conditions
+- Provide temporary instructions that only apply for a specific execution or agent interaction
+- Apply instructions to multiple tasks or agents at once
+- Experiment with different instructions without modifying the task definition
+
+In these cases, the `instructions()` context manager provides a flexible way to provide ad-hoc guidance without having to modify the core task definition.
+
+
+## Best Practices
+
+1. Keep instructions concise and clear. Overly verbose or complicated instructions can confuse the agent.
+2. Be specific about what you want the agent to do differently. Vague instructions like "do better" are less helpful than targeted guidance like "use shorter sentences."
+3. Consider the scope and permanence of your instructions. Applying permanent instructions at task creation will have a lasting impact, while temporary instructions at execution or interaction are more ephemeral.
+4. Use instructions judiciously. Overusing ad-hoc instructions can lead to inconsistent agent behavior and make your workflow harder to understand and maintain.
+5. Prefer the `instructions` parameter for truly permanent guidance. Only use the context manager when you need the added flexibility or temporary nature.
+
+By using the `instructions()` context manager appropriately, you can fine-tune agent behavior on the fly, adapting to the dynamic needs of your workflow without sacrificing the structure and reusability provided by well-defined tasks. The ability to provide targeted guidance for specific agent interactions using `run_once()` further enhances the power and flexibility of this feature.

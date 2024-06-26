@@ -55,9 +55,10 @@
             "pages": [
                 "patterns/result-types",
                 "patterns/tools",
+                "patterns/instructions",
+                "patterns/user-input",
                 "patterns/dependencies",
                 "patterns/subtasks",
-                "patterns/user-input",
                 "patterns/planning",
                 "patterns/stopping-tasks-early"
             ]

@@ -302,7 +302,9 @@ class Task(ControlFlowModel):
                 "Task.run_once() must be called within a flow context or with a flow argument."
             )
 
-        controller = controlflow.Controller(
+        from controlflow.controllers import Controller
+
+        controller = Controller(
             tasks=[self], flow=flow, agents={self: agents} if agents else None
         )
         controller.run_once()
@@ -321,7 +323,9 @@ class Task(ControlFlowModel):
                 "Task.run_once_async() must be called within a flow context or with a flow argument."
             )
 
-        controller = controlflow.Controller(
+        from controlflow.controllers import Controller
+
+        controller = Controller(
             tasks=[self], flow=flow, agents={self: agents} if agents else None
         )
         await controller.run_once_async()
@@ -348,7 +352,9 @@ class Task(ControlFlowModel):
             else:
                 flow = Flow()
 
-        controller = controlflow.Controller(
+        from controlflow.controllers import Controller
+
+        controller = Controller(
             tasks=[self], flow=flow, agents={self: agents} if agents else None
         )
         controller.run()
@@ -380,7 +386,9 @@ class Task(ControlFlowModel):
             else:
                 flow = Flow()
 
-        controller = controlflow.Controller(
+        from controlflow.controllers import Controller
+
+        controller = Controller(
             tasks=[self], flow=flow, agents={self: agents} if agents else None
         )
         await controller.run_async()

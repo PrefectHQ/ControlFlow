@@ -4,6 +4,7 @@ import pytest
 from controlflow.agents import Agent, get_default_agent
 from controlflow.controllers.graph import EdgeType
 from controlflow.flows import Flow
+from controlflow.instructions import instructions
 from controlflow.tasks.task import Task, TaskStatus
 from controlflow.utilities.context import ctx
 
@@ -31,6 +32,13 @@ def test_task_initialization():
     assert task.status == TaskStatus.INCOMPLETE
     assert task.result is None
     assert task.error is None
+
+
+def test_task_loads_instructions_at_creation():
+    with instructions("test instruction"):
+        task = SimpleTask()
+
+    assert "test instruction" in task.instructions
 
 
 def test_task_dependencies():
@@ -126,129 +134,120 @@ def test_task_tracking_on_call():
     assert task in flow.tasks.values()
 
 
-def test_task_status_transitions():
-    task = SimpleTask()
-    assert task.is_incomplete()
-    assert not task.is_complete()
-    assert not task.is_successful()
-    assert not task.is_failed()
-    assert not task.is_skipped()
+class TestTaskStatus:
+    def test_task_status_transitions(self):
+        task = SimpleTask()
+        assert task.is_incomplete()
+        assert not task.is_complete()
+        assert not task.is_successful()
+        assert not task.is_failed()
+        assert not task.is_skipped()
 
-    task.mark_successful()
-    assert not task.is_incomplete()
-    assert task.is_complete()
-    assert task.is_successful()
-    assert not task.is_failed()
-    assert not task.is_skipped()
+        task.mark_successful()
+        assert not task.is_incomplete()
+        assert task.is_complete()
+        assert task.is_successful()
+        assert not task.is_failed()
+        assert not task.is_skipped()
 
-    task = SimpleTask()
-    task.mark_failed()
-    assert not task.is_incomplete()
-    assert task.is_complete()
-    assert not task.is_successful()
-    assert task.is_failed()
-    assert not task.is_skipped()
+        task = SimpleTask()
+        task.mark_failed()
+        assert not task.is_incomplete()
+        assert task.is_complete()
+        assert not task.is_successful()
+        assert task.is_failed()
+        assert not task.is_skipped()
 
-    task = SimpleTask()
-    task.mark_skipped()
-    assert not task.is_incomplete()
-    assert task.is_complete()
-    assert not task.is_successful()
-    assert not task.is_failed()
-    assert task.is_skipped()
+        task = SimpleTask()
+        task.mark_skipped()
+        assert not task.is_incomplete()
+        assert task.is_complete()
+        assert not task.is_successful()
+        assert not task.is_failed()
+        assert task.is_skipped()
 
-
-def test_validate_upstream_dependencies_on_success():
-    task1 = SimpleTask()
-    task2 = SimpleTask(depends_on=[task1])
-    with pytest.raises(ValueError, match="cannot be marked successful"):
-        task2.mark_successful()
-    task1.mark_successful()
-    task2.mark_successful()
-
-
-def test_validate_subtask_dependencies_on_success():
-    task1 = SimpleTask()
-    task2 = SimpleTask(parent=task1)
-    with pytest.raises(ValueError, match="cannot be marked successful"):
+    def test_validate_upstream_dependencies_on_success(self):
+        task1 = SimpleTask()
+        task2 = SimpleTask(depends_on=[task1])
+        with pytest.raises(ValueError, match="cannot be marked successful"):
+            task2.mark_successful()
         task1.mark_successful()
-    task2.mark_successful()
-    task1.mark_successful()
+        task2.mark_successful()
 
+    def test_validate_subtask_dependencies_on_success(self):
+        task1 = SimpleTask()
+        task2 = SimpleTask(parent=task1)
+        with pytest.raises(ValueError, match="cannot be marked successful"):
+            task1.mark_successful()
+        task2.mark_successful()
+        task1.mark_successful()
 
-def test_task_ready():
-    task1 = SimpleTask()
-    assert task1.is_ready()
+    def test_task_ready(self):
+        task1 = SimpleTask()
+        assert task1.is_ready()
 
+    def test_task_not_ready_if_successful(self):
+        task1 = SimpleTask()
+        task1.mark_successful()
+        assert not task1.is_ready()
 
-def test_task_not_ready_if_successful():
-    task1 = SimpleTask()
-    task1.mark_successful()
-    assert not task1.is_ready()
+    def test_task_not_ready_if_failed(self):
+        task1 = SimpleTask()
+        task1.mark_failed()
+        assert not task1.is_ready()
 
+    def test_task_not_ready_if_dependencies_are_ready(self):
+        task1 = SimpleTask()
+        task2 = SimpleTask(depends_on=[task1])
+        assert task1.is_ready()
+        assert not task2.is_ready()
 
-def test_task_not_ready_if_failed():
-    task1 = SimpleTask()
-    task1.mark_failed()
-    assert not task1.is_ready()
+    def test_task_ready_if_dependencies_are_ready(self):
+        task1 = SimpleTask()
+        task2 = SimpleTask(depends_on=[task1])
+        task1.mark_successful()
+        assert not task1.is_ready()
+        assert task2.is_ready()
 
+    def test_task_hash(self):
+        task1 = SimpleTask()
+        task2 = SimpleTask()
+        assert hash(task1) != hash(task2)
 
-def test_task_not_ready_if_dependencies_are_ready():
-    task1 = SimpleTask()
-    task2 = SimpleTask(depends_on=[task1])
-    assert task1.is_ready()
-    assert not task2.is_ready()
+    def test_ready_task_adds_tools(self):
+        task = SimpleTask()
+        assert task.is_ready()
 
+        tools = task.get_tools()
+        assert any(tool.name == f"mark_task_{task.id}_failed" for tool in tools)
+        assert any(tool.name == f"mark_task_{task.id}_successful" for tool in tools)
 
-def test_task_ready_if_dependencies_are_ready():
-    task1 = SimpleTask()
-    task2 = SimpleTask(depends_on=[task1])
-    task1.mark_successful()
-    assert not task1.is_ready()
-    assert task2.is_ready()
+    def test_completed_task_does_not_add_tools(self):
+        task = SimpleTask()
+        task.mark_successful()
+        tools = task.get_tools()
+        assert not any(tool.name == f"mark_task_{task.id}_failed" for tool in tools)
+        assert not any(tool.name == f"mark_task_{task.id}_successful" for tool in tools)
 
+    def test_task_with_incomplete_upstream_does_not_add_tools(self):
+        upstream_task = SimpleTask()
+        downstream_task = SimpleTask(depends_on=[upstream_task])
+        tools = downstream_task.get_tools()
+        assert not any(
+            tool.name == f"mark_task_{downstream_task.id}_failed" for tool in tools
+        )
+        assert not any(
+            tool.name == f"mark_task_{downstream_task.id}_successful" for tool in tools
+        )
 
-def test_task_hash():
-    task1 = SimpleTask()
-    task2 = SimpleTask()
-    assert hash(task1) != hash(task2)
-
-
-def test_ready_task_adds_tools():
-    task = SimpleTask()
-    assert task.is_ready()
-
-    tools = task.get_tools()
-    assert any(tool.name == f"mark_task_{task.id}_failed" for tool in tools)
-    assert any(tool.name == f"mark_task_{task.id}_successful" for tool in tools)
-
-
-def test_completed_task_does_not_add_tools():
-    task = SimpleTask()
-    task.mark_successful()
-    tools = task.get_tools()
-    assert not any(tool.name == f"mark_task_{task.id}_failed" for tool in tools)
-    assert not any(tool.name == f"mark_task_{task.id}_successful" for tool in tools)
-
-
-def test_task_with_incomplete_upstream_does_not_add_tools():
-    upstream_task = SimpleTask()
-    downstream_task = SimpleTask(depends_on=[upstream_task])
-    tools = downstream_task.get_tools()
-    assert not any(
-        tool.name == f"mark_task_{downstream_task.id}_failed" for tool in tools
-    )
-    assert not any(
-        tool.name == f"mark_task_{downstream_task.id}_successful" for tool in tools
-    )
-
-
-def test_task_with_incomplete_subtask_does_not_add_tools():
-    parent = SimpleTask()
-    SimpleTask(parent=parent)
-    tools = parent.get_tools()
-    assert not any(tool.name == f"mark_task_{parent.id}_failed" for tool in tools)
-    assert not any(tool.name == f"mark_task_{parent.id}_successful" for tool in tools)
+    def test_task_with_incomplete_subtask_does_not_add_tools(self):
+        parent = SimpleTask()
+        SimpleTask(parent=parent)
+        tools = parent.get_tools()
+        assert not any(tool.name == f"mark_task_{parent.id}_failed" for tool in tools)
+        assert not any(
+            tool.name == f"mark_task_{parent.id}_successful" for tool in tools
+        )
 
 
 class TestTaskToGraph:

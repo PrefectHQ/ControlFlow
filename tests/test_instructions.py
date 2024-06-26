@@ -18,15 +18,10 @@ def test_instructions_context_nested():
     assert get_instructions() == []
 
 
-def test_instructions_context_multiple():
+def test_instructions_none():
     assert get_instructions() == []
-    with instructions("abc", "def", "ghi"):
-        assert get_instructions() == ["abc", "def", "ghi"]
-    assert get_instructions() == []
-
-
-def test_instructions_context_empty():
-    assert get_instructions() == []
-    with instructions():
+    with instructions(None):
+        assert get_instructions() == []
+    with instructions(""):
         assert get_instructions() == []
     assert get_instructions() == []
