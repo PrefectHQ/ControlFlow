@@ -36,7 +36,7 @@ def test_task_initialization():
 
 def test_task_loads_instructions_at_creation():
     with instructions("test instruction"):
-        task = Task()
+        task = SimpleTask()
 
     assert "test instruction" in task.instructions
 

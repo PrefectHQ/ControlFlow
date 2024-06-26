@@ -17,6 +17,9 @@ def instructions(instructions: str) -> Generator[list[str], None, None]:
         ...
 
     """
+    if not instructions:
+        yield
+        return
 
     stack: list[str] = ctx.get("instructions", [])
     with ctx(instructions=stack + [instructions]):
