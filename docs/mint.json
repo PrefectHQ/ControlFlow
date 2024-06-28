@@ -68,6 +68,7 @@
             "pages": [
                 "guides/tasks-and-agents",
                 "guides/llms",
+                "guides/default-agent",
                 "guides/workflow-apis",
                 "guides/execution-modes",
                 "guides/agentic-loop",

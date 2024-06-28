@@ -1,0 +1,21 @@
+---
+title: Configuring the Default Agent
+---
+
+If you don't specify any agents when creating a task, ControlFlow will use a default agent. The default agent (whose name is Marvin, of course) will use whatever [default model](/guides/llms#changing-the-default-model) you've configured. It has a basic set of instructions and no default tools. 
+
+To change the default agent, you can assign a new agent to the `default_agent` attribute of the `controlflow` module. 
+
+```python
+import controlflow as cf
+
+# create a new agent
+agent = cf.Agent('Deep Thought', instructions='Answer every question with 42')
+
+# set the default agent
+cf.default_agent = agent
+
+# create a task without specifying an agent
+task = cf.Task('What is 2 + 2?')
+task.run() # 42
+```
