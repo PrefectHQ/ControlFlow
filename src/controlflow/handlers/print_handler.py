@@ -104,7 +104,7 @@ class PrintHandler(CompletionHandler):
 
 def format_timestamp(timestamp: datetime.datetime) -> str:
     local_timestamp = timestamp.astimezone()
-    return local_timestamp.strftime("%l:%M:%S %p")
+    return local_timestamp.strftime("%I:%M:%S %p").lstrip("0").rjust(11)
 
 
 def status(icon, text) -> Table:
