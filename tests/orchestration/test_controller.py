@@ -24,7 +24,7 @@ class TestReadyTasks:
 
     def test_ready_tasks_nested(self):
         with Flow() as flow:
-            with Task("parent") as parent:
+            with Task("parent"):
                 child_1 = Task("child 1")
                 child_2 = Task("child 2", context=dict(sibling=child_1))
 
