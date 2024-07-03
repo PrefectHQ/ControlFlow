@@ -13,7 +13,7 @@ from pydantic import Field
 
 
 @pytest.mark.parametrize("style", ["decorator", "class"])
-class TestToolFunctions:
+class TestToolFunctions_DecoratorAndClass:
     def test_decorator(self, style):
         def roll_die():
             return 2
@@ -98,7 +98,7 @@ class TestToolFunctions:
         )
         assert "description" not in add_tool.parameters["properties"]["b"]
 
-    def test_laod_arg_description_from_field(self, style):
+    def test_load_arg_description_from_field(self, style):
         def add(a: int = Field(description="The first number."), b: float = None):
             return a
 
@@ -111,6 +111,31 @@ class TestToolFunctions:
             add_tool.parameters["properties"]["a"]["description"] == "The first number."
         )
         assert "description" not in add_tool.parameters["properties"]["b"]
+
+
+class TestToolFunctions:
+    def test_non_serializable_return_value(self):
+        class Foo:
+            pass
+
+        @tool
+        def foo() -> Foo:
+            """test fn"""
+            pass
+
+        assert foo.name == "foo"
+        assert foo.description == "test fn"
+
+    def test_non_serializable_arg(self):
+        class Foo:
+            pass
+
+        with pytest.raises(ValueError, match="Could not generate a schema for tool"):
+
+            @tool
+            def foo(x: Foo) -> str:
+                """test fn"""
+                pass
 
 
 class TestToolDecorator:
