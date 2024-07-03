@@ -44,7 +44,6 @@ from controlflow.utilities.types import (
 )
 
 if TYPE_CHECKING:
-    from controlflow.controllers.graph import Graph
     from controlflow.flows import Flow
 
 T = TypeVar("T")
@@ -262,14 +261,9 @@ class Task(ControlFlowModel):
             objective = f'"{self.objective}"'
         return f"Task {self.id} ({objective})"
 
-    def as_graph(self) -> "Graph":
-        from controlflow.controllers.graph import Graph
-
-        return Graph.from_tasks(tasks=[self])
-
     @property
     def subtasks(self) -> list["Task"]:
-        from controlflow.controllers.graph import Graph
+        from controlflow.flows.graph import Graph
 
         return Graph.from_tasks(tasks=self._subtasks).topological_sort()
 
@@ -302,7 +296,7 @@ class Task(ControlFlowModel):
                 "Task.run_once() must be called within a flow context or with a flow argument."
             )
 
-        from controlflow.controllers import Controller
+        from controlflow.orchestration import Controller
 
         controller = Controller(
             tasks=[self], flow=flow, agents={self: agents} if agents else None
@@ -323,7 +317,7 @@ class Task(ControlFlowModel):
                 "Task.run_once_async() must be called within a flow context or with a flow argument."
             )
 
-        from controlflow.controllers import Controller
+        from controlflow.orchestration import Controller
 
         controller = Controller(
             tasks=[self], flow=flow, agents={self: agents} if agents else None
@@ -352,7 +346,7 @@ class Task(ControlFlowModel):
             else:
                 flow = Flow()
 
-        from controlflow.controllers import Controller
+        from controlflow.orchestration import Controller
 
         controller = Controller(
             tasks=[self], flow=flow, agents={self: agents} if agents else None
@@ -386,7 +380,7 @@ class Task(ControlFlowModel):
             else:
                 flow = Flow()
 
-        from controlflow.controllers import Controller
+        from controlflow.orchestration import Controller
 
         controller = Controller(
             tasks=[self], flow=flow, agents={self: agents} if agents else None
@@ -436,53 +430,6 @@ class Task(ControlFlowModel):
         """
         return self.is_incomplete() and all(t.is_complete() for t in self.depends_on)
 
-    def _create_success_tool(self) -> Tool:
-        """
-        Create an agent-compatible tool for marking this task as successful.
-        """
-        # generate tool for result_type=None
-        if self.result_type is None:
-
-            def succeed() -> str:
-                return self.mark_successful(result=None)
-
-        # generate tool for other result types
-        else:
-            result_schema = generate_result_schema(self.result_type)
-
-            def succeed(result: result_schema) -> str:  # type: ignore
-                return self.mark_successful(result=result)
-
-        return Tool.from_function(
-            succeed,
-            name=f"mark_task_{self.id}_successful",
-            description=f"Mark task {self.id} as successful.",
-            metadata=dict(ignore_result=True),
-        )
-
-    def _create_fail_tool(self) -> Tool:
-        """
-        Create an agent-compatible tool for failing this task.
-        """
-
-        return Tool.from_function(
-            self.mark_failed,
-            name=f"mark_task_{self.id}_failed",
-            description=f"Mark task {self.id} as failed. Only use when technical errors prevent success.",
-            metadata=dict(ignore_result=True),
-        )
-
-    def _create_skip_tool(self) -> Tool:
-        """
-        Create an agent-compatible tool for skipping this task.
-        """
-        return Tool.from_function(
-            self.mark_skipped,
-            name=f"mark_task_{self.id}_skipped",
-            description=f"Mark task {self.id} as skipped. Only use when completing a parent task early.",
-            metadata=dict(ignore_result=True),
-        )
-
     def get_agents(self) -> list["Agent"]:
         if self.agents:
             return self.agents
@@ -521,12 +468,6 @@ class Task(ControlFlowModel):
 
     def get_tools(self) -> list[Union[Tool, Callable]]:
         tools = self.tools.copy()
-        # if this task is ready to run, generate tools
-        if self.is_ready():
-            tools.extend([self._create_fail_tool(), self._create_success_tool()])
-            # add skip tool if this task has a parent task
-            # if self.parent is not None:
-            #     tools.append(self._create_skip_tool())
         if self.user_access:
             tools.append(talk_to_user)
         return tools
@@ -600,32 +541,6 @@ class Task(ControlFlowModel):
                 tools=self.tools,
                 context=self.context,
             )
-
-
-def generate_result_schema(result_type: type[T]) -> type[T]:
-    result_schema = None
-    # try loading pydantic-compatible schemas
-    try:
-        TypeAdapter(result_type)
-        result_schema = result_type
-    except PydanticSchemaGenerationError:
-        pass
-    # try loading as dataframe
-    # try:
-    #     import pandas as pd
-
-    #     if result_type is pd.DataFrame:
-    #         result_schema = PandasDataFrame
-    #     elif result_type is pd.Series:
-    #         result_schema = PandasSeries
-    # except ImportError:
-    #     pass
-    if result_schema is None:
-        raise ValueError(
-            f"Could not load or infer schema for result type {result_type}. "
-            "Please use a custom type or add compatibility."
-        )
-    return result_schema
 
 
 def validate_result(result: Any, result_type: type[T]) -> T:

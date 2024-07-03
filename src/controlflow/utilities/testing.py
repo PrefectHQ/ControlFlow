@@ -1,24 +1,15 @@
 from contextlib import contextmanager
-from typing import Union
 
-import langchain_core.messages
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
 
 import controlflow
-from controlflow.flows.history import InMemoryHistory
-from controlflow.llm.messages import BaseMessage, MessageType
+from controlflow.events.history import InMemoryHistory
+from controlflow.llm.messages import BaseMessage
 
 
 class FakeLLM(FakeMessagesListChatModel):
-    def set_responses(
-        self, responses: list[Union[MessageType, langchain_core.messages.BaseMessage]]
-    ):
-        new_responses = []
-        for msg in responses:
-            if isinstance(msg, BaseMessage):
-                msg = msg.to_langchain_message()
-            new_responses.append(msg)
-        self.responses = new_responses
+    def set_responses(self, responses: list[BaseMessage]):
+        self.responses = responses
 
     def bind_tools(self, *args, **kwargs):
         """When binding tools, passthrough"""
@@ -30,38 +21,32 @@ class FakeLLM(FakeMessagesListChatModel):
 
 
 @contextmanager
-def record_messages(
-    remove_additional_kwargs: bool = True, remove_tool_call_chunks: bool = True
-):
+def record_events():
     """
     Context manager for recording all messages in a flow, useful for testing.
 
 
-    with record_messages() as messages:
+    with record_events() as events:
         cf.Task("say hello").run()
 
-    assert messages[0].content == "Hello!"
+    assert events[0].content == "Hello!"
 
     """
     history = InMemoryHistory(history={})
     old_default_history = controlflow.default_history
     controlflow.default_history = history
 
-    messages = []
+    events = []
 
     try:
-        yield messages
+        yield events
     finally:
         controlflow.default_history = old_default_history
 
-        _messages_buffer = []
-        for _, thread_messages in history.history.items():
-            for message in thread_messages:
-                message = message.copy()
-                if hasattr(message, "additional_kwargs") and remove_additional_kwargs:
-                    message.additional_kwargs = {}
-                if hasattr(message, "tool_call_chunks") and remove_tool_call_chunks:
-                    message.tool_call_chunks = []
-                _messages_buffer.append(message)
+        _events_buffer = []
+        for _, thread_events in history.history.items():
+            for event in thread_events:
+                event = event.copy()
+                _events_buffer.append(event)
 
-        messages.extend(sorted(_messages_buffer, key=lambda m: m.timestamp))
+        events.extend(sorted(_events_buffer, key=lambda m: m.timestamp))

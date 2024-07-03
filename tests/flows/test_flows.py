@@ -1,6 +1,6 @@
 from controlflow.agents import Agent
+from controlflow.events.agent_events import UserMessageEvent
 from controlflow.flows import Flow, get_flow
-from controlflow.llm.messages import UserMessage
 from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
 
@@ -71,7 +71,7 @@ class TestFlowContext:
             t1 = Task("test 1")
             t2 = Task("test 2")
 
-        assert flow.tasks == {t1.id: t1, t2.id: t2}
+        assert flow.tasks == [t1, t2]
 
     def test_tasks_created_in_nested_flows_only_in_inner_flow(self):
         with Flow() as flow1:
@@ -79,73 +79,63 @@ class TestFlowContext:
             with Flow() as flow2:
                 t2 = Task("test 2")
 
-        assert flow1.tasks == {t1.id: t1}
-        assert flow2.tasks == {t2.id: t2}
+        assert flow1.tasks == [t1]
+        assert flow2.tasks == [t2]
+
+    def test_inner_flow_includes_completed_parent_tasks(self):
+        with Flow() as flow1:
+            t1 = Task("test 1", status="SUCCESSFUL")
+            t2 = Task("test 2")
+            with Flow() as flow2:
+                t3 = Task("test 3")
+
+        assert flow1.tasks == [t1, t2]
+        assert flow2.tasks == [t1, t3]
 
 
 class TestFlowHistory:
-    def test_get_messages_empty(self):
+    def test_get_events_empty(self):
         flow = Flow()
-        messages = flow.get_messages()
+        messages = flow.get_events()
         assert messages == []
-
-    def test_add_messages_with_history(self):
-        flow = Flow()
-        flow.add_messages(
-            messages=[UserMessage(content="hello"), UserMessage(content="world")]
-        )
-        messages = flow.get_messages()
-        assert len(messages) == 2
-        assert [m.content for m in messages] == ["hello", "world"]
-
-    def test_copy_parent_history(self):
-        flow1 = Flow()
-        flow1.add_messages(
-            messages=[UserMessage(content="hello"), UserMessage(content="world")]
-        )
-
-        with flow1:
-            flow2 = Flow()
-
-        messages1 = flow1.get_messages()
-        assert len(messages1) == 2
-        assert [m.content for m in messages1] == ["hello", "world"]
-
-        messages2 = flow2.get_messages()
-        assert len(messages2) == 2
-        assert [m.content for m in messages2] == ["hello", "world"]
 
     def test_disable_copying_parent_history(self):
         flow1 = Flow()
-        flow1.add_messages(
-            messages=[UserMessage(content="hello"), UserMessage(content="world")]
+        flow1.add_events(
+            [
+                UserMessageEvent(content="hello"),
+                UserMessageEvent(content="world"),
+            ]
         )
 
         with flow1:
             flow2 = Flow(copy_parent=False)
 
-        messages1 = flow1.get_messages()
+        messages1 = flow1.get_events()
         assert len(messages1) == 2
         assert [m.content for m in messages1] == ["hello", "world"]
 
-        messages2 = flow2.get_messages()
+        messages2 = flow2.get_events()
         assert len(messages2) == 0
 
     def test_child_flow_messages_dont_go_to_parent(self):
         flow1 = Flow()
-        flow1.add_messages(
-            messages=[UserMessage(content="hello"), UserMessage(content="world")]
+        flow1.add_events(
+            [
+                UserMessageEvent(content="hello"),
+                UserMessageEvent(content="world"),
+            ]
         )
 
         with flow1:
             flow2 = Flow()
-            flow2.add_messages(messages=[UserMessage(content="goodbye")])
+            flow2.add_events([UserMessageEvent(content="goodbye")])
 
-        messages1 = flow1.get_messages()
+        messages1 = flow1.get_events()
         assert len(messages1) == 2
         assert [m.content for m in messages1] == ["hello", "world"]
 
-        messages2 = flow2.get_messages()
+        messages2 = flow2.get_events()
         assert len(messages2) == 3
         assert [m.content for m in messages2] == ["hello", "world", "goodbye"]
 

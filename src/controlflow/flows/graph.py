@@ -129,7 +129,7 @@ class Graph(BaseModel):
             f"upstream_{'immediate' if immediate else 'all'}_{tuple(start_tasks)}"
         )
         if cache_key not in self._cache:
-            result = set()
+            result = set(start_tasks)
             visited = set()
 
             def _upstream(task):
@@ -137,10 +137,7 @@ class Graph(BaseModel):
                     return
                 visited.add(task)
                 for edge in self.upstream_edges().get(task, []):
-                    if (
-                        edge.upstream not in visited
-                        and edge.upstream not in start_tasks
-                    ):
+                    if edge.upstream not in visited:
                         result.add(edge.upstream)
                         if not immediate:
                             _upstream(edge.upstream)
@@ -172,7 +169,7 @@ class Graph(BaseModel):
             f"downstream_{'immediate' if immediate else 'all'}_{tuple(start_tasks)}"
         )
         if cache_key not in self._cache:
-            result = set()
+            result = set(start_tasks)
             visited = set()
 
             def _downstream(task):
@@ -180,10 +177,7 @@ class Graph(BaseModel):
                     return
                 visited.add(task)
                 for edge in self.downstream_edges().get(task, []):
-                    if (
-                        edge.downstream not in visited
-                        and edge.downstream not in start_tasks
-                    ):
+                    if edge.downstream not in visited:
                         result.add(edge.downstream)
                         if not immediate:
                             _downstream(edge.downstream)
@@ -199,7 +193,7 @@ class Graph(BaseModel):
 
     def topological_sort(self, tasks: Optional[list[Task]] = None) -> list[Task]:
         """
-        Perform a topological sort on the provided tasks or all tasks in the graph.
+        Perform a deterministic topological sort on the provided tasks or all tasks in the graph.
 
         Args:
             tasks (Optional[list[Task]]): A list of tasks to sort topologically.
@@ -208,6 +202,15 @@ class Graph(BaseModel):
         Returns:
             list[Task]: A list of tasks in topological order (upstream tasks first).
         """
+        # Create a cache key based on the input tasks
+        cache_key = (
+            f"topo_sort_{tuple(sorted(task.id for task in (tasks or self.tasks)))}"
+        )
+
+        # Check if the result is already in the cache
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
         if tasks is None:
             tasks_to_sort = self.tasks
         else:
@@ -222,6 +225,8 @@ class Graph(BaseModel):
         # Kahn's algorithm for topological sorting
         result = []
         no_incoming = [task for task in tasks_to_sort if not dependencies[task]]
+        # sort to create a deterministic order
+        no_incoming.sort(key=lambda t: t.created_at)
 
         while no_incoming:
             task = no_incoming.pop(0)
@@ -233,6 +238,8 @@ class Graph(BaseModel):
                     dependencies[dependent_task].remove(task)
                     if not dependencies[dependent_task]:
                         no_incoming.append(dependent_task)
+                        # resort to maintain deterministic order
+                        no_incoming.sort(key=lambda t: t.created_at)
 
         # Check for cycles
         if len(result) != len(tasks_to_sort):
@@ -240,4 +247,6 @@ class Graph(BaseModel):
                 "The graph contains a cycle and cannot be topologically sorted"
             )
 
+        # Cache the result before returning
+        self._cache[cache_key] = result
         return result

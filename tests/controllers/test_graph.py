@@ -1,5 +1,5 @@
 # test_graph.py
-from controlflow.controllers.graph import Edge, EdgeType, Graph
+from controlflow.flows.graph import Edge, EdgeType, Graph
 from controlflow.tasks.task import Task
 
 
@@ -87,6 +87,16 @@ def test_topological_sort():
     assert sorted_tasks.index(task3) < sorted_tasks.index(task4)
 
 
+def test_topological_sort_uses_time_to_tiebreak():
+    task1 = Task(objective="Task 1")
+    task2 = Task(objective="Task 2")
+    task3 = Task(objective="Task 3")
+    task4 = Task(objective="Task 4")
+    graph = Graph.from_tasks([task1, task2, task3, task4])
+    sorted_tasks = graph.topological_sort()
+    assert sorted_tasks == [task1, task2, task3, task4]
+
+
 def test_topological_sort_with_fan_in_and_fan_out():
     task1 = Task(objective="Task 1")
     task2 = Task(objective="Task 2")
@@ -125,12 +135,11 @@ def test_upstream_tasks():
     graph.add_edge(edge2)
     graph.add_edge(edge3)
 
-    assert graph.upstream_tasks([task3]) == [task1, task2]
-    assert graph.upstream_tasks([task2]) == [task1]
-    assert graph.upstream_tasks([task1]) == []
+    assert graph.upstream_tasks([task3]) == [task1, task2, task3]
+    assert graph.upstream_tasks([task2]) == [task1, task2]
+    assert graph.upstream_tasks([task1]) == [task1]
 
-    # never include a start task in the usptream list
-    assert graph.upstream_tasks([task1, task3]) == [task2]
+    assert graph.upstream_tasks([task1, task3]) == [task1, task2, task3]
 
 
 def test_downstream_tasks():
@@ -147,9 +156,9 @@ def test_downstream_tasks():
     graph.add_edge(edge2)
     graph.add_edge(edge3)
 
-    assert graph.downstream_tasks([task3]) == []
-    assert graph.downstream_tasks([task2]) == [task3]
-    assert graph.downstream_tasks([task1]) == [task2, task3]
+    assert graph.downstream_tasks([task3]) == [task3]
+    assert graph.downstream_tasks([task2]) == [task2, task3]
+    assert graph.downstream_tasks([task1]) == [task1, task2, task3]
 
     # never include a start task in the downstream list
-    assert graph.downstream_tasks([task1, task3]) == [task2]
+    assert graph.downstream_tasks([task1, task3]) == [task1, task2, task3]

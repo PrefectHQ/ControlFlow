@@ -1,63 +1,48 @@
-import datetime
-
 import controlflow
-from controlflow.llm.messages import AIMessage, ToolMessage
-from controlflow.utilities.testing import record_messages
+from controlflow.llm.messages import AIMessage
+from controlflow.utilities.testing import record_events
 
 
-def test_record_messages_empty():
-    with record_messages() as messages:
+def test_record_events_empty():
+    with record_events() as events:
         pass
-    assert messages == []
+    assert events == []
 
 
-def test_record_task_messages(default_fake_llm):
-    task = controlflow.Task("say hello")
+def test_record_task_events(default_fake_llm):
+    task = controlflow.Task("say hello", id="12345")
 
     response = AIMessage(
-        agent=dict(name="Marvin"),
         id="run-2af8bb73-661f-4ec3-92ff-d7d8e3074926",
-        timestamp=datetime.datetime(
-            2024, 6, 23, 17, 12, 24, 91830, tzinfo=datetime.timezone.utc
-        ),
+        name="Marvin",
         role="ai",
         content="",
-        name="Marvin",
         tool_calls=[
             {
-                "name": f"mark_task_{task.id}_successful",
+                "name": "mark_task_12345_successful",
                 "args": {"result": "Hello!"},
                 "id": "call_ZEPdV8mCgeBe5UHjKzm6e3pe",
             }
         ],
-        is_delta=False,
     )
 
     default_fake_llm.set_responses([response])
-    with record_messages() as rec_messages:
+    with record_events() as events:
         task.run()
 
-    assert rec_messages[0].content == response.content
-    assert rec_messages[0].id == response.id
-    assert rec_messages[0].tool_calls == response.tool_calls
+    assert events[0].event == "select-agent"
+    assert events[1].event == "agent-message"
+    assert response == events[1].ai_message
 
-    expected_tool_message = ToolMessage(
-        agent=dict(name="Marvin"),
-        id="cb84bb8f3e0f4245bbf5eefeee9272b2",
-        timestamp=datetime.datetime(
-            2024, 6, 23, 17, 12, 24, 187384, tzinfo=datetime.timezone.utc
-        ),
-        role="tool",
-        content=f'Task {task.id} ("say hello") marked successful by Marvin.',
-        name="Marvin",
+    assert events[5].event == "tool-result"
+    assert events[5].tool_call == {
+        "name": "mark_task_12345_successful",
+        "args": {"result": "Hello!"},
+        "id": "call_ZEPdV8mCgeBe5UHjKzm6e3pe",
+    }
+    assert events[5].tool_result.model_dump() == dict(
         tool_call_id="call_ZEPdV8mCgeBe5UHjKzm6e3pe",
-        tool_call={
-            "name": f"mark_task_{task.id}_successful",
-            "args": {"result": "Hello!"},
-            "id": "call_ZEPdV8mCgeBe5UHjKzm6e3pe",
-        },
-        tool_metadata={"ignore_result": True},
+        str_result='Task 12345 ("say hello") marked successful.',
+        is_error=False,
+        is_private=True,
     )
-    assert rec_messages[1].content == expected_tool_message.content
-    assert rec_messages[1].tool_call_id == expected_tool_message.tool_call_id
-    assert rec_messages[1].tool_call == expected_tool_message.tool_call
