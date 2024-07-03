@@ -5,8 +5,8 @@ from typing import Any, Callable, Optional, Union
 from pydantic import Field
 
 from controlflow.agents import Agent
-from controlflow.events.event_store import EventStore, get_default_event_store
 from controlflow.events.events import Event
+from controlflow.events.history import History, get_default_history
 from controlflow.flows.graph import Graph
 from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
@@ -21,7 +21,7 @@ class Flow(ControlFlowModel):
     thread_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     name: Optional[str] = None
     description: Optional[str] = None
-    event_store: EventStore = Field(default_factory=get_default_event_store)
+    event_store: History = Field(default_factory=get_default_history)
     tools: list[Callable] = Field(
         default_factory=list,
         description="Tools that will be available to every agent in the flow",
@@ -46,7 +46,7 @@ class Flow(ControlFlowModel):
         parent = get_flow()
         if parent and copy_parent:
             self.add_events(parent.get_events())
-            for task in parent.tasks.values():
+            for task in parent.tasks:
                 if task.is_complete():
                     self.add_task(task)
 

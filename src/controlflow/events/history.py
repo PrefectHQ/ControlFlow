@@ -27,6 +27,10 @@ if TYPE_CHECKING:
 IN_MEMORY_STORE = {}
 
 
+def get_default_history() -> "History":
+    return controlflow.default_history
+
+
 @cache
 def get_event_validator() -> TypeAdapter:
     types = Union[
@@ -119,11 +123,7 @@ def filter_events(
     return list(reversed(new_events))
 
 
-def get_default_event_store() -> "EventStore":
-    return controlflow.default_event_store
-
-
-class EventStore(ControlFlowModel, abc.ABC):
+class History(ControlFlowModel, abc.ABC):
     @abc.abstractmethod
     def get_events(
         self,
@@ -142,11 +142,11 @@ class EventStore(ControlFlowModel, abc.ABC):
         raise NotImplementedError()
 
 
-class InMemoryStore(EventStore):
-    store: dict[str, list[Event]] = Field(default_factory=lambda: IN_MEMORY_STORE)
+class InMemoryHistory(History):
+    history: dict[str, list[Event]] = Field(default_factory=lambda: IN_MEMORY_STORE)
 
     def add_events(self, thread_id: str, events: list[Event]):
-        self.store.setdefault(thread_id, []).extend(events)
+        self.history.setdefault(thread_id, []).extend(events)
 
     def get_events(
         self,
@@ -174,7 +174,7 @@ class InMemoryStore(EventStore):
             list[Event]: A list of events that match the specified criteria.
 
         """
-        events = self.store.get(thread_id, [])
+        events = self.history.get(thread_id, [])
         return filter_events(
             events=events,
             agent_ids=agent_ids,
@@ -186,7 +186,7 @@ class InMemoryStore(EventStore):
         )
 
 
-class FileStore(EventStore):
+class FileHistory(History):
     base_path: Path = Field(
         default_factory=lambda: controlflow.settings.home_path / "filestore_events"
     )

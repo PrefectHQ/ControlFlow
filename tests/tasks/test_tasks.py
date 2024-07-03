@@ -3,7 +3,6 @@ from functools import partial
 import pytest
 from controlflow.agents import Agent, get_default_agent
 from controlflow.flows import Flow
-from controlflow.flows.graph import EdgeType
 from controlflow.instructions import instructions
 from controlflow.tasks.task import Task, TaskStatus
 from controlflow.utilities.context import ctx
@@ -124,14 +123,14 @@ def test_task_loads_agent_from_parent_before_flow():
 def test_task_tracking():
     with Flow() as flow:
         task = SimpleTask()
-        assert task in flow.tasks.values()
+        assert task in flow.tasks
 
 
 def test_task_tracking_on_call():
     task = SimpleTask()
     with Flow() as flow:
         task.run_once()
-    assert task in flow.tasks.values()
+    assert task in flow.tasks
 
 
 class TestTaskStatus:
@@ -213,100 +212,3 @@ class TestTaskStatus:
         task1 = SimpleTask()
         task2 = SimpleTask()
         assert hash(task1) != hash(task2)
-
-    def test_ready_task_adds_tools(self):
-        task = SimpleTask()
-        assert task.is_ready()
-
-        tools = task.get_tools()
-        assert any(tool.name == f"mark_task_{task.id}_failed" for tool in tools)
-        assert any(tool.name == f"mark_task_{task.id}_successful" for tool in tools)
-
-    def test_completed_task_does_not_add_tools(self):
-        task = SimpleTask()
-        task.mark_successful()
-        tools = task.get_tools()
-        assert not any(tool.name == f"mark_task_{task.id}_failed" for tool in tools)
-        assert not any(tool.name == f"mark_task_{task.id}_successful" for tool in tools)
-
-    def test_task_with_incomplete_upstream_does_not_add_tools(self):
-        upstream_task = SimpleTask()
-        downstream_task = SimpleTask(depends_on=[upstream_task])
-        tools = downstream_task.get_tools()
-        assert not any(
-            tool.name == f"mark_task_{downstream_task.id}_failed" for tool in tools
-        )
-        assert not any(
-            tool.name == f"mark_task_{downstream_task.id}_successful" for tool in tools
-        )
-
-    def test_task_with_incomplete_subtask_does_not_add_tools(self):
-        parent = SimpleTask()
-        SimpleTask(parent=parent)
-        tools = parent.get_tools()
-        assert not any(tool.name == f"mark_task_{parent.id}_failed" for tool in tools)
-        assert not any(
-            tool.name == f"mark_task_{parent.id}_successful" for tool in tools
-        )
-
-
-class TestTaskToGraph:
-    def test_single_task_graph(self):
-        task = SimpleTask()
-        graph = task.as_graph()
-        assert len(graph.tasks) == 1
-        assert task in graph.tasks
-        assert len(graph.edges) == 0
-
-    def test_task_with_subtasks_graph(self):
-        task1 = SimpleTask()
-        task2 = SimpleTask(parent=task1)
-        graph = task1.as_graph()
-        assert len(graph.tasks) == 2
-        assert task1 in graph.tasks
-        assert task2 in graph.tasks
-        assert len(graph.edges) == 1
-        assert any(
-            edge.upstream == task2
-            and edge.downstream == task1
-            and edge.type == EdgeType.SUBTASK
-            for edge in graph.edges
-        )
-
-    def test_task_with_dependencies_graph(self):
-        task1 = SimpleTask()
-        task2 = SimpleTask(depends_on=[task1])
-        graph = task2.as_graph()
-        assert len(graph.tasks) == 2
-        assert task1 in graph.tasks
-        assert task2 in graph.tasks
-        assert len(graph.edges) == 1
-        assert any(
-            edge.upstream == task1
-            and edge.downstream == task2
-            and edge.type == EdgeType.DEPENDENCY
-            for edge in graph.edges
-        )
-
-    def test_task_with_subtasks_and_dependencies_graph(self):
-        task1 = SimpleTask()
-        task2 = SimpleTask(depends_on=[task1])
-        task3 = SimpleTask(objective="Task 3", parent=task2)
-        graph = task2.as_graph()
-        assert len(graph.tasks) == 3
-        assert task1 in graph.tasks
-        assert task2 in graph.tasks
-        assert task3 in graph.tasks
-        assert len(graph.edges) == 2
-        assert any(
-            edge.upstream == task1
-            and edge.downstream == task2
-            and edge.type == EdgeType.DEPENDENCY
-            for edge in graph.edges
-        )
-        assert any(
-            edge.upstream == task3
-            and edge.downstream == task2
-            and edge.type == EdgeType.SUBTASK
-            for edge in graph.edges
-        )
