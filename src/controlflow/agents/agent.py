@@ -2,7 +2,7 @@ import logging
 import random
 import uuid
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Generator, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Callable, Generator, Optional
 
 from langchain_core.language_models import BaseChatModel
 from pydantic import Field, field_serializer
@@ -13,6 +13,7 @@ from controlflow.instructions import get_instructions
 from controlflow.llm.messages import AIMessage, BaseMessage
 from controlflow.llm.models import get_default_model
 from controlflow.llm.rules import LLMRules
+from controlflow.tools.tools import handle_tool_call_async
 from controlflow.utilities.context import ctx
 from controlflow.utilities.types import ControlFlowModel
 
@@ -183,6 +184,45 @@ class Agent(ControlFlowModel):
             yield ToolCallEvent(agent=self, tool_call=tool_call, message=response)
 
             result = handle_tool_call(tool_call, tools=tools)
+            yield ToolResultEvent(agent=self, tool_call=tool_call, tool_result=result)
+
+    async def _run_model_async(
+        self,
+        messages: list[BaseMessage],
+        additional_tools: list["Tool"] = None,
+        stream: bool = True,
+    ) -> AsyncGenerator[Event, None]:
+        from controlflow.events.agent_events import (
+            AgentMessageDeltaEvent,
+            AgentMessageEvent,
+        )
+        from controlflow.events.tool_events import ToolCallEvent, ToolResultEvent
+        from controlflow.tools.tools import as_tools
+
+        model = self.get_model()
+
+        tools = as_tools(self.get_tools() + (additional_tools or []))
+        if tools:
+            model = model.bind_tools([t.to_lc_tool() for t in tools])
+
+        if stream:
+            response = None
+            async for delta in model.astream(messages):
+                if response is None:
+                    response = delta
+                else:
+                    response += delta
+                yield AgentMessageDeltaEvent(agent=self, delta=delta, snapshot=response)
+
+        else:
+            response: AIMessage = model.invoke(messages)
+
+        yield AgentMessageEvent(agent=self, message=response)
+
+        for tool_call in response.tool_calls + response.invalid_tool_calls:
+            yield ToolCallEvent(agent=self, tool_call=tool_call, message=response)
+
+            result = await handle_tool_call_async(tool_call, tools=tools)
             yield ToolResultEvent(agent=self, tool_call=tool_call, tool_result=result)
 
 
