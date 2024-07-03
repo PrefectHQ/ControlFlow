@@ -1,29 +1,34 @@
 from controlflow import Agent, Task, flow
 from controlflow.instructions import instructions
 
-teacher = Agent(name="teacher")
-student = Agent(name="student")
+teacher = Agent(name="Teacher")
+student = Agent(name="Student")
 
 
 @flow
 def demo():
-    with Task("Teach a class by asking and answering 3 questions") as task:
+    with Task("Teach a class by asking and answering 3 questions", agents=[teacher]):
         for _ in range(3):
             question = Task(
-                "ask the student a question. Wait for the student to answer your question before asking another one.",
-                str,
-                agents=[teacher],
+                "Ask the student a question.", result_type=str, agents=[teacher]
             )
-            with instructions("one sentence max"):
-                Task(
-                    "answer the question",
-                    str,
+
+            with instructions("One sentence max"):
+                answer = Task(
+                    "Answer the question.",
                     agents=[student],
                     context=dict(question=question),
                 )
 
-    task.run()
-    return task
+            grade = Task(
+                "Assess the answer.",
+                result_type=["pass", "fail"],
+                agents=[teacher],
+                context=dict(answer=answer),
+            )
+
+            # run each qa session, one at a time
+            grade.run()
 
 
 t = demo()

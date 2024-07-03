@@ -1,5 +1,5 @@
 import pytest
-from controlflow.llm.messages import MessageType
+from controlflow.llm.messages import BaseMessage
 from controlflow.settings import temporary_settings
 from prefect.testing.utilities import prefect_test_harness
 

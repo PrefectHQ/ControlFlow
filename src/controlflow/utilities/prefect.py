@@ -50,7 +50,7 @@ def prefect_task(*args, **kwargs):
 
     kwargs.setdefault("log_prints", controlflow.settings.log_prints)
     kwargs.setdefault("cache_policy", prefect.cache_policies.NONE)
-    kwargs.setdefault("result_serializer", prefect.serializers.JSONSerializer())
+    kwargs.setdefault("result_serializer", "json")
 
     return prefect.task(*args, **kwargs)
 
@@ -61,6 +61,7 @@ def prefect_flow(*args, **kwargs):
     """
 
     kwargs.setdefault("log_prints", controlflow.settings.log_prints)
+    kwargs.setdefault("result_serializer", "json")
 
     return prefect.flow(*args, **kwargs)
 
@@ -182,12 +183,11 @@ class PrefectTrackingTask(ControlFlowModel):
         self.is_started = True
         self._client = get_client(sync_client=True)
 
-        self._task = prefect.Task(
-            fn=lambda: None,
+        self._task = prefect_task(
             name=self.name,
             description=self.description,
             tags=self.tags,
-        )
+        )(lambda: None)
 
         self._task_run = run_coro_as_sync(
             self._task.create_run(

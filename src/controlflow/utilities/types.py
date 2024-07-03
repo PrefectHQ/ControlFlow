@@ -34,10 +34,3 @@ class PandasSeries(ControlFlowModel):
     index: Optional[list[str]] = None
     name: Optional[str] = None
     dtype: Optional[str] = None
-
-
-class _OpenAIBaseType(ControlFlowModel):
-    model_config = ConfigDict(extra="allow")
-
-
-__all__ = ["ControlFlowModel", "PandasDataFrame", "PandasSeries", "_OpenAIBaseType"]

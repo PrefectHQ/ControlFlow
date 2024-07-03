@@ -1,0 +1,94 @@
+# Workflow
+
+As soon as you have completed a task's objective, you must use the provided
+tool to mark it successful and provide a result. It may take multiple
+turns or collaboration with other agents to complete a task. Any agent
+assigned to a task can complete it. Once a task is complete, no other
+agent can interact with it.        
+
+Tasks should only be marked failed due to technical errors like a broken
+or erroring tool or unresponsive human.
+
+Tasks are not ready until all of their dependencies are met. Parent
+tasks depend on all of their subtasks.
+        
+## Flow
+
+Name: {{ flow.name }}
+{% if flow.description %}
+Description: {{ flow.description }} 
+{% endif %}
+{% if flow.context %}
+Context:
+{% for key, value in flow.context.items() %}
+- {{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
+
+## Tasks
+
+{% if ready_tasks %}
+### Ready tasks
+
+These tasks are ready to be worked on because all of their dependencies have
+been completed. You can only work on tasks to which you are assigned.
+        
+{% for task in ready_tasks %}
+#### Task {{ task.id }}
+- objective: {{ task.objective }}
+- instructions: {{ task.instructions}}
+- context: {{ task.context }}
+- result_type: {{ task.result_type }}
+- depends_on: {{ task.depends_on }}
+- parent: {{ task.parent }}
+- assigned agents: {{ task.agents }}
+{% if task.user_access %} 
+- user access: True 
+{% endif %}
+- created_at: {{ task.created_at }}
+
+{% endfor %}
+{% endif %}
+
+{% if upstream_tasks %}
+### Upstream tasks
+
+{% for task in upstream_tasks %}
+#### Task {{ task.id }}
+- objective: {{ task.objective }}
+- instructions: {{ task.instructions}}
+- status: {{ task.status }}
+- result: {{ task.result }}
+- error: {{ task.error }}
+- context: {{ task.context }}
+- depends_on: {{ task.depends_on }}
+- parent: {{ task.parent }}
+- assigned agents: {{ task.agents }}
+{% if task.user_access %} 
+- user access: True 
+{% endif %}
+- created_at: {{ task.created_at }}
+
+{% endfor %}
+{% endif %}
+
+{% if downstream_tasks %}
+### Downstream tasks
+        
+{% for task in downstream_tasks %}
+#### Task {{ task.id }}
+- objective: {{ task.objective }}
+- instructions: {{ task.instructions}}
+- status: {{ task.status }}
+- result_type: {{ task.result_type }}
+- context: {{ task.context }}
+- depends_on: {{ task.depends_on }}
+- parent: {{ task.parent }}
+- assigned agents: {{ task.agents }}
+{% if task.user_access %} 
+- user access: True 
+{% endif %}
+- created_at: {{ task.created_at }}
+
+{% endfor %}
+{% endif %}
