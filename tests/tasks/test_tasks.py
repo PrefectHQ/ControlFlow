@@ -47,6 +47,23 @@ def test_task_dependencies():
     assert task2 in task1._downstreams
 
 
+def test_task_context_dependencies():
+    task1 = SimpleTask()
+    task2 = SimpleTask(context=dict(a=task1))
+    assert task1 in task2.depends_on
+    assert task2 in task1._downstreams
+
+
+def test_task_context_complex_dependencies():
+    task1 = SimpleTask()
+    task2 = SimpleTask()
+    task3 = SimpleTask(context=dict(a=[task1], b=dict(c=[task2])))
+    assert task1 in task3.depends_on
+    assert task2 in task3.depends_on
+    assert task3 in task1._downstreams
+    assert task3 in task2._downstreams
+
+
 def test_task_subtasks():
     task1 = SimpleTask()
     task2 = SimpleTask(parent=task1)
@@ -120,17 +137,29 @@ def test_task_loads_agent_from_parent_before_flow():
     assert child.get_agents() == [agent2]
 
 
-def test_task_tracking():
-    with Flow() as flow:
+class TestFlowRegistration:
+    def test_task_tracking(self):
+        with Flow() as flow:
+            task = SimpleTask()
+            assert task in flow.tasks
+
+    def test_task_tracking_on_call(self):
         task = SimpleTask()
+        with Flow() as flow:
+            task.run_once()
         assert task in flow.tasks
 
+    def test_parent_child_tracking(self):
+        with Flow() as flow:
+            with SimpleTask() as parent:
+                with SimpleTask() as child:
+                    grandchild = SimpleTask()
 
-def test_task_tracking_on_call():
-    task = SimpleTask()
-    with Flow() as flow:
-        task.run_once()
-    assert task in flow.tasks
+        assert parent in flow.tasks
+        assert child in flow.tasks
+        assert grandchild in flow.tasks
+
+        assert len(flow.graph.edges) == 2
 
 
 class TestTaskStatus:

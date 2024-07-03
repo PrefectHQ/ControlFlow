@@ -98,7 +98,7 @@ class Settings(ControlFlowSettings):
     )
 
     tools_verbose: bool = Field(
-        False, description="If True, tools will log additional information."
+        True, description="If True, tools will log additional information."
     )
 
     # ------------ Prefect settings ------------

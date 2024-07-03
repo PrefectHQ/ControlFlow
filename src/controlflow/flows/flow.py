@@ -18,6 +18,7 @@ logger = get_logger(__name__)
 
 
 class Flow(ControlFlowModel):
+    model_config = dict(arbitrary_types_allowed=True)
     thread_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     name: Optional[str] = None
     description: Optional[str] = None
@@ -32,7 +33,7 @@ class Flow(ControlFlowModel):
         default_factory=list,
     )
     context: dict[str, Any] = {}
-    graph: Graph = Field(default_factory=Graph)
+    graph: Graph = Field(default_factory=Graph, repr=False, exclude=True)
     _cm_stack: list[contextmanager] = []
 
     def __init__(self, *, copy_parent: bool = True, **kwargs):

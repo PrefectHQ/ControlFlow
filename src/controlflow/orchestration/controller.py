@@ -7,6 +7,7 @@ from controlflow.agents import Agent
 from controlflow.events.agent_events import (
     EndTurnEvent,
     SelectAgentEvent,
+    SystemMessageEvent,
 )
 from controlflow.events.events import Event
 from controlflow.events.task_events import TaskReadyEvent
@@ -50,6 +51,7 @@ class Controller(ControlFlowModel):
         " -> [agents]. Any tasks that aren't included will use their default agents.",
     )
     handlers: list[Handler] = Field(None, validate_default=True)
+    _ready_task_counter: int = 0
 
     @field_validator("handlers", mode="before")
     def _handlers(cls, v):
@@ -98,7 +100,12 @@ class Controller(ControlFlowModel):
             ready_tasks = self.get_ready_tasks()
 
             if not ready_tasks:
+                self._ready_task_counter += 1
+                if self._ready_task_counter >= 3:
+                    raise ValueError("No tasks are ready to run. This is unexpected.")
                 return
+            else:
+                self._ready_task_counter = 0
 
             # select an agent
             agent = self.get_agent(ready_tasks=ready_tasks)
@@ -177,47 +184,55 @@ class Controller(ControlFlowModel):
         """
         active_tasks = []
         for task in ready_tasks:
-            if agent in self.agents.get(task, task.get_agents()):
+            if agent in self.agents_for_task(task):
                 active_tasks.append(task)
                 self.handle_event(TaskReadyEvent(task=task), tasks=[task])
                 if not task._prefect_task.is_started:
                     task._prefect_task.start(
                         depends_on=[t.result for t in task.depends_on]
                     )
+        if not active_tasks:
+            raise ValueError("No active tasks for agent. This is unexpected.")
         return active_tasks
+
+    def agents_for_task(self, task: Task) -> list[Agent]:
+        return self.agents.get(task, task.get_agents())
 
     def get_agent(self, ready_tasks: list[Task]) -> tuple[Agent, list[Task]]:
         candidates = [
             agent
             for task in ready_tasks
             # get agents from either controller assignments or the task defaults
-            for agent in self.agents.get(task, task.get_agents())
+            for agent in self.agents_for_task(task)
         ]
 
         # if there is only one candidate, return it
         if len(candidates) == 1:
             agent = candidates[0]
 
-        # get the last select-agent event
-        select_event: list[Union[SelectAgentEvent, EndTurnEvent]] = (
-            self.flow.get_events(limit=1, types=["select-agent", "end-turn"])
+        # get the last select-agent or end-turn event
+        agent_event: list[Union[SelectAgentEvent, EndTurnEvent]] = self.flow.get_events(
+            limit=1,
+            types=["select-agent", "end-turn"],
+            task_ids=[t.id for t in self.flow.graph.upstream_tasks(ready_tasks)],
         )
-
-        # if an agent was selected and is a candidate, return it
-        if select_event and select_event[0].event == "select-agent":
-            agent = next(
-                (a for a in candidates if a.name == select_event[0].agent.name), None
-            )
-            if agent:
-                return agent
-        # if an agent was nominated and is a candidate, return it
-        elif select_event and select_event[0].event == "end-turn":
-            agent = next(
-                (a for a in candidates if a.name == select_event[0].next_agent_name),
-                None,
-            )
-            if agent:
-                return agent
+        if agent_event:
+            event = agent_event[0]
+            # if an agent was selected and is a candidate, return it
+            if event.event == "select-agent":
+                agent = next(
+                    (a for a in candidates if a.name == event.agent.name), None
+                )
+                if agent:
+                    return agent
+            # if an agent was nominated and is a candidate, return it
+            elif event.event == "end-turn" and event.next_agent_name is not None:
+                agent = next(
+                    (a for a in candidates if a.name == event.next_agent_name),
+                    None,
+                )
+                if agent:
+                    return agent
 
         # if there are multiple candiates remaining, use the first task's strategy to select one
         strategy_fn = ready_tasks[0].get_agent_strategy()
@@ -229,10 +244,14 @@ class Controller(ControlFlowModel):
 
 
 class AgentContext(ControlFlowModel):
-    agent: Agent
-    tasks: list[Task]
-    flow: Flow
-    controller: Controller
+    agent: Agent = Field(description="The active agent")
+    tasks: list[Task] = Field(
+        description="The tasks that the agent is assigned to complete that are ready to be completed"
+    )
+    flow: Flow = Field(description="The flow that the agent is working in")
+    controller: Controller = Field(
+        description="The controller that is managing the flow"
+    )
 
     def get_events(self) -> list[Event]:
         return self.flow.get_events(
@@ -240,7 +259,7 @@ class AgentContext(ControlFlowModel):
             task_ids=[t.id for t in self.flow.graph.upstream_tasks(self.tasks)],
         )
 
-    def get_prompt(self) -> str:
+    def get_prompt(self, tools: list[Tool]) -> str:
         from controlflow.orchestration import prompts
 
         # get up to 50 upstream and 50 downstream tasks
@@ -268,11 +287,20 @@ class AgentContext(ControlFlowModel):
             downstream_tasks=downstream_tasks,
         )
 
-        tool_prompt = prompts.ToolTemplate(agent=self.agent)
-
-        return "\n\n".join(
-            [p.render() for p in [agent_prompt, workflow_prompt, tool_prompt]]
+        tool_prompt = prompts.ToolTemplate(
+            agent=self.agent,
+            has_user_access_tool="talk_to_user" in [t.name for t in tools],
+            has_end_turn_tool="end_turn" in [t.name for t in tools],
         )
+
+        communication_prompt = prompts.CommunicationTemplate()
+
+        prompts = [
+            p.render()
+            for p in [agent_prompt, workflow_prompt, tool_prompt, communication_prompt]
+        ]
+
+        return "\n\n".join(prompts)
 
     def get_tools(self) -> list[Tool]:
         tools = []
@@ -280,10 +308,13 @@ class AgentContext(ControlFlowModel):
         # add flow tools
         tools.extend(self.flow.tools)
 
-        # add end turn tool
-        tools.append(create_end_turn_tool(controller=self.controller, agent=self.agent))
+        # add end turn tool if there are multiple agents for any task
+        if any(len(self.controller.agents_for_task(t)) > 1 for t in self.tasks):
+            tools.append(
+                create_end_turn_tool(controller=self.controller, agent=self.agent)
+            )
 
-        # add tools for any ready tasks that the agent is assigned to
+        # add tools for working with tasks
         for task in self.tasks:
             tools.extend(task.get_tools())
             tools.append(
@@ -299,12 +330,16 @@ class AgentContext(ControlFlowModel):
 
         return as_tools(tools)
 
-    def get_messages(self) -> list[AIMessage]:
+    def get_messages(self, tools: list[Tool] = None) -> list[AIMessage]:
         from controlflow.events.message_compiler import EventContext, MessageCompiler
 
         events = self.flow.get_events(
             agent_ids=[self.agent.id],
             task_ids=[t.id for t in self.flow.graph.upstream_tasks(self.tasks)],
+        )
+
+        events.append(
+            SystemMessageEvent(content=f"{self.agent.name}, it is your turn.")
         )
 
         event_context = EventContext(
@@ -318,14 +353,14 @@ class AgentContext(ControlFlowModel):
         compiler = MessageCompiler(
             events=events,
             context=event_context,
-            system_prompt=self.get_prompt(),
+            system_prompt=self.get_prompt(tools=tools),
         )
         messages = compiler.compile_to_messages()
         return messages
 
     def run(self) -> Generator["Event", None, None]:
         tools = self.get_tools()
-        messages = self.get_messages()
+        messages = self.get_messages(tools=tools)
         for event in self.agent._run_model(messages=messages, additional_tools=tools):
             self.controller.handle_event(event, tasks=self.tasks, agents=[self.agent])
 

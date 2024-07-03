@@ -1,7 +1,6 @@
+from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, TypeVar
-
-from pydantic import BaseModel
 
 from controlflow.tasks.task import Task
 
@@ -32,7 +31,8 @@ class EdgeType(Enum):
     SUBTASK = "subtask"
 
 
-class Edge(BaseModel):
+@dataclass
+class Edge:
     upstream: Task
     downstream: Task
     type: EdgeType
@@ -40,29 +40,39 @@ class Edge(BaseModel):
     def __repr__(self):
         return f"{self.type}: {self.upstream.friendly_name()} -> {self.downstream.friendly_name()}"
 
-    def __hash__(self) -> int:
-        return id(self)
+    def __hash__(self) -> id:
+        return hash((id(self.upstream), id(self.downstream), self.type))
 
 
-class Graph(BaseModel):
-    tasks: set[Task] = set()
-    edges: set[Edge] = set()
-    _cache: dict[str, dict[Task, list[Task]]] = {}
-
-    def __init__(self):
-        super().__init__()
-
-    @classmethod
-    def from_tasks(cls, tasks: list[Task]) -> "Graph":
-        graph = cls()
-        for task in tasks:
-            graph.add_task(task)
-        return graph
+class Graph:
+    def __init__(self, tasks: list[Task] = None, edges: list[Edge] = None):
+        self.tasks: set[Task] = set()
+        self.edges: set[Edge] = set()
+        self._cache: dict[str[dict[Task, list[Task]]]] = {}
+        if tasks:
+            for task in tasks:
+                self.add_task(task)
+        if edges:
+            for edge in edges:
+                self.add_edge(edge)
 
     def add_task(self, task: Task):
         if task in self.tasks:
             return
+
         self.tasks.add(task)
+
+        # add the task's parent
+        if task.parent:
+            self.add_edge(
+                Edge(
+                    upstream=task,
+                    downstream=task.parent,
+                    type=EdgeType.SUBTASK,
+                )
+            )
+
+        # add the task's subtasks
         for subtask in task._subtasks:
             self.add_edge(
                 Edge(
@@ -72,6 +82,7 @@ class Graph(BaseModel):
                 )
             )
 
+        # add the task's dependencies
         for upstream in task.depends_on:
             if upstream not in task._subtasks:
                 self.add_edge(
