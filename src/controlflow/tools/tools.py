@@ -9,7 +9,7 @@ import pydantic
 import pydantic.v1
 from langchain_core.messages import ToolCall
 from prefect.utilities.asyncutils import run_coro_as_sync
-from pydantic import Field, TypeAdapter
+from pydantic import Field, PydanticSchemaGenerationError, TypeAdapter
 
 import controlflow
 from controlflow.utilities.prefect import create_markdown_artifact, prefect_task
@@ -98,10 +98,17 @@ class Tool(ControlFlowModel):
     def from_function(
         cls, fn: Callable, name: str = None, description: str = None, **kwargs
     ):
-        description = description or fn.__doc__ or "(No description provided)"
+        name = name or fn.__name__
+        description = description or fn.__doc__ or ""
 
         signature = inspect.signature(fn)
-        parameters = TypeAdapter(fn).json_schema()
+        try:
+            parameters = TypeAdapter(fn).json_schema()
+        except PydanticSchemaGenerationError:
+            raise ValueError(
+                f'Could not generate a schema for tool "{name}". '
+                "Tool functions must have type hints that are compatible with Pydantic."
+            )
 
         # load parameter descriptions
         for param in signature.parameters.values():
@@ -124,11 +131,16 @@ class Tool(ControlFlowModel):
         # Handle return type description
         return_type = signature.return_annotation
         if return_type is not inspect._empty:
-            return_schema = TypeAdapter(return_type).json_schema()
-            description += f"\n\nReturn value schema: {return_schema}"
+            try:
+                return_schema = TypeAdapter(return_type).json_schema()
+                description += f"\n\nReturn value schema: {return_schema}"
+            except PydanticSchemaGenerationError:
+                pass
 
+        if not description:
+            description = "(No description provided)"
         return cls(
-            name=name or fn.__name__,
+            name=name,
             description=description,
             parameters=parameters,
             fn=fn,
