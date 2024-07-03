@@ -137,7 +137,21 @@ def format_event(
         return
 
     if message.content:
-        content.append(Markdown(str(message.content)))
+        if isinstance(message.content, str):
+            content.append(Markdown(str(message.content)))
+        elif isinstance(message.content, dict):
+            if "content" in message.content:
+                content.append(Markdown(str(message.content["content"])))
+            elif "text" in message.content:
+                content.append(Markdown(str(message.content["text"])))
+        elif isinstance(message.content, list):
+            for item in message.content:
+                if isinstance(item, str):
+                    content.append(Markdown(str(item)))
+                elif "content" in item:
+                    content.append(Markdown(str(item["content"])))
+                elif "text" in item:
+                    content.append(Markdown(str(item["text"])))
 
     tool_content = []
     for tool_call in message.tool_calls + message.invalid_tool_calls:

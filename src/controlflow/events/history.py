@@ -143,7 +143,9 @@ class History(ControlFlowModel, abc.ABC):
 
 
 class InMemoryHistory(History):
-    history: dict[str, list[Event]] = Field(default_factory=lambda: IN_MEMORY_STORE)
+    history: dict[str, list[Event]] = Field(
+        default_factory=lambda: IN_MEMORY_STORE, repr=False
+    )
 
     def add_events(self, thread_id: str, events: list[Event]):
         self.history.setdefault(thread_id, []).extend(events)

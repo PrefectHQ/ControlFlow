@@ -4,7 +4,7 @@ As soon as you have completed a task's objective, you must use the provided
 tool to mark it successful and provide a result. It may take multiple
 turns or collaboration with other agents to complete a task. Any agent
 assigned to a task can complete it. Once a task is complete, no other
-agent can interact with it.                 
+agent can interact with it.        
 
 Tasks should only be marked failed due to technical errors like a broken
 or erroring tool or unresponsive human.
@@ -27,6 +27,7 @@ Context:
 
 ## Tasks
 
+{% if ready_tasks %}
 ### Ready tasks
 
 These tasks are ready to be worked on because all of their dependencies have
@@ -47,7 +48,9 @@ been completed. You can only work on tasks to which you are assigned.
 - created_at: {{ task.created_at }}
 
 {% endfor %}
+{% endif %}
 
+{% if upstream_tasks %}
 ### Upstream tasks
 
 {% for task in upstream_tasks %}
@@ -67,7 +70,9 @@ been completed. You can only work on tasks to which you are assigned.
 - created_at: {{ task.created_at }}
 
 {% endfor %}
+{% endif %}
 
+{% if downstream_tasks %}
 ### Downstream tasks
         
 {% for task in downstream_tasks %}
@@ -86,3 +91,4 @@ been completed. You can only work on tasks to which you are assigned.
 - created_at: {{ task.created_at }}
 
 {% endfor %}
+{% endif %}

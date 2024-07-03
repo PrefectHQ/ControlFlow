@@ -92,9 +92,11 @@ def create_end_turn_tool(controller: "Controller", agent: Agent) -> Tool:
 
     @tool(private=True)
     def end_turn(next_agent_name: str = None) -> str:
-        """End your turn so another agent can work. You can optionally choose
+        """
+        End your turn so another agent can work. You can optionally choose
         the next agent, which can be any other agent assigned to a ready task.
-        Choose an agent likely to help you complete your tasks."""
+        Choose an agent likely to help you complete your tasks.
+        """
         controller.handle_event(
             EndTurnEvent(agent=agent, next_agent_name=next_agent_name)
         )

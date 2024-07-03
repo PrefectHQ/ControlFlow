@@ -6,7 +6,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Generator,
     GenericAlias,
     Literal,
     Optional,
@@ -22,7 +21,6 @@ from pydantic import (
     TypeAdapter,
     field_serializer,
     field_validator,
-    model_validator,
 )
 
 import controlflow
@@ -151,6 +149,24 @@ class Task(ControlFlowModel):
             tags=[self.__class__.__name__],
         )
 
+        # create dependencies to tasks passed in as depends_on
+        for task in self.depends_on:
+            self.add_dependency(task)
+
+        # create dependencies to tasks passed as subtasks
+        if self.parent is not None:
+            self.parent.add_subtask(self)
+
+        # create dependencies to tasks passed in as context
+        context_tasks = collect_tasks(self.context)
+
+        for task in context_tasks:
+            self.add_dependency(task)
+
+        # add task to flow, if exists
+        if flow := controlflow.flows.get_flow():
+            flow.add_task(self)
+
     def __hash__(self):
         return hash((self.__class__.__name__, self.id))
 
@@ -171,7 +187,7 @@ class Task(ControlFlowModel):
         return False
 
     def __repr__(self) -> str:
-        serialized = self.model_dump()
+        serialized = self.model_dump(include={"id", "objective"})
         return f"{self.__class__.__name__}({', '.join(f'{key}={repr(value)}' for key, value in serialized.items())})"
 
     @field_validator("parent", mode="before")
@@ -194,28 +210,6 @@ class Task(ControlFlowModel):
         if isinstance(v, (list, tuple, set)):
             return Literal[tuple(v)]  # type: ignore
         return v
-
-    @model_validator(mode="after")
-    def _finalize(self):
-        # add task to flow, if exists
-        if flow := controlflow.flows.get_flow():
-            flow.add_task(self)
-
-        # create dependencies to tasks passed in as depends_on
-        for task in self.depends_on:
-            self.add_dependency(task)
-
-        # create dependencies to tasks passed as subtasks
-        if self.parent is not None:
-            self.parent.add_subtask(self)
-
-        # create dependencies to tasks passed in as context
-        context_tasks = collect_tasks(self.context)
-
-        for task in context_tasks:
-            self.depends_on.add(task)
-
-        return self
 
     @field_serializer("parent")
     def _serialize_parent(self, parent: Optional["Task"]):
@@ -265,7 +259,7 @@ class Task(ControlFlowModel):
     def subtasks(self) -> list["Task"]:
         from controlflow.flows.graph import Graph
 
-        return Graph.from_tasks(tasks=self._subtasks).topological_sort()
+        return Graph(tasks=self._subtasks).topological_sort()
 
     def add_subtask(self, task: "Task"):
         """
@@ -330,9 +324,9 @@ class Task(ControlFlowModel):
         agents: Optional[list["Agent"]] = None,
         raise_on_error: bool = True,
         flow: "Flow" = None,
-    ) -> Generator[T, None, None]:
+    ) -> T:
         """
-        Internal function that can handle both sync and async runs by yielding either the result or the coroutine.
+        Run the task until it is complete
         """
         from controlflow.flows import Flow, get_flow
 
@@ -364,9 +358,9 @@ class Task(ControlFlowModel):
         agents: Optional[list["Agent"]] = None,
         raise_on_error: bool = True,
         flow: "Flow" = None,
-    ) -> Generator[T, None, None]:
+    ) -> T:
         """
-        Internal function that can handle both sync and async runs by yielding either the result or the coroutine.
+        Run the task until it is complete
         """
         from controlflow.flows import Flow, get_flow
 

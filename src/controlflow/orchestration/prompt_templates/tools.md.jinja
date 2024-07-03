@@ -1,8 +1,20 @@
 # Tools
 
-You have access to various tools. They may change, so do not rely on history 
-to see what tools are available.
+You have access to various tools. They may change, so do not rely on history to
+see what tools are available. Whenever possible, use tools in parallel or when
+posting a message instead of waiting for your next turn.
 
+{% if has_end_turn_tool %}
+## Ending your turn
+
+Your turn will continue until you mark a task complete or you use the `end_turn`
+tool. When using the `end_turn` tool, you can optionally name the agent that
+should go next, or leave it blank to let the orchestrator decide. You must use
+the `end_turn` tool to let another agent speak. 
+
+{% endif %}
+
+{% if has_user_access_tool %}
 ## Talking to human users
 
 If your task requires you to interact with a user, it will show
@@ -19,3 +31,4 @@ make up answers for omitted information; ask again and only fail the
 task if you truly can not make progress. If your task requires human
 interaction and neither it nor any assigned agents have `user_access`,
 you can fail the task.
+{% endif %}
