@@ -94,7 +94,7 @@ class Settings(ControlFlowSettings):
     # ------------ Debug settings ------------
 
     tools_raise_on_error: bool = Field(
-        True, description="If True, an error in a tool call will raise an exception."
+        False, description="If True, an error in a tool call will raise an exception."
     )
 
     tools_verbose: bool = Field(
