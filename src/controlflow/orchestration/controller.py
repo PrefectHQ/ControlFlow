@@ -3,6 +3,7 @@ from typing import AsyncGenerator, Generator, Optional, TypeVar, Union
 
 from pydantic import Field, field_validator
 
+import controlflow
 from controlflow.agents import Agent
 from controlflow.events.agent_events import (
     EndTurnEvent,
@@ -57,9 +58,9 @@ class Controller(ControlFlowModel):
     def _handlers(cls, v):
         from controlflow.orchestration.print_handler import PrintHandler
 
-        if v is None:
+        if v is None and controlflow.settings.enable_print_handler:
             v = [PrintHandler()]
-        return v
+        return v or []
 
     @field_validator("agents", mode="before")
     def _agents(cls, v):

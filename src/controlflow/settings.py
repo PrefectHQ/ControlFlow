@@ -45,7 +45,7 @@ class Settings(ControlFlowSettings):
     # ------------ display and logging settings ------------
 
     log_prints: bool = Field(
-        False,
+        default=False,
         description="Whether to log workflow prints to the Prefect logger by default.",
     )
 
@@ -94,11 +94,12 @@ class Settings(ControlFlowSettings):
     # ------------ Debug settings ------------
 
     tools_raise_on_error: bool = Field(
-        False, description="If True, an error in a tool call will raise an exception."
+        default=False,
+        description="If True, an error in a tool call will raise an exception.",
     )
 
     tools_verbose: bool = Field(
-        False, description="If True, tools will log additional information."
+        default=False, description="If True, tools will log additional information."
     )
 
     # ------------ Prefect settings ------------
