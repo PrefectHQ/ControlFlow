@@ -1,6 +1,6 @@
 import controlflow
 import pytest
-from controlflow.llm.messages import MessageType
+from controlflow.llm.messages import BaseMessage
 from controlflow.utilities.testing import FakeLLM
 
 

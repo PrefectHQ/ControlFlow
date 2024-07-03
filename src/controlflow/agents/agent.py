@@ -2,16 +2,17 @@ import logging
 import random
 import uuid
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Generator, Optional
 
 from langchain_core.language_models import BaseChatModel
 from pydantic import Field, field_serializer
 
 import controlflow
+from controlflow.events.events import Event
 from controlflow.instructions import get_instructions
+from controlflow.llm.messages import AIMessage, BaseMessage
 from controlflow.llm.models import get_default_model
 from controlflow.llm.rules import LLMRules
-from controlflow.tools.talk_to_user import talk_to_user
 from controlflow.utilities.context import ctx
 from controlflow.utilities.types import ControlFlowModel
 
@@ -20,6 +21,8 @@ from .names import NAMES
 
 if TYPE_CHECKING:
     from controlflow.tasks.task import Task
+    from controlflow.tools.tools import Tool
+
 logger = logging.getLogger(__name__)
 
 
@@ -109,6 +112,8 @@ class Agent(ControlFlowModel):
         return controlflow.llm.rules.rules_for_model(self.get_model())
 
     def get_tools(self) -> list[Callable]:
+        from controlflow.tools.talk_to_user import talk_to_user
+
         tools = self.tools.copy()
         if self.user_access:
             tools.append(talk_to_user)
@@ -140,6 +145,45 @@ class Agent(ControlFlowModel):
 
     async def run_async(self, task: "Task"):
         return await task.run_async(agents=[self])
+
+    def _run_model(
+        self,
+        messages: list[BaseMessage],
+        additional_tools: list["Tool"] = None,
+        stream: bool = True,
+    ) -> Generator[Event, None, None]:
+        from controlflow.events.agent_events import (
+            AgentMessageDeltaEvent,
+            AgentMessageEvent,
+        )
+        from controlflow.events.tool_events import ToolCallEvent, ToolResultEvent
+        from controlflow.tools.tools import as_tools, handle_tool_call
+
+        model = self.get_model()
+
+        tools = as_tools(self.get_tools() + (additional_tools or []))
+        if tools:
+            model = model.bind_tools([t.to_lc_tool() for t in tools])
+
+        if stream:
+            response = None
+            for delta in model.stream(messages):
+                if response is None:
+                    response = delta
+                else:
+                    response += delta
+                yield AgentMessageDeltaEvent(agent=self, delta=delta, snapshot=response)
+
+        else:
+            response: AIMessage = model.invoke(messages)
+
+        yield AgentMessageEvent(agent=self, message=response)
+
+        for tool_call in response.tool_calls + response.invalid_tool_calls:
+            yield ToolCallEvent(agent=self, tool_call=tool_call, message=response)
+
+            result = handle_tool_call(tool_call, tools=tools)
+            yield ToolResultEvent(agent=self, tool_call=tool_call, tool_result=result)
 
 
 DEFAULT_AGENT = Agent(name="Marvin")

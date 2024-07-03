@@ -45,6 +45,14 @@ def model_from_string(
                 "To use Google models, please install the `langchain_google_genai` package."
             )
         cls = ChatGoogleGenerativeAI
+    elif provider == "groq":
+        try:
+            from langchain_groq import ChatGroq
+        except ImportError:
+            raise ImportError(
+                "To use Groq models, please install the `langchain_groq` package."
+            )
+        cls = ChatGroq
     else:
         raise ValueError(
             f"Could not load provider automatically: {provider}. Please create your model manually."

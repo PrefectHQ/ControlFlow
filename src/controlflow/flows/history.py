@@ -7,7 +7,7 @@ from pathlib import Path
 from pydantic import Field, field_validator
 
 import controlflow
-from controlflow.llm.messages import MessageType
+from controlflow.llm.messages import BaseMessage
 from controlflow.utilities.types import ControlFlowModel
 
 # This is a global variable that will be shared between all instances of InMemoryHistory
@@ -26,16 +26,16 @@ class History(ControlFlowModel, abc.ABC):
         limit: int = None,
         before: datetime.datetime = None,
         after: datetime.datetime = None,
-    ) -> list[MessageType]:
+    ) -> list[BaseMessage]:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def save_messages(self, thread_id: str, messages: list[MessageType]):
+    def save_messages(self, thread_id: str, messages: list[BaseMessage]):
         raise NotImplementedError()
 
 
 class InMemoryHistory(History):
-    history: dict[str, list[MessageType]] = Field(
+    history: dict[str, list[BaseMessage]] = Field(
         default_factory=lambda: IN_MEMORY_HISTORY
     )
 
@@ -45,7 +45,7 @@ class InMemoryHistory(History):
         limit: int = None,
         before: datetime.datetime = None,
         after: datetime.datetime = None,
-    ) -> list[MessageType]:
+    ) -> list[BaseMessage]:
         messages = self.history.get(thread_id, [])
         filtered_messages = [
             msg
@@ -56,7 +56,7 @@ class InMemoryHistory(History):
         ]
         return list(reversed(filtered_messages))
 
-    def save_messages(self, thread_id: str, messages: list[MessageType]):
+    def save_messages(self, thread_id: str, messages: list[BaseMessage]):
         self.history.setdefault(thread_id, []).extend(messages)
 
 
@@ -81,7 +81,7 @@ class FileHistory(History):
         limit: int = None,
         before: datetime.datetime = None,
         after: datetime.datetime = None,
-    ) -> list[MessageType]:
+    ) -> list[BaseMessage]:
         if not self.path(thread_id).exists():
             return []
 
@@ -90,7 +90,7 @@ class FileHistory(History):
 
         messages = []
         for msg in reversed(all_messages):
-            message = MessageType.model_validate(msg)
+            message = BaseMessage.model_validate(msg)
             if before is None or message.timestamp < before:
                 if after is None or message.timestamp > after:
                     messages.append(message)
@@ -99,7 +99,7 @@ class FileHistory(History):
 
         return list(reversed(messages))
 
-    def save_messages(self, thread_id: str, messages: list[MessageType]):
+    def save_messages(self, thread_id: str, messages: list[BaseMessage]):
         if self.path(thread_id).exists():
             with open(self.path(thread_id), "r") as f:
                 all_messages = json.load(f)

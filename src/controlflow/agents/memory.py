@@ -1,12 +1,14 @@
 import abc
 import uuid
-from typing import ClassVar, Optional, cast
+from typing import TYPE_CHECKING, ClassVar, Optional, cast
 
 from pydantic import Field
 
-from controlflow.tools import Tool
 from controlflow.utilities.context import ctx
 from controlflow.utilities.types import ControlFlowModel
+
+if TYPE_CHECKING:
+    from controlflow.tools import Tool
 
 
 class Memory(ControlFlowModel, abc.ABC):
@@ -27,7 +29,9 @@ class Memory(ControlFlowModel, abc.ABC):
     def delete(self, index: int):
         raise NotImplementedError()
 
-    def get_tools(self) -> list[Tool]:
+    def get_tools(self) -> list["Tool"]:
+        from controlflow.tools import Tool
+
         update_tool = Tool.from_function(
             self.update,
             name="update_memory",

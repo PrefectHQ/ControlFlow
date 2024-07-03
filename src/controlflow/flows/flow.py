@@ -1,4 +1,3 @@
-import datetime
 import uuid
 from contextlib import contextmanager, nullcontext
 from typing import Any, Callable, Optional, Union
@@ -6,8 +5,9 @@ from typing import Any, Callable, Optional, Union
 from pydantic import Field
 
 from controlflow.agents import Agent
-from controlflow.flows.history import History, get_default_history
-from controlflow.llm.messages import MessageType
+from controlflow.events.event_store import EventStore, get_default_event_store
+from controlflow.events.events import Event
+from controlflow.flows.graph import Graph
 from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
@@ -18,10 +18,10 @@ logger = get_logger(__name__)
 
 
 class Flow(ControlFlowModel):
+    thread_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     name: Optional[str] = None
     description: Optional[str] = None
-    thread_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
-    history: History = Field(default_factory=get_default_history)
+    event_store: EventStore = Field(default_factory=get_default_event_store)
     tools: list[Callable] = Field(
         default_factory=list,
         description="Tools that will be available to every agent in the flow",
@@ -32,20 +32,20 @@ class Flow(ControlFlowModel):
         default_factory=list,
     )
     context: dict[str, Any] = {}
-    tasks: dict[str, Task] = {}
+    graph: Graph = Field(default_factory=Graph)
     _cm_stack: list[contextmanager] = []
 
     def __init__(self, *, copy_parent: bool = True, **kwargs):
         """
-        By default, the flow will copy the history from the parent flow if one
+        By default, the flow will copy the event history from the parent flow if one
         exists, including all completed tasks. Because each flow is a new
-        thread, new messages will not be shared between the parent and child
+        thread, new events will not be shared between the parent and child
         flow.
         """
         super().__init__(**kwargs)
         parent = get_flow()
         if parent and copy_parent:
-            self.add_messages(parent.get_messages())
+            self.add_events(parent.get_events())
             for task in parent.tasks.values():
                 if task.is_complete():
                     self.add_task(task)
@@ -60,25 +60,34 @@ class Flow(ControlFlowModel):
         # exit the context manager
         return self._cm_stack.pop().__exit__(*exc_info)
 
-    def get_messages(
+    def add_task(self, task: Task):
+        self.graph.add_task(task)
+
+    @property
+    def tasks(self) -> list[Task]:
+        return self.graph.topological_sort()
+
+    def get_events(
         self,
-        limit: int = None,
-        before: datetime.datetime = None,
-        after: datetime.datetime = None,
-    ) -> list[MessageType]:
-        return self.history.load_messages(
-            thread_id=self.thread_id, limit=limit, before=before, after=after
+        agent_ids: Optional[list[str]] = None,
+        task_ids: Optional[list[str]] = None,
+        before_id: Optional[str] = None,
+        after_id: Optional[str] = None,
+        limit: Optional[int] = None,
+        types: Optional[list[str]] = None,
+    ) -> list[Event]:
+        return self.event_store.get_events(
+            thread_id=self.thread_id,
+            agent_ids=agent_ids,
+            task_ids=task_ids,
+            before_id=before_id,
+            after_id=after_id,
+            limit=limit,
+            types=types,
         )
 
-    def add_messages(self, messages: list[MessageType]):
-        self.history.save_messages(thread_id=self.thread_id, messages=messages)
-
-    def add_task(self, task: Task):
-        if self.tasks.get(task.id, task) is not task:
-            raise ValueError(
-                f"A different task with id '{task.id}' already exists in flow."
-            )
-        self.tasks[task.id] = task
+    def add_events(self, events: list[Event]):
+        self.event_store.add_events(thread_id=self.thread_id, events=events)
 
     @contextmanager
     def create_context(self, create_prefect_flow_context: bool = True):
@@ -92,57 +101,23 @@ class Flow(ControlFlowModel):
         with ctx(**ctx_args), prefect_ctx:
             yield self
 
-    async def run_once_async(self):
-        """
-        Runs one step of the flow asynchronously.
-        """
-        if self.tasks:
-            from controlflow.controllers import Controller
-
-            controller = Controller(
-                flow=self,
-                tasks=list(self.tasks.values()),
-            )
-            await controller.run_once_async()
-
     def run_once(self):
         """
         Runs one step of the flow.
         """
-        if self.tasks:
-            from controlflow.controllers import Controller
+        from controlflow.orchestration import Controller
 
-            controller = Controller(
-                flow=self,
-                tasks=list(self.tasks.values()),
-            )
-            controller.run_once()
-
-    async def run_async(self):
-        """
-        Runs the flow asynchronously.
-        """
-        if self.tasks:
-            from controlflow.controllers import Controller
-
-            controller = Controller(
-                flow=self,
-                tasks=list(self.tasks.values()),
-            )
-            await controller.run_async()
+        controller = Controller(flow=self)
+        controller.run_once()
 
     def run(self):
         """
         Runs the flow.
         """
-        if self.tasks:
-            from controlflow.controllers import Controller
+        from controlflow.orchestration import Controller
 
-            controller = Controller(
-                flow=self,
-                tasks=list(self.tasks.values()),
-            )
-            controller.run()
+        controller = Controller(flow=self)
+        controller.run()
 
 
 def get_flow() -> Optional[Flow]:
@@ -153,16 +128,14 @@ def get_flow() -> Optional[Flow]:
     return flow
 
 
-def get_flow_messages(limit: int = None) -> list[MessageType]:
+def get_flow_events(limit: int = None) -> list[Event]:
     """
-    Loads messages from the flow's thread.
-
-    Will error if no flow is found in the context.
+    Loads events from the active flow's thread.
     """
     if limit is None:
         limit = 50
     flow = get_flow()
     if flow:
-        return get_default_history().load_messages(flow.thread_id, limit=limit)
+        return flow.get_events(limit=limit)
     else:
         return []

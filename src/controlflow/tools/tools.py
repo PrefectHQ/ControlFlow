@@ -2,7 +2,7 @@ import functools
 import inspect
 import json
 import typing
-from typing import TYPE_CHECKING, Annotated, Any, Callable, Optional, Union
+from typing import Annotated, Any, Callable, Optional, Union
 
 import langchain_core.tools
 import pydantic
@@ -12,13 +12,8 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from pydantic import Field, TypeAdapter
 
 import controlflow
-from controlflow.llm.messages import ToolMessage
 from controlflow.utilities.prefect import create_markdown_artifact, prefect_task
 from controlflow.utilities.types import ControlFlowModel
-
-if TYPE_CHECKING:
-    from controlflow.agents import Agent
-
 
 TOOL_CALL_FUNCTION_RESULT_TEMPLATE = """
 # Tool call: {name}
@@ -43,11 +38,13 @@ class Tool(ControlFlowModel):
     name: str
     description: str
     parameters: dict
-    metadata: dict = Field({}, exclude_none=True)
+    metadata: dict = {}
+    private: bool = False
     fn: Callable = Field(None, exclude=True)
 
     def to_lc_tool(self) -> dict:
-        return self.model_dump(include={"name", "description", "parameters"})
+        payload = self.model_dump(include={"name", "description", "parameters"})
+        return dict(type="function", function=payload)
 
     @prefect_task(task_run_name="Tool call: {self.name}")
     def run(self, input: dict):
@@ -134,18 +131,14 @@ def tool(
     *,
     name: Optional[str] = None,
     description: Optional[str] = None,
-    metadata: Optional[dict] = None,
+    **kwargs,
 ) -> Tool:
     """
     Decorator for turning a function into a Tool
     """
     if fn is None:
-        return functools.partial(
-            tool, name=name, description=description, metadata=metadata
-        )
-    return Tool.from_function(
-        fn, name=name, description=description, metadata=metadata or {}
-    )
+        return functools.partial(tool, name=name, description=description, **kwargs)
+    return Tool.from_function(fn, name=name, description=description, **kwargs)
 
 
 def as_tools(
@@ -193,45 +186,48 @@ def output_to_string(output: Any) -> str:
         return str(output)
 
 
-def handle_tool_call(
-    tool_call: ToolCall,
-    tools: list[Tool],
-    error: str = None,
-    agent: "Agent" = None,
-) -> ToolMessage:
+class ToolResult(ControlFlowModel):
+    tool_call_id: str
+    result: Any = Field(exclude=True, repr=False)
+    str_result: str = Field(repr=False)
+    is_error: bool = False
+    is_private: bool = False
+
+
+def handle_tool_call(tool_call: ToolCall, tools: list[Tool]) -> Any:
+    """
+    Given a ToolCall and set of available tools, runs the tool call and returns
+    a ToolResult object
+    """
+    is_error = False
+    tool = None
     tool_lookup = {t.name: t for t in tools}
     fn_name = tool_call["name"]
-    is_error = False
-    metadata = {}
-    try:
-        if error:
-            fn_output = error
-            is_error = True
-        elif fn_name not in tool_lookup:
-            fn_output = f'Function "{fn_name}" not found.'
-            is_error = True
-        else:
+
+    if fn_name not in tool_lookup:
+        fn_output = f'Function "{fn_name}" not found.'
+        is_error = True
+        if controlflow.settings.tools_raise_on_error:
+            raise ValueError(fn_output)
+
+    if not is_error:
+        try:
             tool = tool_lookup[fn_name]
-            metadata.update(getattr(tool, "metadata", {}))
             fn_args = tool_call["args"]
             if isinstance(tool, Tool):
                 fn_output = tool.run(input=fn_args)
             elif isinstance(tool, langchain_core.tools.BaseTool):
                 fn_output = tool.invoke(input=fn_args)
-    except Exception as exc:
-        fn_output = f'Error calling function "{fn_name}": {exc}'
-        is_error = True
-        if controlflow.settings.tools_raise_on_error:
-            raise
+        except Exception as exc:
+            fn_output = f'Error calling function "{fn_name}": {exc}'
+            is_error = True
+            if controlflow.settings.tools_raise_on_error:
+                raise exc
 
-    from controlflow.llm.messages import ToolMessage
-
-    return ToolMessage(
-        content=output_to_string(fn_output),
+    return ToolResult(
         tool_call_id=tool_call["id"],
-        tool_call=tool_call,
-        tool_result=fn_output,
-        tool_metadata=metadata,
+        result=fn_output,
+        str_result=output_to_string(fn_output),
         is_error=is_error,
-        agent=agent,
+        is_private=getattr(tool, "private", False),
     )

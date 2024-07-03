@@ -1,5 +1,5 @@
 # test_graph.py
-from controlflow.controllers.graph import Edge, EdgeType, Graph
+from controlflow.flows.graph import Edge, EdgeType, Graph
 from controlflow.tasks.task import Task
 
 

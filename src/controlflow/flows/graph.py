@@ -129,7 +129,7 @@ class Graph(BaseModel):
             f"upstream_{'immediate' if immediate else 'all'}_{tuple(start_tasks)}"
         )
         if cache_key not in self._cache:
-            result = set()
+            result = set(start_tasks)
             visited = set()
 
             def _upstream(task):
@@ -137,10 +137,7 @@ class Graph(BaseModel):
                     return
                 visited.add(task)
                 for edge in self.upstream_edges().get(task, []):
-                    if (
-                        edge.upstream not in visited
-                        and edge.upstream not in start_tasks
-                    ):
+                    if edge.upstream not in visited:
                         result.add(edge.upstream)
                         if not immediate:
                             _upstream(edge.upstream)
@@ -172,7 +169,7 @@ class Graph(BaseModel):
             f"downstream_{'immediate' if immediate else 'all'}_{tuple(start_tasks)}"
         )
         if cache_key not in self._cache:
-            result = set()
+            result = set(start_tasks)
             visited = set()
 
             def _downstream(task):
@@ -180,10 +177,7 @@ class Graph(BaseModel):
                     return
                 visited.add(task)
                 for edge in self.downstream_edges().get(task, []):
-                    if (
-                        edge.downstream not in visited
-                        and edge.downstream not in start_tasks
-                    ):
+                    if edge.downstream not in visited:
                         result.add(edge.downstream)
                         if not immediate:
                             _downstream(edge.downstream)

@@ -6,12 +6,12 @@ from langchain_core.language_models.fake_chat_models import FakeMessagesListChat
 
 import controlflow
 from controlflow.flows.history import InMemoryHistory
-from controlflow.llm.messages import BaseMessage, MessageType
+from controlflow.llm.messages import BaseMessage
 
 
 class FakeLLM(FakeMessagesListChatModel):
     def set_responses(
-        self, responses: list[Union[MessageType, langchain_core.messages.BaseMessage]]
+        self, responses: list[Union[BaseMessage, langchain_core.messages.BaseMessage]]
     ):
         new_responses = []
         for msg in responses:

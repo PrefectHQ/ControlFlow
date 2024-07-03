@@ -4,9 +4,17 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from jinja2 import Environment as JinjaEnvironment
-from jinja2 import StrictUndefined, select_autoescape
+from jinja2 import PackageLoader, StrictUndefined, select_autoescape
 
-jinja_env = JinjaEnvironment(
+global_fns = {
+    "now": lambda: datetime.now(ZoneInfo("UTC")),
+    "inspect": inspect,
+    "getcwd": os.getcwd,
+    "zip": zip,
+}
+
+prompt_env = JinjaEnvironment(
+    loader=PackageLoader("controlflow.orchestration", "prompt_templates"),
     autoescape=select_autoescape(default_for_string=False),
     trim_blocks=True,
     lstrip_blocks=True,
@@ -14,11 +22,4 @@ jinja_env = JinjaEnvironment(
     undefined=StrictUndefined,
 )
 
-jinja_env.globals.update(
-    {
-        "now": lambda: datetime.now(ZoneInfo("UTC")),
-        "inspect": inspect,
-        "getcwd": os.getcwd,
-        "zip": zip,
-    }
-)
+prompt_env.globals.update(global_fns)

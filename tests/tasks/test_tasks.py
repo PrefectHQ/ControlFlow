@@ -2,8 +2,8 @@ from functools import partial
 
 import pytest
 from controlflow.agents import Agent, get_default_agent
-from controlflow.controllers.graph import EdgeType
 from controlflow.flows import Flow
+from controlflow.flows.graph import EdgeType
 from controlflow.instructions import instructions
 from controlflow.tasks.task import Task, TaskStatus
 from controlflow.utilities.context import ctx
