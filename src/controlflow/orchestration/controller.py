@@ -1,5 +1,5 @@
 import logging
-from typing import Generator, Optional, TypeVar, Union
+from typing import AsyncGenerator, Generator, Optional, TypeVar, Union
 
 from pydantic import Field, field_validator
 
@@ -120,9 +120,51 @@ class Controller(ControlFlowModel):
         finally:
             self.handle_event(ControllerEnd(controller=self))
 
+    async def run_once_async(self):
+        """
+        Core pipeline for running the controller.
+        """
+        from controlflow.events.controller_events import (
+            ControllerEnd,
+            ControllerError,
+            ControllerStart,
+        )
+
+        self.handle_event(ControllerStart(controller=self))
+
+        try:
+            ready_tasks = self.get_ready_tasks()
+
+            if not ready_tasks:
+                return
+
+            # select an agent
+            agent = self.get_agent(ready_tasks=ready_tasks)
+            active_tasks = self.get_active_tasks(agent=agent, ready_tasks=ready_tasks)
+
+            context = AgentContext(
+                agent=agent,
+                tasks=active_tasks,
+                flow=self.flow,
+                controller=self,
+            )
+
+            # run
+            await context.run_async()
+
+        except Exception as exc:
+            self.handle_event(ControllerError(controller=self, error=exc))
+            raise
+        finally:
+            self.handle_event(ControllerEnd(controller=self))
+
     def run(self):
         while any(t.is_incomplete() for t in self.tasks):
             self.run_once()
+
+    async def run_async(self):
+        while any(t.is_incomplete() for t in self.tasks):
+            await self.run_once_async()
 
     def get_ready_tasks(self) -> list[Task]:
         all_tasks = self.flow.graph.upstream_tasks(self.tasks)
@@ -285,4 +327,12 @@ class AgentContext(ControlFlowModel):
         tools = self.get_tools()
         messages = self.get_messages()
         for event in self.agent._run_model(messages=messages, additional_tools=tools):
+            self.controller.handle_event(event, tasks=self.tasks, agents=[self.agent])
+
+    async def run_async(self) -> AsyncGenerator["Event", None]:
+        tools = self.get_tools()
+        messages = self.get_messages()
+        async for event in self.agent._run_model_async(
+            messages=messages, additional_tools=tools
+        ):
             self.controller.handle_event(event, tasks=self.tasks, agents=[self.agent])

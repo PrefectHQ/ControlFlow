@@ -70,6 +70,30 @@ class Tool(ControlFlowModel):
         )
         return result
 
+    @prefect_task(task_run_name="Tool call: {self.name}")
+    async def run_async(self, input: dict):
+        result = self.fn(**input)
+        if inspect.isawaitable(result):
+            result = await result
+
+        # prepare artifact
+        passed_args = inspect.signature(self.fn).bind(**input).arguments
+        try:
+            # try to pretty print the args
+            passed_args = json.dumps(passed_args, indent=2)
+        except Exception:
+            pass
+        create_markdown_artifact(
+            markdown=TOOL_CALL_FUNCTION_RESULT_TEMPLATE.format(
+                name=self.name,
+                description=self.description or "(none provided)",
+                args=passed_args,
+                result=result,
+            ),
+            key="tool-result",
+        )
+        return result
+
     @classmethod
     def from_function(
         cls, fn: Callable, name: str = None, description: str = None, **kwargs
@@ -218,6 +242,45 @@ def handle_tool_call(tool_call: ToolCall, tools: list[Tool]) -> Any:
                 fn_output = tool.run(input=fn_args)
             elif isinstance(tool, langchain_core.tools.BaseTool):
                 fn_output = tool.invoke(input=fn_args)
+        except Exception as exc:
+            fn_output = f'Error calling function "{fn_name}": {exc}'
+            is_error = True
+            if controlflow.settings.tools_raise_on_error:
+                raise exc
+
+    return ToolResult(
+        tool_call_id=tool_call["id"],
+        result=fn_output,
+        str_result=output_to_string(fn_output),
+        is_error=is_error,
+        is_private=getattr(tool, "private", False),
+    )
+
+
+async def handle_tool_call_async(tool_call: ToolCall, tools: list[Tool]) -> Any:
+    """
+    Given a ToolCall and set of available tools, runs the tool call and returns
+    a ToolResult object
+    """
+    is_error = False
+    tool = None
+    tool_lookup = {t.name: t for t in tools}
+    fn_name = tool_call["name"]
+
+    if fn_name not in tool_lookup:
+        fn_output = f'Function "{fn_name}" not found.'
+        is_error = True
+        if controlflow.settings.tools_raise_on_error:
+            raise ValueError(fn_output)
+
+    if not is_error:
+        try:
+            tool = tool_lookup[fn_name]
+            fn_args = tool_call["args"]
+            if isinstance(tool, Tool):
+                fn_output = await tool.run_async(input=fn_args)
+            elif isinstance(tool, langchain_core.tools.BaseTool):
+                fn_output = await tool.ainvoke(input=fn_args)
         except Exception as exc:
             fn_output = f'Error calling function "{fn_name}": {exc}'
             is_error = True
