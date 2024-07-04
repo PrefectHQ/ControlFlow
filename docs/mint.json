@@ -71,6 +71,7 @@
                 "guides/default-agent",
                 "guides/workflow-apis",
                 "guides/execution-modes",
+                "guides/event-log",
                 "guides/agentic-loop",
                 "guides/orchestration"
             ]
