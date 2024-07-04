@@ -39,7 +39,7 @@ class Defaults(ControlFlowModel):
     @field_validator("model")
     def _model(cls, v):
         if not isinstance(v, BaseChatModel):
-            raise ValueError("model must be a BaseChatModel")
+            raise ValueError("Input must be an instance of BaseChatModel")
         return v
 
 
