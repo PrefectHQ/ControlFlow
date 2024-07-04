@@ -430,7 +430,6 @@ class Task(ControlFlowModel):
         elif self.parent:
             return self.parent.get_agents()
         else:
-            from controlflow.agents import get_default_agent
             from controlflow.flows import get_flow
 
             try:
@@ -440,7 +439,7 @@ class Task(ControlFlowModel):
             if flow and flow.agents:
                 return flow.agents
             else:
-                return [get_default_agent()]
+                return [controlflow.defaults.agent]
 
     def get_agent_strategy(self) -> Callable:
         """

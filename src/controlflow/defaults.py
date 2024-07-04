@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import field_validator
 
@@ -10,7 +10,7 @@ from controlflow.utilities.types import ControlFlowModel
 
 from .agents import Agent
 from .events.history import History, InMemoryHistory
-from .llm.models import _get_initial_default_model
+from .llm.models import _get_initial_default_model, model_from_string
 
 __all__ = ["defaults"]
 
@@ -27,7 +27,7 @@ class Defaults(ControlFlowModel):
     is imported, and then used as a singleton.
     """
 
-    model: Any
+    model: Optional[Any]
     history: History
     agent: Agent
     # add more defaults here
@@ -38,7 +38,9 @@ class Defaults(ControlFlowModel):
 
     @field_validator("model")
     def _model(cls, v):
-        if not isinstance(v, BaseChatModel):
+        if isinstance(v, str):
+            v = model_from_string(v)
+        elif v is not None and v is not isinstance(v, BaseChatModel):
             raise ValueError("Input must be an instance of BaseChatModel")
         return v
 

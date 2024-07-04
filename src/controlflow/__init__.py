@@ -1,6 +1,9 @@
 # --- Public top-level API ---
 
 from pyexpat import model
+
+
+from langchain_core.language_models import BaseChatModel
 from .settings import settings
 from controlflow.defaults import defaults
 
@@ -18,3 +21,12 @@ try:
     from ._version import version as __version__  # type: ignore
 except ImportError:
     __version__ = "unknown"
+
+
+# def get_default_model() -> BaseChatModel:
+#     from controlflow.llm.models import model_from_string
+
+#     if getattr(defaults, "model", None) is None:
+#         return model_from_string(settings.llm_model)
+#     else:
+#         return defaults.model

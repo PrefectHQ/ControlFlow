@@ -131,25 +131,28 @@ assert cf.Agent('Marvin').model.model_name == 'claude-3-opus-20240229'
 ```
 ### From a string setting
 
-If you don't need to configure the model object, you can set the default model using a string setting. The string must have the form `<provider>/<model name>`.
+You can also specify a default model using a string, which is convenient though it doesn't allow you to configure advanced model settings. The string must have the form `<provider>/<model name>`.
 
-
-You can change this setting either with an environment variable or by modifying it in your script. For example, to use GPT 3.5 Turbo as the default model:
+You can apply this setting either by using an environment variable before you import ControlFlow or in your script at runtime. For example, to use GPT 3.5 Turbo as the default model:
 
 <CodeGroup>
-```bash As an environment variable
+```bash Set an environment variable
 export CONTROLFLOW_LLM_MODEL=openai/gpt-3.5-turbo
 ```
 
-```python In your script
+```python Set a runtime variable
 import controlflow as cf
-# set the default model
-cf.settings.llm_model = "openai/gpt-3.5-turbo"
+# set the default model as a string
+cf.defaults.model = "openai/gpt-3.5-turbo"
 
 # check that the default model is loaded
 assert cf.Agent('Marvin').model.model_name == 'gpt-3.5-turbo'
 ```
 </CodeGroup>
+
+<Note>
+The default model can only be set by environment variable before importing ControlFlow. Once ControlFlow is imported, it reads the `controlflow.settings.llm_model` value to create the default model object.
+</Note>
 
 
 At this time, setting the default model via string is only supported for the following providers:

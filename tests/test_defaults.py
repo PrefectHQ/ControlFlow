@@ -16,7 +16,7 @@ def test_default_model_failed_validation():
 def test_set_default_model():
     model = ChatOpenAI(temperature=0.1)
     controlflow.defaults.model = model
-    assert controlflow.llm.models.get_default_model() is model
+    assert controlflow.Agent().get_model() is model
 
 
 def test_default_agent_failed_validation():
@@ -30,7 +30,7 @@ def test_default_agent_failed_validation():
 def test_set_default_agent():
     agent = controlflow.Agent(name="Marvin")
     controlflow.defaults.agent = agent
-    assert controlflow.agents.get_default_agent() is agent
+    assert controlflow.Task("").get_agents()[0] is agent
 
 
 def test_default_history_failed_validation():
@@ -44,4 +44,4 @@ def test_default_history_failed_validation():
 def test_set_default_history():
     history = controlflow.events.history.InMemoryHistory()
     controlflow.defaults.history = history
-    assert controlflow.events.history.get_default_history() is history
+    assert controlflow.Flow().history is history
