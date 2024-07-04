@@ -28,9 +28,9 @@ class ControlFlowSettings(BaseSettings):
 
 
 class Settings(ControlFlowSettings):
-    max_iterations: Optional[int] = Field(
+    max_task_iterations: Optional[int] = Field(
         default=100,
-        description="The maximum number of iterations to attempt to run "
+        description="The maximum number of iterations to attempt to run a task"
         "before raising an error. If None, the system will run indefinitely. ",
     )
 

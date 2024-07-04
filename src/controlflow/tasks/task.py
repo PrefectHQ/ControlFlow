@@ -112,6 +112,10 @@ class Task(ControlFlowModel):
         "Only used for tasks with more than one agent assigned.",
     )
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    max_iterations: Optional[int] = Field(
+        default_factory=lambda: controlflow.settings.max_task_iterations,
+        description="The maximum number of iterations to attempt to run a task.",
+    )
     _subtasks: set["Task"] = set()
     _downstreams: set["Task"] = set()
     _iteration: int = 0
@@ -314,7 +318,9 @@ class Task(ControlFlowModel):
         from controlflow.orchestration import Controller
 
         controller = Controller(
-            tasks=[self], flow=flow, agents={self: agents} if agents else None
+            tasks=[self],
+            flow=flow,
+            agents={self: agents} if agents else None,
         )
         await controller.run_once_async()
 

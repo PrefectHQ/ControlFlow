@@ -1,7 +1,9 @@
 import logging
+import math
+from collections import defaultdict
 from typing import AsyncGenerator, Generator, Optional, TypeVar, Union
 
-from pydantic import Field, field_validator
+from pydantic import Field, PrivateAttr, field_validator
 
 import controlflow
 from controlflow.agents import Agent
@@ -52,6 +54,10 @@ class Controller(ControlFlowModel):
         " -> [agents]. Any tasks that aren't included will use their default agents.",
     )
     handlers: list[Handler] = Field(None, validate_default=True)
+
+    _task_iterations: dict[Task, int] = PrivateAttr(
+        default_factory=lambda: defaultdict(int)
+    )
     _ready_task_counter: int = 0
 
     @field_validator("handlers", mode="before")
@@ -99,27 +105,7 @@ class Controller(ControlFlowModel):
 
         try:
             ready_tasks = self.get_ready_tasks()
-
-            if not ready_tasks:
-                self._ready_task_counter += 1
-                if self._ready_task_counter >= 3:
-                    raise ValueError("No tasks are ready to run. This is unexpected.")
-                return
-            else:
-                self._ready_task_counter = 0
-
-            # select an agent
-            agent = self.get_agent(ready_tasks=ready_tasks)
-            active_tasks = self.get_active_tasks(agent=agent, ready_tasks=ready_tasks)
-
-            context = AgentContext(
-                agent=agent,
-                tasks=active_tasks,
-                flow=self.flow,
-                controller=self,
-            )
-
-            # run
+            context = self.get_agent_context(ready_tasks=ready_tasks)
             context.run()
 
         except Exception as exc:
@@ -142,22 +128,7 @@ class Controller(ControlFlowModel):
 
         try:
             ready_tasks = self.get_ready_tasks()
-
-            if not ready_tasks:
-                return
-
-            # select an agent
-            agent = self.get_agent(ready_tasks=ready_tasks)
-            active_tasks = self.get_active_tasks(agent=agent, ready_tasks=ready_tasks)
-
-            context = AgentContext(
-                agent=agent,
-                tasks=active_tasks,
-                flow=self.flow,
-                controller=self,
-            )
-
-            # run
+            context = self.get_agent_context(ready_tasks=ready_tasks)
             await context.run_async()
 
         except Exception as exc:
@@ -165,6 +136,20 @@ class Controller(ControlFlowModel):
             raise
         finally:
             self.handle_event(ControllerEnd(controller=self))
+
+    def get_agent_context(self, ready_tasks: list[Task]) -> "AgentContext":
+        # select an agent
+        agent = self.get_agent(ready_tasks=ready_tasks)
+        # get ready tasks
+        active_tasks = self.get_active_tasks(agent=agent, ready_tasks=ready_tasks)
+        # create a context
+        context = AgentContext(
+            agent=agent,
+            tasks=active_tasks,
+            flow=self.flow,
+            controller=self,
+        )
+        return context
 
     def run(self):
         while any(t.is_incomplete() for t in self.tasks):
@@ -177,6 +162,13 @@ class Controller(ControlFlowModel):
     def get_ready_tasks(self) -> list[Task]:
         all_tasks = self.flow.graph.upstream_tasks(self.tasks)
         ready_tasks = [t for t in all_tasks if t.is_ready()]
+        if not ready_tasks:
+            self._ready_task_counter += 1
+            if self._ready_task_counter >= 3:
+                raise ValueError("No tasks are ready to run. This is unexpected.")
+            return
+        else:
+            self._ready_task_counter = 0
         return ready_tasks
 
     def get_active_tasks(self, agent: Agent, ready_tasks: list[Task]) -> list[Task]:
@@ -186,14 +178,22 @@ class Controller(ControlFlowModel):
         active_tasks = []
         for task in ready_tasks:
             if agent in self.agents_for_task(task):
+                if task._iteration >= (task.max_iterations or math.inf):
+                    logger.warning(
+                        f'Task "{task.friendly_name()}" has exceeded max iterations and will be marked failed'
+                    )
+                    task.mark_failed(
+                        message="Task was not completed before exceeding its maximum number of iterations."
+                    )
+                    continue
+
+                task._iteration += 1
                 active_tasks.append(task)
                 self.handle_event(TaskReadyEvent(task=task), tasks=[task])
                 if not task._prefect_task.is_started:
                     task._prefect_task.start(
                         depends_on=[t.result for t in task.depends_on]
                     )
-        if not active_tasks:
-            raise ValueError("No active tasks for agent. This is unexpected.")
         return active_tasks
 
     def agents_for_task(self, task: Task) -> list[Agent]:
@@ -238,7 +238,6 @@ class Controller(ControlFlowModel):
         # if there are multiple candiates remaining, use the first task's strategy to select one
         strategy_fn = ready_tasks[0].get_agent_strategy()
         agent = strategy_fn(agents=candidates, task=ready_tasks[0], flow=self.flow)
-        ready_tasks[0]._iteration += 1
 
         self.handle_event(SelectAgentEvent(agent=agent), agents=[agent])
         return agent
@@ -360,6 +359,8 @@ class AgentContext(ControlFlowModel):
         return messages
 
     def run(self) -> Generator["Event", None, None]:
+        if not self.tasks:
+            return
         tools = self.get_tools()
         messages = self.get_messages(tools=tools)
         for event in self.agent._run_model(messages=messages, additional_tools=tools):
