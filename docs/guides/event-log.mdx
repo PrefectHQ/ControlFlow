@@ -1,0 +1,84 @@
+---
+title: The Workflow Event Log
+---
+
+In complex AI workflows, multiple agents often need to collaborate to achieve a goal. This collaboration presents several challenges:
+
+1. Context Management: How do we provide each agent with the right information at the right time, without overwhelming them with irrelevant details?
+
+2. Role Clarity: In a multi-agent system, how do we ensure that each agent can distinguish between its own actions and those of other agents?
+
+3. Workflow State: How do we maintain a comprehensive view of the workflow's progress, including task dependencies and completions?
+
+4. Privacy and Access Control: How do we manage information flow between agents, ensuring that sensitive information is only shared with the appropriate agents?
+
+5. Efficient Resource Utilization: Given the limited context windows of language models, how do we make the most efficient use of this precious resource?
+
+6. Agent Selection: How do we decide which agent should take the next action in a workflow, based on the current state and context?
+
+Traditional approaches, which often rely on passing full conversation histories between agents, fall short in addressing these challenges. They lead to information overload, confusion about roles, and inefficient use of context windows.
+
+## The Agentic Event Log
+
+At the core of ControlFlow's design is a fundamental shift in how we think about workflow history. Instead of maintaining a linear conversation log, ControlFlow implements a comprehensive event log. This event log is the central source of truth for everything that happens in the agentic workflow.
+
+### What is an Event?
+
+In ControlFlow, an event is a discrete, atomic record of something that happened in the workflow. Events can represent a wide range of occurrences:
+
+- An agent generating a message or taking an action
+- A task changing status (e.g., becoming ready, completing, failing)
+- A tool being called and returning a result
+- A user providing input or feedback
+
+Each event is rich with metadata, including:
+
+- Timestamp
+- Associated task(s)
+- Involved agent(s)
+- Event type
+- Relevant content or payload
+
+This granular approach to record-keeping provides a flexible and powerful foundation for workflow management.
+
+## Dynamic View Compilation
+
+The true power of the event log becomes apparent in how ControlFlow uses it. Instead of passing this raw event log to agents, ControlFlow implements a dynamic view compilation process. Every time an agent needs to take action, the system compiles a tailored view of the workflow state specifically for that agent and that moment.
+
+Here's how this process works:
+
+1. Event Selection: The system queries the event log to retrieve events relevant to the current context. This includes events related to the current task and agent, as well as leveraging all available information about the workflow to load events related to upstream tasks and collaborators that may be relevant to the current task.
+
+2. Privacy Filtering: Events are filtered based on the agent's permissions or visibility, ensuring that sensitive information is not leaked between agents.
+
+3. Message Compilation: Selected events are transformed into a format suitable for the agent to process. This involves compiling events into a sequence of LLM messages, taking into account idiosyncracies such as context windows, LLM API requirements, and other constraints. For example, an agent's own messages might be presented with the `assistant` role, while messages from other agents are given either `system` or `user` roles and prefixed with an explanation of which agent they came from. 
+
+4. LLM Execution: The compiled messages are passed to the agent's language model for processing. The agent generates a series of response events that are appropriately captured and recorded in the event log.
+
+This dynamic compilation process ensures that each agent always has the most relevant, up-to-date view of the workflow, tailored specifically to its current needs and permissions.
+
+## Outcomes and Benefits
+
+This event log-centric design, combined with dynamic view compilation, yields several powerful benefits:
+
+1. Flexible Multi-Agent Collaboration: Agents can effectively work together even if they're using different language models or have different capabilities. Each agent receives a view of the workflow that's optimized for its specific needs.
+
+2. Efficient Resource Utilization: By compiling tailored views, ControlFlow makes optimal use of limited context windows, ensuring that agents have the most relevant information for their current task.
+
+3. Clear Role Differentiation: The transformation of other agents' actions into system-user message pairs eliminates confusion about who said or did what in the workflow.
+
+4. Fine-Grained Privacy Control: The event log allows for precise control over information flow. Sensitive events can be recorded but only included in compiled views for authorized agents.
+
+5. Comprehensive Workflow State: The event log maintains a complete record of the workflow's progress, allowing for accurate tracking of task dependencies and completions.
+
+6. Improved Debugging and Analysis: The granular nature of the event log provides a detailed record of everything that happened in a workflow, facilitating debugging and performance analysis.
+
+7. Scalability: The event log design can easily accommodate new types of events or workflow components without requiring changes to the core architecture.
+
+## Conclusion
+
+ControlFlow's event log design represents a fundamental rethinking of how to manage state and context in multi-agent AI workflows. By maintaining a comprehensive event log and dynamically compiling agent-specific views, ControlFlow provides a powerful solution to the challenges of multi-agent orchestration.
+
+This approach bridges the gap between the messy, non-linear reality of complex AI workflows and the structured, relevant context that AI agents need to function effectively. It enables the creation of sophisticated, multi-agent workflows while ensuring efficient resource utilization, clear communication, and robust privacy controls.
+
+Understanding this event log-centric design is key to grasping how ControlFlow operates and why it's capable of managing complex, multi-agent workflows effectively.
