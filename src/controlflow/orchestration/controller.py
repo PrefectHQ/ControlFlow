@@ -166,7 +166,6 @@ class Controller(ControlFlowModel):
             self._ready_task_counter += 1
             if self._ready_task_counter >= 3:
                 raise ValueError("No tasks are ready to run. This is unexpected.")
-            return
         else:
             self._ready_task_counter = 0
         return ready_tasks
