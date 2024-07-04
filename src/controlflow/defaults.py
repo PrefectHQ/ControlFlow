@@ -40,7 +40,7 @@ class Defaults(ControlFlowModel):
     def _model(cls, v):
         if isinstance(v, str):
             v = model_from_string(v)
-        elif v is not None and v is not isinstance(v, BaseChatModel):
+        elif v is not None and not isinstance(v, BaseChatModel):
             raise ValueError("Input must be an instance of BaseChatModel")
         return v
 
