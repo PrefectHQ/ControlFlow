@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_default_agent() -> "Agent":
-    return controlflow.default_agent
+    return controlflow.defaults.agent
 
 
 class Agent(ControlFlowModel):

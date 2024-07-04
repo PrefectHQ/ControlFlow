@@ -28,7 +28,7 @@ IN_MEMORY_STORE = {}
 
 
 def get_default_history() -> "History":
-    return controlflow.default_history
+    return controlflow.defaults.history
 
 
 @cache

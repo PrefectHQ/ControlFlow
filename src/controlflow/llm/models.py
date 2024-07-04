@@ -13,10 +13,10 @@ logger = get_logger(__name__)
 
 
 def get_default_model() -> BaseChatModel:
-    if getattr(controlflow, "default_model", None) is None:
+    if getattr(controlflow.defaults, "model", None) is None:
         return model_from_string(controlflow.settings.llm_model)
     else:
-        return controlflow.default_model
+        return controlflow.defaults.model
 
 
 def model_from_string(
@@ -59,9 +59,6 @@ def model_from_string(
         )
 
     return cls(model=model, temperature=temperature, **kwargs)
-
-
-DEFAULT_MODEL = None
 
 
 def _get_initial_default_model() -> BaseChatModel:

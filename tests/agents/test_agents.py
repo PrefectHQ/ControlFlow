@@ -50,7 +50,7 @@ class TestDefaultAgent:
         assert get_default_agent().name == "Marvin"
 
         new_default_agent = Agent(name="New Agent")
-        controlflow.default_agent = new_default_agent
+        controlflow.defaults.agent = new_default_agent
 
         assert get_default_agent().name == "New Agent"
         assert Task("task").get_agents()[0] is new_default_agent
@@ -58,7 +58,7 @@ class TestDefaultAgent:
 
     def test_updating_the_default_model_updates_the_default_agent_model(self):
         new_model = ChatOpenAI(model="gpt-3.5-turbo")
-        controlflow.default_model = new_model
+        controlflow.defaults.model = new_model
 
         new_agent = get_default_agent()
         assert new_agent.model is None

@@ -9,9 +9,9 @@ def restore_defaults(monkeypatch):
     """
     Monkeypatch defaults to themselves, which will automatically reset them after every test
     """
-    monkeypatch.setattr(controlflow, "default_agent", controlflow.default_agent)
-    monkeypatch.setattr(controlflow, "default_model", controlflow.default_model)
-    monkeypatch.setattr(controlflow, "default_history", controlflow.default_history)
+    monkeypatch.setattr(controlflow.defaults, "agent", controlflow.defaults.agent)
+    monkeypatch.setattr(controlflow.defaults, "model", controlflow.defaults.model)
+    monkeypatch.setattr(controlflow.defaults, "history", controlflow.defaults.history)
     yield
 
 
@@ -22,5 +22,5 @@ def fake_llm() -> FakeLLM:
 
 @pytest.fixture()
 def default_fake_llm(fake_llm) -> FakeLLM:
-    controlflow.default_model = fake_llm
+    controlflow.defaults.model = fake_llm
     return fake_llm

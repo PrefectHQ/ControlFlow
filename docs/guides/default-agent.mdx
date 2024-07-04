@@ -8,7 +8,7 @@ ControlFlow uses a default agent when no specific agents are assigned to a task.
 
 The global default agent (whose name, of course, is Marvin) uses whatever [default model](/guides/llms#changing-the-default-model) you've configured. It has a basic set of general-purpose instructions and is not equipped with any tools.
 
-To change the global default agent, assign a new agent to the `default_agent` attribute of the `controlflow` module:
+To change the global default agent, assign a new agent to `controlflow.defaults.agent`:
 
 ```python
 import controlflow as cf
@@ -17,7 +17,7 @@ import controlflow as cf
 agent = cf.Agent('Deep Thought', instructions='Answer every question with 42')
 
 # Set the global default agent
-cf.default_agent = agent
+cf.defaults.agent = agent
 
 # Create a task without specifying an agent
 task = cf.Task('What is 2 + 2?')
@@ -53,7 +53,7 @@ When ControlFlow needs to assign an agent to a task, it follows this precedence:
 
 1. Agents specified directly on the task (`task.agents`)
 2. Agents specified for the flow (`@flow(agents=[...])`)
-3. The global default agent (`cf.default_agent`)
+3. The global default agent (`controlflow.defaults.agent`)
 
 This means you can always override the default agent by specifying agents directly on a task, regardless of what default agents are set at the flow or global level.
 
@@ -61,7 +61,7 @@ This means you can always override the default agent by specifying agents direct
 import controlflow as cf
 
 global_agent = cf.Agent('Global', instructions='I am the global default')
-cf.default_agent = global_agent
+cf.defaults.agent = global_agent
 
 flow_agent = cf.Agent('Flow', instructions='I am the flow default')
 
