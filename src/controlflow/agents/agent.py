@@ -11,7 +11,6 @@ import controlflow
 from controlflow.events.events import Event
 from controlflow.instructions import get_instructions
 from controlflow.llm.messages import AIMessage, BaseMessage
-from controlflow.llm.models import get_default_model
 from controlflow.llm.rules import LLMRules
 from controlflow.tools.tools import handle_tool_call_async
 from controlflow.utilities.context import ctx
@@ -25,10 +24,6 @@ if TYPE_CHECKING:
     from controlflow.tools.tools import Tool
 
 logger = logging.getLogger(__name__)
-
-
-def get_default_agent() -> "Agent":
-    return controlflow.default_agent
 
 
 class Agent(ControlFlowModel):
@@ -99,12 +94,12 @@ class Agent(ControlFlowModel):
         """
         Retrieve the LLM model for this agent
         """
-        try:
-            return self.model or get_default_model()
-        except Exception as exc:
+        model = self.model or controlflow.defaults.model
+        if model is None:
             raise ValueError(
-                f"Agent {self.name}: No model provided and no default model could be loaded: {exc}"
-            ) from exc
+                f"Agent {self.name}: No model provided and no default model could be loaded."
+            )
+        return model
 
     def get_llm_rules(self) -> LLMRules:
         """

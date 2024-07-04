@@ -33,15 +33,15 @@ def record_events():
 
     """
     history = InMemoryHistory(history={})
-    old_default_history = controlflow.default_history
-    controlflow.default_history = history
+    old_default_history = controlflow.defaults.history
+    controlflow.defaults.history = history
 
     events = []
 
     try:
         yield events
     finally:
-        controlflow.default_history = old_default_history
+        controlflow.defaults.history = old_default_history
 
         _events_buffer = []
         for _, thread_events in history.history.items():

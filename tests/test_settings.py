@@ -1,6 +1,7 @@
 import importlib
 
 import controlflow
+import controlflow.llm.models
 import pytest
 from controlflow.settings import temporary_settings
 from prefect.logging import get_logger
@@ -43,7 +44,9 @@ def test_import_without_default_api_key_warns_but_does_not_fail(monkeypatch, cap
     # Import the library
     with caplog.at_level("WARNING"):
         # Reload the library to apply changes
+        defaults_module = importlib.import_module("controlflow.defaults")
         importlib.reload(controlflow)
+        importlib.reload(defaults_module)
 
     # Check if the warning was logged
     assert any(
@@ -58,10 +61,12 @@ def test_import_without_default_api_key_errors_when_loading_model(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     # Reload the library to apply changes
+    defaults_module = importlib.import_module("controlflow.defaults")
     importlib.reload(controlflow)
+    importlib.reload(defaults_module)
 
     with pytest.raises(ValueError, match="Did not find openai_api_key"):
-        controlflow.get_default_model()
+        controlflow.llm.models.get_default_model()
 
     with pytest.raises(
         ValueError, match="No model provided and no default model could be loaded"
@@ -82,7 +87,9 @@ def test_import_without_api_key_for_non_default_model_warns_but_does_not_fail(
     # Import the library
     with caplog.at_level("WARNING"):
         # Reload the library to apply changes
+        defaults_module = importlib.import_module("controlflow.defaults")
         importlib.reload(controlflow)
+        importlib.reload(defaults_module)
 
     # Check if the warning was logged
     assert any(

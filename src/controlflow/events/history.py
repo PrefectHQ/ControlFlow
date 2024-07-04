@@ -27,10 +27,6 @@ if TYPE_CHECKING:
 IN_MEMORY_STORE = {}
 
 
-def get_default_history() -> "History":
-    return controlflow.default_history
-
-
 @cache
 def get_event_validator() -> TypeAdapter:
     types = Union[

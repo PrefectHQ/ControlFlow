@@ -1,7 +1,8 @@
 from functools import partial
 
+import controlflow
 import pytest
-from controlflow.agents import Agent, get_default_agent
+from controlflow.agents import Agent
 from controlflow.flows import Flow
 from controlflow.instructions import instructions
 from controlflow.tasks.task import Task, TaskStatus
@@ -106,7 +107,7 @@ def test_task_loads_agent_from_parent():
 
 
 def test_task_loads_agent_from_flow():
-    def_agent = get_default_agent()
+    def_agent = controlflow.defaults.agent
     agent = Agent(name="Test Agent")
     with Flow(agents=[agent]):
         task = SimpleTask()
@@ -119,7 +120,7 @@ def test_task_loads_agent_from_flow():
 
 
 def test_task_loads_agent_from_default_if_none_otherwise():
-    agent = get_default_agent()
+    agent = controlflow.defaults.agent
     task = SimpleTask()
 
     assert task.agents is None
