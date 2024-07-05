@@ -130,17 +130,11 @@ class Agent(ControlFlowModel):
     def __exit__(self, *exc_info):
         return self._cm_stack.pop().__exit__(*exc_info)
 
-    def run_once(self, task: "Task"):
-        return task.run_once(agents=[self])
+    def run(self, task: "Task", steps: Optional[int] = None):
+        return task.run(agents=[self], steps=steps)
 
-    async def run_once_async(self, task: "Task"):
-        return await task.run_once_async(agents=[self])
-
-    def run(self, task: "Task"):
-        return task.run(agents=[self])
-
-    async def run_async(self, task: "Task"):
-        return await task.run_async(agents=[self])
+    async def run_async(self, task: "Task", steps: Optional[int] = None):
+        return await task.run_async(agents=[self], steps=steps)
 
     def _run_model(
         self,

@@ -91,52 +91,6 @@ class Controller(ControlFlowModel):
         if event.persist:
             self.flow.add_events([event])
 
-    def run_once(self):
-        """
-        Core pipeline for running the controller.
-        """
-        from controlflow.events.controller_events import (
-            ControllerEnd,
-            ControllerError,
-            ControllerStart,
-        )
-
-        self.handle_event(ControllerStart(controller=self))
-
-        try:
-            ready_tasks = self.get_ready_tasks()
-            context = self.get_agent_context(ready_tasks=ready_tasks)
-            context.run()
-
-        except Exception as exc:
-            self.handle_event(ControllerError(controller=self, error=exc))
-            raise
-        finally:
-            self.handle_event(ControllerEnd(controller=self))
-
-    async def run_once_async(self):
-        """
-        Core pipeline for running the controller.
-        """
-        from controlflow.events.controller_events import (
-            ControllerEnd,
-            ControllerError,
-            ControllerStart,
-        )
-
-        self.handle_event(ControllerStart(controller=self))
-
-        try:
-            ready_tasks = self.get_ready_tasks()
-            context = self.get_agent_context(ready_tasks=ready_tasks)
-            await context.run_async()
-
-        except Exception as exc:
-            self.handle_event(ControllerError(controller=self, error=exc))
-            raise
-        finally:
-            self.handle_event(ControllerEnd(controller=self))
-
     def get_agent_context(self, ready_tasks: list[Task]) -> "AgentContext":
         # select an agent
         agent = self.get_agent(ready_tasks=ready_tasks)
@@ -151,13 +105,51 @@ class Controller(ControlFlowModel):
         )
         return context
 
-    def run(self):
-        while any(t.is_incomplete() for t in self.tasks):
-            self.run_once()
+    def run(self, steps: Optional[int] = None):
+        from controlflow.events.controller_events import (
+            ControllerEnd,
+            ControllerError,
+            ControllerStart,
+        )
 
-    async def run_async(self):
-        while any(t.is_incomplete() for t in self.tasks):
-            await self.run_once_async()
+        i = 0
+        while any(t.is_incomplete() for t in self.tasks) and i < (steps or math.inf):
+            self.handle_event(ControllerStart(controller=self))
+
+            try:
+                ready_tasks = self.get_ready_tasks()
+                context = self.get_agent_context(ready_tasks=ready_tasks)
+                context.run()
+
+            except Exception as exc:
+                self.handle_event(ControllerError(controller=self, error=exc))
+                raise
+            finally:
+                self.handle_event(ControllerEnd(controller=self))
+            i += 1
+
+    async def run_async(self, steps: Optional[int] = None):
+        from controlflow.events.controller_events import (
+            ControllerEnd,
+            ControllerError,
+            ControllerStart,
+        )
+
+        i = 0
+        while any(t.is_incomplete() for t in self.tasks) and i < (steps or math.inf):
+            self.handle_event(ControllerStart(controller=self))
+
+            try:
+                ready_tasks = self.get_ready_tasks()
+                context = self.get_agent_context(ready_tasks=ready_tasks)
+                await context.run_async()
+
+            except Exception as exc:
+                self.handle_event(ControllerError(controller=self, error=exc))
+                raise
+            finally:
+                self.handle_event(ControllerEnd(controller=self))
+            i += 1
 
     def get_ready_tasks(self) -> list[Task]:
         all_tasks = self.flow.graph.upstream_tasks(self.tasks)
