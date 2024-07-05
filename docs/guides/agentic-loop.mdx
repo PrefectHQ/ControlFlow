@@ -57,10 +57,7 @@ In this way, tasks act as contracts between the developer and the agents. The de
 
 Another challenge in agentic workflows is controlling the execution of the loop - including starting it! Developers need the ability to run the loop until completion or step through it iteratively for finer control and debugging. Since there is no single software object that represents the loop itself, ControlFlow ensures that developers have a variety of tools for managing its execution.
 
-Most ControlFlow objects provide two methods for executing the agentic loop: `run()` and `run_once()`:
-
-- `run()`: Executes the loop until the object is in a completed state. For tasks, this means running until that task is complete; For flows, it means running until all tasks within the flow are complete. At each step, the system will make decisions about what to do next based on the current state of the workflow.
-- `run_once()`: Executes a single iteration of the loop, allowing developers to step through the workflow incrementally. For example, developers could use this method to control exactly which agent is invoked at each step, or to provide ad-hoc instructions to the agent that only last for a single iteration.
+Most ControlFlow objects have a `run()` method that can be used to start the loop. This method will run the loop until the object is in a completed state. For tasks, this means running until that task is complete; For flows, it means running until all tasks within the flow are complete. At each step, the system will make decisions about what to do next based on the current state of the workflow.
 
 Consider the following illustrative setup, which involves two dependent tasks in a flow:
 ```python
@@ -70,9 +67,7 @@ with cf.Flow() as flow:
     t1 = cf.Task('Choose a language')
     t2 = cf.Task('Say hello', context=dict(language=t1))
 ```
-
-### The `run()` Method
-Now, let's explore how the `run()` and `run_once()` methods can be used to control the execution of the loop. First, the behavior of the various `run()` methods:
+Here is how the various `run()` methods would behave in this scenario:
 
 - Calling `t1.run()` would execute the loop until `t1` is complete.
 - Calling `t2.run()` would execute the loop until both `t2` is complete, which would also require completing `t1` because it is a dependency of `t2`.
@@ -80,16 +75,15 @@ Now, let's explore how the `run()` and `run_once()` methods can be used to contr
 
 In general, `run()` tells the system to run the loop until the object is complete (and has a result available). It is the most common way to eagerly run workflows using the [imperative API](/guides/apis).
 
-### The `run_once()` Method
-Next, the behavior of the various `run_once()` methods:
+### Running a specific number of steps
+Sometimes, you may want to run the loop for a specific number of steps, rather than until completion. You 
 
-- Calling `t1.run_once()` would execute a single iteration of the loop, starting with `t1`.
-- Calling `t2.run_once()` would execute a single iteration of the loop, starting with `t1`.
-- Calling `flow.run_once()` would execute a single iteration of the loop, starting with `t1`.
+- Calling `t1.run(steps=1)` would execute a single iteration of the loop, starting with `t1`.
+- Calling `t2.run(steps=2)` would execute two iterations of the loop, starting with `t1`.
+- Calling `flow.run(steps=1)` would execute a single iteration of the loop, starting with `t1`.
 
-Note that since `run_once()` always runs a single iteration, in all three cases it would focus on the first task in the flow, which is `t1`. However, the behavior of these three calls in practice could be different. For example, you could call `t1.run_once()` before `t2` was created, in which case knowledge of `t2` would not be included in the prompt. This could lead to different behavior than if you called `t2.run_once()`, even though both methods would start by running `t1`.
+Note that all three cases begin with the first task in the flow, `t1`. However, in practice the behavior of these three calls could be different. For example, you could call `t1.run(steps=1)` before `t2` was created, in which case knowledge of `t2` would not be included in the prompt. This could lead to different behavior than if you called `t2.run(steps=1)`, even though both methods would start by running `t1`.
 
-By offering these execution methods, ControlFlow gives developers the flexibility to either let the loop run autonomously or manually guide its execution, depending on their specific requirements.
 
 <Tip>
 Note that when using the `@task` and `@flow` decorators in the [functional API](/guides/apis), the `run()` method is automatically called when the decorated function is invoked. This is because the functional API uses [eager execution](/guides/execution-modes) by default.

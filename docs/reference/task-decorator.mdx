@@ -49,7 +49,7 @@ The `lazy` parameter determines whether the task should be executed eagerly or l
 
 The default `lazy` behavior is determined by the global `eager_mode` setting in ControlFlow. Eager mode is enabled by default, which means that tasks are executed immediately. The `lazy` parameter allows you to override this behavior for a specific task.
 
-When `lazy` is set to `True`, the task is not executed immediately. Instead, a `Task` instance is returned, representing the deferred execution of the task. The task can be run later using the `run()` or `run_once()` methods.
+When `lazy` is set to `True`, the task is not executed immediately. Instead, a `Task` instance is returned, representing the deferred execution of the task. The task can be run later using the `run()` method.
 
 When `lazy` is set to `False` (default), the task is executed immediately when the decorated function is called. Setting `lazy=False` ensures the task is executed eagerly, even if the global `eager_mode` is disabled.
 </ParamField>

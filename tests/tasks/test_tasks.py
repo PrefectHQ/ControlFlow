@@ -147,7 +147,7 @@ class TestFlowRegistration:
     def test_task_tracking_on_call(self):
         task = SimpleTask()
         with Flow() as flow:
-            task.run_once()
+            task.run(steps=1)
         assert task in flow.tasks
 
     def test_parent_child_tracking(self):

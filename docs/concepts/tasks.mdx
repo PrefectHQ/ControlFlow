@@ -258,7 +258,7 @@ This is useful for testing tasks in isolation or running them as standalone unit
 
 ### Controlling Iteration
 
-The `run()` method starts a loop and orchestrates the execution of the task, its subtasks, and dependencies until the task is completed. If you need more fine-grained control over task execution, you can use the `run_once()` method to execute only a single step of the graph.
+The `run()` method starts a loop and orchestrates the execution of the task, its subtasks, and dependencies until the task is completed. If you need more fine-grained control over task execution, you can provide a `steps` argument to control the number of iterations of the [agentic loop](/guides/agentic-loop).
 
 ```python
 from controlflow import Flow, Task
@@ -272,8 +272,6 @@ poem_task = Task(
 
 with Flow():
     while poem_task.is_incomplete():
-        poem_task.run_once()
+        poem_task.run(steps=1)
     print(poem_task.result)
 ```
-
-Note that run_once requires the task to be run within a flow context, as it relies on the flow to manage the task's execution and history over each invocation.

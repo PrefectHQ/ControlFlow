@@ -17,7 +17,7 @@ def iterative_task_flow():
     task = cf.Task("Generate a comprehensive report on AI trends")
     
     while task.is_incomplete():
-        task.run_once()
+        task.run(steps=1)
         
         # Optionally, you can add logic here to modify the task,
         # create new tasks, or make decisions based on other results
@@ -36,4 +36,4 @@ This pattern is particularly useful when:
 - You want to implement custom logic between iterations
 - You need to dynamically adjust the workflow based on other results
 
-By using a while loop with `task.is_incomplete()`, you ensure that the agent continues working until the task is either marked as complete or fails. The `run_once()` method allows for step-by-step execution, giving you control over each iteration of the agentic loop.
+By using a while loop with `task.is_incomplete()`, you ensure that the agent continues working until the task is either marked as complete or fails.
