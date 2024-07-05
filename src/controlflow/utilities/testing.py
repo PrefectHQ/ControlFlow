@@ -1,14 +1,18 @@
 from contextlib import contextmanager
+from typing import Union
 
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
 
 import controlflow
 from controlflow.events.history import InMemoryHistory
-from controlflow.llm.messages import BaseMessage
+from controlflow.llm.messages import AIMessage, BaseMessage
 
 
 class FakeLLM(FakeMessagesListChatModel):
-    def set_responses(self, responses: list[BaseMessage]):
+    def set_responses(self, responses: list[Union[str, BaseMessage]]):
+        responses = [
+            AIMessage(content=m) if isinstance(m, str) else m for m in responses
+        ]
         self.responses = responses
 
     def bind_tools(self, *args, **kwargs):
