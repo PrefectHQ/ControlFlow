@@ -67,7 +67,7 @@ Lazy execution is generally recommended because it permits the orchestration eng
 
 This can lead to more efficient execution, especially in complex workflows with many dependencies. 
 
-In addition, lazy execution allows you to exercise more precise control over how and when tasks are executed. Instead of running tasks to completion, you can use `run_once()` to run a single step or the agentic loop, or assign a specific agent to work on the task.
+In addition, lazy execution allows you to exercise more precise control over how and when tasks are executed. Instead of running tasks to completion, you can use `run(steps=1)` to run a single step or the agentic loop, or assign a specific agent to work on the task.
 
 ### When Do Lazy Tasks Run?
 

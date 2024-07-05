@@ -103,23 +103,23 @@ class Flow(ControlFlowModel):
         with ctx(**ctx_args), prefect_ctx:
             yield self
 
-    def run_once(self):
-        """
-        Runs one step of the flow.
-        """
-        from controlflow.orchestration import Controller
-
-        controller = Controller(flow=self)
-        controller.run_once()
-
-    def run(self):
+    def run(self, steps: Optional[int] = None):
         """
         Runs the flow.
         """
         from controlflow.orchestration import Controller
 
         controller = Controller(flow=self)
-        controller.run()
+        controller.run(steps=steps)
+
+    async def run_async(self, steps: Optional[int] = None):
+        """
+        Runs the flow.
+        """
+        from controlflow.orchestration import Controller
+
+        controller = Controller(flow=self)
+        await controller.run_async(steps=steps)
 
 
 def get_flow() -> Optional[Flow]:

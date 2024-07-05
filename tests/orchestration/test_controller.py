@@ -42,10 +42,9 @@ class TestMaxIteration:
 
         controller = Controller(flow=flow, tasks=[t1])
 
-        controller.run_once()
-        controller.run_once()
+        controller.run(steps=2)
         assert t1.is_ready()
         assert "exceeded max iterations" not in caplog.text
-        controller.run_once()
+        controller.run(steps=1)
         assert "exceeded max iterations" in caplog.text
         assert t1.is_failed()

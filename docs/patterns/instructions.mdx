@@ -47,7 +47,7 @@ The effect of the instructions depends on whether you're creating or running tas
 
 ### Providing instructions for specific agent interactions
 
-You can use `instructions()` with `run_once()` in a loop to provide targeted, temporary guidance for specific agent interactions within a task. This is particularly useful when you want to steer the agent's behavior based on the current state of the task or external conditions.
+You can use `instructions()` in a loop to provide targeted, temporary guidance for specific agent interactions within a task. This is particularly useful when you want to steer the agent's behavior based on the current state of the task or external conditions.
 
 ```python
 import controlflow as cf
@@ -59,12 +59,12 @@ def guided_conversation_flow():
     while conversation.is_incomplete():
         if some_condition:
             with cf.instructions("Steer the conversation towards travel"):
-                conversation.run_once()
+                conversation.run(steps=1)
         elif some_other_condition:
             with cf.instructions("Try to wrap up the conversation politely"):
-                conversation.run_once()
+                conversation.run(steps=1)
         else:
-            conversation.run_once()
+            conversation.run(steps=1)
 
     return conversation.result
 ```
@@ -93,4 +93,4 @@ In these cases, the `instructions()` context manager provides a flexible way to 
 4. Use instructions judiciously. Overusing ad-hoc instructions can lead to inconsistent agent behavior and make your workflow harder to understand and maintain.
 5. Prefer the `instructions` parameter for truly permanent guidance. Only use the context manager when you need the added flexibility or temporary nature.
 
-By using the `instructions()` context manager appropriately, you can fine-tune agent behavior on the fly, adapting to the dynamic needs of your workflow without sacrificing the structure and reusability provided by well-defined tasks. The ability to provide targeted guidance for specific agent interactions using `run_once()` further enhances the power and flexibility of this feature.
+By using the `instructions()` context manager appropriately, you can fine-tune agent behavior on the fly, adapting to the dynamic needs of your workflow without sacrificing the structure and reusability provided by well-defined tasks.
