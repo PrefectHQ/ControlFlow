@@ -8,14 +8,20 @@ changelog:
       labels:
         - feature
         - enhancement
-
-    - title: Breaking Changes 🛫
-      labels:
-        - breaking change
+      exclude:
+        labels:
+          - breaking change
 
     - title: Fixes 🐞
       labels:
         - bug
+      exclude:
+        labels:
+          - breaking change
+
+    - title: Breaking Changes 🛫
+      labels:
+        - breaking change
 
     - title: Docs 📚
       labels:
