@@ -334,7 +334,11 @@ class AgentContext(ControlFlowModel):
 
         events = self.flow.get_events(
             agent_ids=[self.agent.id],
-            task_ids=[t.id for t in self.flow.graph.upstream_tasks(self.tasks)],
+            task_ids=[
+                t.id
+                for t in self.flow.graph.upstream_tasks(self.tasks)
+                if not t.private
+            ],
         )
 
         events.append(

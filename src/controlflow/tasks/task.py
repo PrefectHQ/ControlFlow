@@ -102,7 +102,10 @@ class Task(ControlFlowModel):
         description="Tools available to every agent working on this task.",
     )
     user_access: bool = False
-    private: bool = False
+    private: bool = Field(
+        False,
+        description="Work on private tasks is not visible to agents other than those assigned to the task.",
+    )
     agent_strategy: Optional[Callable] = Field(
         None,
         description="A function that returns an agent, used for customizing how "
