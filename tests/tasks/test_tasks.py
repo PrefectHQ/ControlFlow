@@ -34,6 +34,14 @@ def test_task_initialization():
     assert task.error is None
 
 
+def test_task_mark_successful_and_mark_failed():
+    task = SimpleTask()
+    task.mark_successful()
+    assert task.status == TaskStatus.SUCCESSFUL
+    task.mark_failed()
+    assert task.status == TaskStatus.FAILED
+
+
 def test_task_loads_instructions_at_creation():
     with instructions("test instruction"):
         task = SimpleTask()
