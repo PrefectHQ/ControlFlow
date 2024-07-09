@@ -22,9 +22,8 @@ class PlanTask(ControlFlowModel):
         [], description="Tasks that must be completed before this task can be started."
     )
     parent: Optional[int] = Field(None, description="The parent of this task (if any).")
-    agents: list[int] = Field(
-        [],
-        description="The agents assigned to the task. If empty, the default agent is used.",
+    agent: int = Field(
+        description="The agent assigned to the task. If empty, the default agent is used.",
     )
     tools: list[int] = Field(
         [],
@@ -34,9 +33,9 @@ class PlanTask(ControlFlowModel):
 
 def create_plan(
     objective: str,
-    instructions: str = None,
-    planning_agent: Agent = None,
-    agents: list[Agent] = None,
+    instructions: Optional[str] = None,
+    planning_agent: Optional[Agent] = None,
+    agents: Optional[list[Agent]] = None,
     tools: list[Union[callable, Tool]] = None,
     context: dict = None,
 ) -> list[Task]:
@@ -101,11 +100,6 @@ def create_plan(
 
     for t in plan:
         try:
-            task_agents = [agent_dict[i] for i in t.agents] if t.agents else None
-        except KeyError:
-            task_agents = None
-
-        try:
             task_tools = [tool_dict[i] for i in t.tools]
         except KeyError:
             task_tools = []
@@ -115,7 +109,7 @@ def create_plan(
             instructions=t.instructions,
             depends_on=[task_ids[i] for i in t.depends_on],
             parent=task_ids[t.parent] if t.parent else None,
-            agents=task_agents,
+            agent=agent_dict[task.agent] if task.agent else None,
             tools=task_tools,
             context=context,
         )

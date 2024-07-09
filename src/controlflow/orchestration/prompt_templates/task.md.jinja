@@ -1,0 +1,14 @@
+## Task {{ task.id }}
+
+Your job is to complete the following task. It has either been assigned or delegated to you.
+
+- objective: {{ task.objective }}
+- instructions: {{ task.instructions or "No additional instructions provided" }}
+- result type: {{ task.result_type or "No result required" }}
+- context: {{ task.context or "No additional context provided" }}
+- assigned agent: {{ task.get_agent().serialize_for_prompt() }}
+- upstream tasks: {{ task.depends_on or "No upstream dependencies" }}
+- parent: {{ task.parent or "No parent task" }}
+{% if task.user_access %}
+- user access: True
+{% endif %}

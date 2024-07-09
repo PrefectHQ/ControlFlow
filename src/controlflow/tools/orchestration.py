@@ -3,13 +3,11 @@ from typing import TYPE_CHECKING, TypeVar
 from pydantic import PydanticSchemaGenerationError, TypeAdapter
 
 from controlflow.agents import Agent
-from controlflow.events.agent_events import EndTurnEvent
-from controlflow.events.task_events import TaskCompleteEvent
 from controlflow.tasks.task import Task
 from controlflow.tools.tools import Tool, tool
 
 if TYPE_CHECKING:
-    from controlflow.orchestration.controller import Controller
+    pass
 
 T = TypeVar("T")
 
@@ -43,9 +41,7 @@ def generate_result_schema(result_type: type[T]) -> type[T]:
     return result_schema
 
 
-def create_task_success_tool(
-    controller: "Controller", task: Task, agent: Agent
-) -> Tool:
+def create_task_success_tool(task: Task) -> Tool:
     """
     Create an agent-compatible tool for marking this task as successful.
     """
@@ -58,36 +54,39 @@ def create_task_success_tool(
         private=True,
     )
     def succeed(result: result_schema) -> str:  # type: ignore
-        result = task.mark_successful(result=result)
-        controller.handle_event(TaskCompleteEvent(task=task))
-        controller.handle_event(EndTurnEvent(agent=agent))
-        return result
+        task.mark_successful(result=result)
+        return f"{task.friendly_name()} marked successful."
 
     return succeed
 
 
-def create_task_fail_tool(controller: "Controller", task: Task, agent: Agent) -> Tool:
+def create_task_fail_tool(task: Task) -> Tool:
     """
     Create an agent-compatible tool for failing this task.
     """
 
     @tool(
         name=f"mark_task_{task.id}_failed",
-        description=f"Mark task {task.id} as failed. Only use when technical errors prevent success.",
+        description=(
+            f"Mark task {task.id} as failed. Only use when technical errors prevent success. Provide a detailed reason for the failure."
+        ),
         private=True,
     )
-    def fail(error: str) -> str:
-        result = task.mark_failed(error=error)
-        controller.handle_event(TaskCompleteEvent(task=task))
-        controller.handle_event(EndTurnEvent(agent=agent))
-        return result
+    def fail(reason: str) -> str:
+        task.mark_failed(reason=reason)
+        return f"{task.friendly_name()} marked failed."
 
     return fail
 
 
-def create_end_turn_tool(controller: "Controller", agent: Agent) -> Tool:
+def create_end_turn_tool(agent: Agent) -> Tool:
     """
     Create an agent-compatible tool for ending the turn.
+
+    Your turn will continue until you mark a task complete or you use this tool.
+    With this tool, you can optionally name the agent that should go next, or
+    leave it blank to let the orchestrator decide. You must use this
+    tool to let another agent speak.
     """
 
     @tool(private=True)
@@ -97,9 +96,7 @@ def create_end_turn_tool(controller: "Controller", agent: Agent) -> Tool:
         the next agent, which can be any other agent assigned to a ready task.
         Choose an agent likely to help you complete your tasks.
         """
-        controller.handle_event(
-            EndTurnEvent(agent=agent, next_agent_name=next_agent_name)
-        )
+        # orchestrator.handle_event(EndTurn(agent=agent, next_agent_name=next_agent_name))
         return "Turn ended."
 
     return end_turn

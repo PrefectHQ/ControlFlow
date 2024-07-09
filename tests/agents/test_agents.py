@@ -1,6 +1,6 @@
 import controlflow
 from controlflow.agents import Agent
-from controlflow.agents.names import NAMES
+from controlflow.agents.names import AGENTS
 from controlflow.instructions import instructions
 from controlflow.tasks.task import Task
 from langchain_openai import ChatOpenAI
@@ -10,7 +10,7 @@ class TestAgentInitialization:
     def test_agent_gets_random_name(self):
         agent = Agent()
 
-        assert agent.name in NAMES
+        assert agent.name in AGENTS
 
     def test_agent_default_model(self):
         agent = Agent()

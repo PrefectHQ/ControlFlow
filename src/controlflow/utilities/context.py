@@ -73,7 +73,8 @@ ctx = ScopedContext(
         flow=None,
         tasks=[],
         agent=None,
-        controller=None,
+        orchestrator=None,
         tui=None,
+        agent_context=None,
     )
 )

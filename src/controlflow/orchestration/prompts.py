@@ -1,20 +1,39 @@
-from controlflow.agents import Agent
+from pydantic import model_validator
+
+from controlflow.agents.agent import Agent
+from controlflow.agents.teams import Team
 from controlflow.flows import Flow
+from controlflow.orchestration.agent_context import AgentContext
+from controlflow.tasks.task import Task
 from controlflow.utilities.jinja import prompt_env
 from controlflow.utilities.types import ControlFlowModel
 
 
 class Template(ControlFlowModel):
-    template_path: str
+    template: str = None
+    template_path: str = None
 
-    def render(self) -> str:
+    @model_validator(mode="after")
+    def _validate(self):
+        if not self.template and not self.template_path:
+            raise ValueError("Template or template_path must be provided.")
+        elif self.template and self.template_path:
+            raise ValueError("Only one of template or template_path must be provided.")
+        return self
+
+    def render(self, **kwargs) -> str:
         if not self.should_render():
             return ""
 
         render_kwargs = dict(self)
-        template_path = render_kwargs.pop("template_path")
-        template_env = prompt_env.get_template(template_path)
-        return template_env.render(**render_kwargs)
+        del render_kwargs["template"]
+        del render_kwargs["template_path"]
+
+        if self.template_path:
+            template = prompt_env.get_template(self.template_path)
+        else:
+            template = prompt_env.from_string(self.template)
+        return template.render(**render_kwargs | kwargs)
 
     def should_render(self) -> bool:
         return True
@@ -23,27 +42,43 @@ class Template(ControlFlowModel):
 class AgentTemplate(Template):
     template_path: str = "agent.md.jinja"
     agent: Agent
-    additional_instructions: list[str]
+    context: AgentContext
 
 
-class WorkflowTemplate(Template):
-    template_path: str = "workflow.md.jinja"
+class TaskTemplate(Template):
+    """
+    Template for the active tasks
+    """
 
-    ready_tasks: list[dict]
-    upstream_tasks: list[dict]
-    downstream_tasks: list[dict]
+    template_path: str = "task.md.jinja"
+    task: Task
+
+
+class FlowTemplate(Template):
+    template_path: str = "flow.md.jinja"
     flow: Flow
+    tasks: list[Task]
+
+    def render(self, **kwargs):
+        upstream_tasks = set(self.flow.graph.upstream_tasks(self.tasks))
+        downstream_tasks = set(self.flow.graph.downstream_tasks(self.tasks))
+
+        return super().render(
+            upstream_tasks=upstream_tasks.difference(self.tasks),
+            downstream_tasks=downstream_tasks.difference(self.tasks),
+            **kwargs,
+        )
 
 
-class ToolTemplate(Template):
-    template_path: str = "tools.md.jinja"
-    agent: Agent
-    has_user_access_tool: bool
-    has_end_turn_tool: bool
+class TeamTemplate(Template):
+    template_path: str = "team.md.jinja"
 
-    def should_render(self):
-        return self.has_user_access_tool or self.has_end_turn_tool
+    team: Team
 
 
-class CommunicationTemplate(Template):
-    template_path: str = "communication.md.jinja"
+class InstructionsTemplate(Template):
+    template_path: str = "instructions.md.jinja"
+    instructions: list[str] = []
+
+    def should_render(self) -> bool:
+        return bool(self.instructions)

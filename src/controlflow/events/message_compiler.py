@@ -1,26 +1,42 @@
+import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Literal, Optional
 
 import tiktoken
 
 import controlflow
-from controlflow.events.events import Event
+from controlflow.events.base import Event, UnpersistedEvent
+from controlflow.events.events import (
+    AgentMessage,
+    ToolCallEvent,
+    ToolResultEvent,
+)
 from controlflow.llm.messages import (
     AIMessage,
     BaseMessage,
     HumanMessage,
     SystemMessage,
-    ToolMessage,
 )
 from controlflow.llm.rules import LLMRules
 from controlflow.utilities.logging import get_logger
 
 if TYPE_CHECKING:
     from controlflow.agents.agent import Agent
-    from controlflow.flows.flow import Flow
-    from controlflow.orchestration.controller import Controller
-    from controlflow.tasks.task import Task
 logger = get_logger(__name__)
+
+
+class CombinedAgentMessage(UnpersistedEvent):
+    event: Literal["combined-agent-message"] = "combined-agent-message"
+    agent_message: AgentMessage
+    tool_call: list[ToolCallEvent] = []
+    tool_results: list[ToolResultEvent] = []
+
+    def to_messages(self, context: "CompileContext") -> list[BaseMessage]:
+        messages = []
+        messages.extend(self.agent_message.to_messages(context))
+        for tool_result in self.tool_results:
+            messages.extend(tool_result.to_messages(context))
+        return messages
 
 
 def add_user_message_to_beginning(
@@ -105,39 +121,27 @@ def convert_system_messages(
     new_messages = []
     for message in messages:
         if isinstance(message, SystemMessage):
-            new_messages.append(HumanMessage(content=f"SYSTEM: {message.content}"))
+            new_messages.append(
+                HumanMessage(
+                    content=f"ORCHESTRATOR: {message.content}", name=message.name
+                )
+            )
         else:
             new_messages.append(message)
     return new_messages
 
 
-def organize_tool_result_messages(
+def format_message_name(
     messages: list[BaseMessage], rules: LLMRules
 ) -> list[BaseMessage]:
-    if not messages or not rules.tool_result_must_follow_tool_call:
+    if not rules.require_message_name_format:
         return messages
 
-    tool_calls = {}
-    new_messages = []
-    i = 0
-    while i < len(messages):
-        message = messages[i]
-        # save the message index of any tool calls
-        if isinstance(message, AIMessage):
-            for tool_call in message.tool_calls + message.invalid_tool_calls:
-                tool_calls[tool_call["id"]] = i
-            new_messages.append(message)
-
-        # move tool messages to follow their corresponding tool calls
-        elif isinstance(message, ToolMessage) and tool_call["id"] in tool_calls:
-            tool_call_index = tool_calls[tool_call["id"]]
-            new_messages.insert(tool_call_index + 1, message)
-            tool_calls[tool_call["id"]] += 1
-
-        else:
-            new_messages.append(message)
-        i += 1
-    return new_messages
+    for message in messages:
+        if message.name:
+            name = re.sub(rules.require_message_name_format, "-", message.name)
+            message.name = name.strip("-")
+    return messages
 
 
 def count_tokens(message: BaseMessage) -> int:
@@ -168,55 +172,82 @@ def trim_messages(
 
 
 @dataclass
-class EventContext:
+class CompileContext:
     llm_rules: LLMRules
     agent: Optional["Agent"]
-    ready_tasks: list["Task"]
-    flow: Optional["Flow"]
-    controller: Optional["Controller"]
 
 
 class MessageCompiler:
     def __init__(
         self,
         events: list[Event],
-        context: EventContext,
-        system_prompt: str = None,
-        max_tokens: int = None,
+        system_prompt: Optional[str] = None,
+        llm_rules: Optional[LLMRules] = None,
+        max_tokens: Optional[int] = None,
     ):
         self.events = events
-        self.context = context
         self.system_prompt = system_prompt
+        self.llm_rules = llm_rules
         self.max_tokens = max_tokens or controlflow.settings.max_input_tokens
 
-    def compile_to_messages(self) -> list[BaseMessage]:
-        if self.system_prompt:
-            system = [SystemMessage(content=self.system_prompt)]
-            max_tokens = self.max_tokens - count_tokens(system[0])
-        else:
-            system = []
-            max_tokens = self.max_tokens
-
-        messages = []
+    def organize_events(self, context: CompileContext) -> list[Event]:
+        organized_events = []
+        tool_calls = {}
 
         for event in self.events:
-            messages.extend(event.to_messages(self.context))
+            # combine all agent messages and tool results
+            if isinstance(event, AgentMessage):
+                # add a combined agent message
+                combined_event = CombinedAgentMessage(agent_message=event)
+                organized_events.append(combined_event)
+                # register the combined message under each tool call id
+                for tc in (
+                    event.ai_message.tool_calls + event.ai_message.invalid_tool_calls
+                ):
+                    tool_calls[tc["id"]] = combined_event
+            elif isinstance(event, ToolResultEvent):
+                combined_event: CombinedAgentMessage = tool_calls.get(
+                    event.tool_call["id"]
+                )
+                if combined_event:
+                    combined_event.tool_results.append(event)
 
-        # process messages
-        msgs = messages.copy()
+            # all other events are added as-is
+            else:
+                organized_events.append(event)
+
+        return organized_events
+
+    def compile_to_messages(self, agent: "Agent") -> list[BaseMessage]:
+        context = CompileContext(
+            agent=agent, llm_rules=self.llm_rules or agent.get_llm_rules()
+        )
+
+        if self.system_prompt:
+            system_prompt = [SystemMessage(content=self.system_prompt)]
+            max_tokens = self.max_tokens - count_tokens(system_prompt[0])
+        else:
+            system_prompt = []
+            max_tokens = self.max_tokens
+
+        events = self.organize_events(context=context)
+
+        messages = []
+        for event in events:
+            messages.extend(event.to_messages(context))
 
         # trim messages
-        msgs = trim_messages(msgs, max_tokens=max_tokens)
+        messages = trim_messages(messages, max_tokens=max_tokens)
 
         # apply LLM rules
-        msgs = ensure_at_least_one_message(msgs, rules=self.context.llm_rules)
-        msgs = add_user_message_to_beginning(msgs, rules=self.context.llm_rules)
-        msgs = add_user_message_to_end(msgs, rules=self.context.llm_rules)
-        msgs = remove_duplicate_messages(msgs)
-        msgs = organize_tool_result_messages(msgs, rules=self.context.llm_rules)
-        msgs = break_up_consecutive_ai_messages(msgs, rules=self.context.llm_rules)
+        messages = ensure_at_least_one_message(messages, rules=context.llm_rules)
+        messages = add_user_message_to_beginning(messages, rules=context.llm_rules)
+        messages = add_user_message_to_end(messages, rules=context.llm_rules)
+        messages = remove_duplicate_messages(messages)
+        messages = break_up_consecutive_ai_messages(messages, rules=context.llm_rules)
+        messages = format_message_name(messages, rules=context.llm_rules)
 
         # this should go last
-        msgs = convert_system_messages(msgs, rules=self.context.llm_rules)
+        messages = convert_system_messages(messages, rules=context.llm_rules)
 
-        return system + msgs
+        return system_prompt + messages

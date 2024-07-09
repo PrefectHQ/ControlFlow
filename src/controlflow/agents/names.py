@@ -1,4 +1,4 @@
-NAMES = [
+AGENTS = [
     "HAL 9000",
     "R2-D2",
     "C-3PO",
@@ -17,4 +17,23 @@ NAMES = [
     "Deckard",
     "HK-47",
     "Bender",
+]
+
+TEAMS = [
+    "Autobots",
+    "Decepticons",
+    "Borg",
+    "Cylons",
+    "Jaegers",
+    "Sentinels",
+    "Iron Legion",
+    "Daleks",
+    "Replicants",
+    "Droids",
+    "Machines",
+    "Hosts",
+    "Androids",
+    "Mechs",
+    "Avatars",
+    "Powers",
 ]
