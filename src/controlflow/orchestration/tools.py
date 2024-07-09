@@ -77,7 +77,7 @@ def create_task_fail_tool(controller: "Controller", task: Task, agent: Agent) ->
         private=True,
     )
     def fail(error: str) -> str:
-        result = task.mark_failed(error=error)
+        result = task.mark_failed(message=error)
         controller.handle_event(TaskCompleteEvent(task=task))
         controller.handle_event(EndTurnEvent(agent=agent))
         return result
