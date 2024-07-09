@@ -36,9 +36,9 @@ def test_task_initialization():
 
 def test_task_mark_successful_and_mark_failed():
     task = SimpleTask()
-    task.mark_successful()
+    task.mark_successful(result=None)
     assert task.status == TaskStatus.SUCCESSFUL
-    task.mark_failed()
+    task.mark_failed(message="test error")
     assert task.status == TaskStatus.FAILED
 
 
