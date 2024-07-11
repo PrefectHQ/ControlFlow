@@ -52,33 +52,35 @@ class TaskTemplate(Template):
 
     template_path: str = "task.md.jinja"
     task: Task
+    context: AgentContext
 
 
 class FlowTemplate(Template):
     template_path: str = "flow.md.jinja"
     flow: Flow
-    tasks: list[Task]
+    context: AgentContext
 
     def render(self, **kwargs):
-        upstream_tasks = set(self.flow.graph.upstream_tasks(self.tasks))
-        downstream_tasks = set(self.flow.graph.downstream_tasks(self.tasks))
+        upstream_tasks = set(self.flow.graph.upstream_tasks(self.context.tasks))
+        downstream_tasks = set(self.flow.graph.downstream_tasks(self.context.tasks))
 
         return super().render(
-            upstream_tasks=upstream_tasks.difference(self.tasks),
-            downstream_tasks=downstream_tasks.difference(self.tasks),
+            upstream_tasks=upstream_tasks.difference(self.context.tasks),
+            downstream_tasks=downstream_tasks.difference(self.context.tasks),
             **kwargs,
         )
 
 
 class TeamTemplate(Template):
     template_path: str = "team.md.jinja"
-
     team: Team
+    context: AgentContext
 
 
 class InstructionsTemplate(Template):
     template_path: str = "instructions.md.jinja"
     instructions: list[str] = []
+    context: AgentContext
 
     def should_render(self) -> bool:
         return bool(self.instructions)

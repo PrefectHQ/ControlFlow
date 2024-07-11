@@ -16,7 +16,7 @@ from controlflow.utilities.prefect import prefect_flow_context
 from controlflow.utilities.types import ControlFlowModel
 
 if TYPE_CHECKING:
-    pass
+    from controlflow.orchestration.agent_context import AgentContext
 
 logger = get_logger(__name__)
 
@@ -72,15 +72,15 @@ class Flow(ControlFlowModel):
     def tasks(self) -> list[Task]:
         return self.graph.topological_sort()
 
-    def get_prompt(self, tasks: list[Task]) -> str:
+    def get_prompt(self, context: "AgentContext") -> str:
         """
         Generate a prompt to share information about the flow with an agent.
         """
-        from controlflow.orchestration import prompts
+        from controlflow.orchestration import prompt_templates
 
-        template = prompts.FlowTemplate(
+        template = prompt_templates.FlowTemplate(
             flow=self,
-            tasks=tasks,
+            context=context,
         )
         return template.render()
 

@@ -9,7 +9,6 @@ import controlflow
 from controlflow.agents.agent import Agent, BaseAgent
 from controlflow.events.base import Event
 from controlflow.flows import Flow
-from controlflow.instructions import get_instructions
 from controlflow.orchestration.agent_context import AgentContext
 from controlflow.orchestration.handler import Handler
 from controlflow.tasks.task import Task
@@ -112,11 +111,6 @@ class Orchestrator(ControlFlowModel):
                     handlers=self.handlers,
                 )
                 with context:
-                    context.set_flow_prompt(self.flow.get_prompt(tasks=tasks))
-                    context.set_tasks_prompt(
-                        "\n\n".join(["# Tasks"] + [t.get_prompt() for t in tasks])
-                    )
-                    context.add_instructions(get_instructions())
                     agent._run(context=context)
 
             except Exception as exc:

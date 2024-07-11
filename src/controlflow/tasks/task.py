@@ -44,6 +44,7 @@ from controlflow.utilities.types import (
 
 if TYPE_CHECKING:
     from controlflow.flows import Flow
+    from controlflow.orchestration.agent_context import AgentContext
 
 T = TypeVar("T")
 logger = get_logger(__name__)
@@ -476,13 +477,13 @@ class Task(ControlFlowModel):
             tools.append(talk_to_user)
         return tools
 
-    def get_prompt(self) -> str:
+    def get_prompt(self, context: "AgentContext") -> str:
         """
         Generate a prompt to share information about the task with an agent.
         """
-        from controlflow.orchestration import prompts
+        from controlflow.orchestration import prompt_templates
 
-        template = prompts.TaskTemplate(task=self)
+        template = prompt_templates.TaskTemplate(task=self, context=context)
         return template.render()
 
     def set_status(self, status: TaskStatus):

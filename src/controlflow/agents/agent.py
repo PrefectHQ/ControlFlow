@@ -165,17 +165,17 @@ class Agent(BaseAgent):
         return tools
 
     def get_prompt(self, context: "AgentContext") -> str:
-        from controlflow.orchestration import prompts
+        from controlflow.orchestration import prompt_templates
 
         if self.system_template:
-            template = prompts.AgentTemplate(
+            template = prompt_templates.AgentTemplate(
                 template=self.system_template,
                 template_path=None,
                 agent=self,
                 context=context,
             )
         else:
-            template = prompts.AgentTemplate(agent=self, context=context)
+            template = prompt_templates.AgentTemplate(agent=self, context=context)
         return template.render()
 
     def get_activation_prompt(self) -> str:
@@ -202,14 +202,14 @@ class Agent(BaseAgent):
 
     def _run(self, context: "AgentContext"):
         context.add_tools(self.get_tools())
-        context.set_agent_prompt(self.get_prompt(context))
+        context.add_instructions(get_instructions())
         messages = context.compile_messages(agent=self)
         for event in self._run_model(messages=messages, tools=context.tools):
             context.handle_event(event)
 
     async def _run_async(self, context: "AgentContext"):
         context.add_tools(self.get_tools())
-        context.set_agent_prompt(self.get_prompt(context))
+        context.add_instructions(get_instructions())
         messages = context.compile_messages(agent=self)
         async for event in await self._run_model(
             messages=messages, tools=context.tools

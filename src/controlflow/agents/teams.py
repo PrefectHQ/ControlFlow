@@ -46,21 +46,23 @@ class Team(BaseAgent):
     def get_agent(self, context: "AgentContext") -> Agent:
         raise NotImplementedError()
 
-    def get_prompt(self) -> str:
-        from controlflow.orchestration.prompts import TeamTemplate
+    def get_prompt(self, context: "AgentContext") -> str:
+        from controlflow.orchestration.prompt_templates import TeamTemplate
 
-        return TeamTemplate(team=self).render()
+        return TeamTemplate(team=self, context=context).render()
 
     def _run(self, context: "AgentContext"):
+        context.add_instructions([self.get_prompt(context=context)])
         agent = self.get_agent(context=context)
-        context.prompts.team = self.get_prompt()
         with context.with_agent(agent) as agent_context:
             agent._run(context=agent_context)
         self._iterations += 1
 
     async def _run_async(self, context: "AgentContext"):
+        context.add_instructions([self.get_prompt()])
         agent = self.get_agent(context=context)
-        await agent._run_async(context=context)
+        with context.with_agent(agent) as agent_context:
+            await agent._run_async(context=agent_context)
         self._iterations += 1
 
 

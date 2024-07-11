@@ -2,8 +2,6 @@ from contextlib import ExitStack
 from functools import partial, wraps
 from typing import Callable, Optional
 
-from pydantic import Field
-
 from controlflow.agents.agent import Agent, BaseAgent
 from controlflow.events.base import Event
 from controlflow.events.message_compiler import MessageCompiler
@@ -22,14 +20,6 @@ __all__ = [
 ]
 
 
-class Prompts(ControlFlowModel):
-    agent: Optional[str] = None
-    team: Optional[str] = None
-    tasks: Optional[str] = None
-    flow: Optional[str] = None
-    instructions: list[str] = []
-
-
 class AgentContext(ControlFlowModel):
     """
     The full context for an invocation of a BaseAgent
@@ -41,7 +31,7 @@ class AgentContext(ControlFlowModel):
     tasks: list[Task]
     tools: list[Tool] = []
     handlers: list[Handler] = []
-    prompts: Prompts = Field(default_factory=Prompts)
+    instructions: list[str] = []
     _context: Optional[ExitStack] = None
 
     def with_agent(self, agent: BaseAgent) -> "AgentContext":
@@ -66,20 +56,8 @@ class AgentContext(ControlFlowModel):
     def add_tools(self, tools: list[Tool]):
         self.tools.extend(tools)
 
-    def set_agent_prompt(self, prompt: str):
-        self.prompts.agent = prompt
-
-    def set_team_prompt(self, prompt: str):
-        self.prompts.team = prompt
-
-    def set_tasks_prompt(self, prompt: str):
-        self.prompts.tasks = prompt
-
-    def set_flow_prompt(self, prompt: str):
-        self.prompts.flow = prompt
-
     def add_instructions(self, instructions: list[str]):
-        self.prompts.instructions.extend(instructions)
+        self.instructions.extend(instructions)
 
     def get_events(self, agents: list[Agent] = None) -> list[Event]:
         upstream_tasks = [
@@ -90,14 +68,13 @@ class AgentContext(ControlFlowModel):
         return events
 
     def compile_prompt(self) -> str:
-        from controlflow.orchestration.prompts import InstructionsTemplate
+        from controlflow.orchestration.prompt_templates import InstructionsTemplate
 
         prompts = [
-            self.prompts.agent,
-            self.prompts.team,
-            self.prompts.tasks,
-            self.prompts.flow,
-            InstructionsTemplate(instructions=self.prompts.instructions).render(),
+            self.agent.get_prompt(context=self),
+            self.flow.get_prompt(context=self),
+            *[t.get_prompt(context=self) for t in self.tasks],
+            InstructionsTemplate(instructions=self.instructions, context=self).render(),
         ]
         return "\n\n".join([p for p in prompts if p])
 

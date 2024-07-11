@@ -30,7 +30,7 @@ Never impersonate another agent, provide false information, or make up answers.
 
 Tasks in the flow that are ready to be worked on.
 
-{% for task in tasks %}
+{% for task in context.tasks %}
 ### Task {{ task.id }}
 - Objective: {{ task.objective }}
 - Result type: {{ task.result_type or "No result required" }}
