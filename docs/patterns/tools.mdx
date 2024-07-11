@@ -23,6 +23,7 @@ task = cf.Task(
     instructions="Report the history of rolls",
     tools=[roll_die],
 )
+
 task.run()
 ```
 
@@ -123,6 +124,8 @@ ControlFlow supports the following types of tools:
 - Asynchronous Python functions (they are automatically run in an asynchronous context)
 - LangChain tools
 
+### Regular Python Functions
+
 In most cases, you can use regular Python functions as tools without modification. However, if you need to customize how a function is converted to a tool, you can use the `@tool` decorator to override the inferred name and description. For example, this function has no docstring, so we use the decorator to provide a custom description:
 
 ```python
@@ -133,6 +136,32 @@ def get_weather(location: str) -> dict:
     #Implementation details...
 ```
 
+### LangChain Tools
+
+LangChain has many [pre-built tools](https://python.langchain.com/v0.2/docs/integrations/tools/) that you can leverage. For example, here's how to get recent data from the web with DuckDuckGo.
+
+Install dependencies with your preferred package manager:
+
+<CodeGroup>
+```bash pip
+# ControlFlow requires Python 3.9 or greater
+pip install -U langchain-community, duckduckgo-search
+```
+
+```bash uv
+# ControlFlow requires Python 3.9 or greater
+uv pip install -U langchain-community, duckduckgo-search
+```
+</CodeGroup>
+
+Then import the tool for use.
+
+```python 
+import controlflow as cf
+from langchain_community.tools import DuckDuckGoSearchRun
+```
+
+
 ## Using Tools
 
 Tools can be provided either to tasks or agents. When a tool is provided to a task, any agent working on that task will have access to the tool. When a tool is provided to an agent, the agent can use the tool in any task it is assigned to.
@@ -140,7 +169,6 @@ Tools can be provided either to tasks or agents. When a tool is provided to a ta
 ### Providing Tools to Tasks
 
 You should provide tools to tasks when you know that a task will require specific capabilities to be completed successfully. For example, if a task requires access to a database or an external API, you can provide a tool that handles the interaction with that system:
-
 
 ```python
 import controlflow as cf
@@ -185,6 +213,16 @@ agent = cf.Agent(
 
 Using Pydantic models for tool return types helps ensure that the data returned by the tool is properly structured and validated.
 
+To use the LangChain tool you imported earlier, provide it to a task like this:
+
+```python   
+agent = cf.Agent(
+    name="Timely agent",
+    description="An AI agent that knows current events",
+    tools=[DuckDuckGoSearchRun()],
+)
+```
+
 ## Debugging Tools
 
 ### Verbose Logging
@@ -227,4 +265,4 @@ Tools are particularly useful in scenarios where:
 
 By providing appropriate tools, you can significantly enhance the problem-solving capabilities of your AI agents and create more powerful and flexible workflows.
 
-Remember that while tools are powerful, they should be used judiciously. Provide only the tools that are necessary for the task at hand to avoid overwhelming the agent with too many options.
+While tools are powerful, they should be used judiciously. Provide only the tools that are necessary for the task at hand to avoid overwhelming the agent with too many options.
