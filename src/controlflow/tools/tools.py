@@ -7,7 +7,7 @@ from typing import Annotated, Any, Callable, Optional, Union
 import langchain_core.tools
 import pydantic
 import pydantic.v1
-from langchain_core.messages import ToolCall
+from langchain_core.messages import InvalidToolCall, ToolCall
 from prefect.utilities.asyncutils import run_coro_as_sync
 from pydantic import Field, PydanticSchemaGenerationError, TypeAdapter
 
@@ -35,11 +35,16 @@ TOOL_CALL_FUNCTION_RESULT_TEMPLATE = """
 
 
 class Tool(ControlFlowModel):
-    name: str
-    description: str
-    parameters: dict
+    name: str = Field(description="The name of the tool")
+    description: str = Field(
+        description="A description of the tool, which is provided to the LLM"
+    )
+    parameters: dict = Field(
+        description="The JSON schema for the tool's input parameters"
+    )
     metadata: dict = {}
     private: bool = False
+
     fn: Callable = Field(None, exclude=True)
 
     def to_lc_tool(self) -> dict:
@@ -161,6 +166,9 @@ class Tool(ControlFlowModel):
             **kwargs,
         )
 
+    def serialize_for_prompt(self) -> dict:
+        return self.model_dump(include={"name", "description"})
+
 
 def tool(
     fn: Optional[Callable] = None,
@@ -230,12 +238,15 @@ class ToolResult(ControlFlowModel):
     is_private: bool = False
 
 
-def handle_tool_call(tool_call: ToolCall, tools: list[Tool]) -> Any:
+def handle_tool_call(
+    tool_call: Union[ToolCall, InvalidToolCall], tools: list[Tool]
+) -> Any:
     """
     Given a ToolCall and set of available tools, runs the tool call and returns
     a ToolResult object
     """
     is_error = False
+    is_private = False
     tool = None
     tool_lookup = {t.name: t for t in tools}
     fn_name = tool_call["name"]
@@ -243,6 +254,7 @@ def handle_tool_call(tool_call: ToolCall, tools: list[Tool]) -> Any:
     if fn_name not in tool_lookup:
         fn_output = f'Function "{fn_name}" not found.'
         is_error = True
+        is_private = True
         if controlflow.settings.tools_raise_on_error:
             raise ValueError(fn_output)
 
@@ -265,7 +277,7 @@ def handle_tool_call(tool_call: ToolCall, tools: list[Tool]) -> Any:
         result=fn_output,
         str_result=output_to_string(fn_output),
         is_error=is_error,
-        is_private=getattr(tool, "private", False),
+        is_private=getattr(tool, "private", is_private),
     )
 
 
@@ -275,6 +287,7 @@ async def handle_tool_call_async(tool_call: ToolCall, tools: list[Tool]) -> Any:
     a ToolResult object
     """
     is_error = False
+    is_private = False
     tool = None
     tool_lookup = {t.name: t for t in tools}
     fn_name = tool_call["name"]
@@ -282,6 +295,7 @@ async def handle_tool_call_async(tool_call: ToolCall, tools: list[Tool]) -> Any:
     if fn_name not in tool_lookup:
         fn_output = f'Function "{fn_name}" not found.'
         is_error = True
+        is_private = True
         if controlflow.settings.tools_raise_on_error:
             raise ValueError(fn_output)
 
@@ -304,5 +318,5 @@ async def handle_tool_call_async(tool_call: ToolCall, tools: list[Tool]) -> Any:
         result=fn_output,
         str_result=output_to_string(fn_output),
         is_error=is_error,
-        is_private=getattr(tool, "private", False),
+        is_private=getattr(tool, "private", is_private),
     )

@@ -11,19 +11,21 @@ from rich.spinner import Spinner
 from rich.table import Table
 
 import controlflow
-from controlflow.events.agent_events import (
-    AgentMessageDeltaEvent,
-    AgentMessageEvent,
+from controlflow.events.base import Event
+from controlflow.events.events import (
+    AgentMessage,
+    AgentMessageDelta,
+    ToolCallEvent,
+    ToolResultEvent,
 )
-from controlflow.events.controller_events import (
-    ControllerEnd,
-    ControllerError,
-    ControllerStart,
+from controlflow.events.orchestrator_events import (
+    OrchestratorEnd,
+    OrchestratorError,
+    OrchestratorStart,
 )
-from controlflow.events.events import Event
-from controlflow.events.tool_events import ToolCall, ToolCallEvent, ToolResultEvent
 from controlflow.llm.messages import BaseMessage
 from controlflow.orchestration.handler import Handler
+from controlflow.tools.tools import ToolCall
 from controlflow.utilities.rich import console as cf_console
 
 
@@ -33,7 +35,7 @@ class PrintHandler(Handler):
         self.paused_id: str = None
         super().__init__()
 
-    def on_controller_start(self, event: ControllerStart):
+    def on_orchestrator_start(self, event: OrchestratorStart):
         self.live: Live = Live(auto_refresh=False, console=cf_console)
         self.events.clear()
         try:
@@ -41,10 +43,10 @@ class PrintHandler(Handler):
         except rich.errors.LiveError:
             pass
 
-    def on_controller_end(self, event: ControllerEnd):
+    def on_orchestrator_end(self, event: OrchestratorEnd):
         self.live.stop()
 
-    def on_controller_error(self, event: ControllerError):
+    def on_orchestrator_error(self, event: OrchestratorError):
         self.live.stop()
 
     def update_live(self, latest: BaseMessage = None):
@@ -59,7 +61,7 @@ class PrintHandler(Handler):
                 tool_results[event.tool_call["id"]] = event
 
         for _, event in events:
-            if isinstance(event, (AgentMessageDeltaEvent, AgentMessageEvent)):
+            if isinstance(event, (AgentMessageDelta, AgentMessage)):
                 if formatted := format_event(event, tool_results=tool_results):
                     content.append(formatted)
 
@@ -70,11 +72,11 @@ class PrintHandler(Handler):
         elif latest:
             cf_console.print(format_event(latest))
 
-    def on_agent_message_delta(self, event: AgentMessageDeltaEvent):
+    def on_agent_message_delta(self, event: AgentMessageDelta):
         self.events[event.snapshot_message.id] = event
         self.update_live()
 
-    def on_agent_message(self, event: AgentMessageEvent):
+    def on_agent_message(self, event: AgentMessage):
         self.events[event.ai_message.id] = event
         self.update_live()
 
@@ -123,15 +125,15 @@ def status(icon, text) -> Table:
 
 
 def format_event(
-    event: Union[AgentMessageDeltaEvent, AgentMessageEvent],
+    event: Union[AgentMessageDelta, AgentMessage],
     tool_results: dict[str, ToolResultEvent] = None,
 ) -> Panel:
     title = f"Agent: {event.agent.name}"
 
     content = []
-    if isinstance(event, AgentMessageDeltaEvent):
+    if isinstance(event, AgentMessageDelta):
         message = event.snapshot_message
-    elif isinstance(event, AgentMessageEvent):
+    elif isinstance(event, AgentMessage):
         message = event.ai_message
     else:
         return

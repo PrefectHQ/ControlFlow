@@ -93,9 +93,9 @@ Note that when using the `@task` and `@flow` decorators in the [functional API](
 
 Each iteration of the agentic loop requires compiling a prompt that provides the necessary context and instructions for the agent. Manually constructing these prompts can be tedious and error-prone, especially as workflows become more complex.
 
-ControlFlow simplifies prompt compilation through the `Controller`. The `Controller` automatically gathers all available information about the workflow, including the DAG of tasks, dependencies, tools, instructions, assigned agents, and more. It identifies tasks that are ready to run (i.e., all dependencies are completed), chooses an available agent, and compiles a comprehensive prompt.
+ControlFlow simplifies prompt compilation through the `Orchestrator`. The `Orchestrator` automatically gathers all available information about the workflow, including the DAG of tasks, dependencies, tools, instructions, assigned agents, and more. It identifies tasks that are ready to run (i.e., all dependencies are completed), chooses an available agent, and compiles a comprehensive prompt.
 
-Importantly, the `Controller` generates tools so the agent can complete its tasks. Tools are only provided for tasks that are ready to run, ensuring that agents do not "run ahead" of the workflow.
+Importantly, the `Orchestrator` generates tools so the agent can complete its tasks. Tools are only provided for tasks that are ready to run, ensuring that agents do not "run ahead" of the workflow.
 
 The compiled prompt includes the task objectives, relevant context from previous tasks, and any additional instructions provided by the developer. This ensures that the agent has all the necessary information to make progress on the assigned tasks.
 

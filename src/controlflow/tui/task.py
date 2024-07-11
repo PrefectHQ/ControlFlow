@@ -17,7 +17,7 @@ class EmojiStatus(Label):
     def render(self) -> str:
         if self.task.is_ready():
             return "🔜"
-        elif self.task.status == TaskStatus.INCOMPLETE:
+        elif self.task.status == TaskStatus.PENDING:
             return "⏳"
         elif self.task.status == TaskStatus.SUCCESSFUL:
             return "✅"

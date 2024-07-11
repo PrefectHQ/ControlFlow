@@ -1,3 +1,5 @@
+from typing import Optional
+
 from langchain_anthropic import ChatAnthropic
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
 
@@ -36,9 +38,12 @@ class LLMRules(ControlFlowModel):
     # if a tool is used, the result must follow the tool call immediately
     tool_result_must_follow_tool_call: bool = True
 
+    # the name associated with a message must conform to a specific format
+    require_message_name_format: Optional[str] = None
+
 
 class OpenAIRules(LLMRules):
-    pass
+    require_message_name_format: str = r"[^a-zA-Z0-9_-]"
 
 
 class AnthropicRules(LLMRules):

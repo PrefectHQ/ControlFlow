@@ -1,6 +1,5 @@
 from contextlib import contextmanager
 from typing import (
-    TYPE_CHECKING,
     Any,
     Optional,
 )
@@ -36,9 +35,6 @@ from pydantic import TypeAdapter
 
 import controlflow
 from controlflow.utilities.types import ControlFlowModel
-
-if TYPE_CHECKING:
-    pass
 
 
 def prefect_task(*args, **kwargs):

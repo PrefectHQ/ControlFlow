@@ -1,40 +1,79 @@
+import abc
 import logging
 import random
 import uuid
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Callable, Generator, Optional
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncGenerator,
+    Callable,
+    Generator,
+    Optional,
+)
 
 from langchain_core.language_models import BaseChatModel
 from pydantic import Field, field_serializer
 
 import controlflow
-from controlflow.events.events import Event
+from controlflow.events.base import Event
 from controlflow.instructions import get_instructions
 from controlflow.llm.messages import AIMessage, BaseMessage
 from controlflow.llm.rules import LLMRules
-from controlflow.tools.tools import handle_tool_call_async
+from controlflow.tools.tools import handle_tool_call, handle_tool_call_async
 from controlflow.utilities.context import ctx
 from controlflow.utilities.types import ControlFlowModel
 
 from .memory import Memory
-from .names import NAMES
+from .names import AGENTS
 
 if TYPE_CHECKING:
+    from controlflow.orchestration.agent_context import AgentContext
     from controlflow.tasks.task import Task
     from controlflow.tools.tools import Tool
 
 logger = logging.getLogger(__name__)
 
 
-class Agent(ControlFlowModel):
-    model_config = dict(arbitrary_types_allowed=True)
+class BaseAgent(ControlFlowModel, abc.ABC):
+    """
+    A base class for agents, which are entities that can complete tasks.
+    """
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4().hex[:5]))
     name: str = Field(
         description="The name of the agent.",
-        default_factory=lambda: random.choice(NAMES),
     )
     description: Optional[str] = Field(
         None, description="A description of the agent, visible to other agents."
+    )
+
+    def serialize_for_prompt(self) -> dict:
+        return self.model_dump()
+
+    @abc.abstractmethod
+    def _run(self, context: "AgentContext") -> list[Event]:
+        """
+        Run the agent with a list of events.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def _run_async(self, context: "AgentContext") -> list[Event]:
+        """
+        Run the agent with a list of events.
+        """
+        raise NotImplementedError()
+
+    async def get_activation_prompt(self) -> str:
+        return f"Agent {self.name} is now active."
+
+
+class Agent(BaseAgent):
+    model_config = dict(arbitrary_types_allowed=True)
+    name: str = Field(
+        description="The name of the agent.",
+        default_factory=lambda: random.choice(AGENTS),
     )
     instructions: Optional[str] = Field(
         "You are a diligent AI assistant. You complete your tasks efficiently and without error.",
@@ -47,10 +86,15 @@ class Agent(ControlFlowModel):
         False,
         description="If True, the agent is given tools for interacting with a human user.",
     )
+    system_template: Optional[str] = Field(
+        None,
+        description="A system template for the agent. The template should be formatted as a jinja2 template.",
+    )
     memory: Optional[Memory] = Field(
         default=None,
         # default_factory=ThreadMemory,
         description="The memory object used by the agent. If not specified, an in-memory memory object will be used. Pass None to disable memory.",
+        exclude=True,
     )
 
     # note: `model` should be typed as Optional[BaseChatModel] but V2 models can't have
@@ -90,7 +134,7 @@ class Agent(ControlFlowModel):
             dct.pop("user_access")
         return dct
 
-    def get_model(self) -> BaseChatModel:
+    def get_model(self, tools: list["Tool"] = None) -> BaseChatModel:
         """
         Retrieve the LLM model for this agent
         """
@@ -99,6 +143,8 @@ class Agent(ControlFlowModel):
             raise ValueError(
                 f"Agent {self.name}: No model provided and no default model could be loaded."
             )
+        if tools:
+            model = model.bind_tools([t.to_lc_tool() for t in tools])
         return model
 
     def get_llm_rules(self) -> LLMRules:
@@ -115,7 +161,25 @@ class Agent(ControlFlowModel):
             tools.append(talk_to_user)
         if self.memory is not None:
             tools.extend(self.memory.get_tools())
+
         return tools
+
+    def get_prompt(self, context: "AgentContext") -> str:
+        from controlflow.orchestration import prompt_templates
+
+        if self.system_template:
+            template = prompt_templates.AgentTemplate(
+                template=self.system_template,
+                template_path=None,
+                agent=self,
+                context=context,
+            )
+        else:
+            template = prompt_templates.AgentTemplate(agent=self, context=context)
+        return template.render()
+
+    def get_activation_prompt(self) -> str:
+        return f"Agent {self.name} is now active."
 
     @contextmanager
     def create_context(self):
@@ -131,29 +195,41 @@ class Agent(ControlFlowModel):
         return self._cm_stack.pop().__exit__(*exc_info)
 
     def run(self, task: "Task", steps: Optional[int] = None):
-        return task.run(agents=[self], steps=steps)
+        return task.run(agent=self, steps=steps)
 
     async def run_async(self, task: "Task", steps: Optional[int] = None):
-        return await task.run_async(agents=[self], steps=steps)
+        return await task.run_async(agent=self, steps=steps)
+
+    def _run(self, context: "AgentContext"):
+        context.add_tools(self.get_tools())
+        context.add_instructions(get_instructions())
+        messages = context.compile_messages(agent=self)
+        for event in self._run_model(messages=messages, tools=context.tools):
+            context.handle_event(event)
+
+    async def _run_async(self, context: "AgentContext"):
+        context.add_tools(self.get_tools())
+        context.add_instructions(get_instructions())
+        messages = context.compile_messages(agent=self)
+        async for event in await self._run_model(
+            messages=messages, tools=context.tools
+        ):
+            context.handle_event(event)
 
     def _run_model(
         self,
         messages: list[BaseMessage],
-        additional_tools: list["Tool"] = None,
+        tools: list["Tool"],
         stream: bool = True,
     ) -> Generator[Event, None, None]:
-        from controlflow.events.agent_events import (
-            AgentMessageDeltaEvent,
-            AgentMessageEvent,
+        from controlflow.events.events import (
+            AgentMessage,
+            AgentMessageDelta,
+            ToolCallEvent,
+            ToolResultEvent,
         )
-        from controlflow.events.tool_events import ToolCallEvent, ToolResultEvent
-        from controlflow.tools.tools import as_tools, handle_tool_call
 
-        model = self.get_model()
-
-        tools = as_tools(self.get_tools() + (additional_tools or []))
-        if tools:
-            model = model.bind_tools([t.to_lc_tool() for t in tools])
+        model = self.get_model(tools=tools)
 
         if stream:
             response = None
@@ -162,37 +238,33 @@ class Agent(ControlFlowModel):
                     response = delta
                 else:
                     response += delta
-                yield AgentMessageDeltaEvent(agent=self, delta=delta, snapshot=response)
+
+                yield AgentMessageDelta(agent=self, delta=delta, snapshot=response)
 
         else:
             response: AIMessage = model.invoke(messages)
 
-        yield AgentMessageEvent(agent=self, message=response)
+        yield AgentMessage(agent=self, message=response)
 
         for tool_call in response.tool_calls + response.invalid_tool_calls:
-            yield ToolCallEvent(agent=self, tool_call=tool_call, message=response)
-
+            yield ToolCallEvent(agent=self, tool_call=tool_call)
             result = handle_tool_call(tool_call, tools=tools)
             yield ToolResultEvent(agent=self, tool_call=tool_call, tool_result=result)
 
     async def _run_model_async(
         self,
         messages: list[BaseMessage],
-        additional_tools: list["Tool"] = None,
+        tools: list["Tool"],
         stream: bool = True,
     ) -> AsyncGenerator[Event, None]:
-        from controlflow.events.agent_events import (
-            AgentMessageDeltaEvent,
-            AgentMessageEvent,
+        from controlflow.events.events import (
+            AgentMessage,
+            AgentMessageDelta,
+            ToolCallEvent,
+            ToolResultEvent,
         )
-        from controlflow.events.tool_events import ToolCallEvent, ToolResultEvent
-        from controlflow.tools.tools import as_tools
 
-        model = self.get_model()
-
-        tools = as_tools(self.get_tools() + (additional_tools or []))
-        if tools:
-            model = model.bind_tools([t.to_lc_tool() for t in tools])
+        model = self.get_model(tools=tools)
 
         if stream:
             response = None
@@ -201,16 +273,16 @@ class Agent(ControlFlowModel):
                     response = delta
                 else:
                     response += delta
-                yield AgentMessageDeltaEvent(agent=self, delta=delta, snapshot=response)
+
+                yield AgentMessageDelta(agent=self, delta=delta, snapshot=response)
 
         else:
-            response: AIMessage = model.invoke(messages)
+            response: AIMessage = await model.ainvoke(messages)
 
-        yield AgentMessageEvent(agent=self, message=response)
+        yield AgentMessage(agent=self, message=response)
 
         for tool_call in response.tool_calls + response.invalid_tool_calls:
             yield ToolCallEvent(agent=self, tool_call=tool_call, message=response)
-
             result = await handle_tool_call_async(tool_call, tools=tools)
             yield ToolResultEvent(agent=self, tool_call=tool_call, tool_result=result)
 

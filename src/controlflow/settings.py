@@ -2,15 +2,12 @@ import copy
 import os
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 import prefect.logging.configuration
 import prefect.settings
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-if TYPE_CHECKING:
-    pass
 
 
 class ControlFlowSettings(BaseSettings):

@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-from typing import TYPE_CHECKING
 
 from prefect.context import FlowRunContext
 from prefect.input.run_input import receive_input
@@ -9,8 +8,18 @@ from rich.prompt import Prompt as RichPrompt
 import controlflow
 from controlflow.tools import tool
 
-if TYPE_CHECKING:
-    pass
+INSTRUCTIONS = """
+## Talking to human users
+
+If your task requires you to interact with a user, it will show
+`user_access=True` and you will be given a `talk_to_user` tool. You can
+use it to send messages to the user and optionally wait for a response.
+This is how you tell the user things and ask questions. Do not mention
+your tasks or the workflow. The user can only see messages you send
+them via tool. They can not read the rest of the
+thread. 
+
+"""
 
 
 class Prompt(RichPrompt):
@@ -46,20 +55,30 @@ async def get_flow_run_input(message: str):
 
 
 @tool
-async def talk_to_user(message: str, get_response: bool = True) -> str:
+async def talk_to_user(message: str, wait_for_response: bool = True) -> str:
     """
-    Send a message to the human user and optionally wait for a response. If
-    `get_response` is True, the function will return the user's response,
-    otherwise it will return a simple confirmation. Do not send the user
-    concurrent messages that require responses, as this will cause confusion.
+    If a task requires you to interact with a user, it will show
+    `user_access=True` and you will be given this tool. You can use it to send
+    messages to the user and optionally wait for a response. This is how you
+    tell the user things and ask questions. Do not mention your tasks or the
+    workflow. The user can only see messages you send them via tool. They can
+    not read the rest of the thread. Do not send the user concurrent messages
+    that require responses, as this will cause confusion.
 
     You may need to ask the human about multiple tasks at once. Consolidate your
     questions into a single message. For example, if Task 1 requires information
     X and Task 2 needs information Y, send a single message that naturally asks
     for both X and Y.
+
+    Human users may give poor, incorrect, or partial responses. You may need to
+    ask questions multiple times in order to complete your tasks. Do not make up
+    answers for omitted information; ask again and only fail the task if you
+    truly can not make progress. If your task requires human interaction and
+    neither it nor any assigned agents have `user_access`, you can fail the
+    task.
     """
 
-    if get_response:
+    if wait_for_response:
         tasks = []
         # if running in a Prefect flow, listen for a remote input
         if (frc := FlowRunContext.get()) and frc.flow_run and frc.flow_run.id:

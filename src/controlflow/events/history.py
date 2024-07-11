@@ -3,25 +3,23 @@ import json
 import math
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Union
+from typing import Optional, Union
 
 from pydantic import Field, TypeAdapter, field_validator
 
 import controlflow
-from controlflow.events.agent_events import (
-    AgentMessageEvent,
-    EndTurnEvent,
-    SelectAgentEvent,
-    SystemMessageEvent,
-    UserMessageEvent,
+from controlflow.events.base import Event
+from controlflow.events.events import (
+    AgentMessage,
+    EndTurn,
+    OrchestratorMessage,
+    SelectAgent,
+    TaskCompleteEvent,
+    TaskReadyEvent,
+    ToolResultEvent,
+    UserMessage,
 )
-from controlflow.events.events import Event
-from controlflow.events.task_events import TaskCompleteEvent, TaskReadyEvent
-from controlflow.events.tool_events import ToolResultEvent
 from controlflow.utilities.types import ControlFlowModel
-
-if TYPE_CHECKING:
-    pass
 
 # This is a global variable that will be shared between all instances of InMemoryStore
 IN_MEMORY_STORE = {}
@@ -32,11 +30,11 @@ def get_event_validator() -> TypeAdapter:
     types = Union[
         TaskReadyEvent,
         TaskCompleteEvent,
-        SelectAgentEvent,
-        SystemMessageEvent,
-        UserMessageEvent,
-        AgentMessageEvent,
-        EndTurnEvent,
+        SelectAgent,
+        OrchestratorMessage,
+        UserMessage,
+        AgentMessage,
+        EndTurn,
         ToolResultEvent,
         Event,
     ]
@@ -57,8 +55,7 @@ def filter_events(
 
     Args:
         events (list[Event]): The list of events to filter.
-        agent_ids (Optional[list[str]]): The agent ids to filter by. Defaults to None.
-        task_ids (Optional[list[str]]): The task ids to filter by. Defaults to None.
+        tags: (Optional[list[str]]): The tags to filter by. Defaults to None.
         types (Optional[list[str]]): The event types to filter by. Defaults to None.
         before_id (Optional[str]): The ID of the event before which to start including events. Defaults to None.
         after_id (Optional[str]): The ID of the event after which to stop including events. Defaults to None.
@@ -89,26 +86,22 @@ def filter_events(
         if types and event.event not in types:
             continue
 
-        # if agent_ids are specified and this event has agent_ids and none of them are in the list, skip it
-        agent_match = (
-            (
-                agent_ids
-                and event.agent_ids
-                and any(a in event.agent_ids for a in agent_ids)
-            )
-            or not agent_ids
-            or not event.agent_ids
-        )
+        match_agents = True
+        if (
+            agent_ids
+            and event.agent_ids
+            and not any(a in event.agent_ids for a in agent_ids)
+        ):
+            match_agents = False
+        match_tasks = True
+        if (
+            task_ids
+            and event.task_ids
+            and not any(t in event.task_ids for t in task_ids)
+        ):
+            match_tasks = False
 
-        # if task_ids are specified and this event has task_ids and none of them are in the list, skip it
-        task_match = (
-            (task_ids and event.task_ids and any(t in event.task_ids for t in task_ids))
-            or not task_ids
-            or not event.task_ids
-        )
-
-        # if neither agent_ids nor task_ids were matched
-        if not (agent_match or task_match):
+        if not match_agents and not match_tasks:
             continue
 
         new_events.append(event)
@@ -161,8 +154,7 @@ class InMemoryHistory(History):
 
         Args:
             thread_id (str): The ID of the thread to retrieve events from.
-            agent_ids (Optional[list[str]]): The agent associated with the events (default: None).
-            task_ids (Optional[list[str]]): The list of tasks associated with the events (default: None).
+            tags (Optional[list[str]]): The tags associated with the events (default: None).
             types (Optional[list[str]]): The list of event types to filter by (default: None).
             before_id (Optional[str]): The ID of the event before which to start retrieving events (default: None).
             after_id (Optional[str]): The ID of the event after which to stop retrieving events (default: None).
@@ -214,8 +206,7 @@ class FileHistory(History):
 
         Args:
             thread_id (str): The ID of the thread to retrieve events from.
-            agent_ids (Optional[list[str]]): The agent associated with the events (default: None).
-            task_ids (Optional[list[str]]): The list of tasks associated with the events (default: None).
+            tags (Optional[list[str]]): The tags associated with the events (default: None).
             types (Optional[list[str]]): The list of event types to filter by (default: None).
             before_id (Optional[str]): The ID of the event before which to stop retrieving events (default: None).
             after_id (Optional[str]): The ID of the event after which to start retrieving events (default: None).

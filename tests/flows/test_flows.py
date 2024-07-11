@@ -1,5 +1,5 @@
 from controlflow.agents import Agent
-from controlflow.events.agent_events import UserMessageEvent
+from controlflow.events.events import UserMessage
 from controlflow.flows import Flow, get_flow
 from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
@@ -103,8 +103,8 @@ class TestFlowHistory:
         flow1 = Flow()
         flow1.add_events(
             [
-                UserMessageEvent(content="hello"),
-                UserMessageEvent(content="world"),
+                UserMessage(content="hello"),
+                UserMessage(content="world"),
             ]
         )
 
@@ -122,14 +122,14 @@ class TestFlowHistory:
         flow1 = Flow()
         flow1.add_events(
             [
-                UserMessageEvent(content="hello"),
-                UserMessageEvent(content="world"),
+                UserMessage(content="hello"),
+                UserMessage(content="world"),
             ]
         )
 
         with flow1:
             flow2 = Flow()
-            flow2.add_events([UserMessageEvent(content="goodbye")])
+            flow2.add_events([UserMessage(content="goodbye")])
 
         messages1 = flow1.get_events()
         assert len(messages1) == 2

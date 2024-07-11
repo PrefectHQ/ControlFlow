@@ -1,6 +1,6 @@
 import datetime
 import uuid
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
@@ -25,6 +25,7 @@ from pydantic import (
 
 import controlflow
 from controlflow.agents import Agent
+from controlflow.agents.agent import BaseAgent
 from controlflow.instructions import get_instructions
 from controlflow.tools import Tool
 from controlflow.tools.talk_to_user import talk_to_user
@@ -43,6 +44,7 @@ from controlflow.utilities.types import (
 
 if TYPE_CHECKING:
     from controlflow.flows import Flow
+    from controlflow.orchestration.agent_context import AgentContext
 
 T = TypeVar("T")
 logger = get_logger(__name__)
@@ -54,10 +56,15 @@ def get_task_run_name() -> str:
 
 
 class TaskStatus(Enum):
-    INCOMPLETE = "INCOMPLETE"
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
     SUCCESSFUL = "SUCCESSFUL"
     FAILED = "FAILED"
     SKIPPED = "SKIPPED"
+
+
+INCOMPLETE_STATUSES = {TaskStatus.PENDING, TaskStatus.RUNNING}
+COMPLETE_STATUSES = {TaskStatus.SUCCESSFUL, TaskStatus.FAILED, TaskStatus.SKIPPED}
 
 
 class Task(ControlFlowModel):
@@ -68,10 +75,20 @@ class Task(ControlFlowModel):
     instructions: Union[str, None] = Field(
         None, description="Detailed instructions for completing the task."
     )
+    agent: Optional["BaseAgent"] = Field(
+        None,
+        description="The agent or team of agents assigned to the task. "
+        "If not provided, it will be inferred from the parent task, flow, or global default.",
+    )
     agents: Optional[list["Agent"]] = Field(
         None,
-        description="The agents assigned to the task. If not provided, agents "
-        "will be inferred from the parent task, flow, or global default.",
+        description="""
+            DEPRECATED. This field will probably be removed in future versions
+            of ControlFlow. For compatibility, an AgentTeam will automatically
+            be created from the provided agents, but you should provide a single
+            agent=AgentTeam(agents=[...]) instead. The agents assigned to the
+            task. If not provided, agents "will be inferred from the parent
+            task, flow, or global default.""",
         validate_default=True,
     )
     context: dict = Field(
@@ -88,7 +105,7 @@ class Task(ControlFlowModel):
     depends_on: set["Task"] = Field(
         default_factory=set, description="Tasks that this task depends on explicitly."
     )
-    status: TaskStatus = TaskStatus.INCOMPLETE
+    status: TaskStatus = TaskStatus.PENDING
     result: T = None
     result_type: Union[type[T], GenericAlias, _LiteralGenericAlias, None] = Field(
         str,
@@ -132,6 +149,8 @@ class Task(ControlFlowModel):
         objective: str = None,
         result_type: Any = NOTSET,
         infer_parent: bool = True,
+        # TODO: deprecated July 2024
+        agents: Optional[list["Agent"]] = None,
         **kwargs,
     ):
         # allow certain args to be provided as a positional args
@@ -147,7 +166,20 @@ class Task(ControlFlowModel):
                 kwargs.get("instructions")
                 or "" + "\n" + "\n".join(additional_instructions)
             ).strip()
+        if agents:
+            if kwargs.get("agent") is None:
+                logger.warning(
+                    'Passing a list of agents to the "agents" argument is '
+                    "deprecated and will be removed in future versions. "
+                    "Please provide a single agent or team of agents instead."
+                )
+                from controlflow.agents.teams import RoundRobinTeam
 
+                kwargs["agent"] = RoundRobinTeam(agents=agents)
+            else:
+                raise ValueError(
+                    "The 'agents' argument is deprecated and cannot be used with the 'agent' argument."
+                )
         super().__init__(**kwargs)
 
         self._prefect_task = PrefectTrackingTask(
@@ -206,12 +238,6 @@ class Task(ControlFlowModel):
             v = None
         return v
 
-    @field_validator("agents", mode="before")
-    def _validate_agents(cls, v):
-        if v == []:
-            raise ValueError("At least one agent is required.")
-        return v
-
     @field_validator("result_type", mode="before")
     def _turn_list_into_literal_result_type(cls, v):
         if isinstance(v, (list, tuple, set)):
@@ -244,16 +270,13 @@ class Task(ControlFlowModel):
 
         return dict(type=repr(result_type), schema=schema)
 
-    @field_serializer("agents")
-    def _serialize_agents(self, agents: Optional[list["Agent"]]):
-        agents = self.get_agents()
-        return [a.serialize_for_prompt() for a in agents]
+    @field_serializer("agent")
+    def _serialize_agents(self, agent: Optional["Agent"]):
+        return self.get_agent().serialize_for_prompt()
 
     @field_serializer("tools")
     def _serialize_tools(self, tools: list[Callable]):
-        tools = controlflow.tools.as_tools(tools)
-        # tools are Pydantic 1 objects
-        return [t.dict(include={"name", "description"}) for t in tools]
+        return [t.serialize_for_prompt() for t in controlflow.tools.as_tools(tools)]
 
     def friendly_name(self):
         if len(self.objective) > 50:
@@ -261,6 +284,12 @@ class Task(ControlFlowModel):
         else:
             objective = f'"{self.objective}"'
         return f"Task {self.id} ({objective})"
+
+    def serialize_for_prompt(self) -> dict:
+        """
+        Generate a prompt to share information about the task, for use in another object's prompt (like Flow)
+        """
+        return self.model_dump_json()
 
     @property
     def subtasks(self) -> list["Task"]:
@@ -290,7 +319,7 @@ class Task(ControlFlowModel):
     def run(
         self,
         steps: Optional[int] = None,
-        agents: Optional[list["Agent"]] = None,
+        agent: Optional["Agent"] = None,
         raise_on_error: bool = True,
         flow: "Flow" = None,
     ) -> T:
@@ -314,12 +343,12 @@ class Task(ControlFlowModel):
                     )
                 flow = Flow()
 
-        from controlflow.orchestration import Controller
+        from controlflow.orchestration import Orchestrator
 
-        controller = Controller(
-            tasks=[self], flow=flow, agents={self: agents} if agents else None
+        orchestrator = Orchestrator(
+            tasks=[self], flow=flow, agents={self: agent} if agent else None
         )
-        controller.run(steps=steps)
+        orchestrator.run(steps=steps)
 
         if self.is_successful():
             return self.result
@@ -330,7 +359,7 @@ class Task(ControlFlowModel):
     async def run_async(
         self,
         steps: Optional[int] = None,
-        agents: Optional[list["Agent"]] = None,
+        agent: Optional["Agent"] = None,
         raise_on_error: bool = True,
         flow: "Flow" = None,
     ) -> T:
@@ -353,20 +382,17 @@ class Task(ControlFlowModel):
                         "argument when steps are provided, because the history will be lost."
                     )
                 flow = Flow()
-        from controlflow.orchestration import Controller
+        from controlflow.orchestration import Orchestrator
 
-        controller = Controller(
-            tasks=[self], flow=flow, agents={self: agents} if agents else None
+        orchestrator = Orchestrator(
+            tasks=[self], flow=flow, agents={self: agent} if agent else None
         )
-        await controller.run_async(steps=steps)
+        await orchestrator.run_async(steps=steps)
 
         if self.is_successful():
             return self.result
         elif self.is_failed() and raise_on_error:
             raise ValueError(f"{self.friendly_name()} failed: {self.error}")
-
-    def copy(self):
-        return self.model_copy()
 
     @contextmanager
     def create_context(self):
@@ -376,17 +402,23 @@ class Task(ControlFlowModel):
 
     def __enter__(self):
         # use stack so we can enter the context multiple times
-        self._cm_stack.append(self.create_context())
-        return self._cm_stack[-1].__enter__()
+        self._cm_stack.append(ExitStack())
+        return self._cm_stack[-1].enter_context(self.create_context())
 
     def __exit__(self, *exc_info):
-        return self._cm_stack.pop().__exit__(*exc_info)
+        return self._cm_stack.pop().close()
 
     def is_incomplete(self) -> bool:
-        return self.status == TaskStatus.INCOMPLETE
+        return self.status in INCOMPLETE_STATUSES
 
     def is_complete(self) -> bool:
-        return self.status != TaskStatus.INCOMPLETE
+        return self.status in COMPLETE_STATUSES
+
+    def is_pending(self) -> bool:
+        return self.status == TaskStatus.PENDING
+
+    def is_running(self) -> bool:
+        return self.status == TaskStatus.RUNNING
 
     def is_successful(self) -> bool:
         return self.status == TaskStatus.SUCCESSFUL
@@ -399,15 +431,16 @@ class Task(ControlFlowModel):
 
     def is_ready(self) -> bool:
         """
-        Returns True if all dependencies are complete and this task is incomplete.
+        Returns True if all dependencies are complete and this task is
+        incomplete, meaning it is ready to be worked on.
         """
         return self.is_incomplete() and all(t.is_complete() for t in self.depends_on)
 
-    def get_agents(self) -> list["Agent"]:
-        if self.agents:
-            return self.agents
+    def get_agent(self) -> "Agent":
+        if self.agent:
+            return self.agent
         elif self.parent:
-            return self.parent.get_agents()
+            return self.parent.get_agent()
         else:
             from controlflow.flows import get_flow
 
@@ -415,10 +448,10 @@ class Task(ControlFlowModel):
                 flow = get_flow()
             except ValueError:
                 flow = None
-            if flow and flow.agents:
-                return flow.agents
+            if flow and flow.agent:
+                return flow.agent
             else:
-                return [controlflow.defaults.agent]
+                return controlflow.defaults.agent
 
     def get_agent_strategy(self) -> Callable:
         """
@@ -443,7 +476,15 @@ class Task(ControlFlowModel):
         if self.user_access:
             tools.append(talk_to_user)
         return tools
-        # return [wrap_prefect_tool(t) for t in tools]
+
+    def get_prompt(self, context: "AgentContext") -> str:
+        """
+        Generate a prompt to share information about the task with an agent.
+        """
+        from controlflow.orchestration import prompt_templates
+
+        template = prompt_templates.TaskTemplate(task=self, context=context)
+        return template.render()
 
     def set_status(self, status: TaskStatus):
         self.status = status
@@ -453,13 +494,18 @@ class Task(ControlFlowModel):
             tui.update_task(self)
 
         # update Prefect
-        if self._prefect_task.is_started:
+        if not self._prefect_task.is_started and status == TaskStatus.RUNNING:
+            self._prefect_task.start(depends_on=[t.result for t in self.depends_on])
+        elif self._prefect_task.is_started:
             if status == TaskStatus.SUCCESSFUL:
                 self._prefect_task.succeed(self.result)
             elif status == TaskStatus.FAILED:
                 self._prefect_task.fail(self.error)
             elif status == TaskStatus.SKIPPED:
                 self._prefect_task.skip()
+
+    def mark_running(self):
+        self.set_status(TaskStatus.RUNNING)
 
     def mark_successful(self, result: T = None, validate_upstreams: bool = True):
         if validate_upstreams:
@@ -479,24 +525,14 @@ class Task(ControlFlowModel):
         self.result = validate_result(result, self.result_type)
         self.set_status(TaskStatus.SUCCESSFUL)
 
-        if agent := ctx.get("agent"):
-            return f"{self.friendly_name()} marked successful by {agent.name}."
-        return f"{self.friendly_name()} marked successful."
-
-    def mark_failed(self, message: Union[str, None] = None):
-        self.error = message
+    def mark_failed(self, reason: Optional[str] = None):
+        self.error = reason
         self.set_status(TaskStatus.FAILED)
-        if agent := ctx.get("agent"):
-            return f"{self.friendly_name()} marked failed by {agent.name}."
-        return f"{self.friendly_name()} marked failed."
 
     def mark_skipped(self):
         self.set_status(TaskStatus.SKIPPED)
-        if agent := ctx.get("agent"):
-            return f"{self.friendly_name()} marked skipped by {agent.name}."
-        return f"{self.friendly_name()} marked skipped."
 
-    def generate_subtasks(self, instructions: str = None, agent: Agent = None):
+    def generate_subtasks(self, instructions: str = None, agent: "Agent" = None):
         """
         Generate subtasks for this task based on the provided instructions.
         Subtasks can reuse the same tools and agents as this task.
@@ -508,8 +544,8 @@ class Task(ControlFlowModel):
             create_plan(
                 self.objective,
                 instructions=instructions,
-                planning_agent=agent or self.agents,
-                agents=self.agents,
+                planning_agent=agent or self.agent,
+                agents=[self.agent],
                 tools=self.tools,
                 context=self.context,
             )

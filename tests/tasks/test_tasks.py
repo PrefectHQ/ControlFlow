@@ -5,10 +5,19 @@ import pytest
 from controlflow.agents import Agent
 from controlflow.flows import Flow
 from controlflow.instructions import instructions
-from controlflow.tasks.task import Task, TaskStatus
+from controlflow.tasks.task import (
+    COMPLETE_STATUSES,
+    INCOMPLETE_STATUSES,
+    Task,
+    TaskStatus,
+)
 from controlflow.utilities.context import ctx
 
 SimpleTask = partial(Task, objective="test", result_type=None)
+
+
+def test_status_coverage():
+    assert INCOMPLETE_STATUSES + COMPLETE_STATUSES == set(TaskStatus)
 
 
 def test_context_open_and_close():
@@ -29,7 +38,7 @@ def test_task_requires_objective():
 def test_task_initialization():
     task = Task(objective="Test objective")
     assert task.objective == "Test objective"
-    assert task.status == TaskStatus.INCOMPLETE
+    assert task.status == TaskStatus.PENDING
     assert task.result is None
     assert task.error is None
 
@@ -175,6 +184,7 @@ class TestTaskStatus:
     def test_task_status_transitions(self):
         task = SimpleTask()
         assert task.is_incomplete()
+        assert not task.is_running()
         assert not task.is_complete()
         assert not task.is_successful()
         assert not task.is_failed()
@@ -182,6 +192,7 @@ class TestTaskStatus:
 
         task.mark_successful()
         assert not task.is_incomplete()
+        assert not task.is_running()
         assert task.is_complete()
         assert task.is_successful()
         assert not task.is_failed()

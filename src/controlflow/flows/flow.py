@@ -1,12 +1,12 @@
 import uuid
 from contextlib import contextmanager, nullcontext
-from typing import Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from pydantic import Field
 
 import controlflow
 from controlflow.agents import Agent
-from controlflow.events.events import Event
+from controlflow.events.base import Event
 from controlflow.events.history import History
 from controlflow.flows.graph import Graph
 from controlflow.tasks.task import Task
@@ -14,6 +14,9 @@ from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import prefect_flow_context
 from controlflow.utilities.types import ControlFlowModel
+
+if TYPE_CHECKING:
+    from controlflow.orchestration.agent_context import AgentContext
 
 logger = get_logger(__name__)
 
@@ -28,10 +31,10 @@ class Flow(ControlFlowModel):
         default_factory=list,
         description="Tools that will be available to every agent in the flow",
     )
-    agents: list[Agent] = Field(
-        description="The default agents for the flow. These agents will be used "
-        "for any task that does not specify agents.",
-        default_factory=list,
+    agent: Optional[Agent] = Field(
+        None,
+        description="The default agent for the flow. This agent will be used "
+        "for any task that does not specify an agent.",
     )
     context: dict[str, Any] = {}
     graph: Graph = Field(default_factory=Graph, repr=False, exclude=True)
@@ -69,10 +72,22 @@ class Flow(ControlFlowModel):
     def tasks(self) -> list[Task]:
         return self.graph.topological_sort()
 
+    def get_prompt(self, context: "AgentContext") -> str:
+        """
+        Generate a prompt to share information about the flow with an agent.
+        """
+        from controlflow.orchestration import prompt_templates
+
+        template = prompt_templates.FlowTemplate(
+            flow=self,
+            context=context,
+        )
+        return template.render()
+
     def get_events(
         self,
-        agent_ids: Optional[list[str]] = None,
-        task_ids: Optional[list[str]] = None,
+        agents: Optional[list[Agent]] = None,
+        tasks: Optional[list[Task]] = None,
         before_id: Optional[str] = None,
         after_id: Optional[str] = None,
         limit: Optional[int] = None,
@@ -80,8 +95,8 @@ class Flow(ControlFlowModel):
     ) -> list[Event]:
         return self.history.get_events(
             thread_id=self.thread_id,
-            agent_ids=agent_ids,
-            task_ids=task_ids,
+            agent_ids=[agent.id for agent in agents or []],
+            task_ids=[task.id for task in tasks or []],
             before_id=before_id,
             after_id=after_id,
             limit=limit,
@@ -107,19 +122,19 @@ class Flow(ControlFlowModel):
         """
         Runs the flow.
         """
-        from controlflow.orchestration import Controller
+        from controlflow.orchestration import Orchestrator
 
-        controller = Controller(flow=self)
-        controller.run(steps=steps)
+        orchestrator = Orchestrator(flow=self)
+        orchestrator.run(steps=steps)
 
     async def run_async(self, steps: Optional[int] = None):
         """
         Runs the flow.
         """
-        from controlflow.orchestration import Controller
+        from controlflow.orchestration import Orchestrator
 
-        controller = Controller(flow=self)
-        await controller.run_async(steps=steps)
+        orchestrator = Orchestrator(flow=self)
+        await orchestrator.run_async(steps=steps)
 
 
 def get_flow() -> Optional[Flow]:
