@@ -1,13 +1,10 @@
-from typing import TYPE_CHECKING, TypeVar
+from typing import TypeVar
 
 from pydantic import PydanticSchemaGenerationError, TypeAdapter
 
 from controlflow.agents import Agent
 from controlflow.tasks.task import Task
 from controlflow.tools.tools import Tool, tool
-
-if TYPE_CHECKING:
-    pass
 
 T = TypeVar("T")
 

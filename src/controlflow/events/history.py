@@ -3,7 +3,7 @@ import json
 import math
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Union
+from typing import Optional, Union
 
 from pydantic import Field, TypeAdapter, field_validator
 
@@ -20,9 +20,6 @@ from controlflow.events.events import (
     UserMessage,
 )
 from controlflow.utilities.types import ControlFlowModel
-
-if TYPE_CHECKING:
-    pass
 
 # This is a global variable that will be shared between all instances of InMemoryStore
 IN_MEMORY_STORE = {}
