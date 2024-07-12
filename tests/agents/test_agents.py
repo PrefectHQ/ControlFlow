@@ -1,7 +1,10 @@
 import controlflow
+import pytest
 from controlflow.agents import Agent
 from controlflow.agents.names import AGENTS
+from controlflow.flows import Flow
 from controlflow.instructions import instructions
+from controlflow.orchestration.agent_context import AgentContext
 from controlflow.tasks.task import Task
 from langchain_openai import ChatOpenAI
 
@@ -67,3 +70,28 @@ class TestDefaultAgent:
         task = Task("task")
         assert task.get_agents()[0].model is None
         assert task.get_agents()[0].get_model() is new_model
+
+
+class TestAgentPrompt:
+    @pytest.fixture
+    def agent_context(self) -> AgentContext:
+        return AgentContext(agent=Agent(name="Test Agent"), flow=Flow(), tasks=[])
+
+    def test_default_prompt(self):
+        agent = Agent()
+        assert agent.prompt is None
+
+    def test_default_template(self, agent_context):
+        agent = Agent()
+        prompt = agent.get_prompt(context=agent_context)
+        assert prompt.startswith("# Agent")
+
+    def test_custom_prompt(self, agent_context):
+        agent = Agent(prompt="Custom Prompt")
+        prompt = agent.get_prompt(context=agent_context)
+        assert prompt == "Custom Prompt"
+
+    def test_custom_templated_prompt(self, agent_context):
+        agent = Agent(prompt="{{ agent.name }}", name="abc")
+        prompt = agent.get_prompt(context=agent_context)
+        assert prompt == "abc"

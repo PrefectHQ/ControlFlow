@@ -24,7 +24,11 @@ class Team(BaseAgent):
         None,
         description="Instructions for all agents on the team, private to this agent.",
     )
-
+    prompt: Optional[str] = Field(
+        None,
+        description="A prompt to display as an instruction to any agent selected as part of this team (or a nested team). "
+        "Prompts are formatted as jinja templates, with keywords `team: Team` and `context: AgentContext`.",
+    )
     agents: list[Agent] = Field(
         description="The agents in the team.",
         default_factory=list,
@@ -47,9 +51,12 @@ class Team(BaseAgent):
         raise NotImplementedError()
 
     def get_prompt(self, context: "AgentContext") -> str:
-        from controlflow.orchestration.prompt_templates import TeamTemplate
+        from controlflow.orchestration import prompt_templates
 
-        return TeamTemplate(team=self, context=context).render()
+        template = prompt_templates.TeamTemplate(
+            template=self.prompt, team=self, context=context
+        )
+        return template.render()
 
     def _run(self, context: "AgentContext"):
         context.add_instructions([self.get_prompt(context=context)])
@@ -59,7 +66,7 @@ class Team(BaseAgent):
         self._iterations += 1
 
     async def _run_async(self, context: "AgentContext"):
-        context.add_instructions([self.get_prompt()])
+        context.add_instructions([self.get_prompt(context=context)])
         agent = self.get_agent(context=context)
         with context.with_agent(agent) as agent_context:
             await agent._run_async(context=agent_context)

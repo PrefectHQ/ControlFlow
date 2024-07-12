@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from functools import partial
 from typing import Union
 
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
@@ -6,6 +7,9 @@ from langchain_core.language_models.fake_chat_models import FakeMessagesListChat
 import controlflow
 from controlflow.events.history import InMemoryHistory
 from controlflow.llm.messages import AIMessage, BaseMessage
+from controlflow.tasks.task import Task
+
+SimpleTask = partial(Task, objective="test", result_type=None)
 
 
 class FakeLLM(FakeMessagesListChatModel):

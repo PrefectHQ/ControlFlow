@@ -105,6 +105,11 @@ class Task(ControlFlowModel):
     depends_on: set["Task"] = Field(
         default_factory=set, description="Tasks that this task depends on explicitly."
     )
+    prompt: Optional[str] = Field(
+        None,
+        description="A prompt to display to the agent working on the task. "
+        "Prompts are formatted as jinja templates, with keywords `task: Task` and `context: AgentContext`.",
+    )
     status: TaskStatus = TaskStatus.PENDING
     result: T = None
     result_type: Union[type[T], GenericAlias, _LiteralGenericAlias, None] = Field(
@@ -122,14 +127,6 @@ class Task(ControlFlowModel):
     private: bool = Field(
         False,
         description="Work on private tasks is not visible to agents other than those assigned to the task.",
-    )
-    agent_strategy: Optional[Callable] = Field(
-        None,
-        description="A function that returns an agent, used for customizing how "
-        "the next agent is selected. The returned agent must be one "
-        "of the assigned agents. If not provided, will be inferred "
-        "from the parent task; round-robin selection is the default. "
-        "Only used for tasks with more than one agent assigned.",
     )
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     max_iterations: Optional[int] = Field(
@@ -453,24 +450,6 @@ class Task(ControlFlowModel):
             else:
                 return controlflow.defaults.agent
 
-    def get_agent_strategy(self) -> Callable:
-        """
-        Get a function for selecting the next agent to work on this
-        task.
-
-        If an agent_strategy is provided, it will be used. Otherwise, the parent
-        task's agent_strategy will be used. Finally, the global default agent_strategy
-        will be used (round-robin selection).
-        """
-        if self.agent_strategy is not None:
-            return self.agent_strategy
-        elif self.parent:
-            return self.parent.get_agent_strategy()
-        else:
-            import controlflow.tasks.agent_strategies
-
-            return controlflow.tasks.agent_strategies.round_robin
-
     def get_tools(self) -> list[Union[Tool, Callable]]:
         tools = self.tools.copy()
         if self.user_access:
@@ -483,7 +462,9 @@ class Task(ControlFlowModel):
         """
         from controlflow.orchestration import prompt_templates
 
-        template = prompt_templates.TaskTemplate(task=self, context=context)
+        template = prompt_templates.TaskTemplate(
+            template=self.prompt, task=self, context=context
+        )
         return template.render()
 
     def set_status(self, status: TaskStatus):

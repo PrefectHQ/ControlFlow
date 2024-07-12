@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import model_validator
 
 from controlflow.agents.agent import Agent
@@ -10,15 +12,14 @@ from controlflow.utilities.types import ControlFlowModel
 
 
 class Template(ControlFlowModel):
-    template: str = None
-    template_path: str = None
+    model_config = dict(extra="allow")
+    template: Optional[str] = None
+    template_path: Optional[str] = None
 
     @model_validator(mode="after")
     def _validate(self):
         if not self.template and not self.template_path:
             raise ValueError("Template or template_path must be provided.")
-        elif self.template and self.template_path:
-            raise ValueError("Only one of template or template_path must be provided.")
         return self
 
     def render(self, **kwargs) -> str:
@@ -29,10 +30,10 @@ class Template(ControlFlowModel):
         del render_kwargs["template"]
         del render_kwargs["template_path"]
 
-        if self.template_path:
-            template = prompt_env.get_template(self.template_path)
-        else:
+        if self.template is not None:
             template = prompt_env.from_string(self.template)
+        else:
+            template = prompt_env.get_template(self.template_path)
         return template.render(**render_kwargs | kwargs)
 
     def should_render(self) -> bool:

@@ -423,7 +423,7 @@ with cf.instructions('No more than 5 sentences per document'):
     technical_document.run()
 ```
 
-When you run the `technical_document` task, ControlFlow will assign both the `docs_agent` and the `editor_agent` to complete the task. The `docs_agent` will generate the technical document, and the `editor_agent` will review and edit the document to ensure its accuracy and readability. By default, they will be run in round-robin fashion, but you can customize the agent selection strategy by passing a function as the task's `agent_strategy`.
+When you run the `technical_document` task, ControlFlow will assign both the `docs_agent` and the `editor_agent` to complete the task. The `docs_agent` will generate the technical document, and the `editor_agent` will review and edit the document to ensure its accuracy and readability.
 
 ### Instructions
 
