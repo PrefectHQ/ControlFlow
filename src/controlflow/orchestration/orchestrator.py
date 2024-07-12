@@ -143,7 +143,7 @@ class Orchestrator(ControlFlowModel):
                         f'Task "{task.friendly_name()}" has exceeded max iterations and will be marked failed'
                     )
                     task.mark_failed(
-                        message="Task was not completed before exceeding its maximum number of iterations."
+                        reason="Task was not completed before exceeding its maximum number of iterations."
                     )
                     continue
 

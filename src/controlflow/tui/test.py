@@ -49,7 +49,7 @@ async def run():
             result="this is my result\n\n and here is more  and here is more  and here is more and here is more and here is more and here is more\n\n and here is more and here is more and here is more"
         )
         await asyncio.sleep(1)
-        t0.mark_failed(message="this is my result")
+        t0.mark_failed(reason="this is my result")
         app.update_message(AIMessage(content="hello there"))
         await asyncio.sleep(1)
         app.update_message(AIMessage(content="hello there"))

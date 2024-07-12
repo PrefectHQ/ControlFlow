@@ -12,8 +12,8 @@ class TestFlowInitialization:
         flow = Flow()
         assert flow.thread_id is not None
         assert len(flow.tools) == 0
-        assert len(flow.agents) == 0
-        assert len(flow.context) == 0
+        assert flow.agent is None
+        assert flow.context == {}
 
     def test_flow_with_custom_tools(self):
         def tool1():
@@ -145,20 +145,17 @@ class TestFlowHistory:
 class TestFlowCreatesDefaults:
     def test_flow_with_custom_agents(self):
         agent1 = Agent(name="Agent 1")
-        agent2 = Agent(name="Agent 2")
-        flow = Flow(agents=[agent1, agent2])
-        assert len(flow.agents) == 2
-        assert agent1 in flow.agents
-        assert agent2 in flow.agents
+        flow = Flow(agent=agent1)
+        assert flow.agent == agent1
 
     def test_flow_agent_becomes_task_default(self):
         agent = Agent()
         t1 = Task("t1")
-        assert t1.agents != [agent]
+        assert t1.agent is not agent
 
-        with Flow(agents=[agent]):
+        with Flow(agent=agent):
             t2 = Task("t2")
-            assert t2.get_agents() == [agent]
+            assert t2.get_agent() == agent
 
 
 class TestFlowPrompt:
