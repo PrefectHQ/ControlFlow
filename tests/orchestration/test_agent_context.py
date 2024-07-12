@@ -3,7 +3,9 @@ from controlflow.agents import Agent
 from controlflow.events.events import UserMessage
 from controlflow.flows import Flow
 from controlflow.orchestration.agent_context import AgentContext
+from controlflow.orchestration.print_handler import PrintHandler
 from controlflow.utilities.testing import SimpleTask
+from pydantic import ValidationError
 
 
 @pytest.fixture
@@ -39,6 +41,23 @@ class TestAgentContextEvents:
 
 class TestAgentContextHandler:
     def test_add_handlers(self, agent_context: AgentContext):
+        handler = PrintHandler()
         assert not agent_context.handlers
-        agent_context.add_handlers([1, 2, 3])
-        assert agent_context.handlers == [1, 2, 3]
+        agent_context.add_handlers([handler])
+        assert handler in agent_context.handlers
+
+    def test_add_handlers_validate(self, agent_context: AgentContext):
+        with pytest.raises(ValidationError):
+            agent_context.add_handlers([1, 2, 3])
+
+
+class TestAgentContextAgents:
+    def test_add_agents(self, agent_context: AgentContext):
+        agent = Agent()
+        assert agent not in agent_context.agents
+        agent_context.add_agent(agent)
+        assert agent in agent_context.agents
+
+    def test_add_agents_validate(self, agent_context: AgentContext):
+        with pytest.raises(ValidationError):
+            agent_context.add_agent(1)

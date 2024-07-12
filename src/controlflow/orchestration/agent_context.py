@@ -40,7 +40,7 @@ class AgentContext(ControlFlowModel):
     _context: Optional[ExitStack] = None
 
     def add_agent(self, agent: BaseAgent):
-        self.agents.append(agent)
+        self.agents = self.agents + [agent]
 
     def handle_event(self, event: Event, persist: bool = None):
         if persist is None:
@@ -56,13 +56,13 @@ class AgentContext(ControlFlowModel):
             self.flow.add_events([event])
 
     def add_handlers(self, handlers: list[Handler]):
-        self.handlers.extend(handlers)
+        self.handlers = self.handlers + handlers
 
     def add_tools(self, tools: list[Tool]):
-        self.tools.extend(tools)
+        self.tools = self.tools + tools
 
     def add_instructions(self, instructions: list[str]):
-        self.instructions.extend(instructions)
+        self.instructions = self.instructions + instructions
 
     def get_events(self, agents: list[Agent] = None) -> list[Event]:
         upstream_tasks = [
