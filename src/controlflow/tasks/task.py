@@ -170,9 +170,9 @@ class Task(ControlFlowModel):
                     "deprecated and will be removed in future versions. "
                     "Please provide a single agent or team of agents instead."
                 )
-                from controlflow.agents.teams import RoundRobinTeam
+                from controlflow.agents.teams import Team
 
-                kwargs["agent"] = RoundRobinTeam(agents=agents)
+                kwargs["agent"] = Team(agents=agents)
             else:
                 raise ValueError(
                     "The 'agents' argument is deprecated and cannot be used with the 'agent' argument."

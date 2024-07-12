@@ -64,12 +64,24 @@ class AgentContext(ControlFlowModel):
     def add_instructions(self, instructions: list[str]):
         self.instructions = self.instructions + instructions
 
-    def get_events(self, agents: list[Agent] = None) -> list[Event]:
-        upstream_tasks = [
-            t for t in self.flow.graph.upstream_tasks(self.tasks) if not t.private
-        ]
+    def get_events(
+        self,
+        agents: list[Agent] = None,
+        tasks: list[Task] = None,
+        limit: Optional[int] = None,
+        **kwargs,
+    ) -> list[Event]:
+        # if tasks are not provided, include all tasks that are upstream of the current tasks
+        if tasks is None:
+            tasks = [
+                t for t in self.flow.graph.upstream_tasks(self.tasks) if not t.private
+            ]
+
         events = self.flow.get_events(
-            agents=self.agents + (agents or []), tasks=upstream_tasks
+            agents=agents or self.agents,
+            tasks=tasks,
+            limit=limit or 100,
+            **kwargs,
         )
 
         return events

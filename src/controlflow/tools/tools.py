@@ -44,6 +44,11 @@ class Tool(ControlFlowModel):
     )
     metadata: dict = {}
     private: bool = False
+    end_turn: bool = Field(
+        False,
+        description="If True, using this tool will end the agent's turn instead "
+        "of showing the result to the agent.",
+    )
 
     fn: Callable = Field(None, exclude=True)
 
@@ -253,6 +258,7 @@ class ToolResult(ControlFlowModel):
     str_result: str = Field(repr=False)
     is_error: bool = False
     is_private: bool = False
+    end_turn: bool = False
 
 
 def handle_tool_call(
@@ -264,6 +270,7 @@ def handle_tool_call(
     """
     is_error = False
     is_private = False
+    end_turn = False
     tool = None
     tool_lookup = {t.name: t for t in tools}
     fn_name = tool_call["name"]
@@ -281,6 +288,7 @@ def handle_tool_call(
             fn_args = tool_call["args"]
             if isinstance(tool, Tool):
                 fn_output = tool.run(input=fn_args)
+                end_turn = tool.end_turn
             elif isinstance(tool, langchain_core.tools.BaseTool):
                 fn_output = tool.invoke(input=fn_args)
             else:
@@ -297,6 +305,7 @@ def handle_tool_call(
         str_result=output_to_string(fn_output),
         is_error=is_error,
         is_private=getattr(tool, "private", is_private),
+        end_turn=end_turn,
     )
 
 
@@ -307,6 +316,7 @@ async def handle_tool_call_async(tool_call: ToolCall, tools: list[Tool]) -> Any:
     """
     is_error = False
     is_private = False
+    end_turn = False
     tool = None
     tool_lookup = {t.name: t for t in tools}
     fn_name = tool_call["name"]
@@ -324,6 +334,7 @@ async def handle_tool_call_async(tool_call: ToolCall, tools: list[Tool]) -> Any:
             fn_args = tool_call["args"]
             if isinstance(tool, Tool):
                 fn_output = await tool.run_async(input=fn_args)
+                end_turn = tool.end_turn
             elif isinstance(tool, langchain_core.tools.BaseTool):
                 fn_output = await tool.ainvoke(input=fn_args)
             else:
@@ -340,4 +351,5 @@ async def handle_tool_call_async(tool_call: ToolCall, tools: list[Tool]) -> Any:
         str_result=output_to_string(fn_output),
         is_error=is_error,
         is_private=getattr(tool, "private", is_private),
+        end_turn=end_turn,
     )
