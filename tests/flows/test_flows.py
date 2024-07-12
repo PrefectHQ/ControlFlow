@@ -1,10 +1,12 @@
 import pytest
 from controlflow.agents import Agent
+from controlflow.events.base import Event
 from controlflow.events.events import UserMessage
 from controlflow.flows import Flow, get_flow
 from controlflow.orchestration.agent_context import AgentContext
 from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
+from controlflow.utilities.testing import SimpleTask
 
 
 class TestFlowInitialization:
@@ -181,3 +183,76 @@ class TestFlowPrompt:
         flow = Flow(prompt="{{ flow.name }}", name="abc")
         prompt = flow.get_prompt(context=agent_context)
         assert prompt == "abc"
+
+
+class TestFlowEvents:
+    @pytest.fixture
+    def agents(self):
+        return [Agent(name="a1"), Agent(name="a2")]
+
+    @pytest.fixture
+    def flow(self):
+        with Flow() as flow:
+            t1 = SimpleTask()
+
+            # t1 -> t2 -> t3
+            t2 = SimpleTask(depends_on=[t1])
+            t3 = SimpleTask(depends_on=[t2])  # noqa
+
+            # t1 -> t4
+            t4 = SimpleTask(depends_on=[t1])  # noqa
+
+            # t5
+            t5 = SimpleTask()  # noqa
+
+        return flow
+
+    @pytest.fixture
+    def tasks(self, flow):
+        return list(sorted(flow.tasks, key=lambda t: t.created_at))
+
+    @pytest.fixture
+    def events(self, agents: list[Agent], flow, tasks: list[Task]):
+        a1, a2 = agents
+        [t1, t2, t3, t4, t5] = tasks
+
+        events = [
+            Event(event="test", task_ids=[t1.id], agent_ids=[a1.id]),
+            Event(event="test", task_ids=[t2.id], agent_ids=[a1.id, a2.id]),
+            Event(event="test", task_ids=[t3.id], agent_ids=[a1.id]),
+            Event(event="test", task_ids=[t4.id], agent_ids=[a1.id]),
+            Event(event="test", task_ids=[t5.id], agent_ids=[a2.id]),
+        ]
+
+        return events
+
+    @pytest.fixture(autouse=True)
+    def add_events(self, flow, events):
+        flow.add_events(events)
+
+    def test_get_events_by_task(self, agents: list[Agent], flow, tasks: list[Task]):
+        [t1, t2, t3, t4, t5] = tasks
+
+        for t in [t1, t2, t3, t4, t5]:
+            events = flow.get_events(tasks=[t])
+            assert len(events) == 1
+
+            events = flow.get_events(tasks=flow.graph.upstream_tasks([t]))
+            assert len(events) == len(flow.graph.upstream_tasks([t]))
+
+    def test_get_events_by_agent(self, agents: list[Agent], flow):
+        a1, a2 = agents
+        events = flow.get_events(agents=[a1])
+        assert len(events) == 4
+
+        events = flow.get_events(agents=[a2])
+        assert len(events) == 2
+
+    def test_get_events_by_agent_and_task(self, agents, flow, tasks: list[Task]):
+        a1, a2 = agents
+        [t1, t2, t3, t4, t5] = tasks
+        events = flow.get_events(agents=[a1], tasks=[t1])
+        assert len(events) == 1
+
+        events = flow.get_events(agents=[a2], tasks=[t1])
+        assert len(events) == 0

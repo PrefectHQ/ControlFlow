@@ -86,6 +86,8 @@ def filter_events(
         if types and event.event not in types:
             continue
 
+        # check if the event matches the agent_ids and task_ids
+        # if no ids were provided, we assume it *does* match
         match_agents = True
         if (
             agent_ids
@@ -101,7 +103,8 @@ def filter_events(
         ):
             match_tasks = False
 
-        if not match_agents and not match_tasks:
+        # if EITHER match fails, skip this event
+        if not match_agents or not match_tasks:
             continue
 
         new_events.append(event)
