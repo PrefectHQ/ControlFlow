@@ -163,7 +163,7 @@ class TestFlowCreatesDefaults:
 class TestFlowPrompt:
     @pytest.fixture
     def agent_context(self) -> AgentContext:
-        return AgentContext(agent=Agent(name="Test Agent"), flow=Flow(), tasks=[])
+        return AgentContext(agents=[Agent(name="Test Agent")], flow=Flow(), tasks=[])
 
     def test_default_prompt(self):
         flow = Flow()
