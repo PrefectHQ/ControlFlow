@@ -59,17 +59,17 @@ class Team(BaseAgent):
         return template.render()
 
     def _run(self, context: "AgentContext"):
+        context.add_agent(self)
         context.add_instructions([self.get_prompt(context=context)])
         agent = self.get_agent(context=context)
-        with context.with_agent(agent) as agent_context:
-            agent._run(context=agent_context)
+        agent._run(context=context)
         self._iterations += 1
 
     async def _run_async(self, context: "AgentContext"):
+        context.add_agent(self)
         context.add_instructions([self.get_prompt(context=context)])
         agent = self.get_agent(context=context)
-        with context.with_agent(agent) as agent_context:
-            await agent._run_async(context=agent_context)
+        await agent._run_async(context=context)
         self._iterations += 1
 
 
