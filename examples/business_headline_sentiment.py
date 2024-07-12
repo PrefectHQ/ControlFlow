@@ -21,13 +21,13 @@ def get_headlines():
 
     summarizer_task = cf.Task(
         "Retrieve and summarize today's two top business headlines",
-        agents=[summarizer],
+        agent=summarizer,
         result_type=list[str],
     )
 
     extractor_task = cf.Task(
         "Extract any fortune 500 companies mentioned in the headlines and whether the sentiment is positive, neutral, or negative",
-        agents=[extractor],
+        agent=extractor,
         depends_on=[summarizer_task],
     )
 
