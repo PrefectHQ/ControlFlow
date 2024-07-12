@@ -8,9 +8,10 @@ from prefect.logging import get_logger
 
 
 def test_defaults():
-    # ensure that debug settings etc. are not left on by default
+    # ensure that debug settings etc. are not misconfigured during development
+    # change these settings to match whatever the default should be
     assert controlflow.settings.tools_raise_on_error is False
-    assert controlflow.settings.tools_verbose is False
+    assert controlflow.settings.tools_verbose is True
 
 
 def test_temporary_settings():
