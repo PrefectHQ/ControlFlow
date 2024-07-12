@@ -44,4 +44,5 @@ def test_record_task_events(default_fake_llm):
         str_result='Task 12345 ("say hello") marked successful.',
         is_error=False,
         is_private=True,
+        end_turn=True,
     )
