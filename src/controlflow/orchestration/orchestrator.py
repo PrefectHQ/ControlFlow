@@ -104,9 +104,9 @@ class Orchestrator(ControlFlowModel):
                 tools = self.get_tools(tasks=tasks)
 
                 context = AgentContext(
-                    agent=agent,
                     flow=self.flow,
                     tasks=tasks,
+                    agents=[agent],
                     tools=tools,
                     handlers=self.handlers,
                 )

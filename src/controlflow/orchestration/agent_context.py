@@ -2,6 +2,8 @@ from contextlib import ExitStack
 from functools import partial, wraps
 from typing import Callable, Optional
 
+from pydantic import Field
+
 from controlflow.agents.agent import Agent, BaseAgent
 from controlflow.events.base import Event
 from controlflow.events.message_compiler import MessageCompiler
@@ -26,24 +28,27 @@ class AgentContext(ControlFlowModel):
     """
 
     model_config = dict(arbitrary_types_allowed=True)
-    agent: BaseAgent
     flow: Flow
     tasks: list[Task]
     tools: list[Tool] = []
+    agents: list[BaseAgent] = Field(
+        default_factory=list,
+        description="Any other agents that are relevant to this operation, in order to properly load events",
+    )
     handlers: list[Handler] = []
     instructions: list[str] = []
     _context: Optional[ExitStack] = None
 
-    def with_agent(self, agent: BaseAgent) -> "AgentContext":
-        return self.model_copy(update={"agent": agent})
+    def add_agent(self, agent: BaseAgent):
+        self.agents = self.agents + [agent]
 
-    def handle_event(self, event: Event, agent: Agent = None, persist: bool = None):
+    def handle_event(self, event: Event, persist: bool = None):
         if persist is None:
             persist = event.persist
 
         event.thread_id = self.flow.thread_id
         event.add_tasks(self.tasks)
-        event.add_agents([agent] if agent else [])
+        event.add_agents(self.agents)
 
         for handler in self.handlers:
             handler.handle(event)
@@ -51,27 +56,29 @@ class AgentContext(ControlFlowModel):
             self.flow.add_events([event])
 
     def add_handlers(self, handlers: list[Handler]):
-        self.handlers.extend(handlers)
+        self.handlers = self.handlers + handlers
 
     def add_tools(self, tools: list[Tool]):
-        self.tools.extend(tools)
+        self.tools = self.tools + tools
 
     def add_instructions(self, instructions: list[str]):
-        self.instructions.extend(instructions)
+        self.instructions = self.instructions + instructions
 
     def get_events(self, agents: list[Agent] = None) -> list[Event]:
         upstream_tasks = [
             t for t in self.flow.graph.upstream_tasks(self.tasks) if not t.private
         ]
-        events = self.flow.get_events(agents=agents, tasks=upstream_tasks)
+        events = self.flow.get_events(
+            agents=self.agents + (agents or []), tasks=upstream_tasks
+        )
 
         return events
 
-    def compile_prompt(self) -> str:
+    def compile_prompt(self, agent: Agent) -> str:
         from controlflow.orchestration.prompt_templates import InstructionsTemplate
 
         prompts = [
-            self.agent.get_prompt(context=self),
+            agent.get_prompt(context=self),
             self.flow.get_prompt(context=self),
             *[t.get_prompt(context=self) for t in self.tasks],
             InstructionsTemplate(instructions=self.instructions, context=self).render(),
@@ -83,7 +90,7 @@ class AgentContext(ControlFlowModel):
         compiler = MessageCompiler(
             events=events,
             llm_rules=agent.get_llm_rules(),
-            system_prompt=self.compile_prompt(),
+            system_prompt=self.compile_prompt(agent=agent),
         )
         messages = compiler.compile_to_messages(agent=agent)
         return messages

@@ -1,9 +1,7 @@
 import inspect
 from typing import Any, Optional
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models import BaseChatModel
-from langchain_openai import ChatOpenAI
 from pydantic import ValidationError
 
 import controlflow
@@ -30,8 +28,12 @@ def model_from_string(
         temperature = controlflow.settings.llm_temperature
 
     if provider == "openai":
+        from langchain_openai import ChatOpenAI
+
         cls = ChatOpenAI
     elif provider == "anthropic":
+        from langchain_anthropic import ChatAnthropic
+
         cls = ChatAnthropic
     elif provider == "azure-openai":
         from langchain_openai import AzureChatOpenAI
