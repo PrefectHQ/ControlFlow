@@ -15,7 +15,7 @@ from controlflow.utilities.testing import SimpleTask
 
 
 def test_status_coverage():
-    assert INCOMPLETE_STATUSES + COMPLETE_STATUSES == set(TaskStatus)
+    assert INCOMPLETE_STATUSES | COMPLETE_STATUSES == set(TaskStatus)
 
 
 def test_context_open_and_close():
@@ -45,7 +45,7 @@ def test_task_mark_successful_and_mark_failed():
     task = SimpleTask()
     task.mark_successful(result=None)
     assert task.status == TaskStatus.SUCCESSFUL
-    task.mark_failed(message="test error")
+    task.mark_failed(reason="test error")
     assert task.status == TaskStatus.FAILED
 
 
@@ -103,35 +103,35 @@ def test_task_parent_context():
 
 def test_task_agent_assignment():
     agent = Agent(name="Test Agent")
-    task = SimpleTask(agents=[agent])
-    assert agent in task.agents
+    task = SimpleTask(agent=agent)
+    assert task.agent is agent
 
 
 def test_task_bad_agent_assignment():
     with pytest.raises(ValueError):
-        SimpleTask(agents=[])
+        SimpleTask(agent=5)
 
 
 def test_task_loads_agent_from_parent():
     agent = Agent(name="Test Agent")
-    with SimpleTask(agents=[agent]):
+    with SimpleTask(agent=agent):
         child = SimpleTask()
 
     assert child.agents is None
-    assert child.get_agents() == [agent]
+    assert child.get_agent() == agent
 
 
 def test_task_loads_agent_from_flow():
     def_agent = controlflow.defaults.agent
     agent = Agent(name="Test Agent")
-    with Flow(agents=[agent]):
+    with Flow(agent=agent):
         task = SimpleTask()
 
         assert task.agents is None
-        assert task.get_agents() == [agent]
+        assert task.get_agent() == agent
 
     # outside the flow context, pick up the default agent
-    assert task.get_agents() == [def_agent]
+    assert task.get_agent() == def_agent
 
 
 def test_task_loads_agent_from_default_if_none_otherwise():
@@ -139,18 +139,18 @@ def test_task_loads_agent_from_default_if_none_otherwise():
     task = SimpleTask()
 
     assert task.agents is None
-    assert task.get_agents() == [agent]
+    assert task.get_agent() == agent
 
 
 def test_task_loads_agent_from_parent_before_flow():
     agent1 = Agent(name="Test Agent 1")
     agent2 = Agent(name="Test Agent 2")
-    with Flow(agents=[agent1]):
-        with SimpleTask(agents=[agent2]):
+    with Flow(agent=agent1):
+        with SimpleTask(agent=agent2):
             child = SimpleTask()
 
-    assert child.agents is None
-    assert child.get_agents() == [agent2]
+    assert child.agent is None
+    assert child.get_agent() == agent2
 
 
 class TestFlowRegistration:

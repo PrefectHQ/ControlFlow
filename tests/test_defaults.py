@@ -30,7 +30,7 @@ def test_default_agent_failed_validation():
 def test_set_default_agent():
     agent = controlflow.Agent(name="Marvin")
     controlflow.defaults.agent = agent
-    assert controlflow.Task("").get_agents()[0] is agent
+    assert controlflow.Task("").get_agent() is agent
 
 
 def test_default_history_failed_validation():
