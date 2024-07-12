@@ -51,6 +51,8 @@ tests = [
     "pytest>=7.0",
     "pytest-timeout",
     "pytest-xdist",
+    "langchain_community",
+    "duckduckgo-search",
 ]
 dev = [
     "controlflow[tests]",

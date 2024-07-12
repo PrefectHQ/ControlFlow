@@ -20,7 +20,12 @@ from controlflow.events.base import Event
 from controlflow.instructions import get_instructions
 from controlflow.llm.messages import AIMessage, BaseMessage
 from controlflow.llm.rules import LLMRules
-from controlflow.tools.tools import handle_tool_call, handle_tool_call_async
+from controlflow.tools.tools import (
+    as_lc_tools,
+    as_tools,
+    handle_tool_call,
+    handle_tool_call_async,
+)
 from controlflow.utilities.context import ctx
 from controlflow.utilities.types import ControlFlowModel
 
@@ -156,7 +161,7 @@ class Agent(BaseAgent):
                 f"Agent {self.name}: No model provided and no default model could be loaded."
             )
         if tools:
-            model = model.bind_tools([t.to_lc_tool() for t in tools])
+            model = model.bind_tools(as_lc_tools(tools))
         return model
 
     def get_llm_rules(self) -> LLMRules:
@@ -165,7 +170,7 @@ class Agent(BaseAgent):
         """
         return controlflow.llm.rules.rules_for_model(self.get_model())
 
-    def get_tools(self) -> list[Callable]:
+    def get_tools(self) -> list["Tool"]:
         from controlflow.tools.talk_to_user import talk_to_user
 
         tools = self.tools.copy()
@@ -174,7 +179,7 @@ class Agent(BaseAgent):
         if self.memory is not None:
             tools.extend(self.memory.get_tools())
 
-        return tools
+        return as_tools(tools)
 
     @contextmanager
     def create_context(self):
