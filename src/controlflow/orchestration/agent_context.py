@@ -1,6 +1,6 @@
 from contextlib import ExitStack
 from functools import partial, wraps
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from pydantic import Field
 
@@ -11,7 +11,7 @@ from controlflow.flows import Flow
 from controlflow.llm.messages import BaseMessage
 from controlflow.orchestration.handler import Handler
 from controlflow.tasks.task import Task
-from controlflow.tools.tools import Tool
+from controlflow.tools.tools import Tool, as_tools
 from controlflow.utilities.context import ctx
 from controlflow.utilities.types import ControlFlowModel
 
@@ -30,7 +30,7 @@ class AgentContext(ControlFlowModel):
     model_config = dict(arbitrary_types_allowed=True)
     flow: Flow
     tasks: list[Task]
-    tools: list[Tool] = []
+    tools: list[Any] = []
     agents: list[BaseAgent] = Field(
         default_factory=list,
         description="Any other agents that are relevant to this operation, in order to properly load events",
@@ -59,7 +59,7 @@ class AgentContext(ControlFlowModel):
         self.handlers = self.handlers + handlers
 
     def add_tools(self, tools: list[Tool]):
-        self.tools = self.tools + tools
+        self.tools = self.tools + as_tools(tools)
 
     def add_instructions(self, instructions: list[str]):
         self.instructions = self.instructions + instructions

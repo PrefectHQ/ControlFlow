@@ -209,10 +209,27 @@ def as_tools(
         else:
             raise ValueError(f"Invalid tool: {t}")
 
-        if (t.name, t.description, t.fn) in seen:
+        if (t.name, t.description) in seen:
             continue
         new_tools.append(t)
-        seen.add((t.name, t.description, t.fn))
+        seen.add((t.name, t.description))
+    return new_tools
+
+
+def as_lc_tools(
+    tools: list[Union[Callable, langchain_core.tools.BaseTool, Tool]],
+) -> list[langchain_core.tools.BaseTool]:
+    new_tools = []
+    for t in tools:
+        if isinstance(t, langchain_core.tools.BaseTool):
+            pass
+        elif isinstance(t, Tool):
+            t = t.to_lc_tool()
+        elif inspect.isfunction(t):
+            t = langchain_core.tools.StructuredTool.from_function(t)
+        else:
+            raise ValueError(f"Invalid tool: {t}")
+        new_tools.append(t)
     return new_tools
 
 
@@ -266,6 +283,8 @@ def handle_tool_call(
                 fn_output = tool.run(input=fn_args)
             elif isinstance(tool, langchain_core.tools.BaseTool):
                 fn_output = tool.invoke(input=fn_args)
+            else:
+                raise ValueError(f"Invalid tool: {tool}")
         except Exception as exc:
             fn_output = f'Error calling function "{fn_name}": {exc}'
             is_error = True
@@ -307,6 +326,8 @@ async def handle_tool_call_async(tool_call: ToolCall, tools: list[Tool]) -> Any:
                 fn_output = await tool.run_async(input=fn_args)
             elif isinstance(tool, langchain_core.tools.BaseTool):
                 fn_output = await tool.ainvoke(input=fn_args)
+            else:
+                raise ValueError(f"Invalid tool: {tool}")
         except Exception as exc:
             fn_output = f'Error calling function "{fn_name}": {exc}'
             is_error = True
