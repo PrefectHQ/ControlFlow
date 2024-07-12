@@ -9,7 +9,7 @@ from controlflow.tools.tools import Tool, tool
 T = TypeVar("T")
 
 
-def generate_result_schema(result_type: type[T]) -> type[T]:
+def _generate_result_schema(result_type: type[T]) -> type[T]:
     if result_type is None:
         return None
 
@@ -43,12 +43,13 @@ def create_task_success_tool(task: Task) -> Tool:
     Create an agent-compatible tool for marking this task as successful.
     """
 
-    result_schema = generate_result_schema(task.result_type)
+    result_schema = _generate_result_schema(task.result_type)
 
     @tool(
         name=f"mark_task_{task.id}_successful",
         description=f"Mark task {task.id} as successful.",
         private=True,
+        end_turn=True,
     )
     def succeed(result: result_schema) -> str:  # type: ignore
         task.mark_successful(result=result)
@@ -68,6 +69,7 @@ def create_task_fail_tool(task: Task) -> Tool:
             f"Mark task {task.id} as failed. Only use when technical errors prevent success. Provide a detailed reason for the failure."
         ),
         private=True,
+        end_turn=True,
     )
     def fail(reason: str) -> str:
         task.mark_failed(reason=reason)
