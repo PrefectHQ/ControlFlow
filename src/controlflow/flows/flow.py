@@ -36,6 +36,11 @@ class Flow(ControlFlowModel):
         description="The default agent for the flow. This agent will be used "
         "for any task that does not specify an agent.",
     )
+    prompt: Optional[str] = Field(
+        None,
+        description="A prompt to display to the agent working on the flow. "
+        "Prompts are formatted as jinja templates, with keywords `flow: Flow` and `context: AgentContext`.",
+    )
     context: dict[str, Any] = {}
     graph: Graph = Field(default_factory=Graph, repr=False, exclude=True)
     _cm_stack: list[contextmanager] = []
@@ -79,6 +84,7 @@ class Flow(ControlFlowModel):
         from controlflow.orchestration import prompt_templates
 
         template = prompt_templates.FlowTemplate(
+            template=self.prompt,
             flow=self,
             context=context,
         )

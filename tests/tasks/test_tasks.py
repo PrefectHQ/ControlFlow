@@ -1,10 +1,9 @@
-from functools import partial
-
 import controlflow
 import pytest
 from controlflow.agents import Agent
 from controlflow.flows import Flow
 from controlflow.instructions import instructions
+from controlflow.orchestration.agent_context import AgentContext
 from controlflow.tasks.task import (
     COMPLETE_STATUSES,
     INCOMPLETE_STATUSES,
@@ -12,8 +11,7 @@ from controlflow.tasks.task import (
     TaskStatus,
 )
 from controlflow.utilities.context import ctx
-
-SimpleTask = partial(Task, objective="test", result_type=None)
+from controlflow.utilities.testing import SimpleTask
 
 
 def test_status_coverage():
@@ -261,3 +259,28 @@ class TestTaskStatus:
         task1 = SimpleTask()
         task2 = SimpleTask()
         assert hash(task1) != hash(task2)
+
+
+class TestTaskPrompt:
+    @pytest.fixture
+    def agent_context(self) -> AgentContext:
+        return AgentContext(agent=Agent(name="Test Agent"), flow=Flow(), tasks=[])
+
+    def test_default_prompt(self):
+        task = SimpleTask()
+        assert task.prompt is None
+
+    def test_default_template(self, agent_context):
+        task = SimpleTask()
+        prompt = task.get_prompt(context=agent_context)
+        assert prompt.startswith("## Task")
+
+    def test_custom_prompt(self, agent_context):
+        task = SimpleTask(prompt="Custom Prompt")
+        prompt = task.get_prompt(context=agent_context)
+        assert prompt == "Custom Prompt"
+
+    def test_custom_templated_prompt(self, agent_context):
+        task = SimpleTask(prompt="{{ task.objective }}", objective="abc")
+        prompt = task.get_prompt(context=agent_context)
+        assert prompt == "abc"

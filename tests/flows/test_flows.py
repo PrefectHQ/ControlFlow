@@ -1,6 +1,8 @@
+import pytest
 from controlflow.agents import Agent
 from controlflow.events.events import UserMessage
 from controlflow.flows import Flow, get_flow
+from controlflow.orchestration.agent_context import AgentContext
 from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
 
@@ -157,3 +159,28 @@ class TestFlowCreatesDefaults:
         with Flow(agents=[agent]):
             t2 = Task("t2")
             assert t2.get_agents() == [agent]
+
+
+class TestFlowPrompt:
+    @pytest.fixture
+    def agent_context(self) -> AgentContext:
+        return AgentContext(agent=Agent(name="Test Agent"), flow=Flow(), tasks=[])
+
+    def test_default_prompt(self):
+        flow = Flow()
+        assert flow.prompt is None
+
+    def test_default_template(self, agent_context):
+        flow = Flow()
+        prompt = flow.get_prompt(context=agent_context)
+        assert prompt.startswith("# Flow")
+
+    def test_custom_prompt(self, agent_context):
+        flow = Flow(prompt="Custom Prompt")
+        prompt = flow.get_prompt(context=agent_context)
+        assert prompt == "Custom Prompt"
+
+    def test_custom_templated_prompt(self, agent_context):
+        flow = Flow(prompt="{{ flow.name }}", name="abc")
+        prompt = flow.get_prompt(context=agent_context)
+        assert prompt == "abc"

@@ -47,6 +47,11 @@ class BaseAgent(ControlFlowModel, abc.ABC):
     description: Optional[str] = Field(
         None, description="A description of the agent, visible to other agents."
     )
+    prompt: Optional[str] = Field(
+        None,
+        description="A prompt to display as a system message to the agent."
+        "Prompts are formatted as jinja templates, with keywords `agent: Agent` and `context: AgentContext`.",
+    )
 
     def serialize_for_prompt(self) -> dict:
         return self.model_dump()
@@ -65,8 +70,15 @@ class BaseAgent(ControlFlowModel, abc.ABC):
         """
         raise NotImplementedError()
 
-    async def get_activation_prompt(self) -> str:
-        return f"Agent {self.name} is now active."
+    def get_prompt(self, context: "AgentContext") -> str:
+        from controlflow.orchestration import prompt_templates
+
+        template = prompt_templates.AgentTemplate(
+            template=self.prompt,
+            agent=self,
+            context=context,
+        )
+        return template.render()
 
 
 class Agent(BaseAgent):
@@ -86,7 +98,7 @@ class Agent(BaseAgent):
         False,
         description="If True, the agent is given tools for interacting with a human user.",
     )
-    system_template: Optional[str] = Field(
+    prompt: Optional[str] = Field(
         None,
         description="A system template for the agent. The template should be formatted as a jinja2 template.",
     )
@@ -163,23 +175,6 @@ class Agent(BaseAgent):
             tools.extend(self.memory.get_tools())
 
         return tools
-
-    def get_prompt(self, context: "AgentContext") -> str:
-        from controlflow.orchestration import prompt_templates
-
-        if self.system_template:
-            template = prompt_templates.AgentTemplate(
-                template=self.system_template,
-                template_path=None,
-                agent=self,
-                context=context,
-            )
-        else:
-            template = prompt_templates.AgentTemplate(agent=self, context=context)
-        return template.render()
-
-    def get_activation_prompt(self) -> str:
-        return f"Agent {self.name} is now active."
 
     @contextmanager
     def create_context(self):
