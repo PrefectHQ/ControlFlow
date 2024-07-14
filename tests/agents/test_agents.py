@@ -36,6 +36,18 @@ class TestAgentInitialization:
 
         assert "test instruction" in agent.instructions
 
+    def test_stable_id(self):
+        agent = Agent(name="Test Agent")
+        assert agent.id == "69dd1abd"
+
+    def test_id_includes_instructions(self):
+        a1 = Agent(name="Test Agent")
+        a2 = Agent(name="Test Agent", instructions="abc")
+        a3 = Agent(name="Test Agent", instructions="def")
+        a4 = Agent(name="Test Agent", instructions="abc", description="xyz")
+
+        assert a1.id != a2.id != a3.id != a4.id
+
 
 class TestDefaultAgent:
     def test_default_agent(self):
