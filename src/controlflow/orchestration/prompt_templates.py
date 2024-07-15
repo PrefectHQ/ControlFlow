@@ -7,6 +7,7 @@ from controlflow.agents.teams import Team
 from controlflow.flows import Flow
 from controlflow.orchestration.agent_context import AgentContext
 from controlflow.tasks.task import Task
+from controlflow.tools.tools import Tool
 from controlflow.utilities.general import ControlFlowModel
 from controlflow.utilities.jinja import prompt_env
 
@@ -85,3 +86,12 @@ class InstructionsTemplate(Template):
 
     def should_render(self) -> bool:
         return bool(self.instructions)
+
+
+class ToolTemplate(Template):
+    template_path: str = "tools.md.jinja"
+    tools: list[Tool]
+    context: AgentContext
+
+    def should_render(self) -> bool:
+        return any(t.instructions for t in self.tools)

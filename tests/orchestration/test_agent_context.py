@@ -6,6 +6,7 @@ from controlflow.flows import Flow
 from controlflow.orchestration.agent_context import AgentContext
 from controlflow.orchestration.print_handler import PrintHandler
 from controlflow.tasks.task import Task
+from controlflow.tools import tool
 from controlflow.utilities.testing import SimpleTask
 from pydantic import ValidationError
 
@@ -188,3 +189,19 @@ class TestAgentContextGetVisibleEvents:
 
         context = AgentContext(flow=flow, agents=[a1], tasks=[t2, t4])
         assert len(context.get_visible_events(agent=a1)) == 3
+
+
+class TestAgentContextCompilePrompt:
+    def test_instructions_in_prompt(self, agent_context):
+        agent_context.add_instructions(["custom instructions!"])
+        prompt = agent_context.compile_prompt(agent=agent_context.agents[0])
+        assert "custom instructions!" in prompt
+
+    def test_tool_instructions_in_prompt(self, agent_context):
+        @tool(instructions="custom tool instructions!")
+        def f():
+            pass
+
+        agent_context.add_tools([f])
+        prompt = agent_context.compile_prompt(agent=agent_context.agents[0])
+        assert "custom tool instructions!" in prompt

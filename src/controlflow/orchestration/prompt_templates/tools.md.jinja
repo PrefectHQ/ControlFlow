@@ -1,0 +1,10 @@
+# Tools
+
+The following tools have additional instructions:
+
+{% for tool in tools %}
+{% if tool.instructions %}
+## Tool: {{ tool.name }}
+{{ tool.instructions }}
+{% endif %}
+{% endfor %}
