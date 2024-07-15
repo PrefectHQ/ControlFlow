@@ -1,6 +1,7 @@
 import abc
 import json
 import math
+from enum import Enum
 from functools import cache
 from pathlib import Path
 from typing import Optional, Union
@@ -9,24 +10,32 @@ from pydantic import Field, TypeAdapter, field_validator
 
 import controlflow
 from controlflow.events.base import Event
-from controlflow.events.events import (
-    AgentMessage,
-    EndTurn,
-    OrchestratorMessage,
-    SelectAgent,
-    TaskCompleteEvent,
-    TaskReadyEvent,
-    ToolResultEvent,
-    UserMessage,
-)
 from controlflow.utilities.types import ControlFlowModel
 
 # This is a global variable that will be shared between all instances of InMemoryStore
 IN_MEMORY_STORE = {}
 
 
+class HistoryVisibility(Enum):
+    ALL = "ALL"
+    UPSTREAM = "UPSTREAM"
+    CURRENT_AGENT = "CURRENT_AGENT"
+    CURRENT_TASK = "CURRENT_TASK"
+
+
 @cache
 def get_event_validator() -> TypeAdapter:
+    from controlflow.events.events import (
+        AgentMessage,
+        EndTurn,
+        OrchestratorMessage,
+        SelectAgent,
+        TaskCompleteEvent,
+        TaskReadyEvent,
+        ToolResultEvent,
+        UserMessage,
+    )
+
     types = Union[
         TaskReadyEvent,
         TaskCompleteEvent,
@@ -88,23 +97,19 @@ def filter_events(
 
         # check if the event matches the agent_ids and task_ids
         # if no ids were provided, we assume it *does* match
-        match_agents = True
+
         if (
             agent_ids
             and event.agent_ids
             and not any(a in event.agent_ids for a in agent_ids)
         ):
-            match_agents = False
-        match_tasks = True
+            continue
+
         if (
             task_ids
             and event.task_ids
             and not any(t in event.task_ids for t in task_ids)
         ):
-            match_tasks = False
-
-        # if EITHER match fails, skip this event
-        if not match_agents or not match_tasks:
             continue
 
         new_events.append(event)

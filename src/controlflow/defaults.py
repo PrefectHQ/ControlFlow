@@ -16,6 +16,10 @@ __all__ = ["defaults"]
 
 logger = controlflow.utilities.logging.get_logger(__name__)
 
+_default_model = _get_initial_default_model()
+_default_history = InMemoryHistory()
+_default_agent = Agent(name="Marvin")
+
 
 class Defaults(ControlFlowModel):
     """
@@ -46,7 +50,7 @@ class Defaults(ControlFlowModel):
 
 
 defaults = Defaults(
-    model=_get_initial_default_model(),
-    history=InMemoryHistory(),
-    agent=Agent(name="Marvin"),
+    model=_default_model,
+    history=_default_history,
+    agent=_default_agent,
 )

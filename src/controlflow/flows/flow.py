@@ -26,7 +26,10 @@ class Flow(ControlFlowModel):
     thread_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     name: Optional[str] = None
     description: Optional[str] = None
-    history: History = Field(default_factory=lambda: controlflow.defaults.history)
+    history: History = Field(
+        default_factory=lambda: controlflow.defaults.history,
+        description="An object for storing events that take place during the flow.",
+    )
     tools: list[Callable] = Field(
         default_factory=list,
         description="Tools that will be available to every agent in the flow",

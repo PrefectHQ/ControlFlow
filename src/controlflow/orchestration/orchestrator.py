@@ -150,16 +150,10 @@ class Orchestrator(ControlFlowModel):
                 # if the task is pending, start it
                 if task.is_pending():
                     task.mark_running()
-                    # self.handle_event(
-                    #     ActivateAgent(
-                    #         agent=agent, content=agent.get_activation_prompt()
-                    #     ),
-                    #     agent=agent,
-                    #     tasks=[task],
-                    # )
 
                 task._iteration += 1
                 agent_tasks.append(task)
+
         return agent_tasks
 
     def get_agent(self, task: Task) -> Agent:

@@ -6,6 +6,7 @@ from pydantic import Field
 
 from controlflow.agents.agent import Agent, BaseAgent
 from controlflow.events.base import Event
+from controlflow.events.history import HistoryVisibility
 from controlflow.events.message_compiler import MessageCompiler
 from controlflow.flows import Flow
 from controlflow.llm.messages import BaseMessage
@@ -64,24 +65,30 @@ class AgentContext(ControlFlowModel):
     def add_instructions(self, instructions: list[str]):
         self.instructions = self.instructions + instructions
 
-    def get_events(
+    def get_visible_events(
         self,
-        agents: list[Agent] = None,
-        tasks: list[Task] = None,
+        agent: Agent,
         limit: Optional[int] = None,
-        **kwargs,
     ) -> list[Event]:
-        # if tasks are not provided, include all tasks that are upstream of the current tasks
-        if tasks is None:
+        if agent.history_visibility == HistoryVisibility.ALL:
+            agents = None
+            tasks = [t for t in self.flow.tasks if not t.private]
+        elif agent.history_visibility == HistoryVisibility.UPSTREAM:
+            agents = self.agents
             tasks = [
                 t for t in self.flow.graph.upstream_tasks(self.tasks) if not t.private
             ]
+        elif agent.history_visibility == HistoryVisibility.CURRENT_AGENT:
+            agents = self.agents
+            tasks = None
+        elif agent.history_visibility == HistoryVisibility.CURRENT_TASK:
+            agents = None
+            tasks = self.tasks
 
         events = self.flow.get_events(
-            agents=agents or self.agents,
+            agents=agents,
             tasks=tasks,
             limit=limit or 100,
-            **kwargs,
         )
 
         return events
@@ -98,7 +105,7 @@ class AgentContext(ControlFlowModel):
         return "\n\n".join([p for p in prompts if p])
 
     def compile_messages(self, agent: Agent) -> list[BaseMessage]:
-        events = self.get_events(agents=[agent])
+        events = self.get_visible_events(agent=agent)
         compiler = MessageCompiler(
             events=events,
             llm_rules=agent.get_llm_rules(),

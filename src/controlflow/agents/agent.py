@@ -16,6 +16,7 @@ from pydantic import Field, field_serializer
 
 import controlflow
 from controlflow.events.base import Event
+from controlflow.events.history import HistoryVisibility
 from controlflow.instructions import get_instructions
 from controlflow.llm.messages import AIMessage, BaseMessage
 from controlflow.llm.rules import LLMRules
@@ -119,6 +120,13 @@ class Agent(BaseAgent):
         None,
         description="A system template for the agent. The template should be formatted as a jinja2 template.",
     )
+    history_visibility: HistoryVisibility = Field(
+        description="How to determine event visibility when running the flow.",
+        default_factory=lambda: HistoryVisibility(
+            controlflow.settings.default_history_visibility
+        ),
+    )
+
     memory: Optional[Memory] = Field(
         default=None,
         # default_factory=ThreadMemory,
@@ -311,6 +319,3 @@ class Agent(BaseAgent):
             yield ToolCallEvent(agent=self, tool_call=tool_call, message=response)
             result = await handle_tool_call_async(tool_call, tools=tools)
             yield ToolResultEvent(agent=self, tool_call=tool_call, tool_result=result)
-
-
-DEFAULT_AGENT = Agent(name="Marvin")
