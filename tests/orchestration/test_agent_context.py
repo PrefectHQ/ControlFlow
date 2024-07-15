@@ -65,7 +65,7 @@ class TestAgentContextAgents:
             agent_context.add_agent(1)
 
 
-class TestAgentContextGetEvents:
+class TestAgentContextGetVisibleEvents:
     @pytest.fixture
     def agents(self):
         return [Agent(name="a1"), Agent(name="a2")]
@@ -94,7 +94,7 @@ class TestAgentContextGetEvents:
     @pytest.fixture
     def events(self, agents: list[Agent], flow, tasks: list[Task]):
         a1, a2 = agents
-        [t1, t2, t3, t4, t5] = tasks
+        t1, t2, t3, t4, t5 = tasks
 
         events = [
             Event(event="test", task_ids=[t1.id], agent_ids=[a1.id]),
@@ -110,15 +110,51 @@ class TestAgentContextGetEvents:
     def add_events(self, flow, events):
         flow.add_events(events)
 
-    def test_get_events_by_task(self, agents: list[Agent], flow, tasks: list[Task]):
-        [t1, t2, t3, t4, t5] = tasks
+    def test_get_events_by_task_ALL(self, agents: list[Agent], flow, tasks: list[Task]):
+        t1, t2, t3, t4, t5 = tasks
+
+        for t in [t1, t2, t3, t4, t5]:
+            context = AgentContext(flow=flow, tasks=[t])
+            events = context.get_visible_events()
+            assert len(events) == 5
+
+    def test_get_events_by_task_UPSTREAM(
+        self, agents: list[Agent], flow, tasks: list[Task]
+    ):
+        flow.history_visibility = "UPSTREAM"
+        t1, t2, t3, t4, t5 = tasks
 
         for t in [t1, t2, t3, t4, t5]:
             context = AgentContext(flow=flow, tasks=[t])
             events = context.get_visible_events()
             assert len(events) == len(flow.graph.upstream_tasks([t]))
 
+    def test_get_events_by_task_CURRENT_TASK(
+        self, agents: list[Agent], flow, tasks: list[Task]
+    ):
+        flow.history_visibility = "CURRENT_TASK"
+        t1, t2, t3, t4, t5 = tasks
+
+        for t in [t1, t2, t3, t4, t5]:
+            context = AgentContext(flow=flow, tasks=[t])
+            events = context.get_visible_events()
+            assert len(events) == 1
+
+    def test_get_events_by_task_CURRENT_AGENT(
+        self, agents: list[Agent], flow, tasks: list[Task]
+    ):
+        flow.history_visibility = "CURRENT_AGENT"
+        a1, a2 = agents
+        t1, t2, t3, t4, t5 = tasks
+
+        for t in [t1, t2, t3, t4, t5]:
+            context = AgentContext(flow=flow, tasks=[t], agents=[a2])
+            events = context.get_visible_events()
+            assert len(events) == 2
+
     def test_get_events_by_agent(self, agents: list[Agent], flow):
+        flow.history_visibility = "UPSTREAM"
+
         a1, a2 = agents
         context = AgentContext(flow=flow, tasks=[], agents=[a1])
         events = context.get_visible_events()
@@ -129,8 +165,9 @@ class TestAgentContextGetEvents:
         assert len(events) == 2
 
     def test_get_events_by_agent_and_task(self, agents, flow, tasks: list[Task]):
+        flow.history_visibility = "UPSTREAM"
         a1, a2 = agents
-        [t1, t2, t3, t4, t5] = tasks
+        t1, t2, t3, t4, t5 = tasks
 
         context = AgentContext(flow=flow, agents=[a1], tasks=[t1])
         events = context.get_visible_events()
