@@ -17,28 +17,32 @@ def agent_context() -> AgentContext:
 
 class TestAgentContextPersistEvents:
     def test_persist_event(self, agent_context: AgentContext):
+        agent = agent_context.agents[0]
         event = UserMessage(content="test")
-        assert not agent_context.get_visible_events()
+        assert not agent_context.get_visible_events(agent=agent)
         agent_context.handle_event(event=event)
-        assert event in agent_context.get_visible_events()
+        assert event in agent_context.get_visible_events(agent=agent)
 
     def test_persist_event_false(self, agent_context: AgentContext):
+        agent = agent_context.agents[0]
         event = UserMessage(content="test", persist=False)
-        assert not agent_context.get_visible_events()
+        assert not agent_context.get_visible_events(agent=agent)
         agent_context.handle_event(event=event)
-        assert event not in agent_context.get_visible_events()
+        assert event not in agent_context.get_visible_events(agent=agent)
 
     def test_persist_event_false_kwarg(self, agent_context: AgentContext):
+        agent = agent_context.agents[0]
         event = UserMessage(content="test")
-        assert not agent_context.get_visible_events()
+        assert not agent_context.get_visible_events(agent=agent)
         agent_context.handle_event(event=event, persist=False)
-        assert event not in agent_context.get_visible_events()
+        assert event not in agent_context.get_visible_events(agent=agent)
 
     def test_persist_event_false_but_kwarg_true(self, agent_context: AgentContext):
+        agent = agent_context.agents[0]
         event = UserMessage(content="test", persist=False)
-        assert not agent_context.get_visible_events()
+        assert not agent_context.get_visible_events(agent=agent)
         agent_context.handle_event(event=event, persist=True)
-        assert event in agent_context.get_visible_events()
+        assert event in agent_context.get_visible_events(agent=agent)
 
 
 class TestAgentContextHandler:
