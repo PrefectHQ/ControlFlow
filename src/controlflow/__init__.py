@@ -1,10 +1,9 @@
 # --- Public top-level API ---
 
-from pyexpat import model
-
 
 from langchain_core.language_models import BaseChatModel
 from .settings import settings
+
 from controlflow.defaults import defaults
 
 from .agents import Agent

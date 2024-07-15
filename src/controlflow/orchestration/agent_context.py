@@ -67,24 +67,23 @@ class AgentContext(ControlFlowModel):
 
     def get_visible_events(
         self,
+        agent: Agent,
         limit: Optional[int] = None,
     ) -> list[Event]:
-        if self.flow.history_visibility == HistoryVisibility.ALL:
+        if agent.history_visibility == HistoryVisibility.ALL:
             agents = None
             tasks = [t for t in self.flow.tasks if not t.private]
-        elif self.flow.history_visibility == HistoryVisibility.UPSTREAM:
+        elif agent.history_visibility == HistoryVisibility.UPSTREAM:
             agents = self.agents
             tasks = [
                 t for t in self.flow.graph.upstream_tasks(self.tasks) if not t.private
             ]
-        elif self.flow.history_visibility == HistoryVisibility.CURRENT_AGENT:
+        elif agent.history_visibility == HistoryVisibility.CURRENT_AGENT:
             agents = self.agents
             tasks = None
-        elif self.flow.history_visibility == HistoryVisibility.CURRENT_TASK:
+        elif agent.history_visibility == HistoryVisibility.CURRENT_TASK:
             agents = None
             tasks = self.tasks
-        else:
-            raise ValueError(f"Invalid history view: {self.flow.history_visibility}")
 
         events = self.flow.get_events(
             agents=agents,
@@ -106,7 +105,7 @@ class AgentContext(ControlFlowModel):
         return "\n\n".join([p for p in prompts if p])
 
     def compile_messages(self, agent: Agent) -> list[BaseMessage]:
-        events = self.get_visible_events()
+        events = self.get_visible_events(agent=agent)
         compiler = MessageCompiler(
             events=events,
             llm_rules=agent.get_llm_rules(),

@@ -7,7 +7,7 @@ from pydantic import Field
 import controlflow
 from controlflow.agents import Agent
 from controlflow.events.base import Event
-from controlflow.events.history import History, HistoryVisibility
+from controlflow.events.history import History
 from controlflow.flows.graph import Graph
 from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
@@ -29,10 +29,6 @@ class Flow(ControlFlowModel):
     history: History = Field(
         default_factory=lambda: controlflow.defaults.history,
         description="An object for storing events that take place during the flow.",
-    )
-    history_visibility: HistoryVisibility = Field(
-        description="How to determine event visibility when running the flow.",
-        default_factory=lambda: controlflow.defaults.history_visibility,
     )
     tools: list[Callable] = Field(
         default_factory=list,

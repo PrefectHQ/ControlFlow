@@ -10,16 +10,6 @@ from pydantic import Field, TypeAdapter, field_validator
 
 import controlflow
 from controlflow.events.base import Event
-from controlflow.events.events import (
-    AgentMessage,
-    EndTurn,
-    OrchestratorMessage,
-    SelectAgent,
-    TaskCompleteEvent,
-    TaskReadyEvent,
-    ToolResultEvent,
-    UserMessage,
-)
 from controlflow.utilities.types import ControlFlowModel
 
 # This is a global variable that will be shared between all instances of InMemoryStore
@@ -35,6 +25,17 @@ class HistoryVisibility(Enum):
 
 @cache
 def get_event_validator() -> TypeAdapter:
+    from controlflow.events.events import (
+        AgentMessage,
+        EndTurn,
+        OrchestratorMessage,
+        SelectAgent,
+        TaskCompleteEvent,
+        TaskReadyEvent,
+        ToolResultEvent,
+        UserMessage,
+    )
+
     types = Union[
         TaskReadyEvent,
         TaskCompleteEvent,

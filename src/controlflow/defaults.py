@@ -9,7 +9,7 @@ from controlflow.llm.models import BaseChatModel
 from controlflow.utilities.types import ControlFlowModel
 
 from .agents import Agent
-from .events.history import History, HistoryVisibility, InMemoryHistory
+from .events.history import History, InMemoryHistory
 from .llm.models import _get_initial_default_model, model_from_string
 
 __all__ = ["defaults"]
@@ -34,7 +34,6 @@ class Defaults(ControlFlowModel):
     model: Optional[Any]
     history: History
     agent: Agent
-    history_visibility: HistoryVisibility
     # add more defaults here
 
     def __repr__(self) -> str:
@@ -54,5 +53,4 @@ defaults = Defaults(
     model=_default_model,
     history=_default_history,
     agent=_default_agent,
-    history_visibility=controlflow.settings.default_history_visibility,
 )
