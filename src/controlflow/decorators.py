@@ -26,7 +26,8 @@ def flow(
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[float, int]] = None,
     timeout_seconds: Optional[Union[float, int]] = None,
-    kwargs: Optional[dict[str, Any]] = None,
+    prefect_kwargs: Optional[dict[str, Any]] = None,
+    **kwargs: Optional[dict[str, Any]],
 ):
     """
     A decorator that wraps a function as a ControlFlow flow.
@@ -65,7 +66,7 @@ def flow(
             retries=retries,
             retry_delay_seconds=retry_delay_seconds,
             timeout_seconds=timeout_seconds,
-            kwargs=kwargs,
+            **kwargs,
         )
 
     sig = inspect.signature(fn)
@@ -75,20 +76,20 @@ def flow(
         timeout_seconds=timeout_seconds,
         retries=retries,
         retry_delay_seconds=retry_delay_seconds,
-        **kwargs or {},
+        **(prefect_kwargs or {}),
     )
     @functools.wraps(fn)
     def wrapper(
-        *args,
+        *wrapper_args,
         flow_kwargs: dict = None,
         lazy_: bool = False,
-        **kwargs,
+        **wrapper_kwargs,
     ):
         # first process callargs
-        bound = sig.bind(*args, **kwargs)
+        bound = sig.bind(*wrapper_args, **wrapper_kwargs)
         bound.apply_defaults()
 
-        flow_kwargs = flow_kwargs or {}
+        flow_kwargs = kwargs | (flow_kwargs or {})
 
         if thread is not None:
             flow_kwargs.setdefault("thread", thread)
@@ -106,7 +107,7 @@ def flow(
 
         with flow_obj.create_context(create_prefect_flow_context=False):
             with controlflow.instructions(instructions):
-                result = fn(*args, **kwargs)
+                result = fn(*wrapper_args, **wrapper_kwargs)
 
                 # Determine if we should run eagerly or lazily
                 if lazy_ is not None:

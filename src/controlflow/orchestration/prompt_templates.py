@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import model_validator
 
 from controlflow.agents.agent import Agent
@@ -5,20 +7,20 @@ from controlflow.agents.teams import Team
 from controlflow.flows import Flow
 from controlflow.orchestration.agent_context import AgentContext
 from controlflow.tasks.task import Task
+from controlflow.tools.tools import Tool
+from controlflow.utilities.general import ControlFlowModel
 from controlflow.utilities.jinja import prompt_env
-from controlflow.utilities.types import ControlFlowModel
 
 
 class Template(ControlFlowModel):
-    template: str = None
-    template_path: str = None
+    model_config = dict(extra="allow")
+    template: Optional[str] = None
+    template_path: Optional[str] = None
 
     @model_validator(mode="after")
     def _validate(self):
         if not self.template and not self.template_path:
             raise ValueError("Template or template_path must be provided.")
-        elif self.template and self.template_path:
-            raise ValueError("Only one of template or template_path must be provided.")
         return self
 
     def render(self, **kwargs) -> str:
@@ -29,10 +31,10 @@ class Template(ControlFlowModel):
         del render_kwargs["template"]
         del render_kwargs["template_path"]
 
-        if self.template_path:
-            template = prompt_env.get_template(self.template_path)
-        else:
+        if self.template is not None:
             template = prompt_env.from_string(self.template)
+        else:
+            template = prompt_env.get_template(self.template_path)
         return template.render(**render_kwargs | kwargs)
 
     def should_render(self) -> bool:
@@ -84,3 +86,12 @@ class InstructionsTemplate(Template):
 
     def should_render(self) -> bool:
         return bool(self.instructions)
+
+
+class ToolTemplate(Template):
+    template_path: str = "tools.md.jinja"
+    tools: list[Tool]
+    context: AgentContext
+
+    def should_render(self) -> bool:
+        return any(t.instructions for t in self.tools)

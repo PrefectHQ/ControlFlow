@@ -1,7 +1,6 @@
 import abc
 import logging
 import random
-import uuid
 from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
@@ -17,12 +16,18 @@ from pydantic import Field, field_serializer
 
 import controlflow
 from controlflow.events.base import Event
+from controlflow.events.history import HistoryVisibility
 from controlflow.instructions import get_instructions
 from controlflow.llm.messages import AIMessage, BaseMessage
 from controlflow.llm.rules import LLMRules
-from controlflow.tools.tools import handle_tool_call, handle_tool_call_async
+from controlflow.tools.tools import (
+    as_lc_tools,
+    as_tools,
+    handle_tool_call,
+    handle_tool_call_async,
+)
 from controlflow.utilities.context import ctx
-from controlflow.utilities.types import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel, hash_objects
 
 from .memory import Memory
 from .names import AGENTS
@@ -40,13 +45,31 @@ class BaseAgent(ControlFlowModel, abc.ABC):
     A base class for agents, which are entities that can complete tasks.
     """
 
-    id: str = Field(default_factory=lambda: str(uuid.uuid4().hex[:5]))
+    id: str = Field(None)
     name: str = Field(
         description="The name of the agent.",
     )
     description: Optional[str] = Field(
         None, description="A description of the agent, visible to other agents."
     )
+    prompt: Optional[str] = Field(
+        None,
+        description="A prompt to display as a system message to the agent."
+        "Prompts are formatted as jinja templates, with keywords `agent: Agent` and `context: AgentContext`.",
+    )
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if self.id is None:
+            self.id = self._generate_id()
+
+    def __hash__(self) -> int:
+        return id(self)
+
+    def _generate_id(self):
+        return hash_objects(
+            (type(self).__name__, self.name, self.description, self.prompt)
+        )
 
     def serialize_for_prompt(self) -> dict:
         return self.model_dump()
@@ -65,8 +88,15 @@ class BaseAgent(ControlFlowModel, abc.ABC):
         """
         raise NotImplementedError()
 
-    async def get_activation_prompt(self) -> str:
-        return f"Agent {self.name} is now active."
+    def get_prompt(self, context: "AgentContext") -> str:
+        from controlflow.orchestration import prompt_templates
+
+        template = prompt_templates.AgentTemplate(
+            template=self.prompt,
+            agent=self,
+            context=context,
+        )
+        return template.render()
 
 
 class Agent(BaseAgent):
@@ -80,16 +110,23 @@ class Agent(BaseAgent):
         description="Instructions for the agent, private to this agent.",
     )
     tools: list[Callable] = Field(
-        [], description="List of tools availble to the agent."
+        [], description="List of tools available to the agent."
     )
     user_access: bool = Field(
         False,
         description="If True, the agent is given tools for interacting with a human user.",
     )
-    system_template: Optional[str] = Field(
+    prompt: Optional[str] = Field(
         None,
         description="A system template for the agent. The template should be formatted as a jinja2 template.",
     )
+    history_visibility: HistoryVisibility = Field(
+        description="How to determine event visibility when running the flow.",
+        default_factory=lambda: HistoryVisibility(
+            controlflow.settings.default_history_visibility
+        ),
+    )
+
     memory: Optional[Memory] = Field(
         default=None,
         # default_factory=ThreadMemory,
@@ -125,6 +162,20 @@ class Agent(BaseAgent):
 
         super().__init__(**kwargs)
 
+    def _generate_id(self):
+        """
+        Helper function to generate a stable, short, semi-unique ID for the agent.
+        """
+        return hash_objects(
+            (
+                type(self).__name__,
+                self.name,
+                self.description,
+                self.prompt,
+                self.instructions,
+            )
+        )
+
     def serialize_for_prompt(self) -> dict:
         dct = self.model_dump(
             include={"name", "id", "description", "tools", "user_access"}
@@ -144,7 +195,7 @@ class Agent(BaseAgent):
                 f"Agent {self.name}: No model provided and no default model could be loaded."
             )
         if tools:
-            model = model.bind_tools([t.to_lc_tool() for t in tools])
+            model = model.bind_tools(as_lc_tools(tools))
         return model
 
     def get_llm_rules(self) -> LLMRules:
@@ -153,7 +204,7 @@ class Agent(BaseAgent):
         """
         return controlflow.llm.rules.rules_for_model(self.get_model())
 
-    def get_tools(self) -> list[Callable]:
+    def get_tools(self) -> list["Tool"]:
         from controlflow.tools.talk_to_user import talk_to_user
 
         tools = self.tools.copy()
@@ -162,24 +213,7 @@ class Agent(BaseAgent):
         if self.memory is not None:
             tools.extend(self.memory.get_tools())
 
-        return tools
-
-    def get_prompt(self, context: "AgentContext") -> str:
-        from controlflow.orchestration import prompt_templates
-
-        if self.system_template:
-            template = prompt_templates.AgentTemplate(
-                template=self.system_template,
-                template_path=None,
-                agent=self,
-                context=context,
-            )
-        else:
-            template = prompt_templates.AgentTemplate(agent=self, context=context)
-        return template.render()
-
-    def get_activation_prompt(self) -> str:
-        return f"Agent {self.name} is now active."
+        return as_tools(tools)
 
     @contextmanager
     def create_context(self):
@@ -211,7 +245,7 @@ class Agent(BaseAgent):
         context.add_tools(self.get_tools())
         context.add_instructions(get_instructions())
         messages = context.compile_messages(agent=self)
-        async for event in await self._run_model(
+        async for event in self._run_model_async(
             messages=messages, tools=context.tools
         ):
             context.handle_event(event)
@@ -285,6 +319,3 @@ class Agent(BaseAgent):
             yield ToolCallEvent(agent=self, tool_call=tool_call, message=response)
             result = await handle_tool_call_async(tool_call, tools=tools)
             yield ToolResultEvent(agent=self, tool_call=tool_call, tool_result=result)
-
-
-DEFAULT_AGENT = Agent(name="Marvin")

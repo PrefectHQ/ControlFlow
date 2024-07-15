@@ -11,9 +11,9 @@ from controlflow.events.history import History
 from controlflow.flows.graph import Graph
 from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
+from controlflow.utilities.general import ControlFlowModel
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import prefect_flow_context
-from controlflow.utilities.types import ControlFlowModel
 
 if TYPE_CHECKING:
     from controlflow.orchestration.agent_context import AgentContext
@@ -26,7 +26,10 @@ class Flow(ControlFlowModel):
     thread_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     name: Optional[str] = None
     description: Optional[str] = None
-    history: History = Field(default_factory=lambda: controlflow.defaults.history)
+    history: History = Field(
+        default_factory=lambda: controlflow.defaults.history,
+        description="An object for storing events that take place during the flow.",
+    )
     tools: list[Callable] = Field(
         default_factory=list,
         description="Tools that will be available to every agent in the flow",
@@ -35,6 +38,11 @@ class Flow(ControlFlowModel):
         None,
         description="The default agent for the flow. This agent will be used "
         "for any task that does not specify an agent.",
+    )
+    prompt: Optional[str] = Field(
+        None,
+        description="A prompt to display to the agent working on the flow. "
+        "Prompts are formatted as jinja templates, with keywords `flow: Flow` and `context: AgentContext`.",
     )
     context: dict[str, Any] = {}
     graph: Graph = Field(default_factory=Graph, repr=False, exclude=True)
@@ -79,6 +87,7 @@ class Flow(ControlFlowModel):
         from controlflow.orchestration import prompt_templates
 
         template = prompt_templates.FlowTemplate(
+            template=self.prompt,
             flow=self,
             context=context,
         )

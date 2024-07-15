@@ -15,7 +15,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class Team(BaseAgent):
+class BaseTeam(BaseAgent):
+    """
+    A team is a group of agents that can be assigned to a task.
+
+    Each team consists of one or more agents, and the only requirement for a
+    team is to implement the `get_agent` method. This method should return one of
+    the agents in the team, based on some logic that determines which agent should go next.
+    """
+
     name: str = Field(
         description="The name of the team.",
         default_factory=lambda: random.choice(TEAMS),
@@ -24,7 +32,11 @@ class Team(BaseAgent):
         None,
         description="Instructions for all agents on the team, private to this agent.",
     )
-
+    prompt: Optional[str] = Field(
+        None,
+        description="A prompt to display as an instruction to any agent selected as part of this team (or a nested team). "
+        "Prompts are formatted as jinja templates, with keywords `team: Team` and `context: AgentContext`.",
+    )
     agents: list[Agent] = Field(
         description="The agents in the team.",
         default_factory=list,
@@ -47,26 +59,46 @@ class Team(BaseAgent):
         raise NotImplementedError()
 
     def get_prompt(self, context: "AgentContext") -> str:
-        from controlflow.orchestration.prompt_templates import TeamTemplate
+        from controlflow.orchestration import prompt_templates
 
-        return TeamTemplate(team=self, context=context).render()
+        template = prompt_templates.TeamTemplate(
+            template=self.prompt, team=self, context=context
+        )
+        return template.render()
 
     def _run(self, context: "AgentContext"):
+        context.add_agent(self)
         context.add_instructions([self.get_prompt(context=context)])
         agent = self.get_agent(context=context)
-        with context.with_agent(agent) as agent_context:
-            agent._run(context=agent_context)
+        agent._run(context=context)
         self._iterations += 1
 
     async def _run_async(self, context: "AgentContext"):
-        context.add_instructions([self.get_prompt()])
+        context.add_agent(self)
+        context.add_instructions([self.get_prompt(context=context)])
         agent = self.get_agent(context=context)
-        with context.with_agent(agent) as agent_context:
-            await agent._run_async(context=agent_context)
+        await agent._run_async(context=context)
         self._iterations += 1
 
 
-class RoundRobinTeam(Team):
+class Team(BaseTeam):
+    """
+    The most basic team operates in a round robin fashion
+    """
+
     def get_agent(self, context: "AgentContext"):
-        # TODO: only advance agent if a tool wasn't used
+        # if the last event was a tool result, it should be shown to the same agent instead of advancing to the next agent
+        last_agent_event = context.flow.get_events(
+            agents=self.agents,
+            tasks=context.tasks,
+            types=["tool-result", "agent-message"],
+            limit=1,
+        )
+        if (
+            last_agent_event
+            and last_agent_event[0].event == "tool-result"
+            and not last_agent_event[0].tool_result.end_turn
+        ):
+            return last_agent_event[0].agent
+
         return self.agents[self._iterations % len(self.agents)]

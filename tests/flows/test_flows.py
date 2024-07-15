@@ -1,8 +1,12 @@
+import pytest
 from controlflow.agents import Agent
+from controlflow.events.base import Event
 from controlflow.events.events import UserMessage
 from controlflow.flows import Flow, get_flow
+from controlflow.orchestration.agent_context import AgentContext
 from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
+from controlflow.utilities.testing import SimpleTask
 
 
 class TestFlowInitialization:
@@ -10,8 +14,8 @@ class TestFlowInitialization:
         flow = Flow()
         assert flow.thread_id is not None
         assert len(flow.tools) == 0
-        assert len(flow.agents) == 0
-        assert len(flow.context) == 0
+        assert flow.agent is None
+        assert flow.context == {}
 
     def test_flow_with_custom_tools(self):
         def tool1():
@@ -139,21 +143,126 @@ class TestFlowHistory:
         assert len(messages2) == 3
         assert [m.content for m in messages2] == ["hello", "world", "goodbye"]
 
+    def test_flow_sets_thread_id_for_history(self, tmpdir):
+        f1 = Flow(thread_id="abc")
+        f2 = Flow(thread_id="xyz")
+        f3 = Flow(thread_id="abc")
+
+        f1.add_events([UserMessage(content="test")])
+        assert len(f1.get_events()) == 1
+        assert len(f2.get_events()) == 0
+        assert len(f3.get_events()) == 1
+
 
 class TestFlowCreatesDefaults:
     def test_flow_with_custom_agents(self):
         agent1 = Agent(name="Agent 1")
-        agent2 = Agent(name="Agent 2")
-        flow = Flow(agents=[agent1, agent2])
-        assert len(flow.agents) == 2
-        assert agent1 in flow.agents
-        assert agent2 in flow.agents
+        flow = Flow(agent=agent1)
+        assert flow.agent == agent1
 
     def test_flow_agent_becomes_task_default(self):
         agent = Agent()
         t1 = Task("t1")
-        assert t1.agents != [agent]
+        assert t1.agent is not agent
 
-        with Flow(agents=[agent]):
+        with Flow(agent=agent):
             t2 = Task("t2")
-            assert t2.get_agents() == [agent]
+            assert t2.get_agent() == agent
+
+
+class TestFlowPrompt:
+    @pytest.fixture
+    def agent_context(self) -> AgentContext:
+        return AgentContext(agents=[Agent(name="Test Agent")], flow=Flow(), tasks=[])
+
+    def test_default_prompt(self):
+        flow = Flow()
+        assert flow.prompt is None
+
+    def test_default_template(self, agent_context):
+        flow = Flow()
+        prompt = flow.get_prompt(context=agent_context)
+        assert prompt.startswith("# Flow")
+
+    def test_custom_prompt(self, agent_context):
+        flow = Flow(prompt="Custom Prompt")
+        prompt = flow.get_prompt(context=agent_context)
+        assert prompt == "Custom Prompt"
+
+    def test_custom_templated_prompt(self, agent_context):
+        flow = Flow(prompt="{{ flow.name }}", name="abc")
+        prompt = flow.get_prompt(context=agent_context)
+        assert prompt == "abc"
+
+
+class TestFlowEvents:
+    @pytest.fixture
+    def agents(self):
+        return [Agent(name="a1"), Agent(name="a2")]
+
+    @pytest.fixture
+    def flow(self):
+        with Flow() as flow:
+            t1 = SimpleTask()
+
+            # t1 -> t2 -> t3
+            t2 = SimpleTask(depends_on=[t1])
+            t3 = SimpleTask(depends_on=[t2])  # noqa
+
+            # t1 -> t4
+            t4 = SimpleTask(depends_on=[t1])  # noqa
+
+            # t5
+            t5 = SimpleTask()  # noqa
+
+        return flow
+
+    @pytest.fixture
+    def tasks(self, flow):
+        return list(sorted(flow.tasks, key=lambda t: t.created_at))
+
+    @pytest.fixture
+    def events(self, agents: list[Agent], flow, tasks: list[Task]):
+        a1, a2 = agents
+        [t1, t2, t3, t4, t5] = tasks
+
+        events = [
+            Event(event="test", task_ids=[t1.id], agent_ids=[a1.id]),
+            Event(event="test", task_ids=[t2.id], agent_ids=[a1.id, a2.id]),
+            Event(event="test", task_ids=[t3.id], agent_ids=[a1.id]),
+            Event(event="test", task_ids=[t4.id], agent_ids=[a1.id]),
+            Event(event="test", task_ids=[t5.id], agent_ids=[a2.id]),
+        ]
+
+        return events
+
+    @pytest.fixture(autouse=True)
+    def add_events(self, flow, events):
+        flow.add_events(events)
+
+    def test_get_events_by_task(self, agents: list[Agent], flow, tasks: list[Task]):
+        [t1, t2, t3, t4, t5] = tasks
+
+        for t in [t1, t2, t3, t4, t5]:
+            events = flow.get_events(tasks=[t])
+            assert len(events) == 1
+
+            events = flow.get_events(tasks=flow.graph.upstream_tasks([t]))
+            assert len(events) == len(flow.graph.upstream_tasks([t]))
+
+    def test_get_events_by_agent(self, agents: list[Agent], flow):
+        a1, a2 = agents
+        events = flow.get_events(agents=[a1])
+        assert len(events) == 4
+
+        events = flow.get_events(agents=[a2])
+        assert len(events) == 2
+
+    def test_get_events_by_agent_and_task(self, agents, flow, tasks: list[Task]):
+        a1, a2 = agents
+        [t1, t2, t3, t4, t5] = tasks
+        events = flow.get_events(agents=[a1], tasks=[t1])
+        assert len(events) == 1
+
+        events = flow.get_events(agents=[a2], tasks=[t1])
+        assert len(events) == 0

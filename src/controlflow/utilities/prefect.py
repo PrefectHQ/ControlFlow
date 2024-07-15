@@ -34,7 +34,7 @@ from prefect.utilities.engine import (
 from pydantic import TypeAdapter
 
 import controlflow
-from controlflow.utilities.types import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel
 
 
 def prefect_task(*args, **kwargs):

@@ -1,5 +1,5 @@
 
-![ControlFlow Banner](/docs/assets/brand/controlflow_banner.png)
+![ControlFlow Banner](https://github.com/PrefectHQ/ControlFlow/blob/main/docs/assets/brand/controlflow_banner.png)
 
 _🚨🚧 Please note that ControlFlow is under active development ahead of its initial public release!🚧🚨_
 

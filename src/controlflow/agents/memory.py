@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, ClassVar, Optional, cast
 from pydantic import Field
 
 from controlflow.utilities.context import ctx
-from controlflow.utilities.types import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel
 
 if TYPE_CHECKING:
     from controlflow.tools import Tool

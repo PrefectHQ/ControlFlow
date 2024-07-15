@@ -1,5 +1,4 @@
 import datetime
-import uuid
 from contextlib import ExitStack, contextmanager
 from enum import Enum
 from typing import (
@@ -30,16 +29,17 @@ from controlflow.instructions import get_instructions
 from controlflow.tools import Tool
 from controlflow.tools.talk_to_user import talk_to_user
 from controlflow.utilities.context import ctx
-from controlflow.utilities.logging import get_logger
+from controlflow.utilities.general import (
+    NOTSET,
+    ControlFlowModel,
+    hash_objects,
+)
+from controlflow.utilities.logging import deprecated, get_logger
 from controlflow.utilities.prefect import PrefectTrackingTask
 from controlflow.utilities.prefect import prefect_task as prefect_task
 from controlflow.utilities.tasks import (
     collect_tasks,
     visit_task_collection,
-)
-from controlflow.utilities.types import (
-    NOTSET,
-    ControlFlowModel,
 )
 
 if TYPE_CHECKING:
@@ -68,7 +68,7 @@ COMPLETE_STATUSES = {TaskStatus.SUCCESSFUL, TaskStatus.FAILED, TaskStatus.SKIPPE
 
 
 class Task(ControlFlowModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4().hex[:5]))
+    id: str = None
     objective: str = Field(
         ..., description="A brief description of the required result."
     )
@@ -89,7 +89,6 @@ class Task(ControlFlowModel):
             agent=AgentTeam(agents=[...]) instead. The agents assigned to the
             task. If not provided, agents "will be inferred from the parent
             task, flow, or global default.""",
-        validate_default=True,
     )
     context: dict = Field(
         default_factory=dict,
@@ -104,6 +103,11 @@ class Task(ControlFlowModel):
     )
     depends_on: set["Task"] = Field(
         default_factory=set, description="Tasks that this task depends on explicitly."
+    )
+    prompt: Optional[str] = Field(
+        None,
+        description="A prompt to display to the agent working on the task. "
+        "Prompts are formatted as jinja templates, with keywords `task: Task` and `context: AgentContext`.",
     )
     status: TaskStatus = TaskStatus.PENDING
     result: T = None
@@ -122,14 +126,6 @@ class Task(ControlFlowModel):
     private: bool = Field(
         False,
         description="Work on private tasks is not visible to agents other than those assigned to the task.",
-    )
-    agent_strategy: Optional[Callable] = Field(
-        None,
-        description="A function that returns an agent, used for customizing how "
-        "the next agent is selected. The returned agent must be one "
-        "of the assigned agents. If not provided, will be inferred "
-        "from the parent task; round-robin selection is the default. "
-        "Only used for tasks with more than one agent assigned.",
     )
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     max_iterations: Optional[int] = Field(
@@ -168,14 +164,14 @@ class Task(ControlFlowModel):
             ).strip()
         if agents:
             if kwargs.get("agent") is None:
-                logger.warning(
+                logger.warn(
                     'Passing a list of agents to the "agents" argument is '
-                    "deprecated and will be removed in future versions. "
-                    "Please provide a single agent or team of agents instead."
+                    "deprecated as of version 0.9, and will be removed in future versions. "
+                    "Please provide a single agent or team of agents instead.",
                 )
-                from controlflow.agents.teams import RoundRobinTeam
+                from controlflow.agents.teams import Team
 
-                kwargs["agent"] = RoundRobinTeam(agents=agents)
+                kwargs["agent"] = Team(agents=agents)
             else:
                 raise ValueError(
                     "The 'agents' argument is deprecated and cannot be used with the 'agent' argument."
@@ -206,8 +202,24 @@ class Task(ControlFlowModel):
         if flow := controlflow.flows.get_flow():
             flow.add_task(self)
 
-    def __hash__(self):
-        return hash((self.__class__.__name__, self.id))
+        if self.id is None:
+            self.id = self._generate_id()
+
+    def _generate_id(self):
+        return hash_objects(
+            (
+                type(self).__name__,
+                self.objective,
+                self.instructions,
+                str(self.result_type),
+                self.prompt,
+                self.private,
+                str(self.context),
+            )
+        )
+
+    def __hash__(self) -> int:
+        return id(self)
 
     def __eq__(self, other):
         """
@@ -338,8 +350,8 @@ class Task(ControlFlowModel):
             else:
                 if steps:
                     logger.warning(
-                        "It is not recommended to call Task.run() without a flow "
-                        "argument when steps are provided, because the history will be lost."
+                        "Running a task with a steps argument but no flow is not "
+                        "recommended, because the agent's history will be lost."
                     )
                 flow = Flow()
 
@@ -378,8 +390,8 @@ class Task(ControlFlowModel):
             else:
                 if steps:
                     logger.warning(
-                        "It is not recommended to call Task.run_async() without a flow "
-                        "argument when steps are provided, because the history will be lost."
+                        "Running a task with a steps argument but no flow is not "
+                        "recommended, because the agent's history will be lost."
                     )
                 flow = Flow()
         from controlflow.orchestration import Orchestrator
@@ -453,24 +465,6 @@ class Task(ControlFlowModel):
             else:
                 return controlflow.defaults.agent
 
-    def get_agent_strategy(self) -> Callable:
-        """
-        Get a function for selecting the next agent to work on this
-        task.
-
-        If an agent_strategy is provided, it will be used. Otherwise, the parent
-        task's agent_strategy will be used. Finally, the global default agent_strategy
-        will be used (round-robin selection).
-        """
-        if self.agent_strategy is not None:
-            return self.agent_strategy
-        elif self.parent:
-            return self.parent.get_agent_strategy()
-        else:
-            import controlflow.tasks.agent_strategies
-
-            return controlflow.tasks.agent_strategies.round_robin
-
     def get_tools(self) -> list[Union[Tool, Callable]]:
         tools = self.tools.copy()
         if self.user_access:
@@ -483,7 +477,9 @@ class Task(ControlFlowModel):
         """
         from controlflow.orchestration import prompt_templates
 
-        template = prompt_templates.TaskTemplate(task=self, context=context)
+        template = prompt_templates.TaskTemplate(
+            template=self.prompt, task=self, context=context
+        )
         return template.render()
 
     def set_status(self, status: TaskStatus):
@@ -549,6 +545,16 @@ class Task(ControlFlowModel):
                 tools=self.tools,
                 context=self.context,
             )
+
+    # Deprecated ---------------------------
+
+    @deprecated("Use Task.run(steps=1) instead.", version="0.9")
+    def run_once(self, *args, **kwargs):
+        return self.run(*args, steps=1, **kwargs)
+
+    @deprecated("Use Task.run_async(steps=1) instead.", version="0.9")
+    async def run_once_async(self, *args, **kwargs):
+        return await self.run_async(*args, steps=1, **kwargs)
 
 
 def validate_result(result: Any, result_type: type[T]) -> T:

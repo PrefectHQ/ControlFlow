@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional
 
 from pydantic import Field
 
-from controlflow.utilities.types import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel
 
 if TYPE_CHECKING:
     from controlflow.agents.agent import BaseAgent
@@ -27,6 +27,7 @@ class Event(ControlFlowModel):
     timestamp: datetime.datetime = Field(
         default_factory=lambda: datetime.datetime.now(datetime.timezone.utc)
     )
+    private_task: bool = False
     persist: bool = True
 
     def to_messages(self, context: "CompileContext") -> list["BaseMessage"]:
@@ -35,6 +36,8 @@ class Event(ControlFlowModel):
     def add_tasks(self, tasks: list["Task"]):
         for task in tasks:
             self.task_ids.add(task.id)
+        if any(task.private for task in tasks):
+            self.private_task = True
 
     def add_agents(self, agents: list["BaseAgent"]):
         from controlflow.agents.teams import Team

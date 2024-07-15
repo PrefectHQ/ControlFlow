@@ -6,7 +6,7 @@ import controlflow
 import controlflow.utilities
 import controlflow.utilities.logging
 from controlflow.llm.models import BaseChatModel
-from controlflow.utilities.types import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel
 
 from .agents import Agent
 from .events.history import History, InMemoryHistory
@@ -15,6 +15,10 @@ from .llm.models import _get_initial_default_model, model_from_string
 __all__ = ["defaults"]
 
 logger = controlflow.utilities.logging.get_logger(__name__)
+
+_default_model = _get_initial_default_model()
+_default_history = InMemoryHistory()
+_default_agent = Agent(name="Marvin")
 
 
 class Defaults(ControlFlowModel):
@@ -46,7 +50,7 @@ class Defaults(ControlFlowModel):
 
 
 defaults = Defaults(
-    model=_get_initial_default_model(),
-    history=InMemoryHistory(),
-    agent=Agent(name="Marvin"),
+    model=_default_model,
+    history=_default_history,
+    agent=_default_agent,
 )
