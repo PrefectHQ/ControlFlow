@@ -143,6 +143,16 @@ class TestFlowHistory:
         assert len(messages2) == 3
         assert [m.content for m in messages2] == ["hello", "world", "goodbye"]
 
+    def test_flow_sets_thread_id_for_history(self, tmpdir):
+        f1 = Flow(thread_id="abc")
+        f2 = Flow(thread_id="xyz")
+        f3 = Flow(thread_id="abc")
+
+        f1.add_events([UserMessage(content="test")])
+        assert len(f1.get_events()) == 1
+        assert len(f2.get_events()) == 0
+        assert len(f3.get_events()) == 1
+
 
 class TestFlowCreatesDefaults:
     def test_flow_with_custom_agents(self):
