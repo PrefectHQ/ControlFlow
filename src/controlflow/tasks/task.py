@@ -350,7 +350,7 @@ class Task(ControlFlowModel):
             else:
                 if steps:
                     logger.warning(
-                        "Calling Task.run() with a steps argument but no flow is not "
+                        "Running a task with a steps argument but no flow is not "
                         "recommended, because the agent's history will be lost."
                     )
                 flow = Flow()
@@ -390,8 +390,8 @@ class Task(ControlFlowModel):
             else:
                 if steps:
                     logger.warning(
-                        "It is not recommended to call Task.run_async() without a flow "
-                        "argument when steps are provided, because the history will be lost."
+                        "Running a task with a steps argument but no flow is not "
+                        "recommended, because the agent's history will be lost."
                     )
                 flow = Flow()
         from controlflow.orchestration import Orchestrator
