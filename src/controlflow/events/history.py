@@ -10,7 +10,7 @@ from pydantic import Field, TypeAdapter, field_validator
 
 import controlflow
 from controlflow.events.base import Event
-from controlflow.utilities.types import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel
 
 # This is a global variable that will be shared between all instances of InMemoryStore
 IN_MEMORY_STORE = {}

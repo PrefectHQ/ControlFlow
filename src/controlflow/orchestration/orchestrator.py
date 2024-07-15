@@ -17,8 +17,8 @@ from controlflow.tools.orchestration import (
     create_task_success_tool,
 )
 from controlflow.tools.tools import Tool
+from controlflow.utilities.general import ControlFlowModel
 from controlflow.utilities.prefect import prefect_task as prefect_task
-from controlflow.utilities.types import ControlFlowModel
 
 logger = logging.getLogger(__name__)
 

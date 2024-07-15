@@ -39,3 +39,32 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
         logger = parent_logger
 
     return logger
+
+
+def deprecated(message: str, version: str):
+    """
+    Decorator to mark a function as deprecated.
+
+    Args:
+        message (str): The deprecation message.
+        version (str): The version in which the function is deprecated.
+
+    Returns:
+        function: The decorated function.
+
+    Example:
+        @deprecated("This function is deprecated", "1.0")
+        def my_function():
+            pass
+    """
+
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            get_logger(__file__).warn(
+                f"WARNING: {func.__name__} is deprecated as of version {version}. {message}".strip(),
+            )
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator

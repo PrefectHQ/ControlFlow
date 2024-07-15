@@ -29,17 +29,17 @@ from controlflow.instructions import get_instructions
 from controlflow.tools import Tool
 from controlflow.tools.talk_to_user import talk_to_user
 from controlflow.utilities.context import ctx
-from controlflow.utilities.logging import get_logger
+from controlflow.utilities.general import (
+    NOTSET,
+    ControlFlowModel,
+    hash_objects,
+)
+from controlflow.utilities.logging import deprecated, get_logger
 from controlflow.utilities.prefect import PrefectTrackingTask
 from controlflow.utilities.prefect import prefect_task as prefect_task
 from controlflow.utilities.tasks import (
     collect_tasks,
     visit_task_collection,
-)
-from controlflow.utilities.types import (
-    NOTSET,
-    ControlFlowModel,
-    hash_objects,
 )
 
 if TYPE_CHECKING:
@@ -89,7 +89,6 @@ class Task(ControlFlowModel):
             agent=AgentTeam(agents=[...]) instead. The agents assigned to the
             task. If not provided, agents "will be inferred from the parent
             task, flow, or global default.""",
-        validate_default=True,
     )
     context: dict = Field(
         default_factory=dict,
@@ -165,10 +164,10 @@ class Task(ControlFlowModel):
             ).strip()
         if agents:
             if kwargs.get("agent") is None:
-                logger.warning(
+                logger.warn(
                     'Passing a list of agents to the "agents" argument is '
-                    "deprecated and will be removed in future versions. "
-                    "Please provide a single agent or team of agents instead."
+                    "deprecated as of version 0.9, and will be removed in future versions. "
+                    "Please provide a single agent or team of agents instead.",
                 )
                 from controlflow.agents.teams import Team
 
@@ -351,8 +350,8 @@ class Task(ControlFlowModel):
             else:
                 if steps:
                     logger.warning(
-                        "It is not recommended to call Task.run() without a flow "
-                        "argument when steps are provided, because the history will be lost."
+                        "Calling Task.run() with a steps argument but no flow is not "
+                        "recommended, because the agent's history will be lost."
                     )
                 flow = Flow()
 
@@ -546,6 +545,16 @@ class Task(ControlFlowModel):
                 tools=self.tools,
                 context=self.context,
             )
+
+    # Deprecated ---------------------------
+
+    @deprecated("Use Task.run(steps=1) instead.", version="0.9")
+    def run_once(self, *args, **kwargs):
+        return self.run(*args, steps=1, **kwargs)
+
+    @deprecated("Use Task.run_async(steps=1) instead.", version="0.9")
+    async def run_once_async(self, *args, **kwargs):
+        return await self.run_async(*args, steps=1, **kwargs)
 
 
 def validate_result(result: Any, result_type: type[T]) -> T:

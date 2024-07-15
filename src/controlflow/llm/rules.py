@@ -4,7 +4,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
 
 from controlflow.llm.models import BaseChatModel
-from controlflow.utilities.types import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel
 
 
 class LLMRules(ControlFlowModel):

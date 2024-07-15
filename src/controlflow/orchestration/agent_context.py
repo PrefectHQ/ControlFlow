@@ -14,7 +14,7 @@ from controlflow.orchestration.handler import Handler
 from controlflow.tasks.task import Task
 from controlflow.tools.tools import Tool, as_tools
 from controlflow.utilities.context import ctx
-from controlflow.utilities.types import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel
 
 __all__ = [
     "AgentContext",

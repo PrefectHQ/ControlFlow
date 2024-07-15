@@ -12,8 +12,8 @@ from prefect.utilities.asyncutils import run_coro_as_sync
 from pydantic import Field, PydanticSchemaGenerationError, TypeAdapter
 
 import controlflow
+from controlflow.utilities.general import ControlFlowModel
 from controlflow.utilities.prefect import create_markdown_artifact, prefect_task
-from controlflow.utilities.types import ControlFlowModel
 
 TOOL_CALL_FUNCTION_RESULT_TEMPLATE = """
 # Tool call: {name}

@@ -161,6 +161,26 @@ def test_task_loads_agent_from_parent_before_flow():
     assert child.get_agent() == agent2
 
 
+def test_warn_on_steps_without_flow(default_fake_llm, caplog):
+    default_fake_llm.set_responses(["Hi."])
+    task = SimpleTask()
+    task.run(steps=1)
+    assert (
+        "Calling Task.run() with a steps argument but no flow is not recommended"
+        in caplog.text
+    )
+
+
+async def test_warn_on_steps_without_flow_async(default_fake_llm, caplog):
+    default_fake_llm.set_responses(["Hi."])
+    task = SimpleTask()
+    await task.run_async(steps=1)
+    assert (
+        "Calling Task.run() with a steps argument but no flow is not recommended"
+        in caplog.text
+    )
+
+
 class TestFlowRegistration:
     def test_task_tracking(self):
         with Flow() as flow:

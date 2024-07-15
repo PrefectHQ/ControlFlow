@@ -11,9 +11,9 @@ from controlflow.events.history import History
 from controlflow.flows.graph import Graph
 from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
+from controlflow.utilities.general import ControlFlowModel
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import prefect_flow_context
-from controlflow.utilities.types import ControlFlowModel
 
 if TYPE_CHECKING:
     from controlflow.orchestration.agent_context import AgentContext
