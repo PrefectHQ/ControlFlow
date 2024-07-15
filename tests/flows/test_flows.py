@@ -161,7 +161,7 @@ class TestFlowCreatesDefaults:
         assert flow.agent == agent1
 
     def test_flow_agent_becomes_task_default(self):
-        agent = Agent()
+        agent = Agent(name="Marvin")
         t1 = Task("t1")
         assert t1.agent is not agent
 

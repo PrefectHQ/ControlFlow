@@ -1,7 +1,6 @@
 import controlflow
 import pytest
 from controlflow.agents import Agent
-from controlflow.agents.names import AGENTS
 from controlflow.flows import Flow
 from controlflow.instructions import instructions
 from controlflow.orchestration.agent_context import AgentContext
@@ -10,13 +9,8 @@ from langchain_openai import ChatOpenAI
 
 
 class TestAgentInitialization:
-    def test_agent_gets_random_name(self):
-        agent = Agent()
-
-        assert agent.name in AGENTS
-
     def test_agent_default_model(self):
-        agent = Agent()
+        agent = Agent(name="Marvin")
 
         # None indicates it will be loaded from the default model
         assert agent.model is None
@@ -24,7 +18,7 @@ class TestAgentInitialization:
 
     def test_agent_model(self):
         model = ChatOpenAI(model="gpt-3.5-turbo")
-        agent = Agent(model=model)
+        agent = Agent(name="Marvin", model=model)
 
         # None indicates it will be loaded from the default model
         assert agent.model is model
@@ -32,7 +26,7 @@ class TestAgentInitialization:
 
     def test_agent_loads_instructions_at_creation(self):
         with instructions("test instruction"):
-            agent = Agent()
+            agent = Agent(name="Marvin")
 
         assert "test instruction" in agent.instructions
 
@@ -90,20 +84,20 @@ class TestAgentPrompt:
         return AgentContext(agents=[Agent(name="Test Agent")], flow=Flow(), tasks=[])
 
     def test_default_prompt(self):
-        agent = Agent()
+        agent = Agent(name="Marvin")
         assert agent.prompt is None
 
     def test_default_template(self, agent_context):
-        agent = Agent()
+        agent = Agent(name="Marvin")
         prompt = agent.get_prompt(context=agent_context)
         assert prompt.startswith("# Agent")
 
     def test_custom_prompt(self, agent_context):
-        agent = Agent(prompt="Custom Prompt")
+        agent = Agent(name="Marvin", prompt="Custom Prompt")
         prompt = agent.get_prompt(context=agent_context)
         assert prompt == "Custom Prompt"
 
     def test_custom_templated_prompt(self, agent_context):
-        agent = Agent(prompt="{{ agent.name }}", name="abc")
+        agent = Agent(name="abc", prompt="{{ agent.name }}")
         prompt = agent.get_prompt(context=agent_context)
         assert prompt == "abc"

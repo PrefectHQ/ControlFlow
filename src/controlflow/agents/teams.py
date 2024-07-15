@@ -1,11 +1,8 @@
 import abc
 import logging
-import random
 from typing import TYPE_CHECKING, Optional
 
 from pydantic import Field, field_validator
-
-from controlflow.agents.names import TEAMS
 
 from .agent import Agent, BaseAgent
 
@@ -24,10 +21,7 @@ class BaseTeam(BaseAgent):
     the agents in the team, based on some logic that determines which agent should go next.
     """
 
-    name: str = Field(
-        description="The name of the team.",
-        default_factory=lambda: random.choice(TEAMS),
-    )
+    name: str = Field("Team", description="The name of the team.")
     instructions: Optional[str] = Field(
         None,
         description="Instructions for all agents on the team, private to this agent.",

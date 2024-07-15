@@ -1,6 +1,5 @@
 import abc
 import logging
-import random
 from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
@@ -30,7 +29,6 @@ from controlflow.utilities.context import ctx
 from controlflow.utilities.general import ControlFlowModel, hash_objects
 
 from .memory import Memory
-from .names import AGENTS
 
 if TYPE_CHECKING:
     from controlflow.orchestration.agent_context import AgentContext
@@ -46,9 +44,7 @@ class BaseAgent(ControlFlowModel, abc.ABC):
     """
 
     id: str = Field(None)
-    name: str = Field(
-        description="The name of the agent.",
-    )
+    name: str = Field(description="The name of the agent.")
     description: Optional[str] = Field(
         None, description="A description of the agent, visible to other agents."
     )
@@ -101,10 +97,7 @@ class BaseAgent(ControlFlowModel, abc.ABC):
 
 class Agent(BaseAgent):
     model_config = dict(arbitrary_types_allowed=True)
-    name: str = Field(
-        description="The name of the agent.",
-        default_factory=lambda: random.choice(AGENTS),
-    )
+
     instructions: Optional[str] = Field(
         "You are a diligent AI assistant. You complete your tasks efficiently and without error.",
         description="Instructions for the agent, private to this agent.",
