@@ -110,7 +110,7 @@ class Agent(BaseAgent):
         description="Instructions for the agent, private to this agent.",
     )
     tools: list[Callable] = Field(
-        [], description="List of tools availble to the agent."
+        [], description="List of tools available to the agent."
     )
     user_access: bool = Field(
         False,
