@@ -81,7 +81,7 @@ def test_import_without_default_api_key_errors_when_loading_model(monkeypatch):
                 ValueError,
                 match="No model provided and no default model could be loaded",
             ):
-                controlflow.Agent().get_model()
+                controlflow.Agent(name="Marvin").get_model()
     finally:
         defaults_module = importlib.import_module("controlflow.defaults")
         importlib.reload(defaults_module)

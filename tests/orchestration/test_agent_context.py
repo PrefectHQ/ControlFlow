@@ -12,7 +12,9 @@ from pydantic import ValidationError
 
 @pytest.fixture
 def agent_context() -> AgentContext:
-    return AgentContext(flow=Flow(), tasks=[SimpleTask()], agents=[Agent()])
+    return AgentContext(
+        flow=Flow(), tasks=[SimpleTask()], agents=[Agent(name="Marvin")]
+    )
 
 
 class TestAgentContextPersistEvents:
