@@ -215,11 +215,12 @@ class Task(ControlFlowModel):
                 str(self.result_type),
                 self.prompt,
                 self.private,
+                str(self.context),
             )
         )
 
-    def __hash__(self):
-        return hash((self.__class__.__name__, self.id))
+    def __hash__(self) -> int:
+        return id(self)
 
     def __eq__(self, other):
         """

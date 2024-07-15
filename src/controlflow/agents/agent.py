@@ -62,6 +62,9 @@ class BaseAgent(ControlFlowModel, abc.ABC):
         if self.id is None:
             self.id = self._generate_id()
 
+    def __hash__(self) -> int:
+        return id(self)
+
     def _generate_id(self):
         return hash_objects(
             (type(self).__name__, self.name, self.description, self.prompt)

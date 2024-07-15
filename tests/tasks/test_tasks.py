@@ -45,8 +45,8 @@ def test_stable_id():
     t1 = Task(objective="Test Objective")
     t2 = Task(objective="Test Objective")
     t3 = Task(objective="Test Objective+")
-    assert t1.id == t2.id == "d7336030"
-    assert t3.id == "0865d053"
+    assert t1.id == t2.id == "e90eaf1f"
+    assert t3.id == "3cc39696"
 
 
 def test_task_mark_successful_and_mark_failed():

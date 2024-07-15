@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-from functools import partial
 from typing import Union
 
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
@@ -9,7 +8,18 @@ from controlflow.events.history import InMemoryHistory
 from controlflow.llm.messages import AIMessage, BaseMessage
 from controlflow.tasks.task import Task
 
-SimpleTask = partial(Task, objective="test", result_type=None)
+COUNTER = 0
+
+
+def SimpleTask(**kwargs):
+    global COUNTER
+    COUNTER += 1
+
+    kwargs.setdefault("objective", "test")
+    kwargs.setdefault("result_type", None)
+    kwargs.setdefault("context", {})["__counter__"] = str(COUNTER)
+
+    return Task(**kwargs)
 
 
 class FakeLLM(FakeMessagesListChatModel):

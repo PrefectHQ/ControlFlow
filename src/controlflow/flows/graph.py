@@ -215,7 +215,7 @@ class Graph:
         """
         # Create a cache key based on the input tasks
         cache_key = (
-            f"topo_sort_{tuple(sorted(task.id for task in (tasks or self.tasks)))}"
+            f"topo_sort_{tuple(sorted(id(task) for task in (tasks or self.tasks)))}"
         )
 
         # Check if the result is already in the cache
