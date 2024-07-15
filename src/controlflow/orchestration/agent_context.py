@@ -94,12 +94,16 @@ class AgentContext(ControlFlowModel):
         return events
 
     def compile_prompt(self, agent: Agent) -> str:
-        from controlflow.orchestration.prompt_templates import InstructionsTemplate
+        from controlflow.orchestration.prompt_templates import (
+            InstructionsTemplate,
+            ToolTemplate,
+        )
 
         prompts = [
             agent.get_prompt(context=self),
             self.flow.get_prompt(context=self),
             *[t.get_prompt(context=self) for t in self.tasks],
+            ToolTemplate(tools=self.tools, context=self).render(),
             InstructionsTemplate(instructions=self.instructions, context=self).render(),
         ]
         return "\n\n".join([p for p in prompts if p])

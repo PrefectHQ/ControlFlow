@@ -84,7 +84,7 @@ class TestToolFunctions_DecoratorAndClass:
         assert add_tool.parameters["properties"]["b"]["type"] == "number"
         assert "type" not in add_tool.parameters["properties"]["c"]
 
-    def test_load_arg_description_from_annotated(self, style):
+    def test_load_param_description_from_annotated(self, style):
         def add(a: Annotated[int, "the first number"], b: float):
             return a + b
 
@@ -98,7 +98,7 @@ class TestToolFunctions_DecoratorAndClass:
         )
         assert "description" not in add_tool.parameters["properties"]["b"]
 
-    def test_load_arg_description_from_field(self, style):
+    def test_load_param_description_from_field(self, style):
         def add(a: int = Field(description="The first number."), b: float = None):
             return a
 
@@ -111,6 +111,62 @@ class TestToolFunctions_DecoratorAndClass:
             add_tool.parameters["properties"]["a"]["description"] == "The first number."
         )
         assert "description" not in add_tool.parameters["properties"]["b"]
+
+    def test_disable_loading_param_descriptions(self, style):
+        def add(a: Annotated[int, "the first number"], b: float):
+            return a + b
+
+        if style == "class":
+            add_tool = Tool.from_function(add, include_param_descriptions=False)
+        elif style == "decorator":
+            add_tool = tool(add, include_param_descriptions=False)
+
+        assert "description" not in add_tool.parameters["properties"]["a"]
+
+    def test_return_val_in_description(self, style):
+        def add(a: int, b: float) -> Annotated[float, "the sum of a and b"]:
+            return a + b
+
+        if style == "class":
+            add_tool = Tool.from_function(add)
+        elif style == "decorator":
+            add_tool = tool(add)
+
+        assert "the sum of a and b" in add_tool.description
+
+    def test_disable_loading_return_val_descriptions(self, style):
+        def add(a: int, b: float) -> Annotated[float, "the sum of a and b"]:
+            return a + b
+
+        if style == "class":
+            add_tool = Tool.from_function(add, include_return_description=False)
+        elif style == "decorator":
+            add_tool = tool(add, include_return_description=False)
+
+        assert "description" not in add_tool.parameters["properties"]["a"]
+
+    def test_tool_instructions(self, style):
+        def add(a: int, b: float) -> float:
+            return a + b
+
+        if style == "class":
+            add_tool = Tool.from_function(add, instructions="test instructions!")
+        elif style == "decorator":
+            add_tool = tool(add, instructions="test instructions!")
+
+        assert add_tool.instructions == "test instructions!"
+
+    def test_description_too_long(self, style):
+        def add(a: int, b: float) -> float:
+            pass
+
+        add.__doc__ = ["a" for _ in range(1025)]
+
+        with pytest.raises(ValueError, match="description exceeds 1024 characters"):
+            if style == "class":
+                Tool.from_function(add)
+            elif style == "decorator":
+                tool(add)
 
 
 class TestToolFunctions:
