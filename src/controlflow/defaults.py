@@ -6,7 +6,7 @@ import controlflow
 import controlflow.utilities
 import controlflow.utilities.logging
 from controlflow.llm.models import BaseChatModel
-from controlflow.utilities.types import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel
 
 from .agents import Agent
 from .events.history import History, InMemoryHistory

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional
 
 from pydantic import Field
 
-from controlflow.utilities.types import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel
 
 if TYPE_CHECKING:
     from controlflow.agents.agent import BaseAgent

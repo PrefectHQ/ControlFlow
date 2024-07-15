@@ -27,7 +27,7 @@ from controlflow.tools.tools import (
     handle_tool_call_async,
 )
 from controlflow.utilities.context import ctx
-from controlflow.utilities.types import ControlFlowModel, hash_objects
+from controlflow.utilities.general import ControlFlowModel, hash_objects
 
 from .memory import Memory
 from .names import AGENTS
@@ -245,7 +245,7 @@ class Agent(BaseAgent):
         context.add_tools(self.get_tools())
         context.add_instructions(get_instructions())
         messages = context.compile_messages(agent=self)
-        async for event in await self._run_model(
+        async for event in self._run_model_async(
             messages=messages, tools=context.tools
         ):
             context.handle_event(event)

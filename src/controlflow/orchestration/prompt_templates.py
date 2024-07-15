@@ -7,8 +7,8 @@ from controlflow.agents.teams import Team
 from controlflow.flows import Flow
 from controlflow.orchestration.agent_context import AgentContext
 from controlflow.tasks.task import Task
+from controlflow.utilities.general import ControlFlowModel
 from controlflow.utilities.jinja import prompt_env
-from controlflow.utilities.types import ControlFlowModel
 
 
 class Template(ControlFlowModel):

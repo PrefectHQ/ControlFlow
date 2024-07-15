@@ -6,7 +6,7 @@ from controlflow.agents import Agent
 from controlflow.flows import Flow
 from controlflow.tasks.task import Task
 from controlflow.tools import Tool, as_tools
-from controlflow.utilities.types import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel
 
 ToolLiteral = TypeVar("ToolLiteral", bound=str)
 

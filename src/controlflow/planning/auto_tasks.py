@@ -5,7 +5,7 @@ from pydantic import Field
 
 from controlflow.agents import Agent
 from controlflow.tasks.task import Task
-from controlflow.utilities.types import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel
 
 ToolLiteral = TypeVar("ToolLiteral", bound=str)
 
