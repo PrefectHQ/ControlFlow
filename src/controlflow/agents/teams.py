@@ -88,7 +88,7 @@ class Team(BaseTeam):
 
     def get_agent(self, context: "AgentContext"):
         # if the last event was a tool result, it should be shown to the same agent instead of advancing to the next agent
-        last_agent_event = context.get_events(
+        last_agent_event = context.flow.get_events(
             agents=self.agents,
             tasks=context.tasks,
             types=["tool-result", "agent-message"],

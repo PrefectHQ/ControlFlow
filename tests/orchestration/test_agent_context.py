@@ -18,27 +18,27 @@ def agent_context() -> AgentContext:
 class TestAgentContextPersistEvents:
     def test_persist_event(self, agent_context: AgentContext):
         event = UserMessage(content="test")
-        assert not agent_context.get_events()
+        assert not agent_context.get_visible_events()
         agent_context.handle_event(event=event)
-        assert event in agent_context.get_events()
+        assert event in agent_context.get_visible_events()
 
     def test_persist_event_false(self, agent_context: AgentContext):
         event = UserMessage(content="test", persist=False)
-        assert not agent_context.get_events()
+        assert not agent_context.get_visible_events()
         agent_context.handle_event(event=event)
-        assert event not in agent_context.get_events()
+        assert event not in agent_context.get_visible_events()
 
     def test_persist_event_false_kwarg(self, agent_context: AgentContext):
         event = UserMessage(content="test")
-        assert not agent_context.get_events()
+        assert not agent_context.get_visible_events()
         agent_context.handle_event(event=event, persist=False)
-        assert event not in agent_context.get_events()
+        assert event not in agent_context.get_visible_events()
 
     def test_persist_event_false_but_kwarg_true(self, agent_context: AgentContext):
         event = UserMessage(content="test", persist=False)
-        assert not agent_context.get_events()
+        assert not agent_context.get_visible_events()
         agent_context.handle_event(event=event, persist=True)
-        assert event in agent_context.get_events()
+        assert event in agent_context.get_visible_events()
 
 
 class TestAgentContextHandler:
@@ -115,17 +115,17 @@ class TestAgentContextGetEvents:
 
         for t in [t1, t2, t3, t4, t5]:
             context = AgentContext(flow=flow, tasks=[t])
-            events = context.get_events()
+            events = context.get_visible_events()
             assert len(events) == len(flow.graph.upstream_tasks([t]))
 
     def test_get_events_by_agent(self, agents: list[Agent], flow):
         a1, a2 = agents
         context = AgentContext(flow=flow, tasks=[], agents=[a1])
-        events = context.get_events()
+        events = context.get_visible_events()
         assert len(events) == 4
 
         context = AgentContext(flow=flow, tasks=[], agents=[a2])
-        events = context.get_events()
+        events = context.get_visible_events()
         assert len(events) == 2
 
     def test_get_events_by_agent_and_task(self, agents, flow, tasks: list[Task]):
@@ -133,12 +133,12 @@ class TestAgentContextGetEvents:
         [t1, t2, t3, t4, t5] = tasks
 
         context = AgentContext(flow=flow, agents=[a1], tasks=[t1])
-        events = context.get_events()
+        events = context.get_visible_events()
         assert len(events) == 1
 
         context = AgentContext(flow=flow, agents=[a2], tasks=[t1])
-        events = context.get_events()
+        events = context.get_visible_events()
         assert len(events) == 0
 
         context = AgentContext(flow=flow, agents=[a1], tasks=[t2, t4])
-        assert len(context.get_events()) == 3
+        assert len(context.get_visible_events()) == 3

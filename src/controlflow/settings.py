@@ -25,12 +25,6 @@ class ControlFlowSettings(BaseSettings):
 
 
 class Settings(ControlFlowSettings):
-    max_task_iterations: Optional[int] = Field(
-        default=100,
-        description="The maximum number of iterations to attempt to run a task"
-        "before raising an error. If None, the system will run indefinitely. ",
-    )
-
     # ------------ home settings ------------
 
     home_path: Path = Field(
@@ -62,6 +56,21 @@ class Settings(ControlFlowSettings):
         default=False,
         description="If False, calling Task.run() outside a flow context will automatically "
         "create a flow and run the task within it. If True, an error will be raised.",
+    )
+
+    # ------------ orchestration settings ------------
+    max_task_iterations: Optional[int] = Field(
+        default=100,
+        description="The maximum number of iterations to attempt to run a task"
+        "before raising an error. If None, the system will run indefinitely. ",
+    )
+
+    default_history_visibility: str = Field(
+        "ALL",
+        description="The default history visibility for flows. "
+        "ALL: all events in the flow are visible. UPSTREAM: only events from "
+        "upstream tasks are visible. CURRENT_AGENT: only events from the "
+        "current agent are visible. CURRENT_TASK: only events from the current task are visible.",
     )
 
     # ------------ LLM settings ------------
