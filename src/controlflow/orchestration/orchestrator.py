@@ -120,6 +120,42 @@ class Orchestrator(ControlFlowModel):
                 self.handle_event(OrchestratorEnd(orchestrator=self))
                 i += 1
 
+    async def run_async(self, steps: Optional[int] = None):
+        from controlflow.events.orchestrator_events import (
+            OrchestratorEnd,
+            OrchestratorError,
+            OrchestratorStart,
+        )
+
+        i = 0
+        while any(t.is_incomplete() for t in self.tasks) and i < (steps or math.inf):
+            self.handle_event(OrchestratorStart(orchestrator=self))
+
+            try:
+                ready_tasks = self.get_ready_tasks()
+                if not ready_tasks:
+                    return
+                agent = self.get_agent(task=ready_tasks[0])
+                tasks = self.get_agent_tasks(agent=agent, ready_tasks=ready_tasks)
+                tools = self.get_tools(tasks=tasks)
+
+                context = AgentContext(
+                    flow=self.flow,
+                    tasks=tasks,
+                    agents=[agent],
+                    tools=tools,
+                    handlers=self.handlers,
+                )
+                with context:
+                    await agent._run_async(context=context)
+
+            except Exception as exc:
+                self.handle_event(OrchestratorError(orchestrator=self, error=exc))
+                raise
+            finally:
+                self.handle_event(OrchestratorEnd(orchestrator=self))
+                i += 1
+
     def get_ready_tasks(self) -> list[Task]:
         all_tasks = self.flow.graph.upstream_tasks(self.tasks)
         ready_tasks = [t for t in all_tasks if t.is_ready()]

@@ -245,7 +245,7 @@ class Agent(BaseAgent):
         context.add_tools(self.get_tools())
         context.add_instructions(get_instructions())
         messages = context.compile_messages(agent=self)
-        async for event in await self._run_model(
+        async for event in self._run_model_async(
             messages=messages, tools=context.tools
         ):
             context.handle_event(event)
