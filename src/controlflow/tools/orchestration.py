@@ -50,6 +50,7 @@ def create_task_success_tool(task: Task) -> Tool:
         description=f"Mark task {task.id} as successful.",
         private=True,
         end_turn=True,
+        include_return_description=False,
     )
     def succeed(result: result_schema) -> str:  # type: ignore
         task.mark_successful(result=result)
@@ -70,6 +71,7 @@ def create_task_fail_tool(task: Task) -> Tool:
         ),
         private=True,
         end_turn=True,
+        include_return_description=False,
     )
     def fail(reason: str) -> str:
         task.mark_failed(reason=reason)
