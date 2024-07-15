@@ -2,7 +2,7 @@ from contextlib import ExitStack
 from functools import partial, wraps
 from typing import Any, Callable, Optional
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from controlflow.agents.agent import Agent, BaseAgent
 from controlflow.events.base import Event
@@ -40,6 +40,12 @@ class AgentContext(ControlFlowModel):
     instructions: list[str] = []
     _context: Optional[ExitStack] = None
 
+    @field_validator("tools", mode="before")
+    def _validate_tools(cls, v):
+        if v:
+            v = as_tools(v)
+        return v
+
     def add_agent(self, agent: BaseAgent):
         self.agents = self.agents + [agent]
 
@@ -60,7 +66,7 @@ class AgentContext(ControlFlowModel):
         self.handlers = self.handlers + handlers
 
     def add_tools(self, tools: list[Tool]):
-        self.tools = self.tools + as_tools(tools)
+        self.tools = self.tools + tools
 
     def add_instructions(self, instructions: list[str]):
         self.instructions = self.instructions + instructions

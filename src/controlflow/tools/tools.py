@@ -201,10 +201,7 @@ class Tool(ControlFlowModel):
 
     @classmethod
     def from_lc_tool(cls, tool: langchain_core.tools.BaseTool, **kwargs):
-        if isinstance(tool, langchain_core.tools.StructuredTool):
-            fn = tool.func
-        else:
-            fn = lambda *a, **k: None  # noqa
+        fn = tool._run
         return cls(
             name=tool.name,
             description=tool.description,
