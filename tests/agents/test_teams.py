@@ -12,3 +12,7 @@ def test_team_with_one_agent():
     a1 = Agent(name="a1")
     t = Team(agents=[a1])
     assert t.agents == [a1]
+
+
+def test_stable_id():
+    assert Team(name="Test Team").id == "6a7f9140"

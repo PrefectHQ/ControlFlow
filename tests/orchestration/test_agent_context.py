@@ -55,7 +55,7 @@ class TestAgentContextHandler:
 
 class TestAgentContextAgents:
     def test_add_agents(self, agent_context: AgentContext):
-        agent = Agent()
+        agent = Agent(name="a new test agent")
         assert agent not in agent_context.agents
         agent_context.add_agent(agent)
         assert agent in agent_context.agents

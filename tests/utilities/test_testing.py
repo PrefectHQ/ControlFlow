@@ -22,6 +22,7 @@ def test_record_task_events(default_fake_llm):
                 "name": "mark_task_12345_successful",
                 "args": {"result": "Hello!"},
                 "id": "call_ZEPdV8mCgeBe5UHjKzm6e3pe",
+                "type": "tool_call",
             }
         ],
     )
@@ -38,6 +39,7 @@ def test_record_task_events(default_fake_llm):
         "name": "mark_task_12345_successful",
         "args": {"result": "Hello!"},
         "id": "call_ZEPdV8mCgeBe5UHjKzm6e3pe",
+        "type": "tool_call",
     }
     assert events[2].tool_result.model_dump() == dict(
         tool_call_id="call_ZEPdV8mCgeBe5UHjKzm6e3pe",

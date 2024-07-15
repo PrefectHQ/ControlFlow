@@ -1,5 +1,4 @@
 import datetime
-import uuid
 from contextlib import ExitStack, contextmanager
 from enum import Enum
 from typing import (
@@ -40,6 +39,7 @@ from controlflow.utilities.tasks import (
 from controlflow.utilities.types import (
     NOTSET,
     ControlFlowModel,
+    hash_objects,
 )
 
 if TYPE_CHECKING:
@@ -68,7 +68,7 @@ COMPLETE_STATUSES = {TaskStatus.SUCCESSFUL, TaskStatus.FAILED, TaskStatus.SKIPPE
 
 
 class Task(ControlFlowModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4().hex[:5]))
+    id: str = None
     objective: str = Field(
         ..., description="A brief description of the required result."
     )
@@ -203,8 +203,24 @@ class Task(ControlFlowModel):
         if flow := controlflow.flows.get_flow():
             flow.add_task(self)
 
-    def __hash__(self):
-        return hash((self.__class__.__name__, self.id))
+        if self.id is None:
+            self.id = self._generate_id()
+
+    def _generate_id(self):
+        return hash_objects(
+            (
+                type(self).__name__,
+                self.objective,
+                self.instructions,
+                str(self.result_type),
+                self.prompt,
+                self.private,
+                str(self.context),
+            )
+        )
+
+    def __hash__(self) -> int:
+        return id(self)
 
     def __eq__(self, other):
         """

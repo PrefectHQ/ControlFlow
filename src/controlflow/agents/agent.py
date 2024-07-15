@@ -1,7 +1,6 @@
 import abc
 import logging
 import random
-import uuid
 from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
@@ -27,7 +26,7 @@ from controlflow.tools.tools import (
     handle_tool_call_async,
 )
 from controlflow.utilities.context import ctx
-from controlflow.utilities.types import ControlFlowModel
+from controlflow.utilities.types import ControlFlowModel, hash_objects
 
 from .memory import Memory
 from .names import AGENTS
@@ -45,7 +44,7 @@ class BaseAgent(ControlFlowModel, abc.ABC):
     A base class for agents, which are entities that can complete tasks.
     """
 
-    id: str = Field(default_factory=lambda: str(uuid.uuid4().hex[:5]))
+    id: str = Field(None)
     name: str = Field(
         description="The name of the agent.",
     )
@@ -57,6 +56,19 @@ class BaseAgent(ControlFlowModel, abc.ABC):
         description="A prompt to display as a system message to the agent."
         "Prompts are formatted as jinja templates, with keywords `agent: Agent` and `context: AgentContext`.",
     )
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if self.id is None:
+            self.id = self._generate_id()
+
+    def __hash__(self) -> int:
+        return id(self)
+
+    def _generate_id(self):
+        return hash_objects(
+            (type(self).__name__, self.name, self.description, self.prompt)
+        )
 
     def serialize_for_prompt(self) -> dict:
         return self.model_dump()
@@ -141,6 +153,20 @@ class Agent(BaseAgent):
             ).strip()
 
         super().__init__(**kwargs)
+
+    def _generate_id(self):
+        """
+        Helper function to generate a stable, short, semi-unique ID for the agent.
+        """
+        return hash_objects(
+            (
+                type(self).__name__,
+                self.name,
+                self.description,
+                self.prompt,
+                self.instructions,
+            )
+        )
 
     def serialize_for_prompt(self) -> dict:
         dct = self.model_dump(
