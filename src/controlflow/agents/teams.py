@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Optional
 
 from pydantic import Field, field_validator
 
+from controlflow.utilities.general import hash_objects
+
 from .agent import Agent, BaseAgent
 
 if TYPE_CHECKING:
@@ -21,7 +23,8 @@ class BaseTeam(BaseAgent):
     the agents in the team, based on some logic that determines which agent should go next.
     """
 
-    name: str = Field("Team", description="The name of the team.")
+    agents: list[Agent] = Field(description="The agents in the team.")
+    name: str = Field("Agents", description="The name of the team.")
     instructions: Optional[str] = Field(
         None,
         description="Instructions for all agents on the team, private to this agent.",
@@ -31,10 +34,6 @@ class BaseTeam(BaseAgent):
         description="A prompt to display as an instruction to any agent selected as part of this team (or a nested team). "
         "Prompts are formatted as jinja templates, with keywords `team: Team` and `context: AgentContext`.",
     )
-    agents: list[Agent] = Field(
-        description="The agents in the team.",
-        default_factory=list,
-    )
     _iterations: int = 0
 
     @field_validator("agents", mode="before")
@@ -42,6 +41,18 @@ class BaseTeam(BaseAgent):
         if not v:
             raise ValueError("A team must have at least one agent.")
         return v
+
+    def _generate_id(self):
+        return hash_objects(
+            (
+                type(self).__name__,
+                self.name,
+                self.description,
+                self.prompt,
+                self.instructions,
+                [a.id for a in self.agents],
+            )
+        )
 
     def serialize_for_prompt(self) -> dict:
         data = self.model_dump(exclude={"agents"})

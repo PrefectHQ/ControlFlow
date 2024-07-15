@@ -161,7 +161,7 @@ def test_task_loads_agent_from_parent_before_flow():
     assert child.get_agent() == agent2
 
 
-class TestDeprecated:
+class TestWarning:
     def test_warn_on_steps_without_flow(self, default_fake_llm, caplog):
         default_fake_llm.set_responses(["Hi."])
         task = SimpleTask()

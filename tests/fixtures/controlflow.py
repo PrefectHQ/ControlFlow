@@ -9,9 +9,8 @@ def restore_defaults(monkeypatch):
     """
     Monkeypatch defaults to themselves, which will automatically reset them after every test
     """
-    monkeypatch.setattr(controlflow.defaults, "agent", controlflow.defaults.agent)
-    monkeypatch.setattr(controlflow.defaults, "model", controlflow.defaults.model)
-    monkeypatch.setattr(controlflow.defaults, "history", controlflow.defaults.history)
+    for k, v in controlflow.defaults.__dict__.items():
+        monkeypatch.setattr(controlflow.defaults, k, v)
     yield
 
 
