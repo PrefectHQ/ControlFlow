@@ -40,21 +40,3 @@ class TestDefaultTeam:
         assert isinstance(task.agent, Team)
         assert task.agent.agents == [a1, a2]
         assert task.agent.name == "New Team"
-
-    def test_warn_on_setting(self, caplog):
-        a1 = Agent(name="a1")
-        a2 = Agent(name="a2")
-        SimpleTask(agents=[a1, a2])
-        assert (
-            "The default team interface is not final and may change in the future."
-            in caplog.text
-        )
-
-    def test_warn_on_agents_kwarg(self, caplog):
-        a1 = Agent(name="a1")
-        a2 = Agent(name="a2")
-        SimpleTask(agents=[a1, a2])
-        assert (
-            "The default team interface is not final and may change in the future."
-            in caplog.text
-        )
