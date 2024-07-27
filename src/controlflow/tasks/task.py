@@ -159,7 +159,10 @@ class Task(ControlFlowModel):
                 "The 'agent' argument cannot be used with the 'agents' argument."
             )
         elif agents:
-            agent = controlflow.defaults.team(agents=agents)
+            if len(agents) > 1:
+                agent = controlflow.defaults.team(agents=agents)
+            else:
+                agent = agents[0]
         kwargs["agent"] = agent
 
         super().__init__(**kwargs)
