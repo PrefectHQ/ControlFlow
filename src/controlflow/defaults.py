@@ -39,8 +39,15 @@ class Defaults(ControlFlowModel):
     team: Union[type[BaseTeam], Callable[[list[Agent]], BaseTeam]] = Field(
         description="A class or callable that accepts a list of Agents and returns a Team."
     )
-    # add more defaults here
 
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name == "team":
+            logger.warning(
+                "The default team interface is not final and may change in the future."
+            )
+        return super().__setattr__(name, value)
+
+    # add more defaults here
     def __repr__(self) -> str:
         fields = ", ".join(self.model_fields.keys())
         return f"<ControlFlow Defaults: {fields}>"

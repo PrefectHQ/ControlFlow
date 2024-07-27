@@ -323,7 +323,7 @@ def handle_tool_call(
     fn_name = tool_call["name"]
 
     if fn_name not in tool_lookup:
-        fn_output = f'Function "{fn_name}" not found.'
+        fn_output = f'There is no tool called "{fn_name}".'
         is_error = True
         is_private = True
         if controlflow.settings.tools_raise_on_error:
@@ -369,7 +369,7 @@ async def handle_tool_call_async(tool_call: ToolCall, tools: list[Tool]) -> Any:
     fn_name = tool_call["name"]
 
     if fn_name not in tool_lookup:
-        fn_output = f'Function "{fn_name}" not found.'
+        fn_output = f'There is no tool called "{fn_name}".'
         is_error = True
         is_private = True
         if controlflow.settings.tools_raise_on_error:

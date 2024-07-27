@@ -53,6 +53,8 @@ def create_task_success_tool(task: Task) -> Tool:
         include_return_description=False,
     )
     def succeed(result: result_schema) -> str:  # type: ignore
+        if task.is_successful():
+            raise ValueError(f"{task.friendly_name()} is already marked successful.")
         task.mark_successful(result=result)
         return f"{task.friendly_name()} marked successful."
 

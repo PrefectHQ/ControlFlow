@@ -42,9 +42,18 @@ class Template(ControlFlowModel):
 
 
 class AgentTemplate(Template):
-    template_path: str = "agent.md.jinja"
+    template_path: str = "agent.jinja"
     agent: Agent
     context: AgentContext
+
+
+class TasksTemplate(Template):
+    template_path: str = "tasks.jinja"
+    tasks: list[Task]
+    context: AgentContext
+
+    def should_render(self) -> bool:
+        return bool(self.tasks)
 
 
 class TaskTemplate(Template):
@@ -52,13 +61,13 @@ class TaskTemplate(Template):
     Template for the active tasks
     """
 
-    template_path: str = "task.md.jinja"
+    template_path: str = "task.jinja"
     task: Task
     context: AgentContext
 
 
 class FlowTemplate(Template):
-    template_path: str = "flow.md.jinja"
+    template_path: str = "flow.jinja"
     flow: Flow
     context: AgentContext
 
@@ -74,13 +83,13 @@ class FlowTemplate(Template):
 
 
 class TeamTemplate(Template):
-    template_path: str = "team.md.jinja"
+    template_path: str = "team.jinja"
     team: Team
     context: AgentContext
 
 
 class InstructionsTemplate(Template):
-    template_path: str = "instructions.md.jinja"
+    template_path: str = "instructions.jinja"
     instructions: list[str] = []
     context: AgentContext
 
@@ -89,7 +98,7 @@ class InstructionsTemplate(Template):
 
 
 class ToolTemplate(Template):
-    template_path: str = "tools.md.jinja"
+    template_path: str = "tools.jinja"
     tools: list[Tool]
     context: AgentContext
 

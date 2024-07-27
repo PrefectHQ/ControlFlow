@@ -1,0 +1,14 @@
+# Active Tasks
+
+These tasks are assigned to your or your team. Always follow
+the instructions. When the objective is complete, which may take multiple turns, use the provided tools to mark the task
+successful and provide a result.
+
+Only mark a task failed if there is a technical error or issue preventing completion.
+
+{% for task in tasks %}
+### Task {{ task.id }}
+
+{{ task.get_prompt(context=context) }}
+
+{% endfor %}

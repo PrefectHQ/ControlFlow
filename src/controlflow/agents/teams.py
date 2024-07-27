@@ -34,7 +34,6 @@ class BaseTeam(BaseAgent):
         description="A prompt to display as an instruction to any agent selected as part of this team (or a nested team). "
         "Prompts are formatted as jinja templates, with keywords `team: Team` and `context: AgentContext`.",
     )
-    _iterations: int = 0
 
     @field_validator("agents", mode="before")
     def validate_agents(cls, v):
@@ -73,23 +72,21 @@ class BaseTeam(BaseAgent):
 
     def _run(self, context: "AgentContext"):
         context.add_agent(self)
-        context.add_instructions([self.get_prompt(context=context)])
         agent = self.get_agent(context=context)
         agent._run(context=context)
-        self._iterations += 1
 
     async def _run_async(self, context: "AgentContext"):
         context.add_agent(self)
-        context.add_instructions([self.get_prompt(context=context)])
         agent = self.get_agent(context=context)
         await agent._run_async(context=context)
-        self._iterations += 1
 
 
 class Team(BaseTeam):
     """
     The most basic team operates in a round robin fashion
     """
+
+    _iterations: int = 0
 
     def get_agent(self, context: "AgentContext"):
         # if the last event was a tool result, it should be shown to the same agent instead of advancing to the next agent
@@ -106,4 +103,6 @@ class Team(BaseTeam):
         ):
             return last_agent_event[0].agent
 
-        return self.agents[self._iterations % len(self.agents)]
+        agent = self.agents[self._iterations % len(self.agents)]
+        self._iterations += 1
+        return agent

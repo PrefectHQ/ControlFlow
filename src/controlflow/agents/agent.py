@@ -231,6 +231,7 @@ class Agent(BaseAgent):
         context.add_tools(self.get_tools())
         context.add_instructions(get_instructions())
         messages = context.compile_messages(agent=self)
+
         for event in self._run_model(messages=messages, tools=context.tools):
             context.handle_event(event)
 
