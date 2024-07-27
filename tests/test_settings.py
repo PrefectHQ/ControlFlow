@@ -12,6 +12,8 @@ def test_defaults():
     # change these settings to match whatever the default should be
     assert controlflow.settings.tools_raise_on_error is False
     assert controlflow.settings.tools_verbose is True
+    # 4o is the default
+    assert controlflow.settings.llm_model == "openai/gpt-4o"
 
 
 def test_temporary_settings():

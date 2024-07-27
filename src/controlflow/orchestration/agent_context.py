@@ -47,7 +47,8 @@ class AgentContext(ControlFlowModel):
         return v
 
     def add_agent(self, agent: BaseAgent):
-        self.agents = self.agents + [agent]
+        if agent not in self.agents:
+            self.agents = self.agents + [agent]
 
     def handle_event(self, event: Event, persist: bool = None):
         if persist is None:
@@ -102,13 +103,18 @@ class AgentContext(ControlFlowModel):
     def compile_prompt(self, agent: Agent) -> str:
         from controlflow.orchestration.prompt_templates import (
             InstructionsTemplate,
+            TasksTemplate,
             ToolTemplate,
         )
 
+        agents = self.agents
+        if agent not in agents:
+            agents = agents + [agent]
+
         prompts = [
-            agent.get_prompt(context=self),
+            *[agent.get_prompt(context=self) for agent in reversed(agents)],
             self.flow.get_prompt(context=self),
-            *[t.get_prompt(context=self) for t in self.tasks],
+            TasksTemplate(tasks=self.tasks, context=self).render(),
             ToolTemplate(tools=self.tools, context=self).render(),
             InstructionsTemplate(instructions=self.instructions, context=self).render(),
         ]

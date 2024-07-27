@@ -40,9 +40,11 @@ class OrchestratorMessage(Event):
 
     def to_messages(self, context: "CompileContext") -> list[BaseMessage]:
         messages = []
-        if self.prefix:
-            messages.append(SystemMessage(content=self.prefix))
-        messages.append(HumanMessage(content=self.content, name=self.name))
+        # if self.prefix:
+        #     messages.append(SystemMessage(content=self.prefix))
+        messages.append(
+            HumanMessage(content=f"({self.prefix})\n\n{self.content}", name=self.name)
+        )
         return messages
 
 

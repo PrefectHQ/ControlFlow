@@ -80,16 +80,6 @@ class Task(ControlFlowModel):
         description="The agent or team of agents assigned to the task. "
         "If not provided, it will be inferred from the parent task, flow, or global default.",
     )
-    agents: Optional[list["Agent"]] = Field(
-        None,
-        description="""
-            DEPRECATED. This field will probably be removed in future versions
-            of ControlFlow. For compatibility, an AgentTeam will automatically
-            be created from the provided agents, but you should provide a single
-            agent=AgentTeam(agents=[...]) instead. The agents assigned to the
-            task. If not provided, agents "will be inferred from the parent
-            task, flow, or global default.""",
-    )
     context: dict = Field(
         default_factory=dict,
         description="Additional context for the task. If tasks are provided as "
@@ -146,6 +136,7 @@ class Task(ControlFlowModel):
         result_type: Any = NOTSET,
         infer_parent: bool = True,
         # TODO: deprecated July 2024
+        agent: Optional["Agent"] = None,
         agents: Optional[list["Agent"]] = None,
         **kwargs,
     ):
@@ -162,20 +153,15 @@ class Task(ControlFlowModel):
                 kwargs.get("instructions")
                 or "" + "\n" + "\n".join(additional_instructions)
             ).strip()
-        if agents:
-            if kwargs.get("agent") is None:
-                logger.warn(
-                    'Passing a list of agents to the "agents" argument is '
-                    "deprecated as of version 0.9, and will be removed in future versions. "
-                    "Please provide a single agent or team of agents instead.",
-                )
-                from controlflow.agents.teams import Team
 
-                kwargs["agent"] = Team(agents=agents)
-            else:
-                raise ValueError(
-                    "The 'agents' argument is deprecated and cannot be used with the 'agent' argument."
-                )
+        if agent and agents:
+            raise ValueError(
+                "The 'agent' argument cannot be used with the 'agents' argument."
+            )
+        elif agents:
+            agent = controlflow.defaults.team(agents=agents)
+        kwargs["agent"] = agent
+
         super().__init__(**kwargs)
 
         self._prefect_task = PrefectTrackingTask(
