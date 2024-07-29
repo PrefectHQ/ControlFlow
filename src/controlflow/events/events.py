@@ -2,17 +2,15 @@ from typing import TYPE_CHECKING, Literal, Optional, Union
 
 from pydantic import field_validator, model_validator
 
-from controlflow.agents.agent import Agent, BaseAgent
+from controlflow.agents.agent import Agent
 from controlflow.events.base import Event, UnpersistedEvent
 from controlflow.llm.messages import (
     AIMessage,
     AIMessageChunk,
     BaseMessage,
     HumanMessage,
-    SystemMessage,
     ToolMessage,
 )
-from controlflow.tasks.task import Task
 from controlflow.tools.tools import InvalidToolCall, ToolCall, ToolResult
 from controlflow.utilities.logging import get_logger
 
@@ -21,11 +19,6 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 ORCHESTRATOR_PREFIX = "The following message is from the orchestrator."
-
-
-class SelectAgent(Event):
-    event: Literal["select-agent"] = "select-agent"
-    agent: Agent
 
 
 class OrchestratorMessage(Event):
@@ -46,30 +39,6 @@ class OrchestratorMessage(Event):
             HumanMessage(content=f"({self.prefix})\n\n{self.content}", name=self.name)
         )
         return messages
-
-
-class AgentInstruction(Event):
-    event: Literal["agent-instruction"] = "agent-instruction"
-    instruction: str
-
-    def to_messages(self, context: "CompileContext") -> list[BaseMessage]:
-        return [
-            SystemMessage(
-                content=f"You must follow this instruction: {self.instruction}"
-            )
-        ]
-
-
-class ActivateAgent(Event):
-    event: Literal["activate-agent"] = "activate-agent"
-    agent: BaseAgent
-    content: Optional[str] = None
-
-    def to_messages(self, context: "CompileContext") -> list[BaseMessage]:
-        if self.content:
-            return [SystemMessage(content=self.content)]
-        else:
-            return []
 
 
 class UserMessage(Event):
@@ -178,13 +147,3 @@ class ToolResultEvent(Event):
             ).to_messages(context)
         else:
             return []
-
-
-class TaskReadyEvent(UnpersistedEvent):
-    event: Literal["task-ready"] = "task-ready"
-    task: Task
-
-
-class TaskCompleteEvent(Event):
-    event: Literal["task-complete"] = "task-complete"
-    task: Task
