@@ -29,17 +29,11 @@ def get_event_validator() -> TypeAdapter:
         AgentMessage,
         EndTurn,
         OrchestratorMessage,
-        SelectAgent,
-        TaskCompleteEvent,
-        TaskReadyEvent,
         ToolResultEvent,
         UserMessage,
     )
 
     types = Union[
-        TaskReadyEvent,
-        TaskCompleteEvent,
-        SelectAgent,
         OrchestratorMessage,
         UserMessage,
         AgentMessage,
