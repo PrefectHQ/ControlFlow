@@ -6,7 +6,6 @@ from pydantic import Field, field_validator
 
 from controlflow.agents.agent import Agent, BaseAgent
 from controlflow.events.base import Event
-from controlflow.events.history import HistoryVisibility
 from controlflow.events.message_compiler import MessageCompiler
 from controlflow.flows import Flow
 from controlflow.llm.messages import BaseMessage
@@ -72,32 +71,8 @@ class AgentContext(ControlFlowModel):
     def add_instructions(self, instructions: list[str]):
         self.instructions = self.instructions + instructions
 
-    def get_visible_events(
-        self,
-        agent: Agent,
-        limit: Optional[int] = None,
-    ) -> list[Event]:
-        if agent.history_visibility == HistoryVisibility.ALL:
-            agents = None
-            tasks = [t for t in self.flow.tasks if not t.private]
-        elif agent.history_visibility == HistoryVisibility.UPSTREAM:
-            agents = self.agents
-            tasks = [
-                t for t in self.flow.graph.upstream_tasks(self.tasks) if not t.private
-            ]
-        elif agent.history_visibility == HistoryVisibility.CURRENT_AGENT:
-            agents = self.agents
-            tasks = None
-        elif agent.history_visibility == HistoryVisibility.CURRENT_TASK:
-            agents = None
-            tasks = self.tasks
-
-        events = self.flow.get_events(
-            agents=agents,
-            tasks=tasks,
-            limit=limit or 100,
-        )
-
+    def get_events(self, limit: Optional[int] = None) -> list[Event]:
+        events = self.flow.get_events(limit=limit or 100)
         return events
 
     def compile_prompt(self, agent: Agent) -> str:
@@ -121,7 +96,7 @@ class AgentContext(ControlFlowModel):
         return "\n\n".join([p for p in prompts if p])
 
     def compile_messages(self, agent: Agent) -> list[BaseMessage]:
-        events = self.get_visible_events(agent=agent)
+        events = self.get_events()
         compiler = MessageCompiler(
             events=events,
             llm_rules=agent.get_llm_rules(),

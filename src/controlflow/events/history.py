@@ -1,7 +1,6 @@
 import abc
 import json
 import math
-from enum import Enum
 from functools import cache
 from pathlib import Path
 from typing import Optional, Union
@@ -14,13 +13,6 @@ from controlflow.utilities.general import ControlFlowModel
 
 # This is a global variable that will be shared between all instances of InMemoryStore
 IN_MEMORY_STORE = {}
-
-
-class HistoryVisibility(Enum):
-    ALL = "ALL"
-    UPSTREAM = "UPSTREAM"
-    CURRENT_AGENT = "CURRENT_AGENT"
-    CURRENT_TASK = "CURRENT_TASK"
 
 
 @cache
@@ -46,8 +38,6 @@ def get_event_validator() -> TypeAdapter:
 
 def filter_events(
     events: list[Event],
-    agent_ids: Optional[list[str]] = None,
-    task_ids: Optional[list[str]] = None,
     types: Optional[list[str]] = None,
     before_id: Optional[str] = None,
     after_id: Optional[str] = None,
@@ -89,23 +79,6 @@ def filter_events(
         if types and event.event not in types:
             continue
 
-        # check if the event matches the agent_ids and task_ids
-        # if no ids were provided, we assume it *does* match
-
-        if (
-            agent_ids
-            and event.agent_ids
-            and not any(a in event.agent_ids for a in agent_ids)
-        ):
-            continue
-
-        if (
-            task_ids
-            and event.task_ids
-            and not any(t in event.task_ids for t in task_ids)
-        ):
-            continue
-
         new_events.append(event)
 
         if len(new_events) >= (limit or math.inf):
@@ -120,8 +93,6 @@ class History(ControlFlowModel, abc.ABC):
         self,
         thread_id: str,
         types: Optional[list[str]] = None,
-        agent_ids: Optional[list[str]] = None,
-        task_ids: Optional[list[str]] = None,
         before_id: Optional[str] = None,
         after_id: Optional[str] = None,
         limit: Optional[int] = None,
@@ -145,8 +116,6 @@ class InMemoryHistory(History):
         self,
         thread_id: str,
         types: Optional[list[str]] = None,
-        agent_ids: Optional[list[str]] = None,
-        task_ids: Optional[list[str]] = None,
         before_id: Optional[str] = None,
         after_id: Optional[str] = None,
         limit: Optional[int] = None,
@@ -169,8 +138,6 @@ class InMemoryHistory(History):
         events = self.history.get(thread_id, [])
         return filter_events(
             events=events,
-            agent_ids=agent_ids,
-            task_ids=task_ids,
             types=types,
             before_id=before_id,
             after_id=after_id,
@@ -196,8 +163,6 @@ class FileHistory(History):
     def get_events(
         self,
         thread_id: str,
-        agent_ids: Optional[list[str]] = None,
-        task_ids: Optional[list[str]] = None,
         types: Optional[list[str]] = None,
         before_id: Optional[str] = None,
         after_id: Optional[str] = None,
@@ -228,8 +193,6 @@ class FileHistory(History):
 
         return filter_events(
             events=events,
-            agent_ids=agent_ids,
-            task_ids=task_ids,
             types=types,
             before_id=before_id,
             after_id=after_id,
