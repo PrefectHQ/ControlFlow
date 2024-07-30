@@ -159,6 +159,9 @@ class Task(ControlFlowModel):
                 "The 'agent' argument cannot be used with the 'agents' argument."
             )
         elif agents:
+            logger.warning(
+                'The "agents" argument is deprecated. Pass an agent, team, or list of agents to the "agent" argument instead.'
+            )
             if len(agents) > 1:
                 agent = controlflow.defaults.team(agents=agents)
             else:
