@@ -4,7 +4,7 @@ from typing import Any, Callable, Optional
 
 from pydantic import Field, field_validator
 
-from controlflow.agents.agent import Agent, BaseAgent
+from controlflow.agents.agent import Agent
 from controlflow.events.base import Event
 from controlflow.events.message_compiler import MessageCompiler
 from controlflow.flows import Flow
@@ -24,14 +24,14 @@ __all__ = [
 
 class AgentContext(ControlFlowModel):
     """
-    The full context for an invocation of a BaseAgent
+    The full context for an invocation of a Agent
     """
 
     model_config = dict(arbitrary_types_allowed=True)
     flow: Flow
     tasks: list[Task]
     tools: list[Any] = []
-    agents: list[BaseAgent] = Field(
+    agents: list[Agent] = Field(
         default_factory=list,
         description="Any other agents that are relevant to this operation, in order to properly load events",
     )
@@ -45,18 +45,13 @@ class AgentContext(ControlFlowModel):
             v = as_tools(v)
         return v
 
-    def add_agent(self, agent: BaseAgent):
+    def add_agent(self, agent: Agent):
         if agent not in self.agents:
             self.agents = self.agents + [agent]
 
     def handle_event(self, event: Event, persist: bool = None):
         if persist is None:
             persist = event.persist
-
-        event.thread_id = self.flow.thread_id
-        event.add_tasks(self.tasks)
-        event.add_agents(self.agents)
-
         for handler in self.handlers:
             handler.handle(event)
         if persist:

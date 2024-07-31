@@ -1,4 +1,3 @@
-import abc
 import logging
 from typing import TYPE_CHECKING, Optional
 
@@ -6,7 +5,7 @@ from pydantic import Field, field_validator
 
 from controlflow.utilities.general import hash_objects
 
-from .agent import Agent, BaseAgent
+from .agent import Agent
 
 if TYPE_CHECKING:
     from controlflow.orchestration.agent_context import AgentContext
@@ -14,7 +13,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class BaseTeam(BaseAgent):
+class Team(Agent):
     """
     A team is a group of agents that can be assigned to a task.
 
@@ -34,6 +33,8 @@ class BaseTeam(BaseAgent):
         description="A prompt to display as an instruction to any agent selected as part of this team (or a nested team). "
         "Prompts are formatted as jinja templates, with keywords `team: Team` and `context: AgentContext`.",
     )
+
+    _iterations: int = 0
 
     @field_validator("agents", mode="before")
     def validate_agents(cls, v):
@@ -58,10 +59,6 @@ class BaseTeam(BaseAgent):
         data["agents"] = [agent.serialize_for_prompt() for agent in self.agents]
         return data
 
-    @abc.abstractmethod
-    def get_agent(self, context: "AgentContext") -> Agent:
-        raise NotImplementedError()
-
     def get_prompt(self, context: "AgentContext") -> str:
         from controlflow.orchestration import prompt_templates
 
@@ -79,14 +76,6 @@ class BaseTeam(BaseAgent):
         context.add_agent(self)
         agent = self.get_agent(context=context)
         await agent._run_async(context=context)
-
-
-class Team(BaseTeam):
-    """
-    The most basic team operates in a round robin fashion
-    """
-
-    _iterations: int = 0
 
     def get_agent(self, context: "AgentContext"):
         # if the last event was a tool result, it should be shown to the same agent instead of advancing to the next agent

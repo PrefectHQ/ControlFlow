@@ -24,7 +24,6 @@ from pydantic import (
 
 import controlflow
 from controlflow.agents import Agent
-from controlflow.agents.agent import BaseAgent
 from controlflow.instructions import get_instructions
 from controlflow.tools import Tool
 from controlflow.tools.talk_to_user import talk_to_user
@@ -75,7 +74,7 @@ class Task(ControlFlowModel):
     instructions: Union[str, None] = Field(
         None, description="Detailed instructions for completing the task."
     )
-    agent: Optional["BaseAgent"] = Field(
+    agent: Optional["Agent"] = Field(
         None,
         description="The agent or team of agents assigned to the task. "
         "If not provided, it will be inferred from the parent task, flow, or global default.",
@@ -160,13 +159,11 @@ class Task(ControlFlowModel):
             )
         elif agents:
             logger.warning(
-                'The "agents" argument is deprecated. Pass an agent, team, or list of agents to the "agent" argument instead.'
+                'The "agents" argument is deprecated. Pass a list of agents or Team to the "agent" argument instead.'
             )
-            if len(agents) > 1:
-                agent = controlflow.defaults.team(agents=agents)
-            else:
-                agent = agents[0]
-        kwargs["agent"] = agent
+            kwargs["agent"] = agents
+        else:
+            kwargs["agent"] = agent
 
         super().__init__(**kwargs)
 
@@ -232,6 +229,17 @@ class Task(ControlFlowModel):
     def __repr__(self) -> str:
         serialized = self.model_dump(include={"id", "objective"})
         return f"{self.__class__.__name__}({', '.join(f'{key}={repr(value)}' for key, value in serialized.items())})"
+
+    @field_validator("agent", mode="before")
+    def _validate_agent(cls, v):
+        if isinstance(v, list):
+            if len(v) > 1:
+                v = controlflow.defaults.team(agents=v)
+            elif v:
+                v = v[0]
+            else:
+                v = None
+        return v
 
     @field_validator("parent", mode="before")
     def _default_parent(cls, v):

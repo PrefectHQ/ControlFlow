@@ -6,7 +6,7 @@ from typing import Optional, TypeVar
 from pydantic import Field, PrivateAttr, field_validator
 
 import controlflow
-from controlflow.agents.agent import Agent, BaseAgent
+from controlflow.agents.agent import Agent
 from controlflow.events.base import Event
 from controlflow.flows import Flow
 from controlflow.orchestration.agent_context import AgentContext
@@ -42,7 +42,7 @@ class Orchestrator(ControlFlowModel):
         "Note that any upstream dependencies will be completed as well. "
         "If None, all tasks in the flow will be used.",
     )
-    agents: dict[Task, BaseAgent] = Field(
+    agents: dict[Task, Agent] = Field(
         default_factory=dict,
         description="Optionally assign an agent to a task; this overrides the task's own configuration.",
     )
@@ -73,12 +73,7 @@ class Orchestrator(ControlFlowModel):
         for task in self.tasks:
             self.flow.add_task(task)
 
-    def handle_event(
-        self, event: Event, tasks: list[Task] = None, agent: BaseAgent = None
-    ):
-        event.thread_id = self.flow.thread_id
-        event.add_tasks(tasks or [])
-        event.add_agents([agent] if agent else [])
+    def handle_event(self, event: Event):
         for handler in self.handlers:
             handler.handle(event)
         if event.persist:
@@ -167,7 +162,7 @@ class Orchestrator(ControlFlowModel):
             self._ready_task_counter = 0
         return ready_tasks
 
-    def get_agent_tasks(self, agent: BaseAgent, ready_tasks: list[Task]) -> list[Task]:
+    def get_agent_tasks(self, agent: Agent, ready_tasks: list[Task]) -> list[Task]:
         """
         Get the subset of ready tasks that the agent is assigned to.
         """

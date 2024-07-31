@@ -1,4 +1,3 @@
-import abc
 import logging
 from contextlib import contextmanager
 from typing import (
@@ -37,10 +36,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class BaseAgent(ControlFlowModel, abc.ABC):
-    """
-    A base class for agents, which are entities that can complete tasks.
-    """
+class Agent(ControlFlowModel):
+    model_config = dict(arbitrary_types_allowed=True)
 
     id: str = Field(None)
     name: str = Field(description="The name of the agent.")
@@ -52,50 +49,6 @@ class BaseAgent(ControlFlowModel, abc.ABC):
         description="A prompt to display as a system message to the agent."
         "Prompts are formatted as jinja templates, with keywords `agent: Agent` and `context: AgentContext`.",
     )
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        if self.id is None:
-            self.id = self._generate_id()
-
-    def __hash__(self) -> int:
-        return id(self)
-
-    def _generate_id(self):
-        return hash_objects(
-            (type(self).__name__, self.name, self.description, self.prompt)
-        )
-
-    def serialize_for_prompt(self) -> dict:
-        return self.model_dump()
-
-    @abc.abstractmethod
-    def _run(self, context: "AgentContext") -> list[Event]:
-        """
-        Run the agent with a list of events.
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    async def _run_async(self, context: "AgentContext") -> list[Event]:
-        """
-        Run the agent with a list of events.
-        """
-        raise NotImplementedError()
-
-    def get_prompt(self, context: "AgentContext") -> str:
-        from controlflow.orchestration import prompt_templates
-
-        template = prompt_templates.AgentTemplate(
-            template=self.prompt,
-            agent=self,
-            context=context,
-        )
-        return template.render()
-
-
-class Agent(BaseAgent):
-    model_config = dict(arbitrary_types_allowed=True)
 
     instructions: Optional[str] = Field(
         "You are a diligent AI assistant. You complete your tasks efficiently and without error.",
@@ -147,6 +100,12 @@ class Agent(BaseAgent):
             ).strip()
 
         super().__init__(**kwargs)
+
+        if not self.id:
+            self.id = self._generate_id()
+
+    def __hash__(self) -> int:
+        return id(self)
 
     def _generate_id(self):
         """
@@ -200,6 +159,16 @@ class Agent(BaseAgent):
             tools.extend(self.memory.get_tools())
 
         return as_tools(tools)
+
+    def get_prompt(self, context: "AgentContext") -> str:
+        from controlflow.orchestration import prompt_templates
+
+        template = prompt_templates.AgentTemplate(
+            template=self.prompt,
+            agent=self,
+            context=context,
+        )
+        return template.render()
 
     @contextmanager
     def create_context(self):

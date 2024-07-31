@@ -5,7 +5,6 @@ from pydantic import Field, field_validator
 import controlflow
 import controlflow.utilities
 import controlflow.utilities.logging
-from controlflow.agents.teams import BaseTeam
 from controlflow.llm.models import BaseChatModel
 from controlflow.utilities.general import ControlFlowModel
 
@@ -36,7 +35,7 @@ class Defaults(ControlFlowModel):
     model: Optional[Any]
     history: History
     agent: Agent
-    team: Union[type[BaseTeam], Callable[[list[Agent]], BaseTeam]] = Field(
+    team: Union[type[Team], Callable[[list[Agent]], Team]] = Field(
         description="A class or callable that accepts a list of Agents and returns a Team."
     )
 
