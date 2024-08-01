@@ -23,8 +23,7 @@ from pydantic import (
 )
 
 import controlflow
-from controlflow.agents import Agent
-from controlflow.agents.agent import BaseAgent
+from controlflow.agents import BaseAgent
 from controlflow.instructions import get_instructions
 from controlflow.tools import Tool
 from controlflow.tools.talk_to_user import talk_to_user
@@ -75,7 +74,7 @@ class Task(ControlFlowModel):
     instructions: Union[str, None] = Field(
         None, description="Detailed instructions for completing the task."
     )
-    agent: Optional["BaseAgent"] = Field(
+    agent: Optional[BaseAgent] = Field(
         None,
         description="The agent or team of agents assigned to the task. "
         "If not provided, it will be inferred from the parent task, flow, or global default.",
@@ -136,8 +135,8 @@ class Task(ControlFlowModel):
         result_type: Any = NOTSET,
         infer_parent: bool = True,
         # TODO: deprecated July 2024
-        agent: Optional["Agent"] = None,
-        agents: Optional[list["Agent"]] = None,
+        agent: Optional["BaseAgent"] = None,
+        agents: Optional[list["BaseAgent"]] = None,
         **kwargs,
     ):
         # allow certain args to be provided as a positional args
@@ -159,11 +158,9 @@ class Task(ControlFlowModel):
                 "The 'agent' argument cannot be used with the 'agents' argument."
             )
         elif agents:
-            if len(agents) > 1:
-                agent = controlflow.defaults.team(agents=agents)
-            else:
-                agent = agents[0]
-        kwargs["agent"] = agent
+            kwargs["agent"] = agents
+        else:
+            kwargs["agent"] = agent
 
         super().__init__(**kwargs)
 
@@ -230,6 +227,17 @@ class Task(ControlFlowModel):
         serialized = self.model_dump(include={"id", "objective"})
         return f"{self.__class__.__name__}({', '.join(f'{key}={repr(value)}' for key, value in serialized.items())})"
 
+    @field_validator("agent", mode="before")
+    def _validate_agent(cls, v):
+        if isinstance(v, list):
+            if len(v) > 1:
+                v = controlflow.defaults.team(agents=v)
+            elif v:
+                v = v[0]
+            else:
+                v = None
+        return v
+
     @field_validator("parent", mode="before")
     def _default_parent(cls, v):
         if v is None:
@@ -272,7 +280,7 @@ class Task(ControlFlowModel):
         return dict(type=repr(result_type), schema=schema)
 
     @field_serializer("agent")
-    def _serialize_agents(self, agent: Optional["Agent"]):
+    def _serialize_agents(self, agent: Optional[BaseAgent]):
         return self.get_agent().serialize_for_prompt()
 
     @field_serializer("tools")
@@ -320,7 +328,7 @@ class Task(ControlFlowModel):
     def run(
         self,
         steps: Optional[int] = None,
-        agent: Optional["Agent"] = None,
+        agent: Optional[BaseAgent] = None,
         raise_on_error: bool = True,
         flow: "Flow" = None,
     ) -> T:
@@ -360,7 +368,7 @@ class Task(ControlFlowModel):
     async def run_async(
         self,
         steps: Optional[int] = None,
-        agent: Optional["Agent"] = None,
+        agent: Optional[BaseAgent] = None,
         raise_on_error: bool = True,
         flow: "Flow" = None,
     ) -> T:
@@ -373,7 +381,7 @@ class Task(ControlFlowModel):
         if flow is None:
             if controlflow.settings.strict_flow_context:
                 raise ValueError(
-                    "Task.run_async() must be called within a flow context or with a "
+                    "Task.run() must be called within a flow context or with a "
                     "flow argument if implicit flows are disabled."
                 )
             else:
@@ -383,6 +391,7 @@ class Task(ControlFlowModel):
                         "recommended, because the agent's history will be lost."
                     )
                 flow = Flow()
+
         from controlflow.orchestration import Orchestrator
 
         orchestrator = Orchestrator(
@@ -437,7 +446,7 @@ class Task(ControlFlowModel):
         """
         return self.is_incomplete() and all(t.is_complete() for t in self.depends_on)
 
-    def get_agent(self) -> "Agent":
+    def get_agent(self) -> BaseAgent:
         if self.agent:
             return self.agent
         elif self.parent:
@@ -517,7 +526,7 @@ class Task(ControlFlowModel):
     def mark_skipped(self):
         self.set_status(TaskStatus.SKIPPED)
 
-    def generate_subtasks(self, instructions: str = None, agent: "Agent" = None):
+    def generate_subtasks(self, instructions: str = None, agent: BaseAgent = None):
         """
         Generate subtasks for this task based on the provided instructions.
         Subtasks can reuse the same tools and agents as this task.

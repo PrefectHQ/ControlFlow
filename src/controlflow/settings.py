@@ -65,14 +65,6 @@ class Settings(ControlFlowSettings):
         "before raising an error. If None, the system will run indefinitely. ",
     )
 
-    default_history_visibility: str = Field(
-        "ALL",
-        description="The default history visibility for flows. "
-        "ALL: all events in the flow are visible. UPSTREAM: only events from "
-        "upstream tasks are visible. CURRENT_AGENT: only events from the "
-        "current agent are visible. CURRENT_TASK: only events from the current task are visible.",
-    )
-
     # ------------ LLM settings ------------
 
     llm_model: str = Field(

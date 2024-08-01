@@ -6,7 +6,7 @@ from typing import Optional, TypeVar
 from pydantic import Field, PrivateAttr, field_validator
 
 import controlflow
-from controlflow.agents.agent import Agent, BaseAgent
+from controlflow.agents.agent import BaseAgent
 from controlflow.events.base import Event
 from controlflow.flows import Flow
 from controlflow.orchestration.agent_context import AgentContext
@@ -73,12 +73,7 @@ class Orchestrator(ControlFlowModel):
         for task in self.tasks:
             self.flow.add_task(task)
 
-    def handle_event(
-        self, event: Event, tasks: list[Task] = None, agent: BaseAgent = None
-    ):
-        event.thread_id = self.flow.thread_id
-        event.add_tasks(tasks or [])
-        event.add_agents([agent] if agent else [])
+    def handle_event(self, event: Event):
         for handler in self.handlers:
             handler.handle(event)
         if event.persist:
@@ -106,12 +101,10 @@ class Orchestrator(ControlFlowModel):
                 context = AgentContext(
                     flow=self.flow,
                     tasks=tasks,
-                    agents=[agent],
                     tools=tools,
                     handlers=self.handlers,
                 )
-                with context:
-                    agent._run(context=context)
+                agent._run(context=context)
 
             except Exception as exc:
                 self.handle_event(OrchestratorError(orchestrator=self, error=exc))
@@ -142,12 +135,10 @@ class Orchestrator(ControlFlowModel):
                 context = AgentContext(
                     flow=self.flow,
                     tasks=tasks,
-                    agents=[agent],
                     tools=tools,
                     handlers=self.handlers,
                 )
-                with context:
-                    await agent._run_async(context=context)
+                await agent._run_async(context=context)
 
             except Exception as exc:
                 self.handle_event(OrchestratorError(orchestrator=self, error=exc))
@@ -192,7 +183,7 @@ class Orchestrator(ControlFlowModel):
 
         return agent_tasks
 
-    def get_agent(self, task: Task) -> Agent:
+    def get_agent(self, task: Task) -> BaseAgent:
         if task in self.agents:
             return self.agents[task]
         else:

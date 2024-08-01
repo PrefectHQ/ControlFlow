@@ -1,3 +1,3 @@
 from . import memory
-from .agent import Agent
-from .teams import Team
+from .agent import Agent, BaseAgent
+from .teams import RoundRobinTeam, Team, TurnTeam

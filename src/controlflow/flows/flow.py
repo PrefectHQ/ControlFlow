@@ -95,8 +95,6 @@ class Flow(ControlFlowModel):
 
     def get_events(
         self,
-        agents: Optional[list[Agent]] = None,
-        tasks: Optional[list[Task]] = None,
         before_id: Optional[str] = None,
         after_id: Optional[str] = None,
         limit: Optional[int] = None,
@@ -104,8 +102,6 @@ class Flow(ControlFlowModel):
     ) -> list[Event]:
         return self.history.get_events(
             thread_id=self.thread_id,
-            agent_ids=[agent.id for agent in agents or []],
-            task_ids=[task.id for task in tasks or []],
             before_id=before_id,
             after_id=after_id,
             limit=limit,
@@ -113,6 +109,8 @@ class Flow(ControlFlowModel):
         )
 
     def add_events(self, events: list[Event]):
+        for event in events:
+            event.thread_id = self.thread_id
         self.history.add_events(thread_id=self.thread_id, events=events)
 
     @contextmanager
@@ -148,7 +146,7 @@ class Flow(ControlFlowModel):
 
 def get_flow() -> Optional[Flow]:
     """
-    Loads the flow from the context. If no flow is found, returns None.
+    Loads the flow from the context or returns a new
     """
     flow: Union[Flow, None] = ctx.get("flow")
     return flow

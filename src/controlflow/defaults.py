@@ -5,11 +5,10 @@ from pydantic import Field, field_validator
 import controlflow
 import controlflow.utilities
 import controlflow.utilities.logging
-from controlflow.agents.teams import BaseTeam
 from controlflow.llm.models import BaseChatModel
 from controlflow.utilities.general import ControlFlowModel
 
-from .agents import Agent, Team
+from .agents import Agent, Team, TurnTeam
 from .events.history import History, InMemoryHistory
 from .llm.models import _get_initial_default_model, model_from_string
 
@@ -20,7 +19,7 @@ logger = controlflow.utilities.logging.get_logger(__name__)
 _default_model = _get_initial_default_model()
 _default_history = InMemoryHistory()
 _default_agent = Agent(name="Marvin")
-_default_team = Team
+_default_team = TurnTeam
 
 
 class Defaults(ControlFlowModel):
@@ -36,7 +35,7 @@ class Defaults(ControlFlowModel):
     model: Optional[Any]
     history: History
     agent: Agent
-    team: Union[type[BaseTeam], Callable[[list[Agent]], BaseTeam]] = Field(
+    team: Union[type[Team], Callable[[list[Agent]], Team]] = Field(
         description="A class or callable that accepts a list of Agents and returns a Team."
     )
 

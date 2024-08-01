@@ -15,7 +15,6 @@ from pydantic import Field, field_serializer
 
 import controlflow
 from controlflow.events.base import Event
-from controlflow.events.history import HistoryVisibility
 from controlflow.instructions import get_instructions
 from controlflow.llm.messages import AIMessage, BaseMessage
 from controlflow.llm.rules import LLMRules
@@ -31,19 +30,116 @@ from controlflow.utilities.general import ControlFlowModel, hash_objects
 from .memory import Memory
 
 if TYPE_CHECKING:
+    from controlflow.events.events import (
+        AgentMessage,
+        ToolCallEvent,
+        ToolResultEvent,
+    )
+    from controlflow.flows.flow import Flow
     from controlflow.orchestration.agent_context import AgentContext
     from controlflow.tasks.task import Task
     from controlflow.tools.tools import Tool
-
 logger = logging.getLogger(__name__)
 
 
 class BaseAgent(ControlFlowModel, abc.ABC):
     """
-    A base class for agents, which are entities that can complete tasks.
+    Base class for objects that can be used as agents in a flow, including Agents and Teams.
     """
 
     id: str = Field(None)
+    name: str
+    description: Optional[str] = None
+    instructions: Optional[str] = None
+
+    def __init__(self, name: str = None, **kwargs):
+        if name is not None:
+            kwargs["name"] = name
+
+        super().__init__(**kwargs)
+
+        if not self.id:
+            self.id = self._generate_id()
+
+    def __hash__(self) -> int:
+        return id(self)
+
+    def _generate_id(self):
+        """
+        Helper function to generate a stable, short, semi-unique ID for the agent.
+        """
+        return hash_objects(
+            (
+                type(self).__name__,
+                self.name,
+                self.description,
+                self.instructions,
+            )
+        )
+
+    def run(
+        self, tasks: list["Task"], steps: Optional[int] = None, flow: "Flow" = None
+    ):
+        from controlflow.flows import get_flow
+        from controlflow.orchestration import Orchestrator
+
+        flow = get_flow()
+        if flow is None:
+            if controlflow.settings.strict_flow_context:
+                raise ValueError(
+                    "Task.run() must be called within a flow context or with a "
+                    "flow argument if implicit flows are disabled."
+                )
+            else:
+                if steps:
+                    logger.warning(
+                        "Running a task with a steps argument but no flow is not "
+                        "recommended, because the agent's history will be lost."
+                    )
+                flow = Flow()
+
+        orchestrator = Orchestrator(
+            tasks=tasks, flow=flow, agents={t: self for t in tasks}
+        )
+        orchestrator.run(steps=steps)
+
+    async def run_async(
+        self, tasks: list["Task"], steps: Optional[int] = None, flow: "Flow" = None
+    ):
+        from controlflow.flows import get_flow
+        from controlflow.orchestration import Orchestrator
+
+        flow = get_flow()
+        if flow is None:
+            if controlflow.settings.strict_flow_context:
+                raise ValueError(
+                    "Task.run() must be called within a flow context or with a "
+                    "flow argument if implicit flows are disabled."
+                )
+            else:
+                if steps:
+                    logger.warning(
+                        "Running a task with a steps argument but no flow is not "
+                        "recommended, because the agent's history will be lost."
+                    )
+                flow = Flow()
+
+        orchestrator = Orchestrator(
+            tasks=tasks, flow=flow, agents={t: self for t in tasks}
+        )
+        await orchestrator.run_async(steps=steps)
+
+    @abc.abstractmethod
+    def _run(self, context: "AgentContext") -> "AgentResult":
+        raise NotImplementedError()
+
+    async def _run_async(self, context: "AgentContext") -> "AgentResult":
+        return self._run(context)
+
+
+class Agent(BaseAgent):
+    model_config = dict(arbitrary_types_allowed=True)
+
     name: str = Field(description="The name of the agent.")
     description: Optional[str] = Field(
         None, description="A description of the agent, visible to other agents."
@@ -53,50 +149,6 @@ class BaseAgent(ControlFlowModel, abc.ABC):
         description="A prompt to display as a system message to the agent."
         "Prompts are formatted as jinja templates, with keywords `agent: Agent` and `context: AgentContext`.",
     )
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        if self.id is None:
-            self.id = self._generate_id()
-
-    def __hash__(self) -> int:
-        return id(self)
-
-    def _generate_id(self):
-        return hash_objects(
-            (type(self).__name__, self.name, self.description, self.prompt)
-        )
-
-    def serialize_for_prompt(self) -> dict:
-        return self.model_dump()
-
-    @abc.abstractmethod
-    def _run(self, context: "AgentContext") -> list[Event]:
-        """
-        Run the agent with a list of events.
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    async def _run_async(self, context: "AgentContext") -> list[Event]:
-        """
-        Run the agent with a list of events.
-        """
-        raise NotImplementedError()
-
-    def get_prompt(self, context: "AgentContext") -> str:
-        from controlflow.orchestration import prompt_templates
-
-        template = prompt_templates.AgentTemplate(
-            template=self.prompt,
-            agent=self,
-            context=context,
-        )
-        return template.render()
-
-
-class Agent(BaseAgent):
-    model_config = dict(arbitrary_types_allowed=True)
 
     instructions: Optional[str] = Field(
         "You are a diligent AI assistant. You complete your tasks efficiently and without error.",
@@ -112,12 +164,6 @@ class Agent(BaseAgent):
     prompt: Optional[str] = Field(
         None,
         description="A system template for the agent. The template should be formatted as a jinja2 template.",
-    )
-    history_visibility: HistoryVisibility = Field(
-        description="How to determine event visibility when running the flow.",
-        default_factory=lambda: HistoryVisibility(
-            controlflow.settings.default_history_visibility
-        ),
     )
 
     memory: Optional[Memory] = Field(
@@ -143,17 +189,14 @@ class Agent(BaseAgent):
         # tools are Pydantic 1 objects
         return [t.dict(include={"name", "description"}) for t in tools]
 
-    def __init__(self, name=None, **kwargs):
-        if name is not None:
-            kwargs["name"] = name
-
+    def __init__(self, *args, **kwargs):
         if additional_instructions := get_instructions():
             kwargs["instructions"] = (
                 kwargs.get("instructions")
                 or "" + "\n" + "\n".join(additional_instructions)
             ).strip()
 
-        super().__init__(**kwargs)
+        super().__init__(*args, **kwargs)
 
     def _generate_id(self):
         """
@@ -208,6 +251,16 @@ class Agent(BaseAgent):
 
         return as_tools(tools)
 
+    def get_prompt(self, context: "AgentContext") -> str:
+        from controlflow.orchestration import prompt_templates
+
+        template = prompt_templates.AgentTemplate(
+            template=self.prompt,
+            agent=self,
+            context=context,
+        )
+        return template.render()
+
     @contextmanager
     def create_context(self):
         with ctx(agent=self):
@@ -221,28 +274,30 @@ class Agent(BaseAgent):
     def __exit__(self, *exc_info):
         return self._cm_stack.pop().__exit__(*exc_info)
 
-    def run(self, task: "Task", steps: Optional[int] = None):
-        return task.run(agent=self, steps=steps)
-
-    async def run_async(self, task: "Task", steps: Optional[int] = None):
-        return await task.run_async(agent=self, steps=steps)
-
-    def _run(self, context: "AgentContext"):
+    def _run(self, context: "AgentContext") -> "AgentResult":
         context.add_tools(self.get_tools())
         context.add_instructions(get_instructions())
         messages = context.compile_messages(agent=self)
+        events = []
 
         for event in self._run_model(messages=messages, tools=context.tools):
             context.handle_event(event)
+            events.append(event)
 
-    async def _run_async(self, context: "AgentContext"):
+        return AgentResult(agent=self, context=context, events=events)
+
+    async def _run_async(self, context: "AgentContext") -> "AgentResult":
         context.add_tools(self.get_tools())
         context.add_instructions(get_instructions())
         messages = context.compile_messages(agent=self)
+        events = []
         async for event in self._run_model_async(
             messages=messages, tools=context.tools
         ):
             context.handle_event(event)
+            events.append(event)
+
+        return AgentResult(agent=self, context=context, events=events)
 
     def _run_model(
         self,
@@ -313,3 +368,31 @@ class Agent(BaseAgent):
             yield ToolCallEvent(agent=self, tool_call=tool_call, message=response)
             result = await handle_tool_call_async(tool_call, tools=tools)
             yield ToolResultEvent(agent=self, tool_call=tool_call, tool_result=result)
+
+
+class AgentResult(ControlFlowModel):
+    """
+    A result from running an agent
+    """
+
+    agent: Agent
+    context: "AgentContext"
+    events: list[Event]
+
+    @property
+    def messages(self) -> list["AgentMessage"]:
+        from controlflow.events.events import AgentMessage
+
+        return [e for e in self.events if isinstance(e, AgentMessage)]
+
+    @property
+    def tool_calls(self) -> list["ToolCallEvent"]:
+        from controlflow.events.events import ToolCallEvent
+
+        return [e for e in self.events if isinstance(e, ToolCallEvent)]
+
+    @property
+    def tool_results(self) -> list["ToolResultEvent"]:
+        from controlflow.events.events import ToolResultEvent
+
+        return [e for e in self.events if isinstance(e, ToolResultEvent)]
