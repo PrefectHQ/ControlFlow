@@ -47,6 +47,36 @@ class BaseAgent(ControlFlowModel, abc.ABC):
     Base class for objects that can be used as agents in a flow, including Agents and Teams.
     """
 
+    id: str = Field(None)
+    name: str
+    description: Optional[str] = None
+    instructions: Optional[str] = None
+
+    def __init__(self, name: str = None, **kwargs):
+        if name is not None:
+            kwargs["name"] = name
+
+        super().__init__(**kwargs)
+
+        if not self.id:
+            self.id = self._generate_id()
+
+    def __hash__(self) -> int:
+        return id(self)
+
+    def _generate_id(self):
+        """
+        Helper function to generate a stable, short, semi-unique ID for the agent.
+        """
+        return hash_objects(
+            (
+                type(self).__name__,
+                self.name,
+                self.description,
+                self.instructions,
+            )
+        )
+
     def run(
         self, tasks: list["Task"], steps: Optional[int] = None, flow: "Flow" = None
     ):
@@ -110,7 +140,6 @@ class BaseAgent(ControlFlowModel, abc.ABC):
 class Agent(BaseAgent):
     model_config = dict(arbitrary_types_allowed=True)
 
-    id: str = Field(None)
     name: str = Field(description="The name of the agent.")
     description: Optional[str] = Field(
         None, description="A description of the agent, visible to other agents."
@@ -160,23 +189,14 @@ class Agent(BaseAgent):
         # tools are Pydantic 1 objects
         return [t.dict(include={"name", "description"}) for t in tools]
 
-    def __init__(self, name=None, **kwargs):
-        if name is not None:
-            kwargs["name"] = name
-
+    def __init__(self, *args, **kwargs):
         if additional_instructions := get_instructions():
             kwargs["instructions"] = (
                 kwargs.get("instructions")
                 or "" + "\n" + "\n".join(additional_instructions)
             ).strip()
 
-        super().__init__(**kwargs)
-
-        if not self.id:
-            self.id = self._generate_id()
-
-    def __hash__(self) -> int:
-        return id(self)
+        super().__init__(*args, **kwargs)
 
     def _generate_id(self):
         """

@@ -28,7 +28,7 @@ class TestDefaultTeam:
         a2 = Agent(name="a2")
         team_callable = controlflow.defaults.team
         team = team_callable(agents=[a1, a2])
-        assert team.name == "Agents"
+        assert team.name == "Team of Agents"
         assert team.agents == [a1, a2]
 
     def test_default_team_can_be_assigned(self):

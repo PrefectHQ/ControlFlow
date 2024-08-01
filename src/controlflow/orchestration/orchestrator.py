@@ -135,12 +135,10 @@ class Orchestrator(ControlFlowModel):
                 context = AgentContext(
                     flow=self.flow,
                     tasks=tasks,
-                    agents=[agent],
                     tools=tools,
                     handlers=self.handlers,
                 )
-                with context:
-                    await agent._run_async(context=context)
+                await agent._run_async(context=context)
 
             except Exception as exc:
                 self.handle_event(OrchestratorError(orchestrator=self, error=exc))

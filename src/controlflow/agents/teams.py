@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Optional
 from pydantic import Field, field_validator
 
 from controlflow.tools.tools import Tool, tool
+from controlflow.utilities.general import hash_objects
 
 from .agent import Agent, AgentResult, BaseAgent
 
@@ -42,6 +43,21 @@ class Team(BaseAgent):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._active_agent = self.agents[0]
+
+    def _generate_id(self):
+        """
+        Helper function to generate a stable, short, semi-unique ID for the agent.
+        """
+        return hash_objects(
+            (
+                type(self).__name__,
+                self.name,
+                self.description,
+                self.instructions,
+                self.prompt,
+                [agent.id for agent in self.agents],
+            )
+        )
 
     def get_agent(self) -> Agent:
         return self._active_agent
