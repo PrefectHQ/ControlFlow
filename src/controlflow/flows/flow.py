@@ -146,7 +146,7 @@ class Flow(ControlFlowModel):
 
 def get_flow() -> Optional[Flow]:
     """
-    Loads the flow from the context. If no flow is found, returns None.
+    Loads the flow from the context or returns a new
     """
     flow: Union[Flow, None] = ctx.get("flow")
     return flow

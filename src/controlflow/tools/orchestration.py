@@ -2,7 +2,6 @@ from typing import TypeVar
 
 from pydantic import PydanticSchemaGenerationError, TypeAdapter
 
-from controlflow.agents import Agent
 from controlflow.tasks.task import Task
 from controlflow.tools.tools import Tool, tool
 
@@ -49,7 +48,6 @@ def create_task_success_tool(task: Task) -> Tool:
         name=f"mark_task_{task.id}_successful",
         description=f"Mark task {task.id} as successful.",
         private=True,
-        end_turn=True,
         include_return_description=False,
     )
     def succeed(result: result_schema) -> str:  # type: ignore
@@ -72,7 +70,6 @@ def create_task_fail_tool(task: Task) -> Tool:
             f"Mark task {task.id} as failed. Only use when technical errors prevent success. Provide a detailed reason for the failure."
         ),
         private=True,
-        end_turn=True,
         include_return_description=False,
     )
     def fail(reason: str) -> str:
@@ -80,26 +77,3 @@ def create_task_fail_tool(task: Task) -> Tool:
         return f"{task.friendly_name()} marked failed."
 
     return fail
-
-
-def create_end_turn_tool(agent: Agent) -> Tool:
-    """
-    Create an agent-compatible tool for ending the turn.
-
-    Your turn will continue until you mark a task complete or you use this tool.
-    With this tool, you can optionally name the agent that should go next, or
-    leave it blank to let the orchestrator decide. You must use this
-    tool to let another agent speak.
-    """
-
-    @tool(private=True)
-    def end_turn(next_agent_name: str = None) -> str:
-        """
-        End your turn so another agent can work. You can optionally choose
-        the next agent, which can be any other agent assigned to a ready task.
-        Choose an agent likely to help you complete your tasks.
-        """
-        # orchestrator.handle_event(EndTurn(agent=agent, next_agent_name=next_agent_name))
-        return "Turn ended."
-
-    return end_turn
