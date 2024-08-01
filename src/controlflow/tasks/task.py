@@ -158,9 +158,6 @@ class Task(ControlFlowModel):
                 "The 'agent' argument cannot be used with the 'agents' argument."
             )
         elif agents:
-            logger.warning(
-                'The "agents" argument is deprecated. Pass a list of agents or Team to the "agent" argument instead.'
-            )
             kwargs["agent"] = agents
         else:
             kwargs["agent"] = agent
