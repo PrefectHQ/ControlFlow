@@ -79,7 +79,19 @@ class Team(BaseAgent):
         return template.render()
 
     def get_tools(self) -> list[Tool]:
-        return []
+        @tool(
+            description="Use this tool to end your turn and let another agent take over. You must supply the ID of an agent on your team."
+        )
+        def end_turn(agent_id: str):
+            agent = next((a for a in self.agents if a.id == agent_id), None)
+            if agent is None:
+                raise ValueError(
+                    f"Agent with id {agent_id} not found in team {self.name}"
+                )
+            self._active_agent = agent
+            return f"Agent {agent.name} has been selected to take the next turn."
+
+        return [end_turn]
 
     def _run(self, context: "AgentContext"):
         context.add_tools(self.get_tools())
@@ -107,30 +119,10 @@ class Team(BaseAgent):
 class RoundRobinTeam(Team):
     _agent_index: int = 0
 
+    def get_tools(self) -> list[Tool]:
+        return []
+
     def post_run_hook(self, context: "AgentContext", actions: "AgentResult") -> Agent:
         if not actions.tool_results:
             self._agent_index = (self._agent_index + 1) % len(self.agents)
             self.set_agent(self.agents[self._agent_index])
-
-
-class TurnTeam(Team):
-    """
-    A team that allows each agent to select the next agent to take a turn.
-    """
-
-    instructions: str = """Your turn will continue until you use the `end_turn` tool to select another agent."""
-
-    def get_tools(self) -> list[Tool]:
-        @tool(
-            description="Use this tool to end your turn and let another agent take over. You must supply the ID of an agent on your team."
-        )
-        def end_turn(agent_id: str):
-            agent = next((a for a in self.agents if a.id == agent_id), None)
-            if agent is None:
-                raise ValueError(
-                    f"Agent with id {agent_id} not found in team {self.name}"
-                )
-            self._active_agent = agent
-            return f"Agent {agent.name} has been selected to take the next turn."
-
-        return [end_turn]
