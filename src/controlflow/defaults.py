@@ -8,7 +8,7 @@ import controlflow.utilities.logging
 from controlflow.llm.models import BaseChatModel
 from controlflow.utilities.general import ControlFlowModel
 
-from .agents import Agent, Team, TurnTeam
+from .agents import Agent, Team
 from .events.history import History, InMemoryHistory
 from .llm.models import _get_initial_default_model, model_from_string
 
@@ -19,7 +19,7 @@ logger = controlflow.utilities.logging.get_logger(__name__)
 _default_model = _get_initial_default_model()
 _default_history = InMemoryHistory()
 _default_agent = Agent(name="Marvin")
-_default_team = TurnTeam
+_default_team = Team
 
 
 class Defaults(ControlFlowModel):

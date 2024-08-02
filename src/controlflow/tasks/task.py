@@ -134,11 +134,27 @@ class Task(ControlFlowModel):
         objective: str = None,
         result_type: Any = NOTSET,
         infer_parent: bool = True,
-        # TODO: deprecated July 2024
         agent: Optional["BaseAgent"] = None,
         agents: Optional[list["BaseAgent"]] = None,
         **kwargs,
     ):
+        """
+        Initialize a Task object.
+
+        Args:
+            objective (str, optional): The objective of the task. Defaults to None.
+            result_type (Any, optional): The type of the result. Defaults to NOTSET.
+            infer_parent (bool, optional): Whether to infer the parent task. Defaults to True.
+            agent (Optional[BaseAgent], optional): The agent associated with the task. Defaults to None.
+            agents (Optional[list[BaseAgent]], optional): The list of agents
+                associated with the task. These agents will automatically be
+                combined into a team. Defaults to None.
+            **kwargs: Additional keyword arguments.
+
+        Raises:
+            ValueError: If both 'agent' and 'agents' arguments are provided.
+
+        """
         # allow certain args to be provided as a positional args
         if result_type is not NOTSET:
             kwargs["result_type"] = result_type
