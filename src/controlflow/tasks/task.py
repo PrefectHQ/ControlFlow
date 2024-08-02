@@ -344,7 +344,7 @@ class Task(ControlFlowModel):
     def run(
         self,
         steps: Optional[int] = None,
-        agent: Optional[BaseAgent] = None,
+        agents: Optional[list[BaseAgent]] = None,
         raise_on_error: bool = True,
         flow: "Flow" = None,
     ) -> T:
@@ -371,7 +371,7 @@ class Task(ControlFlowModel):
         from controlflow.orchestration import Orchestrator
 
         orchestrator = Orchestrator(
-            tasks=[self], flow=flow, agents={self: agent} if agent else None
+            tasks=[self], flow=flow, agents={self: agents} if agents else None
         )
         orchestrator.run(steps=steps)
 
@@ -384,7 +384,7 @@ class Task(ControlFlowModel):
     async def run_async(
         self,
         steps: Optional[int] = None,
-        agent: Optional[BaseAgent] = None,
+        agents: Optional[list[BaseAgent]] = None,
         raise_on_error: bool = True,
         flow: "Flow" = None,
     ) -> T:
@@ -411,7 +411,7 @@ class Task(ControlFlowModel):
         from controlflow.orchestration import Orchestrator
 
         orchestrator = Orchestrator(
-            tasks=[self], flow=flow, agents={self: agent} if agent else None
+            tasks=[self], flow=flow, agents={self: agents} if agents else None
         )
         await orchestrator.run_async(steps=steps)
 
