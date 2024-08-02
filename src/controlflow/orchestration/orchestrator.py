@@ -7,6 +7,7 @@ from pydantic import Field, PrivateAttr, field_validator
 
 import controlflow
 from controlflow.agents.agent import BaseAgent
+from controlflow.agents.teams import Team
 from controlflow.events.base import Event
 from controlflow.flows import Flow
 from controlflow.orchestration.agent_context import AgentContext
@@ -65,6 +66,15 @@ class Orchestrator(ControlFlowModel):
     def _agents(cls, v):
         if v is None:
             v = {}
+
+        for task, agents in v.items():
+            if isinstance(agents, list):
+                if len(agents) == 1:
+                    agents = agents[0]
+                else:
+                    agents = Team(agents=agents)
+                v[task] = agents
+
         return v
 
     def __init__(self, **kwargs):
@@ -150,6 +160,7 @@ class Orchestrator(ControlFlowModel):
     def get_ready_tasks(self) -> list[Task]:
         all_tasks = self.flow.graph.upstream_tasks(self.tasks)
         ready_tasks = [t for t in all_tasks if t.is_ready()]
+
         if not ready_tasks:
             self._ready_task_counter += 1
             if self._ready_task_counter >= 3:
