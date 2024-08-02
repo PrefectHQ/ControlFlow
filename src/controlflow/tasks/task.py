@@ -6,7 +6,6 @@ from typing import (
     Any,
     Callable,
     GenericAlias,
-    Literal,
     Optional,
     TypeVar,
     Union,
@@ -25,7 +24,7 @@ from pydantic import (
 import controlflow
 from controlflow.agents import BaseAgent
 from controlflow.instructions import get_instructions
-from controlflow.tools import Tool
+from controlflow.tools import Tool, tool
 from controlflow.tools.talk_to_user import talk_to_user
 from controlflow.utilities.context import ctx
 from controlflow.utilities.general import (
@@ -100,10 +99,10 @@ class Task(ControlFlowModel):
     )
     status: TaskStatus = TaskStatus.PENDING
     result: T = None
-    result_type: Union[type[T], GenericAlias, _LiteralGenericAlias, None] = Field(
+    result_type: Union[type[T], GenericAlias, tuple, None] = Field(
         str,
         description="The expected type of the result. This should be a type"
-        ", generic alias, BaseModel subclass, pd.DataFrame, or pd.Series. "
+        ", generic alias, BaseModel subclass, or list of choices. "
         "Can be None if no result is expected or the agent should communicate internally.",
     )
     error: Union[str, None] = None
@@ -264,9 +263,11 @@ class Task(ControlFlowModel):
         return v
 
     @field_validator("result_type", mode="before")
-    def _turn_list_into_literal_result_type(cls, v):
+    def _ensure_result_type_is_list_if_literal(cls, v):
+        if isinstance(v, _LiteralGenericAlias):
+            v = v.__args__
         if isinstance(v, (list, tuple, set)):
-            return Literal[tuple(v)]  # type: ignore
+            v = tuple(v)
         return v
 
     @field_serializer("parent")
@@ -560,6 +561,85 @@ class Task(ControlFlowModel):
                 context=self.context,
             )
 
+    def create_success_tool(self) -> Tool:
+        """
+        Create an agent-compatible tool for marking this task as successful.
+        """
+        options = {}
+        instructions = None
+        result_schema = None
+
+        # if the result_type is a tuple of options, then we want the LLM to provide
+        # a single integer index instead of writing out the entire option
+        if isinstance(self.result_type, tuple):
+            result_schema = int
+            for i, option in enumerate(self.result_type):
+                try:
+                    serialized = TypeAdapter(type(option)).dump_python(option)
+                except PydanticSchemaGenerationError:
+                    serialized = repr(option)
+                options[i] = serialized
+            options_str = "\n\n".join(
+                f"Option {i}: {option}" for i, option in options.items()
+            )
+            instructions = f"""
+                Provide a single integer as the result, corresponding to the index
+                of your chosen option. You options are: {options_str}
+                """
+
+        # otherwise try to load the schema for the result type
+        elif self.result_type is not None:
+            try:
+                TypeAdapter(self.result_type)
+                result_schema = self.result_type
+            except PydanticSchemaGenerationError:
+                pass
+            if result_schema is None:
+                raise ValueError(
+                    f"Could not load or infer schema for result type {self.result_type}. "
+                    "Please use a custom type or add compatibility."
+                )
+
+        @tool(
+            name=f"mark_task_{self.id}_successful",
+            description=f"Mark task {self.id} as successful.",
+            instructions=instructions,
+            private=True,
+            include_return_description=False,
+        )
+        def succeed(result: result_schema) -> str:  # type: ignore
+            if self.is_successful():
+                raise ValueError(
+                    f"{self.friendly_name()} is already marked successful."
+                )
+            if options:
+                if result not in options:
+                    raise ValueError(f"Invalid option. Please choose one of {options}")
+                result = options[result]
+            self.mark_successful(result=result)
+            return f"{self.friendly_name()} marked successful."
+
+        return succeed
+
+    def create_fail_tool(self) -> Tool:
+        """
+        Create an agent-compatible tool for failing this task.
+        """
+
+        @tool(
+            name=f"mark_task_{self.id}_failed",
+            description=(
+                f"Mark task {self.id} as failed. Only use when technical errors prevent success. Provide a detailed reason for the failure."
+            ),
+            private=True,
+            include_return_description=False,
+        )
+        def fail(reason: str) -> str:
+            self.mark_failed(reason=reason)
+            return f"{self.friendly_name()} marked failed."
+
+        return fail
+
     # Deprecated ---------------------------
 
     @deprecated("Use Task.run(steps=1) instead.", version="0.9")
@@ -574,6 +654,11 @@ class Task(ControlFlowModel):
 def validate_result(result: Any, result_type: type[T]) -> T:
     if result_type is None and result is not None:
         raise ValueError("Task has result_type=None, but a result was provided.")
+    elif isinstance(result_type, tuple):
+        if result not in result_type:
+            raise ValueError(
+                f"Result {result} is not in the list of valid result types: {result_type}"
+            )
     elif result_type is not None:
         try:
             result = TypeAdapter(result_type).validate_python(result)
@@ -594,3 +679,22 @@ def validate_result(result: Any, result_type: type[T]) -> T:
         #     result = pd.Series(**result)
 
     return result
+
+
+def _generate_result_schema(result_type: type[T]) -> type[T]:
+    if result_type is None:
+        return None
+
+    result_schema = None
+    # try loading pydantic-compatible schemas
+    try:
+        TypeAdapter(result_type)
+        result_schema = result_type
+    except PydanticSchemaGenerationError:
+        pass
+    if result_schema is None:
+        raise ValueError(
+            f"Could not load or infer schema for result type {result_type}. "
+            "Please use a custom type or add compatibility."
+        )
+    return result_schema

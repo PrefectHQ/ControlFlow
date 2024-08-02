@@ -7,16 +7,11 @@ from pydantic import Field, PrivateAttr, field_validator
 
 import controlflow
 from controlflow.agents.agent import BaseAgent
-from controlflow.agents.teams import Team
 from controlflow.events.base import Event
 from controlflow.flows import Flow
 from controlflow.orchestration.agent_context import AgentContext
 from controlflow.orchestration.handler import Handler
 from controlflow.tasks.task import Task
-from controlflow.tools.orchestration import (
-    create_task_fail_tool,
-    create_task_success_tool,
-)
 from controlflow.tools.tools import Tool
 from controlflow.utilities.general import ControlFlowModel
 from controlflow.utilities.prefect import prefect_task as prefect_task
@@ -64,6 +59,8 @@ class Orchestrator(ControlFlowModel):
 
     @field_validator("agents", mode="before")
     def _agents(cls, v):
+        from controlflow.agents.teams import Team
+
         if v is None:
             v = {}
 
@@ -205,6 +202,6 @@ class Orchestrator(ControlFlowModel):
         tools.extend(self.flow.tools)
         for task in tasks:
             tools.extend(task.get_tools())
-            tools.append(create_task_success_tool(task=task))
-            tools.append(create_task_fail_tool(task=task))
+            tools.append(task.create_success_tool())
+            tools.append(task.create_fail_tool())
         return tools

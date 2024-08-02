@@ -312,3 +312,47 @@ class TestTaskPrompt:
         task = SimpleTask(prompt="{{ task.objective }}", objective="abc")
         prompt = task.get_prompt(context=agent_context)
         assert prompt == "abc"
+
+
+class TestResultType:
+    def test_int_result(self):
+        task = Task("choose 5", result_type=int)
+        task.mark_successful(result=5)
+        assert task.result == 5
+
+    def test_str_result(self):
+        task = Task("choose 5", result_type=str)
+        task.mark_successful(result="5")
+        assert task.result == "5"
+
+    def test_tuple_of_ints_result(self):
+        task = Task("choose 5", result_type=(4, 5, 6))
+        task.mark_successful(result=5)
+        assert task.result == 5
+
+    def test_tuple_of_ints_validates(self):
+        task = Task("choose 5", result_type=(4, 5, 6))
+        with pytest.raises(ValueError):
+            task.mark_successful(result=7)
+
+
+class TestSuccessTool:
+    def test_success_tool(self):
+        task = Task("choose 5", result_type=int)
+        tool = task.create_success_tool()
+        tool.run(input=dict(result=5))
+        assert task.is_successful()
+        assert task.result == 5
+
+    def test_success_tool_with_list_of_options(self):
+        task = Task('choose "good"', result_type=["bad", "good", "medium"])
+        tool = task.create_success_tool()
+        tool.run(input=dict(result=1))
+        assert task.is_successful()
+        assert task.result == "good"
+
+    def test_success_tool_with_list_of_options_requires_int(self):
+        task = Task('choose "good"', result_type=["bad", "good", "medium"])
+        tool = task.create_success_tool()
+        with pytest.raises(ValueError):
+            tool.run(input=dict(result="good"))
