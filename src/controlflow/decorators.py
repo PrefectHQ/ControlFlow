@@ -92,7 +92,7 @@ def flow(
         flow_kwargs = kwargs | (flow_kwargs or {})
 
         if thread is not None:
-            flow_kwargs.setdefault("thread", thread)
+            flow_kwargs.setdefault("thread_id", thread)
         if tools is not None:
             flow_kwargs.setdefault("tools", tools)
         if agents is not None:
