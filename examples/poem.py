@@ -1,5 +1,6 @@
-from controlflow import Agent, Task, flow, instructions, task
 from pydantic import BaseModel
+
+from controlflow import Agent, Task, flow, instructions, task
 
 
 class Name(BaseModel):

@@ -1,6 +1,7 @@
 import pytest
-from controlflow import Task
 from pydantic import BaseModel
+
+from controlflow import Task
 
 
 class Name(BaseModel):

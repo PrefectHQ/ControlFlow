@@ -1,7 +1,8 @@
 # uv pip install langchain-community, duckduckgo-search
 
-import controlflow as cf
 from langchain_community.tools import DuckDuckGoSearchRun
+
+import controlflow as cf
 
 summarizer = cf.Agent(
     name="Headline Summarizer",

@@ -1,7 +1,8 @@
 from unittest.mock import MagicMock
 
-import controlflow
 from langchain_community.tools import DuckDuckGoSearchRun
+
+import controlflow
 
 
 def test_ddg_tool(default_fake_llm, monkeypatch):

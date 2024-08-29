@@ -1,9 +1,10 @@
-import controlflow
-import controlflow.events.history
-import controlflow.llm
 import pydantic
 import pytest
 from langchain_openai import ChatOpenAI
+
+import controlflow
+import controlflow.events.history
+import controlflow.llm
 
 
 def test_default_model_failed_validation():

@@ -1,11 +1,12 @@
-import controlflow
 import pytest
+from langchain_openai import ChatOpenAI
+
+import controlflow
 from controlflow.agents import Agent
 from controlflow.flows import Flow
 from controlflow.instructions import instructions
 from controlflow.orchestration.agent_context import AgentContext
 from controlflow.tasks.task import Task
-from langchain_openai import ChatOpenAI
 
 
 class TestAgentInitialization:

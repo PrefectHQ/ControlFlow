@@ -1,4 +1,6 @@
 import pytest
+from pydantic import ValidationError
+
 from controlflow.agents.agent import Agent
 from controlflow.events.events import UserMessage
 from controlflow.flows import Flow
@@ -6,7 +8,6 @@ from controlflow.orchestration.agent_context import AgentContext
 from controlflow.orchestration.print_handler import PrintHandler
 from controlflow.tools import tool
 from controlflow.utilities.testing import SimpleTask
-from pydantic import ValidationError
 
 
 @pytest.fixture

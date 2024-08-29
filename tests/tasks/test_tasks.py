@@ -1,5 +1,6 @@
-import controlflow
 import pytest
+
+import controlflow
 from controlflow.agents import Agent
 from controlflow.flows import Flow
 from controlflow.instructions import instructions

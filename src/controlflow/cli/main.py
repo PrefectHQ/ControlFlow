@@ -4,10 +4,11 @@ from pathlib import Path
 import langchain_core
 import prefect
 import typer
-from controlflow import __version__
-from controlflow.utilities.rich import console
 from rich.table import Table
 from typer import Context, Exit
+
+from controlflow import __version__
+from controlflow.utilities.rich import console
 
 app = typer.Typer(no_args_is_help=True)
 
