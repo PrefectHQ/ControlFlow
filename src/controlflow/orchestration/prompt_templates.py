@@ -3,7 +3,6 @@ from typing import Optional
 from pydantic import model_validator
 
 from controlflow.agents.agent import Agent
-from controlflow.agents.teams import Team
 from controlflow.flows import Flow
 from controlflow.orchestration.agent_context import AgentContext
 from controlflow.tasks.task import Task
@@ -80,12 +79,6 @@ class FlowTemplate(Template):
             downstream_tasks=downstream_tasks.difference(self.context.tasks),
             **kwargs,
         )
-
-
-class TeamTemplate(Template):
-    template_path: str = "team.jinja"
-    team: Team
-    context: AgentContext
 
 
 class InstructionsTemplate(Template):

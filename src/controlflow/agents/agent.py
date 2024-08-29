@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 class BaseAgent(ControlFlowModel, abc.ABC):
     """
-    Base class for objects that can be used as agents in a flow, including Agents and Teams.
+    Base class for objects that can be used as agents in a flow, including Agents
     """
 
     id: str = Field(None)

@@ -31,7 +31,7 @@ These tasks are upstream of your assigned tasks.
 - Context: {{ task.context or "No additional context provided" }}
 - Depends on: {{ task.depends_on or "No upstream dependencies" }}
 - Parent: {{ task.parent or "No parent task" }}
-- Assigned agent or team: {{ task.get_agent().serialize_for_prompt() }}
+- Assigned agent: {{ task.get_agent().serialize_for_prompt() }}
 {% if task.user_access %}
 - User access: True
 {% endif %}
@@ -52,7 +52,7 @@ These tasks are downstream of your assigned tasks.
 - Context: {{ task.context or "No additional context provided" }}
 - Depends on: {{ task.depends_on or "No upstream dependencies" }}
 - Parent: {{ task.parent or "No parent task" }}
-- Assigned agent or team: {{ task.get_agent().serialize_for_prompt() }}
+- Assigned agent: {{ task.get_agent().serialize_for_prompt() }}
 {% if task.user_access %}
 - User access: True
 {% endif %}
