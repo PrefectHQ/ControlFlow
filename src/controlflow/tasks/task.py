@@ -22,7 +22,7 @@ from pydantic import (
 )
 
 import controlflow
-from controlflow.agents import BaseAgent
+from controlflow.agents import Agent
 from controlflow.instructions import get_instructions
 from controlflow.tools import Tool, tool
 from controlflow.tools.talk_to_user import talk_to_user
@@ -73,12 +73,12 @@ class Task(ControlFlowModel):
     instructions: Union[str, None] = Field(
         None, description="Detailed instructions for completing the task."
     )
-    agent: Optional[BaseAgent] = Field(
+    agent: Optional[Agent] = Field(
         None,
         description="The agent assigned to the task. "
         "If not provided, it will be inferred from the caller, parent task, flow, or global default. This agent is responsible for coordinating any other agents that are working on the task.",
     )
-    agents: list[BaseAgent] = Field(
+    agents: list[Agent] = Field(
         default_factory=list, description="A list of agents that will work on the task."
     )
     context: dict = Field(
@@ -141,8 +141,8 @@ class Task(ControlFlowModel):
             objective (str, optional): The objective of the task. Defaults to None.
             result_type (Any, optional): The type of the result. Defaults to NOTSET.
             infer_parent (bool, optional): Whether to infer the parent task. Defaults to True.
-            agent (Optional[BaseAgent], optional): The agent associated with the task. Defaults to None.
-            agents (Optional[list[BaseAgent]], optional): The list of agents
+            agent (Optional[Agent], optional): The agent associated with the task. Defaults to None.
+            agents (Optional[list[Agent]], optional): The list of agents
                 associated with the task. These agents will automatically be
                 combined into a team. Defaults to None.
             **kwargs: Additional keyword arguments.
@@ -284,7 +284,7 @@ class Task(ControlFlowModel):
         return dict(type=repr(result_type), schema=schema)
 
     @field_serializer("agent")
-    def _serialize_agents(self, agent: Optional[BaseAgent]):
+    def _serialize_agents(self, agent: Optional[Agent]):
         return self.get_agent().serialize_for_prompt()
 
     @field_serializer("tools")
@@ -332,7 +332,7 @@ class Task(ControlFlowModel):
     def run(
         self,
         steps: Optional[int] = None,
-        agents: Optional[list[BaseAgent]] = None,
+        agents: Optional[list[Agent]] = None,
         raise_on_error: bool = True,
         flow: "Flow" = None,
     ) -> T:
@@ -372,7 +372,7 @@ class Task(ControlFlowModel):
     async def run_async(
         self,
         steps: Optional[int] = None,
-        agents: Optional[list[BaseAgent]] = None,
+        agents: Optional[list[Agent]] = None,
         raise_on_error: bool = True,
         flow: "Flow" = None,
     ) -> T:
@@ -450,7 +450,7 @@ class Task(ControlFlowModel):
         """
         return self.is_incomplete() and all(t.is_complete() for t in self.depends_on)
 
-    def get_agent(self) -> BaseAgent:
+    def get_agent(self) -> Agent:
         if self.agent:
             return self.agent
         elif self.parent:
@@ -530,7 +530,7 @@ class Task(ControlFlowModel):
     def mark_skipped(self):
         self.set_status(TaskStatus.SKIPPED)
 
-    def generate_subtasks(self, instructions: str = None, agent: BaseAgent = None):
+    def generate_subtasks(self, instructions: str = None, agent: Agent = None):
         """
         Generate subtasks for this task based on the provided instructions.
         Subtasks can reuse the same tools and agents as this task.

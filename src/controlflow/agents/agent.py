@@ -42,19 +42,59 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class BaseAgent(ControlFlowModel, abc.ABC):
+class Agent(ControlFlowModel, abc.ABC):
     """
-    Base class for objects that can be used as agents in a flow, including Agents
+    Class for objects that can be used as agents in a flow
     """
 
+    model_config = dict(arbitrary_types_allowed=True)
+
     id: str = Field(None)
-    name: str
-    description: Optional[str] = None
-    instructions: Optional[str] = None
+    name: str = Field(description="The name of the agent.")
+    description: Optional[str] = Field(
+        None, description="A description of the agent, visible to other agents."
+    )
+    instructions: Optional[str] = Field(
+        "You are a diligent AI assistant. You complete your tasks efficiently and without error.",
+        description="Instructions for the agent, private to this agent.",
+    )
+    prompt: Optional[str] = Field(
+        None,
+        description="A system template for the agent. The template should be formatted as a jinja2 template.",
+    )
+    tools: list[Callable] = Field(
+        [], description="List of tools available to the agent."
+    )
+    user_access: bool = Field(
+        False,
+        description="If True, the agent is given tools for interacting with a human user.",
+    )
+    memory: Optional[Memory] = Field(
+        default=None,
+        # default_factory=ThreadMemory,
+        description="The memory object used by the agent. If not specified, an in-memory memory object will be used. Pass None to disable memory.",
+        exclude=True,
+    )
+
+    # note: `model` should be typed as Optional[BaseChatModel] but V2 models can't have
+    # V1 attributes without erroring, so we have to use Any.
+    model: Optional[Any] = Field(
+        None,
+        description="The LangChain BaseChatModel used by the agent. If not provided, the default model will be used.",
+        exclude=True,
+    )
+
+    _cm_stack: list[contextmanager] = []
 
     def __init__(self, name: str = None, **kwargs):
         if name is not None:
             kwargs["name"] = name
+
+        if additional_instructions := get_instructions():
+            kwargs["instructions"] = (
+                kwargs.get("instructions")
+                or "" + "\n" + "\n".join(additional_instructions)
+            ).strip()
 
         super().__init__(**kwargs)
 
@@ -73,9 +113,76 @@ class BaseAgent(ControlFlowModel, abc.ABC):
                 type(self).__name__,
                 self.name,
                 self.description,
+                self.prompt,
                 self.instructions,
             )
         )
+
+    @field_serializer("tools")
+    def _serialize_tools(self, tools: list[Callable]):
+        tools = controlflow.tools.as_tools(tools)
+        # tools are Pydantic 1 objects
+        return [t.dict(include={"name", "description"}) for t in tools]
+
+    def serialize_for_prompt(self) -> dict:
+        dct = self.model_dump(
+            include={"name", "id", "description", "tools", "user_access"}
+        )
+        if not dct["user_access"]:
+            dct.pop("user_access")
+        return dct
+
+    def get_model(self, tools: list["Tool"] = None) -> BaseChatModel:
+        """
+        Retrieve the LLM model for this agent
+        """
+        model = self.model or controlflow.defaults.model
+        if model is None:
+            raise ValueError(
+                f"Agent {self.name}: No model provided and no default model could be loaded."
+            )
+        if tools:
+            model = model.bind_tools(as_lc_tools(tools))
+        return model
+
+    def get_llm_rules(self) -> LLMRules:
+        """
+        Retrieve the LLM rules for this agent's model
+        """
+        return controlflow.llm.rules.rules_for_model(self.get_model())
+
+    def get_tools(self) -> list["Tool"]:
+        from controlflow.tools.talk_to_user import talk_to_user
+
+        tools = self.tools.copy()
+        if self.user_access:
+            tools.append(talk_to_user)
+        if self.memory is not None:
+            tools.extend(self.memory.get_tools())
+
+        return as_tools(tools)
+
+    def get_prompt(self, context: "AgentContext") -> str:
+        from controlflow.orchestration import prompt_templates
+
+        template = prompt_templates.AgentTemplate(
+            template=self.prompt,
+            agent=self,
+            context=context,
+        )
+        return template.render()
+
+    @contextmanager
+    def create_context(self):
+        with ctx(agent=self):
+            yield self
+
+    def __enter__(self):
+        self._cm_stack.append(self.create_context())
+        return self._cm_stack[-1].__enter__()
+
+    def __exit__(self, *exc_info):
+        return self._cm_stack.pop().__exit__(*exc_info)
 
     def run(
         self,
@@ -140,151 +247,6 @@ class BaseAgent(ControlFlowModel, abc.ABC):
             tasks=tasks, flow=flow, agents={t: self for t in tasks}
         )
         await orchestrator.run_async(steps=steps)
-
-    @abc.abstractmethod
-    def _run(self, context: "AgentContext") -> "AgentActions":
-        raise NotImplementedError()
-
-    async def _run_async(self, context: "AgentContext") -> "AgentActions":
-        return self._run(context)
-
-
-class Agent(BaseAgent):
-    model_config = dict(arbitrary_types_allowed=True)
-
-    name: str = Field(description="The name of the agent.")
-    description: Optional[str] = Field(
-        None, description="A description of the agent, visible to other agents."
-    )
-    prompt: Optional[str] = Field(
-        None,
-        description="A prompt to display as a system message to the agent."
-        "Prompts are formatted as jinja templates, with keywords `agent: Agent` and `context: AgentContext`.",
-    )
-
-    instructions: Optional[str] = Field(
-        "You are a diligent AI assistant. You complete your tasks efficiently and without error.",
-        description="Instructions for the agent, private to this agent.",
-    )
-    tools: list[Callable] = Field(
-        [], description="List of tools available to the agent."
-    )
-    user_access: bool = Field(
-        False,
-        description="If True, the agent is given tools for interacting with a human user.",
-    )
-    prompt: Optional[str] = Field(
-        None,
-        description="A system template for the agent. The template should be formatted as a jinja2 template.",
-    )
-
-    memory: Optional[Memory] = Field(
-        default=None,
-        # default_factory=ThreadMemory,
-        description="The memory object used by the agent. If not specified, an in-memory memory object will be used. Pass None to disable memory.",
-        exclude=True,
-    )
-
-    # note: `model` should be typed as Optional[BaseChatModel] but V2 models can't have
-    # V1 attributes without erroring, so we have to use Any.
-    model: Optional[Any] = Field(
-        None,
-        description="The LangChain BaseChatModel used by the agent. If not provided, the default model will be used.",
-        exclude=True,
-    )
-
-    _cm_stack: list[contextmanager] = []
-
-    @field_serializer("tools")
-    def _serialize_tools(self, tools: list[Callable]):
-        tools = controlflow.tools.as_tools(tools)
-        # tools are Pydantic 1 objects
-        return [t.dict(include={"name", "description"}) for t in tools]
-
-    def __init__(self, *args, **kwargs):
-        if additional_instructions := get_instructions():
-            kwargs["instructions"] = (
-                kwargs.get("instructions")
-                or "" + "\n" + "\n".join(additional_instructions)
-            ).strip()
-
-        super().__init__(*args, **kwargs)
-
-    def _generate_id(self):
-        """
-        Helper function to generate a stable, short, semi-unique ID for the agent.
-        """
-        return hash_objects(
-            (
-                type(self).__name__,
-                self.name,
-                self.description,
-                self.prompt,
-                self.instructions,
-            )
-        )
-
-    def serialize_for_prompt(self) -> dict:
-        dct = self.model_dump(
-            include={"name", "id", "description", "tools", "user_access"}
-        )
-        # seeing user access = False can confuse agents on tasks with user access
-        if not dct["user_access"]:
-            dct.pop("user_access")
-        return dct
-
-    def get_model(self, tools: list["Tool"] = None) -> BaseChatModel:
-        """
-        Retrieve the LLM model for this agent
-        """
-        model = self.model or controlflow.defaults.model
-        if model is None:
-            raise ValueError(
-                f"Agent {self.name}: No model provided and no default model could be loaded."
-            )
-        if tools:
-            model = model.bind_tools(as_lc_tools(tools))
-        return model
-
-    def get_llm_rules(self) -> LLMRules:
-        """
-        Retrieve the LLM rules for this agent's model
-        """
-        return controlflow.llm.rules.rules_for_model(self.get_model())
-
-    def get_tools(self) -> list["Tool"]:
-        from controlflow.tools.talk_to_user import talk_to_user
-
-        tools = self.tools.copy()
-        if self.user_access:
-            tools.append(talk_to_user)
-        if self.memory is not None:
-            tools.extend(self.memory.get_tools())
-
-        return as_tools(tools)
-
-    def get_prompt(self, context: "AgentContext") -> str:
-        from controlflow.orchestration import prompt_templates
-
-        template = prompt_templates.AgentTemplate(
-            template=self.prompt,
-            agent=self,
-            context=context,
-        )
-        return template.render()
-
-    @contextmanager
-    def create_context(self):
-        with ctx(agent=self):
-            yield self
-
-    def __enter__(self):
-        # use stack so we can enter the context multiple times
-        self._cm_stack.append(self.create_context())
-        return self._cm_stack[-1].__enter__()
-
-    def __exit__(self, *exc_info):
-        return self._cm_stack.pop().__exit__(*exc_info)
 
     def _run(self, context: "AgentContext") -> "AgentActions":
         context.add_tools(self.get_tools())
