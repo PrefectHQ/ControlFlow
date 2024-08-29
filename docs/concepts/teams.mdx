@@ -1,0 +1,99 @@
+# Teams
+
+Teams in ControlFlow represent a group of agents that can collaborate to complete tasks within a workflow. They provide a way to organize and manage multiple agents, allowing for more complex and specialized task execution.
+
+When you pass multiple agents to a task, ControlFlow automatically creates a team to manage the collaboration between those agents. You can also create teams explicitly and assign them to tasks directly.
+
+## Creating Teams
+
+To create a team, use the `Team` class:
+
+```python
+from controlflow import Team, Agent
+
+researcher = Agent(name="Researcher", description="Specializes in data gathering and analysis")
+writer = Agent(name="Writer", description="Excels at content creation and editing")
+
+research_team = Team(
+    name="Research Team",
+    agents=[researcher, writer],
+    description="A team dedicated to producing well-researched content",
+    instructions="Collaborate to create thoroughly researched and well-written reports"
+)
+```
+
+In this example, we create a team named "Research Team" with two agents: a researcher and a writer. The team has its own description and instructions that guide its overall behavior.
+
+## Team Properties
+
+A team has the following key properties:
+
+- `name`: The name of the team, which serves as an identifier.
+- `agents`: A list of Agent objects that are part of the team.
+- `description`: A brief description of the team's purpose or specialization.
+- `instructions`: General instructions or guidelines for the team to follow during task execution.
+- `prompt`: An optional prompt template that can be used to generate system messages for the team.
+
+## Assigning Teams to Tasks
+
+Teams can be assigned to tasks just like individual agents:
+
+```python
+import controlflow as cf
+
+research_task = cf.Task(
+    objective="Create a comprehensive report on renewable energy trends",
+    agents=[research_team]
+)
+```
+
+When a team is assigned to a task, ControlFlow will manage the collaboration between team members to complete the task.
+
+## Team Behavior and Collaboration
+
+The most important aspect of a team is how agents collaborate to complete tasks. ControlFlow invokes one agent at a time, so the key question is how to select the next agent to work on the task.
+
+The default behavior is to provide the agent with a tool that it can use to end its turn and pass control to the next agent. This tool is called `end_turn` and is automatically available to all agents.
+
+### Customizing Team Behavior
+
+You can customize a team's behavior by creating a subclass of `Team` and implementing your own logic for selecting the next agent. This allows you to define more complex collaboration patterns, such as round-robin, weighted selection, or context-based selection.
+
+Each team has an "active" agent that will be invoked next. You can see the active agent at any time by calling `team.get_agent()`. To change the active agent, call `team.set_agent(agent=<an agent>)`.
+
+Here is an overview of how you might change the active agent:
+
+#### With a tool
+The default `Team` behavior uses a tool to change agents. When an agent uses the tool, it must identify the next agent to work on the task, and the tool calls `set_agent()` appropriately.
+
+#### With a pre-run hook
+You can override the team's `pre_run_hook` method to set the active agent before the task starts. This method is called before the task is executed, allowing you to base your decision on all available information. For example, you could use this hook to use another agent to decide which agent should start the task.
+
+#### With a post-run hook
+You can override the team's `post_run_hook` method to set the active agent after the task is executed. This method is called after the task is executed, allowing you to base your decision on the results of the task. For example, you could use this hook to select the next agent in a round-robin fashion, but only if the current agent didn't request to use a tool.
+
+#### Manually
+You can manually set the active agent at any time by calling `team.set_agent(agent=<an agent>)`. This gives you full control over the agent selection process.
+
+This code shows the various ways you can customize a team's behavior:
+```python
+
+import controlflow as cf
+
+class CustomTeam(cf.Team):
+    # override the default behavior of creating an end_turn tool
+    provide_end_turn_tool: bool = False
+
+    def get_tools(self):
+        # return a tool that calls self.set_agent(agent) 
+        # note: if `get_tools()` is overriden, `provide_end_turn_tool` is ignored
+        return []
+
+    def pre_run_hook(self, context: "AgentContext"):
+        # call self.set_agent(agent) to set the agent
+        pass
+
+    def post_run_hook(self, context: "AgentContext", actions: "AgentActions"):
+        # call self.set_agent(agent) to set the agent
+        pass
+```

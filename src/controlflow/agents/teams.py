@@ -3,10 +3,12 @@ from typing import TYPE_CHECKING, Optional
 
 from pydantic import Field, field_validator
 
+from controlflow.orchestration.agent_context import AgentContext
+from controlflow.tasks.task import Task
 from controlflow.tools.tools import Tool, tool
 from controlflow.utilities.general import hash_objects
 
-from .agent import Agent, AgentResult, BaseAgent
+from .agent import Agent, AgentActions, BaseAgent
 
 if TYPE_CHECKING:
     from controlflow.orchestration.agent_context import AgentContext
@@ -19,7 +21,7 @@ class Team(BaseAgent):
     A team is a group of agents that can be assigned to a task.
     """
 
-    agents: list[Agent] = Field(description="The agents on the team.")
+    agents: list[BaseAgent] = Field(description="The agents on the team.")
     name: str = Field("Team of Agents", description="The name of the team.")
     description: Optional[str] = None
     instructions: Optional[str] = Field(
@@ -30,6 +32,10 @@ class Team(BaseAgent):
         None,
         description="A prompt to display as an instruction to any agent selected as part of this team (or a nested team). "
         "Prompts are formatted as jinja templates, with keywords `team: Team` and `context: AgentContext`.",
+    )
+    provide_end_turn_tool: bool = Field(
+        True,
+        description="Whether to provide agents with a tool for ending their turn and choosing a new agent.",
     )
 
     _active_agent: Agent = None
@@ -78,7 +84,7 @@ class Team(BaseAgent):
         )
         return template.render()
 
-    def get_tools(self) -> list[Tool]:
+    def create_end_turn_tool(self):
         @tool(
             description="Use this tool to end your turn and let another agent take over. You must supply the ID of an agent on your team."
         )
@@ -91,7 +97,12 @@ class Team(BaseAgent):
             self._active_agent = agent
             return f"Agent {agent.name} has been selected to take the next turn."
 
-        return [end_turn]
+        return end_turn
+
+    def get_tools(self) -> list[Tool]:
+        if self.provide_end_turn_tool:
+            return [self.create_end_turn_tool()]
+        return []
 
     def _run(self, context: "AgentContext"):
         context.add_tools(self.get_tools())
@@ -112,17 +123,31 @@ class Team(BaseAgent):
     def pre_run_hook(self, context: "AgentContext"):
         pass
 
-    def post_run_hook(self, context: "AgentContext", actions: "AgentResult"):
+    def post_run_hook(self, context: "AgentContext", actions: "AgentActions"):
         pass
 
 
 class RoundRobinTeam(Team):
+    provide_end_turn_tool: bool = False
     _agent_index: int = 0
 
-    def get_tools(self) -> list[Tool]:
-        return []
-
-    def post_run_hook(self, context: "AgentContext", actions: "AgentResult") -> Agent:
+    def post_run_hook(self, context: "AgentContext", actions: "AgentActions") -> Agent:
         if not actions.tool_results:
             self._agent_index = (self._agent_index + 1) % len(self.agents)
             self.set_agent(self.agents[self._agent_index])
+
+
+class ModeratorTeam(Team):
+    moderator: BaseAgent = Field(
+        ...,
+        description="The agent that will moderate the team. This agent will not be assigned tasks, but will be responsible for selecting the next agent on every turn.",
+    )
+    provide_end_turn_tool: bool = False
+
+    def pre_run_hook(self, context: AgentContext):
+        agent_task = Task(
+            objective="Select the next agent to take a turn",
+            agent=self.moderator,
+            result_type=[a],
+        )
+        return super().pre_run_hook(context)

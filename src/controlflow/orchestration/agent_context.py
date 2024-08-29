@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 from pydantic import field_validator
 
-from controlflow.agents.agent import Agent, AgentResult
+from controlflow.agents.agent import Agent, AgentActions
 from controlflow.events.base import Event
 from controlflow.events.message_compiler import MessageCompiler
 from controlflow.flows import Flow
@@ -90,4 +90,4 @@ class AgentContext(ControlFlowModel):
         return messages
 
 
-AgentResult.model_rebuild()
+AgentActions.model_rebuild()

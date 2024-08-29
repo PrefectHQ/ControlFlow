@@ -78,10 +78,16 @@ class BaseAgent(ControlFlowModel, abc.ABC):
         )
 
     def run(
-        self, tasks: list["Task"], steps: Optional[int] = None, flow: "Flow" = None
+        self,
+        messages: Optional[list[str]] = None,
+        tasks: Optional[list["Task"]] = None,
+        steps: Optional[int] = None,
+        flow: "Flow" = None,
     ):
-        from controlflow.flows import get_flow
+        from controlflow.events.events import UserMessage
+        from controlflow.flows import Flow, get_flow
         from controlflow.orchestration import Orchestrator
+        from controlflow.tasks import Task
 
         flow = get_flow()
         if flow is None:
@@ -97,6 +103,12 @@ class BaseAgent(ControlFlowModel, abc.ABC):
                         "recommended, because the agent's history will be lost."
                     )
                 flow = Flow()
+
+        if messages:
+            flow.add_events([UserMessage(content=m) for m in messages])
+
+        if tasks is None:
+            tasks = [Task(objective="Follow your instructions.", result_type=None)]
 
         orchestrator = Orchestrator(
             tasks=tasks, flow=flow, agents={t: self for t in tasks}
@@ -130,10 +142,10 @@ class BaseAgent(ControlFlowModel, abc.ABC):
         await orchestrator.run_async(steps=steps)
 
     @abc.abstractmethod
-    def _run(self, context: "AgentContext") -> "AgentResult":
+    def _run(self, context: "AgentContext") -> "AgentActions":
         raise NotImplementedError()
 
-    async def _run_async(self, context: "AgentContext") -> "AgentResult":
+    async def _run_async(self, context: "AgentContext") -> "AgentActions":
         return self._run(context)
 
 
@@ -274,7 +286,7 @@ class Agent(BaseAgent):
     def __exit__(self, *exc_info):
         return self._cm_stack.pop().__exit__(*exc_info)
 
-    def _run(self, context: "AgentContext") -> "AgentResult":
+    def _run(self, context: "AgentContext") -> "AgentActions":
         context.add_tools(self.get_tools())
         context.add_instructions(get_instructions())
         messages = context.compile_messages(agent=self)
@@ -284,9 +296,9 @@ class Agent(BaseAgent):
             context.handle_event(event)
             events.append(event)
 
-        return AgentResult(agent=self, context=context, events=events)
+        return AgentActions(agent=self, context=context, events=events)
 
-    async def _run_async(self, context: "AgentContext") -> "AgentResult":
+    async def _run_async(self, context: "AgentContext") -> "AgentActions":
         context.add_tools(self.get_tools())
         context.add_instructions(get_instructions())
         messages = context.compile_messages(agent=self)
@@ -297,7 +309,7 @@ class Agent(BaseAgent):
             context.handle_event(event)
             events.append(event)
 
-        return AgentResult(agent=self, context=context, events=events)
+        return AgentActions(agent=self, context=context, events=events)
 
     def _run_model(
         self,
@@ -370,9 +382,9 @@ class Agent(BaseAgent):
             yield ToolResultEvent(agent=self, tool_call=tool_call, tool_result=result)
 
 
-class AgentResult(ControlFlowModel):
+class AgentActions(ControlFlowModel):
     """
-    A result from running an agent
+    The actions taken by an agent
     """
 
     agent: Agent
