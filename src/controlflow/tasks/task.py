@@ -75,8 +75,11 @@ class Task(ControlFlowModel):
     )
     agent: Optional[BaseAgent] = Field(
         None,
-        description="The agent or team of agents assigned to the task. "
-        "If not provided, it will be inferred from the parent task, flow, or global default.",
+        description="The agent assigned to the task. "
+        "If not provided, it will be inferred from the caller, parent task, flow, or global default. This agent is responsible for coordinating any other agents that are working on the task.",
+    )
+    agents: list[BaseAgent] = Field(
+        default_factory=list, description="A list of agents that will work on the task."
     )
     context: dict = Field(
         default_factory=dict,
@@ -111,10 +114,6 @@ class Task(ControlFlowModel):
         description="Tools available to every agent working on this task.",
     )
     user_access: bool = False
-    private: bool = Field(
-        False,
-        description="Work on private tasks is not visible to agents other than those assigned to the task.",
-    )
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     max_iterations: Optional[int] = Field(
         default_factory=lambda: controlflow.settings.max_task_iterations,
@@ -133,8 +132,6 @@ class Task(ControlFlowModel):
         objective: str = None,
         result_type: Any = NOTSET,
         infer_parent: bool = True,
-        agent: Optional["BaseAgent"] = None,
-        agents: Optional[list["BaseAgent"]] = None,
         **kwargs,
     ):
         """
@@ -167,15 +164,6 @@ class Task(ControlFlowModel):
                 kwargs.get("instructions")
                 or "" + "\n" + "\n".join(additional_instructions)
             ).strip()
-
-        if agent and agents:
-            raise ValueError(
-                "The 'agent' argument cannot be used with the 'agents' argument."
-            )
-        elif agents:
-            kwargs["agent"] = agents
-        else:
-            kwargs["agent"] = agent
 
         super().__init__(**kwargs)
 
@@ -214,7 +202,6 @@ class Task(ControlFlowModel):
                 self.instructions,
                 str(self.result_type),
                 self.prompt,
-                self.private,
                 str(self.context),
             )
         )
@@ -229,7 +216,7 @@ class Task(ControlFlowModel):
         equal unless their set attributes satisfy an identity criteria, which is
         too strict.
         """
-        if type(self) == type(other):
+        if type(self) is type(other):
             d1 = dict(self)
             d2 = dict(other)
             # conver sets to lists for comparison
@@ -604,7 +591,6 @@ class Task(ControlFlowModel):
             name=f"mark_task_{self.id}_successful",
             description=f"Mark task {self.id} as successful.",
             instructions=instructions,
-            private=True,
             include_return_description=False,
         )
         def succeed(result: result_schema) -> str:  # type: ignore
@@ -631,7 +617,6 @@ class Task(ControlFlowModel):
             description=(
                 f"Mark task {self.id} as failed. Only use when technical errors prevent success. Provide a detailed reason for the failure."
             ),
-            private=True,
             include_return_description=False,
         )
         def fail(reason: str) -> str:
