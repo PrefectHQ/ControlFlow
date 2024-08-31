@@ -30,14 +30,6 @@ from controlflow.utilities.general import ControlFlowModel, hash_objects
 from .memory import Memory
 
 if TYPE_CHECKING:
-    from controlflow.events.events import (
-        AgentMessage,
-        ToolCallEvent,
-        ToolResultEvent,
-    )
-    from controlflow.flows.flow import Flow
-    from controlflow.orchestration.agent_context import AgentContext
-    from controlflow.tasks.task import Task
     from controlflow.tools.tools import Tool
 logger = logging.getLogger(__name__)
 
@@ -180,94 +172,15 @@ class Agent(ControlFlowModel, abc.ABC):
     def __exit__(self, *exc_info):
         return self._cm_stack.pop().__exit__(*exc_info)
 
-    def run(
-        self,
-        messages: Optional[list[str]] = None,
-        tasks: Optional[list["Task"]] = None,
-        steps: Optional[int] = None,
-        flow: "Flow" = None,
-    ):
-        from controlflow.events.events import UserMessage
-        from controlflow.flows import Flow, get_flow
-        from controlflow.orchestration import Orchestrator
-        from controlflow.tasks import Task
+    def run(self, *args, agents: list["Agent"] = None, **kwargs):
+        agents = agents or [] + [self]
+        task = controlflow.Task(*args, agents=agents, **kwargs)
+        return task.run()
 
-        flow = get_flow()
-        if flow is None:
-            if controlflow.settings.strict_flow_context:
-                raise ValueError(
-                    "Task.run() must be called within a flow context or with a "
-                    "flow argument if implicit flows are disabled."
-                )
-            else:
-                if steps:
-                    logger.warning(
-                        "Running a task with a steps argument but no flow is not "
-                        "recommended, because the agent's history will be lost."
-                    )
-                flow = Flow()
-
-        if messages:
-            flow.add_events([UserMessage(content=m) for m in messages])
-
-        if tasks is None:
-            tasks = [Task(objective="Follow your instructions.", result_type=None)]
-
-        orchestrator = Orchestrator(
-            tasks=tasks, flow=flow, agents={t: self for t in tasks}
-        )
-        orchestrator.run(steps=steps)
-
-    async def run_async(
-        self, tasks: list["Task"], steps: Optional[int] = None, flow: "Flow" = None
-    ):
-        from controlflow.flows import get_flow
-        from controlflow.orchestration import Orchestrator
-
-        flow = get_flow()
-        if flow is None:
-            if controlflow.settings.strict_flow_context:
-                raise ValueError(
-                    "Task.run() must be called within a flow context or with a "
-                    "flow argument if implicit flows are disabled."
-                )
-            else:
-                if steps:
-                    logger.warning(
-                        "Running a task with a steps argument but no flow is not "
-                        "recommended, because the agent's history will be lost."
-                    )
-                flow = Flow()
-
-        orchestrator = Orchestrator(
-            tasks=tasks, flow=flow, agents={t: self for t in tasks}
-        )
-        await orchestrator.run_async(steps=steps)
-
-    def _run(self, context: "AgentContext") -> "AgentActions":
-        context.add_tools(self.get_tools())
-        context.add_instructions(get_instructions())
-        messages = context.compile_messages(agent=self)
-        events = []
-
-        for event in self._run_model(messages=messages, tools=context.tools):
-            context.handle_event(event)
-            events.append(event)
-
-        return AgentActions(agent=self, context=context, events=events)
-
-    async def _run_async(self, context: "AgentContext") -> "AgentActions":
-        context.add_tools(self.get_tools())
-        context.add_instructions(get_instructions())
-        messages = context.compile_messages(agent=self)
-        events = []
-        async for event in self._run_model_async(
-            messages=messages, tools=context.tools
-        ):
-            context.handle_event(event)
-            events.append(event)
-
-        return AgentActions(agent=self, context=context, events=events)
+    async def run_async(self, *args, agents: list["Agent"] = None, **kwargs):
+        agents = agents or [] + [self]
+        task = controlflow.Task(*args, agents=agents, **kwargs)
+        return await task.run_async()
 
     def _run_model(
         self,
@@ -338,31 +251,3 @@ class Agent(ControlFlowModel, abc.ABC):
             yield ToolCallEvent(agent=self, tool_call=tool_call, message=response)
             result = await handle_tool_call_async(tool_call, tools=tools)
             yield ToolResultEvent(agent=self, tool_call=tool_call, tool_result=result)
-
-
-class AgentActions(ControlFlowModel):
-    """
-    The actions taken by an agent
-    """
-
-    agent: Agent
-    context: "AgentContext"
-    events: list[Event]
-
-    @property
-    def messages(self) -> list["AgentMessage"]:
-        from controlflow.events.events import AgentMessage
-
-        return [e for e in self.events if isinstance(e, AgentMessage)]
-
-    @property
-    def tool_calls(self) -> list["ToolCallEvent"]:
-        from controlflow.events.events import ToolCallEvent
-
-        return [e for e in self.events if isinstance(e, ToolCallEvent)]
-
-    @property
-    def tool_results(self) -> list["ToolResultEvent"]:
-        from controlflow.events.events import ToolResultEvent
-
-        return [e for e in self.events if isinstance(e, ToolResultEvent)]

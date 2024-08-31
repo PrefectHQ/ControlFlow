@@ -70,7 +70,7 @@ def demo(topic: str):
         context=dict(topic=topic),
         instructions="every agent should speak at least once. only one agent per turn. Keep responses 1-2 paragraphs max.",
     )
-    return task
+    task.run()
 
 
 if __name__ == "__main__":
