@@ -9,7 +9,7 @@ from controlflow.utilities.general import ControlFlowModel
 
 class TurnStrategy(ControlFlowModel, ABC):
     end_turn: bool = False
-    next_agent_id: Optional[str] = None
+    next_agent: Optional[Agent] = None
 
     @abstractmethod
     def get_tools(
@@ -25,7 +25,7 @@ class TurnStrategy(ControlFlowModel, ABC):
 
     def begin_turn(self):
         self.end_turn = False
-        self.next_agent_id = None
+        self.next_agent = None
 
     def should_end_turn(self) -> bool:
         return self.end_turn
@@ -45,7 +45,7 @@ def create_end_turn_tool(strategy: TurnStrategy) -> Tool:
     def end_turn() -> str:
         """End your turn."""
         strategy.end_turn = True
-        return "Turn ended."
+        return "Turn ended. Another agent will be selected."
 
     return end_turn
 
@@ -54,11 +54,12 @@ def create_delegate_tool(strategy: TurnStrategy, available_agents: List[Agent]) 
     @tool
     def delegate_to_agent(agent_id: str) -> str:
         """Delegate to another agent."""
-        if agent_id not in [a.id for a in available_agents]:
+        next_agent = next((a for a in available_agents if a.id == agent_id), None)
+        if next_agent is None:
             raise ValueError(f"Agent with ID {agent_id} not found or not available.")
         strategy.end_turn = True
-        strategy.next_agent_id = agent_id
-        return f"Delegated to agent {agent_id}"
+        strategy.next_agent = next_agent
+        return f"Delegated to agent {next_agent.name} with ID {agent_id}"
 
     return delegate_to_agent
 
@@ -87,12 +88,11 @@ class Popcorn(TurnStrategy):
     def get_next_agent(
         self, current_agent: Agent, available_agents: List[Agent]
     ) -> Agent:
-        if self.next_agent_id:
-            return next(
-                (a for a in available_agents if a.id == self.next_agent_id),
-                current_agent,
-            )
-        return current_agent
+        if self.next_agent and self.next_agent in available_agents:
+            return self.next_agent
+        return (
+            current_agent if current_agent in available_agents else available_agents[0]
+        )
 
 
 class Random(TurnStrategy):
@@ -116,6 +116,8 @@ class RoundRobin(TurnStrategy):
     def get_next_agent(
         self, current_agent: Agent, available_agents: List[Agent]
     ) -> Agent:
+        if current_agent not in available_agents:
+            return available_agents[0]
         current_index = available_agents.index(current_agent)
         next_index = (current_index + 1) % len(available_agents)
         return available_agents[next_index]
@@ -135,10 +137,11 @@ class Moderated(TurnStrategy):
     def get_next_agent(
         self, current_agent: Agent, available_agents: List[Agent]
     ) -> Agent:
-        if current_agent == self.moderator:
-            return next(
-                (a for a in available_agents if a.id == self.next_agent_id),
-                self.moderator,
+        if current_agent is self.moderator:
+            return (
+                self.next_agent
+                if self.next_agent in available_agents
+                else self.moderator
             )
         else:
             return self.moderator
