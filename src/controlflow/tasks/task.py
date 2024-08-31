@@ -42,7 +42,6 @@ from controlflow.utilities.tasks import (
 
 if TYPE_CHECKING:
     from controlflow.flows import Flow
-    from controlflow.orchestration.agent_context import AgentContext
 
 T = TypeVar("T")
 logger = get_logger(__name__)
@@ -67,19 +66,17 @@ COMPLETE_STATUSES = {TaskStatus.SUCCESSFUL, TaskStatus.FAILED, TaskStatus.SKIPPE
 
 class Task(ControlFlowModel):
     id: str = None
+    name: Optional[str] = Field(None, description="A name for the task.")
     objective: str = Field(
         ..., description="A brief description of the required result."
     )
     instructions: Union[str, None] = Field(
         None, description="Detailed instructions for completing the task."
     )
-    agent: Optional[Agent] = Field(
-        None,
-        description="The agent assigned to the task. "
-        "If not provided, it will be inferred from the caller, parent task, flow, or global default. This agent is responsible for coordinating any other agents that are working on the task.",
-    )
     agents: list[Agent] = Field(
-        default_factory=list, description="A list of agents that will work on the task."
+        default_factory=list,
+        description="A list of agents assigned to the task. "
+        "If not provided, it will be inferred from the caller, parent task, flow, or global default.",
     )
     context: dict = Field(
         default_factory=dict,
@@ -96,9 +93,7 @@ class Task(ControlFlowModel):
         default_factory=set, description="Tasks that this task depends on explicitly."
     )
     prompt: Optional[str] = Field(
-        None,
-        description="A prompt to display to the agent working on the task. "
-        "Prompts are formatted as jinja templates, with keywords `task: Task` and `context: AgentContext`.",
+        None, description="A prompt to display to the agent working on the task."
     )
     status: TaskStatus = TaskStatus.PENDING
     result: T = None
@@ -123,6 +118,7 @@ class Task(ControlFlowModel):
     _downstreams: set["Task"] = set()
     _iteration: int = 0
     _cm_stack: list[contextmanager] = []
+    _active_agent: Optional[Agent] = None
     _prefect_task: Optional[PrefectTrackingTask] = None
 
     model_config = dict(extra="forbid", arbitrary_types_allowed=True)
@@ -141,15 +137,9 @@ class Task(ControlFlowModel):
             objective (str, optional): The objective of the task. Defaults to None.
             result_type (Any, optional): The type of the result. Defaults to NOTSET.
             infer_parent (bool, optional): Whether to infer the parent task. Defaults to True.
-            agent (Optional[Agent], optional): The agent associated with the task. Defaults to None.
             agents (Optional[list[Agent]], optional): The list of agents
-                associated with the task. These agents will automatically be
-                combined into a team. Defaults to None.
+                associated with the task. Defaults to None.
             **kwargs: Additional keyword arguments.
-
-        Raises:
-            ValueError: If both 'agent' and 'agents' arguments are provided.
-
         """
         # allow certain args to be provided as a positional args
         if result_type is not NOTSET:
@@ -229,17 +219,6 @@ class Task(ControlFlowModel):
         serialized = self.model_dump(include={"id", "objective"})
         return f"{self.__class__.__name__}({', '.join(f'{key}={repr(value)}' for key, value in serialized.items())})"
 
-    @field_validator("agent", mode="before")
-    def _validate_agent(cls, v):
-        if isinstance(v, list):
-            if len(v) > 1:
-                v = controlflow.defaults.team(agents=v)
-            elif v:
-                v = v[0]
-            else:
-                v = None
-        return v
-
     @field_validator("parent", mode="before")
     def _default_parent(cls, v):
         if v is None:
@@ -283,20 +262,22 @@ class Task(ControlFlowModel):
 
         return dict(type=repr(result_type), schema=schema)
 
-    @field_serializer("agent")
-    def _serialize_agents(self, agent: Optional[Agent]):
-        return self.get_agent().serialize_for_prompt()
+    @field_serializer("agents")
+    def _serialize_agents(self, agents: list[Agent]):
+        return [agent.serialize_for_prompt() for agent in self.get_agents()]
 
     @field_serializer("tools")
     def _serialize_tools(self, tools: list[Callable]):
         return [t.serialize_for_prompt() for t in controlflow.tools.as_tools(tools)]
 
     def friendly_name(self):
-        if len(self.objective) > 50:
-            objective = f'"{self.objective[:50]}..."'
+        if self.name:
+            name = self.name
+        elif len(self.objective) > 50:
+            name = f'"{self.objective[:50]}..."'
         else:
-            objective = f'"{self.objective}"'
-        return f"Task {self.id} ({objective})"
+            name = f'"{self.objective}"'
+        return f"Task {self.id} ({name})"
 
     def serialize_for_prompt(self) -> dict:
         """
@@ -306,9 +287,12 @@ class Task(ControlFlowModel):
 
     @property
     def subtasks(self) -> list["Task"]:
-        from controlflow.flows.graph import Graph
+        return list(sorted(self._subtasks, key=lambda t: t.created_at))
 
-        return Graph(tasks=self._subtasks).topological_sort()
+    # def subtask(self, **kwargs) -> "Task":
+    #     task = Task(**kwargs)
+    #     self.add_subtask(task)
+    #     return task
 
     def add_subtask(self, task: "Task"):
         """
@@ -332,7 +316,7 @@ class Task(ControlFlowModel):
     def run(
         self,
         steps: Optional[int] = None,
-        agents: Optional[list[Agent]] = None,
+        agent: Optional[Agent] = None,
         raise_on_error: bool = True,
         flow: "Flow" = None,
     ) -> T:
@@ -358,9 +342,7 @@ class Task(ControlFlowModel):
 
         from controlflow.orchestration import Orchestrator
 
-        orchestrator = Orchestrator(
-            tasks=[self], flow=flow, agents={self: agents} if agents else None
-        )
+        orchestrator = Orchestrator(tasks=[self], flow=flow, agent=agent)
         orchestrator.run(steps=steps)
 
         if self.is_successful():
@@ -372,7 +354,7 @@ class Task(ControlFlowModel):
     async def run_async(
         self,
         steps: Optional[int] = None,
-        agents: Optional[list[Agent]] = None,
+        agent: Optional[Agent] = None,
         raise_on_error: bool = True,
         flow: "Flow" = None,
     ) -> T:
@@ -398,9 +380,7 @@ class Task(ControlFlowModel):
 
         from controlflow.orchestration import Orchestrator
 
-        orchestrator = Orchestrator(
-            tasks=[self], flow=flow, agents={self: agents} if agents else None
-        )
+        orchestrator = Orchestrator(tasks=[self], flow=flow, agent=agent)
         await orchestrator.run_async(steps=steps)
 
         if self.is_successful():
@@ -450,11 +430,11 @@ class Task(ControlFlowModel):
         """
         return self.is_incomplete() and all(t.is_complete() for t in self.depends_on)
 
-    def get_agent(self) -> Agent:
-        if self.agent:
-            return self.agent
+    def get_agents(self) -> list[Agent]:
+        if self.agents:
+            return self.agents
         elif self.parent:
-            return self.parent.get_agent()
+            return self.parent.get_agents()
         else:
             from controlflow.flows import get_flow
 
@@ -463,25 +443,32 @@ class Task(ControlFlowModel):
             except ValueError:
                 flow = None
             if flow and flow.agent:
-                return flow.agent
+                return [flow.agent]
             else:
-                return controlflow.defaults.agent
+                return [controlflow.defaults.agent]
+
+    def set_active_agent(self, agent: Agent):
+        self._active_agent = agent
 
     def get_tools(self) -> list[Union[Tool, Callable]]:
         tools = self.tools.copy()
         if self.user_access:
             tools.append(talk_to_user)
+        tools.extend(
+            [
+                self.create_success_tool(),
+                self.create_fail_tool(),
+            ]
+        )
         return tools
 
-    def get_prompt(self, context: "AgentContext") -> str:
+    def get_prompt(self) -> str:
         """
         Generate a prompt to share information about the task with an agent.
         """
         from controlflow.orchestration import prompt_templates
 
-        template = prompt_templates.TaskTemplate(
-            template=self.prompt, task=self, context=context
-        )
+        template = prompt_templates.TaskTemplate(template=self.prompt, task=self)
         return template.render()
 
     def set_status(self, status: TaskStatus):
@@ -530,23 +517,23 @@ class Task(ControlFlowModel):
     def mark_skipped(self):
         self.set_status(TaskStatus.SKIPPED)
 
-    def generate_subtasks(self, instructions: str = None, agent: Agent = None):
-        """
-        Generate subtasks for this task based on the provided instructions.
-        Subtasks can reuse the same tools and agents as this task.
-        """
-        from controlflow.planning.plan import create_plan
+    # def generate_subtasks(self, instructions: str = None, agents: list[Agent] = None):
+    # """
+    # Generate subtasks for this task based on the provided instructions.
+    # Subtasks can reuse the same tools and agents as this task.
+    # """
+    # from controlflow.planning.plan import create_plan
 
-        # enter a context to set the parent task
-        with self:
-            create_plan(
-                self.objective,
-                instructions=instructions,
-                planning_agent=agent or self.agent,
-                agents=[self.agent],
-                tools=self.tools,
-                context=self.context,
-            )
+    # # enter a context to set the parent task
+    # with self:
+    #     create_plan(
+    #         self.objective,
+    #         instructions=instructions,
+    #         planning_agent=agents[0] if agents else self.agents[0],
+    #         agents=agents or self.agents,
+    #         tools=self.tools,
+    #         context=self.context,
+    #     )
 
     def create_success_tool(self) -> Tool:
         """

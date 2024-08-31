@@ -162,14 +162,10 @@ class Agent(ControlFlowModel, abc.ABC):
 
         return as_tools(tools)
 
-    def get_prompt(self, context: "AgentContext") -> str:
+    def get_prompt(self) -> str:
         from controlflow.orchestration import prompt_templates
 
-        template = prompt_templates.AgentTemplate(
-            template=self.prompt,
-            agent=self,
-            context=context,
-        )
+        template = prompt_templates.AgentTemplate(template=self.prompt, agent=self)
         return template.render()
 
     @contextmanager

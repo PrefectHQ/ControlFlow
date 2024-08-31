@@ -1,18 +1,19 @@
 import logging
 import math
-from collections import defaultdict
 from typing import Optional, TypeVar
 
-from pydantic import Field, PrivateAttr, field_validator
+from pydantic import Field, field_validator
 
 import controlflow
-from controlflow.agents.agent import BaseAgent
+from controlflow.agents.agent import Agent
 from controlflow.events.base import Event
+from controlflow.events.message_compiler import MessageCompiler
 from controlflow.flows import Flow
-from controlflow.orchestration.agent_context import AgentContext
+from controlflow.instructions import get_instructions
+from controlflow.llm.messages import BaseMessage
 from controlflow.orchestration.handler import Handler
 from controlflow.tasks.task import Task
-from controlflow.tools.tools import Tool
+from controlflow.tools.tools import Tool, tool
 from controlflow.utilities.general import ControlFlowModel
 from controlflow.utilities.prefect import prefect_task as prefect_task
 
@@ -25,29 +26,17 @@ __all__ = ["Orchestrator"]
 
 class Orchestrator(ControlFlowModel):
     """
-    The orchestrator is responsible for managing the flow of tasks and agents. It
-    is given objects that it is responsible for managing. At each iteration, the
-    orchestrator will select a task and an agent to complete the task.
+    The orchestrator is responsible for managing the flow of tasks and agents.
+    It is given tasks to execute in a flow context, and an agent to execute the
+    tasks. If other agents are assigned to any of the tasks, the orchestrator
+    will provide tools for delegating.
     """
 
     model_config = dict(arbitrary_types_allowed=True)
     flow: "Flow" = Field(description="The flow that the orchestrator is managing")
-    tasks: Optional[list[Task]] = Field(
-        None,
-        description="Target tasks to be completed by the orchestrator. "
-        "Note that any upstream dependencies will be completed as well. "
-        "If None, all tasks in the flow will be used.",
-    )
-    agents: dict[Task, BaseAgent] = Field(
-        default_factory=dict,
-        description="Optionally assign an agent to a task; this overrides the task's own configuration.",
-    )
+    agent: Agent = Field(description="The currently active agent")
+    tasks: list[Task] = Field(description="Tasks to be executed by the agent.")
     handlers: list[Handler] = Field(None, validate_default=True)
-
-    _task_iterations: dict[Task, int] = PrivateAttr(
-        default_factory=lambda: defaultdict(int)
-    )
-    _ready_task_counter: int = 0
 
     @field_validator("handlers", mode="before")
     def _handlers(cls, v):
@@ -57,26 +46,8 @@ class Orchestrator(ControlFlowModel):
             v = [PrintHandler()]
         return v or []
 
-    @field_validator("agents", mode="before")
-    def _agents(cls, v):
-        from controlflow.agents.teams import Team
-
-        if v is None:
-            v = {}
-
-        for task, agents in v.items():
-            if isinstance(agents, list):
-                if len(agents) == 1:
-                    agents = agents[0]
-                else:
-                    agents = Team(agents=agents)
-                v[task] = agents
-
-        return v
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.tasks = self.tasks or self.flow.tasks
         for task in self.tasks:
             self.flow.add_task(task)
 
@@ -86,6 +57,39 @@ class Orchestrator(ControlFlowModel):
         if event.persist:
             self.flow.add_events([event])
 
+    def set_agent(self, agent: Agent):
+        """Set the current active agent."""
+        self.agent = agent
+
+    def get_tools(self) -> list[Tool]:
+        tools = []
+        tools.extend(self.flow.tools)
+        for task in self.get_tasks("assigned"):
+            tools.extend(task.get_tools())
+        if len(self.get_available_agents() - {self.agent}) > 0:
+            tools.append(self.create_delegation_tool())
+        return tools
+
+    def get_available_agents(self) -> set[Agent]:
+        active_tasks = self.get_tasks("active")
+        return set(a for t in active_tasks for a in t.get_agents())
+
+    def create_delegation_tool(self) -> Tool:
+        @tool
+        def delegate_to_agent(agent_id: str) -> str:
+            """
+            Select another agent to take the next turn.
+            """
+            available_agents = {a.id: a for a in self.get_available_agents()}
+            if agent_id not in available_agents:
+                raise ValueError(
+                    f"Agent with ID {agent_id} not found or not available."
+                )
+            self.set_agent(available_agents[agent_id])
+            return f"Delegated to agent {agent_id}"
+
+        return delegate_to_agent
+
     def run(self, steps: Optional[int] = None):
         from controlflow.events.orchestrator_events import (
             OrchestratorEnd,
@@ -94,24 +98,16 @@ class Orchestrator(ControlFlowModel):
         )
 
         i = 0
-        while any(t.is_incomplete() for t in self.tasks) and i < (steps or math.inf):
+        while self.get_tasks("active") and i < (steps or math.inf):
+            breakpoint()
             self.handle_event(OrchestratorStart(orchestrator=self))
 
             try:
-                ready_tasks = self.get_ready_tasks()
-                if not ready_tasks:
-                    return
-                agent = self.get_agent(task=ready_tasks[0])
-                tasks = self.get_agent_tasks(agent=agent, ready_tasks=ready_tasks)
-                tools = self.get_tools(tasks=tasks)
-
-                context = AgentContext(
-                    flow=self.flow,
-                    tasks=tasks,
-                    tools=tools,
-                    handlers=self.handlers,
-                )
-                agent._run(context=context)
+                messages = self.compile_messages()
+                for event in self.agent._run_model(
+                    messages=messages, tools=self.get_tools()
+                ):
+                    self.handle_event(event)
 
             except Exception as exc:
                 self.handle_event(OrchestratorError(orchestrator=self, error=exc))
@@ -120,88 +116,101 @@ class Orchestrator(ControlFlowModel):
                 self.handle_event(OrchestratorEnd(orchestrator=self))
                 i += 1
 
-    async def run_async(self, steps: Optional[int] = None):
-        from controlflow.events.orchestrator_events import (
-            OrchestratorEnd,
-            OrchestratorError,
-            OrchestratorStart,
+    def compile_prompt(self) -> str:
+        from controlflow.orchestration.prompt_templates import (
+            InstructionsTemplate,
+            TasksTemplate,
+            ToolTemplate,
         )
 
-        i = 0
-        while any(t.is_incomplete() for t in self.tasks) and i < (steps or math.inf):
-            self.handle_event(OrchestratorStart(orchestrator=self))
+        tools = self.get_tools()
 
-            try:
-                ready_tasks = self.get_ready_tasks()
-                if not ready_tasks:
-                    return
-                agent = self.get_agent(task=ready_tasks[0])
-                tasks = self.get_agent_tasks(agent=agent, ready_tasks=ready_tasks)
-                tools = self.get_tools(tasks=tasks)
+        prompts = [
+            self.agent.get_prompt(),
+            self.flow.get_prompt(),
+            TasksTemplate(tasks=self.get_tasks("active")).render(),
+            ToolTemplate(tools=tools).render(),
+            InstructionsTemplate(instructions=get_instructions()).render(),
+        ]
+        prompt = "\n\n".join([p for p in prompts if p])
+        return prompt
 
-                context = AgentContext(
-                    flow=self.flow,
-                    tasks=tasks,
-                    tools=tools,
-                    handlers=self.handlers,
-                )
-                await agent._run_async(context=context)
+    def compile_messages(self) -> list[BaseMessage]:
+        events = self.flow.get_events(limit=100)
 
-            except Exception as exc:
-                self.handle_event(OrchestratorError(orchestrator=self, error=exc))
-                raise
-            finally:
-                self.handle_event(OrchestratorEnd(orchestrator=self))
-                i += 1
+        compiler = MessageCompiler(
+            events=events,
+            llm_rules=self.agent.get_llm_rules(),
+            system_prompt=self.compile_prompt(),
+        )
+        messages = compiler.compile_to_messages(agent=self.agent)
+        return messages
 
-    def get_ready_tasks(self) -> list[Task]:
-        all_tasks = self.flow.graph.upstream_tasks(self.tasks)
-        ready_tasks = [t for t in all_tasks if t.is_ready()]
-
-        if not ready_tasks:
-            self._ready_task_counter += 1
-            if self._ready_task_counter >= 3:
-                raise ValueError("No tasks are ready to run. This is unexpected.")
-        else:
-            self._ready_task_counter = 0
-        return ready_tasks
-
-    def get_agent_tasks(self, agent: BaseAgent, ready_tasks: list[Task]) -> list[Task]:
+    def get_tasks(self, filter: str = "assigned") -> list[Task]:
         """
-        Get the subset of ready tasks that the agent is assigned to.
+        Collect tasks based on the specified filter.
+
+        Args:
+            filter (str): Determines which tasks to return.
+                - "active": Tasks ready to execute (no unmet dependencies).
+                - "assigned": Active tasks assigned to the current agent.
+                - "all": All tasks including subtasks and ancestors.
+
+        Returns:
+            list[Task]: List of tasks based on the specified filter.
         """
-        agent_tasks = []
-        for task in ready_tasks:
-            if agent is self.get_agent(task):
-                if task._iteration >= (task.max_iterations or math.inf):
-                    logger.warning(
-                        f'Task "{task.friendly_name()}" has exceeded max iterations and will be marked failed'
-                    )
-                    task.mark_failed(
-                        reason="Task was not completed before exceeding its maximum number of iterations."
-                    )
-                    continue
+        if filter not in ["active", "assigned", "all"]:
+            raise ValueError(f"Invalid filter: {filter}")
 
-                # if the task is pending, start it
-                if task.is_pending():
-                    task.mark_running()
+        all_tasks: list[Task] = []
+        active_tasks: list[Task] = []
 
-                task._iteration += 1
-                agent_tasks.append(task)
+        def collect_tasks(task: Task, is_root: bool = False):
+            if task not in all_tasks:
+                all_tasks.append(task)
+                if is_root and task.is_ready():
+                    active_tasks.append(task)
+                for subtask in task.subtasks:
+                    collect_tasks(subtask, is_root=is_root)
 
-        return agent_tasks
+        # Collect tasks from self.tasks (root tasks)
+        for task in self.tasks:
+            collect_tasks(task, is_root=True)
 
-    def get_agent(self, task: Task) -> BaseAgent:
-        if task in self.agents:
-            return self.agents[task]
-        else:
-            return task.get_agent()
+        if filter == "active":
+            return active_tasks
 
-    def get_tools(self, tasks: list[Task]) -> list[Tool]:
-        tools = []
-        tools.extend(self.flow.tools)
-        for task in tasks:
-            tools.extend(task.get_tools())
-            tools.append(task.create_success_tool())
-            tools.append(task.create_fail_tool())
-        return tools
+        if filter == "assigned":
+            return [task for task in active_tasks if self.agent in task.get_agents()]
+
+        # Collect ancestor tasks for "all" filter
+        for task in self.tasks:
+            current = task.parent
+            while current:
+                if current not in all_tasks:
+                    all_tasks.append(current)
+                current = current.parent
+
+        return all_tasks
+
+    def get_task_hierarchy(self) -> dict:
+        """
+        Build a hierarchical structure of all tasks.
+
+        Returns:
+            dict: A nested dictionary representing the task hierarchy,
+            where each task has 'task' and 'children' keys.
+        """
+        all_tasks = self.get_tasks("all")
+
+        hierarchy = {}
+        task_dict_map = {task.id: {"task": task, "children": []} for task in all_tasks}
+
+        for task in all_tasks:
+            if task.parent:
+                parent_dict = task_dict_map[task.parent.id]
+                parent_dict["children"].append(task_dict_map[task.id])
+            else:
+                hierarchy[task.id] = task_dict_map[task.id]
+
+        return hierarchy

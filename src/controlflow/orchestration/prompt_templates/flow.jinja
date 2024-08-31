@@ -1,6 +1,6 @@
 # Flow
 
-Here is context about the broader flow you are participating in.
+Here is context about the flow you are participating in.
 
 - Name: {{ flow.name }}
 {% if flow.description %}
@@ -10,52 +10,5 @@ Here is context about the broader flow you are participating in.
 Context:
 {% for key, value in flow.context.items() %}
 - {{ key }}: {{ value }}
-{% endfor %}
-{% endif %}
-
-{% if upstream_tasks %}
-## Upstream tasks
-
-These tasks are upstream of your assigned tasks.
-
-{% for task in upstream_tasks %}
-### Task {{ task.id }}
-- Objective: {{ task.objective }}
-- Status: {{ task.status }}
-{% if task.is_successful() -%}
-- Result: {{ task.result }}
-{%- endif %}
-{% if task.is_failed() -%}
-- Error: {{ task.error }}
-{%- endif %}
-- Context: {{ task.context or "No additional context provided" }}
-- Depends on: {{ task.depends_on or "No upstream dependencies" }}
-- Parent: {{ task.parent or "No parent task" }}
-- Assigned agent: {{ task.get_agent().serialize_for_prompt() }}
-{% if task.user_access %}
-- User access: True
-{% endif %}
-
-{% endfor %}
-{% endif %}
-
-{% if downstream_tasks %}
-## Downstream tasks
-
-These tasks are downstream of your assigned tasks.
-
-{% for task in downstream_tasks %}
-### Task {{ task.id }}
-- Objective: {{ task.objective }}
-- Instructions: {{ task.instructions }}
-- Result type: {{ task.result_type or "No result required" }}
-- Context: {{ task.context or "No additional context provided" }}
-- Depends on: {{ task.depends_on or "No upstream dependencies" }}
-- Parent: {{ task.parent or "No parent task" }}
-- Assigned agent: {{ task.get_agent().serialize_for_prompt() }}
-{% if task.user_access %}
-- User access: True
-{% endif %}
-
 {% endfor %}
 {% endif %}
