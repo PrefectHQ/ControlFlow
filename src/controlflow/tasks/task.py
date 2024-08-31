@@ -315,13 +315,12 @@ class Task(ControlFlowModel):
     @prefect_task(task_run_name=get_task_run_name)
     def run(
         self,
-        steps: Optional[int] = None,
         agent: Optional[Agent] = None,
         raise_on_error: bool = True,
         flow: "Flow" = None,
     ) -> T:
         """
-        Run the task for the specified number of steps or until it is complete
+        Run the task
         """
         from controlflow.flows import Flow, get_flow
 
@@ -333,17 +332,14 @@ class Task(ControlFlowModel):
                     "flow argument if implicit flows are disabled."
                 )
             else:
-                if steps:
-                    logger.warning(
-                        "Running a task with a steps argument but no flow is not "
-                        "recommended, because the agent's history will be lost."
-                    )
                 flow = Flow()
 
         from controlflow.orchestration import Orchestrator
 
-        orchestrator = Orchestrator(tasks=[self], flow=flow, agent=agent)
-        orchestrator.run(steps=steps)
+        orchestrator = Orchestrator(
+            tasks=[self], flow=flow, agent=agent or self.get_agents()[0]
+        )
+        orchestrator.run()
 
         if self.is_successful():
             return self.result
@@ -353,13 +349,12 @@ class Task(ControlFlowModel):
     @prefect_task(task_run_name=get_task_run_name)
     async def run_async(
         self,
-        steps: Optional[int] = None,
         agent: Optional[Agent] = None,
         raise_on_error: bool = True,
         flow: "Flow" = None,
     ) -> T:
         """
-        Run the task for the specified number of steps or until it is complete
+        Run the task
         """
         from controlflow.flows import Flow, get_flow
 
@@ -371,17 +366,14 @@ class Task(ControlFlowModel):
                     "flow argument if implicit flows are disabled."
                 )
             else:
-                if steps:
-                    logger.warning(
-                        "Running a task with a steps argument but no flow is not "
-                        "recommended, because the agent's history will be lost."
-                    )
                 flow = Flow()
 
         from controlflow.orchestration import Orchestrator
 
-        orchestrator = Orchestrator(tasks=[self], flow=flow, agent=agent)
-        await orchestrator.run_async(steps=steps)
+        orchestrator = Orchestrator(
+            tasks=[self], flow=flow, agent=agent or self.get_agents()[0]
+        )
+        await orchestrator.run_async()
 
         if self.is_successful():
             return self.result
