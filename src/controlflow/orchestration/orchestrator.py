@@ -1,6 +1,5 @@
 import logging
-import math
-from typing import Optional, TypeVar
+from typing import List, TypeVar
 
 from pydantic import Field, field_validator
 
@@ -12,34 +11,44 @@ from controlflow.flows import Flow
 from controlflow.instructions import get_instructions
 from controlflow.llm.messages import BaseMessage
 from controlflow.orchestration.handler import Handler
+from controlflow.orchestration.turn_strategy import Popcorn, TurnStrategy
 from controlflow.tasks.task import Task
-from controlflow.tools.tools import Tool, tool
+from controlflow.tools.tools import Tool
 from controlflow.utilities.general import ControlFlowModel
-from controlflow.utilities.prefect import prefect_task as prefect_task
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
-
-__all__ = ["Orchestrator"]
 
 
 class Orchestrator(ControlFlowModel):
     """
     The orchestrator is responsible for managing the flow of tasks and agents.
     It is given tasks to execute in a flow context, and an agent to execute the
-    tasks. If other agents are assigned to any of the tasks, the orchestrator
-    will provide tools for delegating.
+    tasks. The turn strategy determines how agents take turns and collaborate.
     """
 
     model_config = dict(arbitrary_types_allowed=True)
     flow: "Flow" = Field(description="The flow that the orchestrator is managing")
     agent: Agent = Field(description="The currently active agent")
     tasks: list[Task] = Field(description="Tasks to be executed by the agent.")
+    turn_strategy: TurnStrategy = Field(
+        default_factory=Popcorn,
+        description="The strategy to use for managing agent turns",
+    )
     handlers: list[Handler] = Field(None, validate_default=True)
 
     @field_validator("handlers", mode="before")
     def _handlers(cls, v):
+        """
+        Validate and set default handlers.
+
+        Args:
+            v: The input value for handlers.
+
+        Returns:
+            list[Handler]: The validated list of handlers.
+        """
         from controlflow.orchestration.print_handler import PrintHandler
 
         if v is None and controlflow.settings.enable_print_handler:
@@ -47,76 +56,107 @@ class Orchestrator(ControlFlowModel):
         return v or []
 
     def __init__(self, **kwargs):
+        """
+        Initialize the Orchestrator.
+
+        Args:
+            **kwargs: Keyword arguments for Orchestrator attributes.
+        """
         super().__init__(**kwargs)
         for task in self.tasks:
             self.flow.add_task(task)
 
     def handle_event(self, event: Event):
+        """
+        Handle an event by passing it to all handlers and persisting if necessary.
+
+        Args:
+            event (Event): The event to handle.
+        """
         for handler in self.handlers:
             handler.handle(event)
         if event.persist:
             self.flow.add_events([event])
 
-    def set_agent(self, agent: Agent):
-        """Set the current active agent."""
-        self.agent = agent
+    def get_available_agents(self) -> List[Agent]:
+        """
+        Get a list of all available agents for active tasks.
+
+        Returns:
+            List[Agent]: A list of available agents.
+        """
+        active_tasks = self.get_tasks("active")
+        return list(set(a for t in active_tasks for a in t.get_agents()) | {self.agent})
 
     def get_tools(self) -> list[Tool]:
+        """
+        Get all tools available for the current turn.
+
+        Returns:
+            list[Tool]: A list of available tools.
+        """
         tools = []
         tools.extend(self.flow.tools)
         for task in self.get_tasks("assigned"):
             tools.extend(task.get_tools())
-        if len(self.get_available_agents() - {self.agent}) > 0:
-            tools.append(self.create_delegation_tool())
+        tools.extend(
+            self.turn_strategy.get_tools(self.agent, self.get_available_agents())
+        )
         return tools
 
-    def get_available_agents(self) -> set[Agent]:
-        active_tasks = self.get_tasks("active")
-        return set(a for t in active_tasks for a in t.get_agents())
+    def run_turn(self):
+        """
+        Run a single turn of the orchestration process.
+        """
+        self.turn_strategy.begin_turn()
+        while not self.turn_strategy.should_end_turn():
+            messages = self.compile_messages()
+            tools = self.get_tools()
+            for event in self.agent._run_model(messages=messages, tools=tools):
+                self.handle_event(event)
 
-    def create_delegation_tool(self) -> Tool:
-        @tool
-        def delegate_to_agent(agent_id: str) -> str:
-            """
-            Select another agent to take the next turn.
-            """
-            available_agents = {a.id: a for a in self.get_available_agents()}
-            if agent_id not in available_agents:
-                raise ValueError(
-                    f"Agent with ID {agent_id} not found or not available."
-                )
-            self.set_agent(available_agents[agent_id])
-            return f"Delegated to agent {agent_id}"
+            # Check if there are any active tasks left
+            if not self.get_tasks("active"):
+                break
 
-        return delegate_to_agent
+            # Check if the current agent is still available
+            if self.agent not in self.get_available_agents():
+                break
 
-    def run(self, steps: Optional[int] = None):
+        self.agent = self.turn_strategy.get_next_agent(
+            self.agent, self.get_available_agents()
+        )
+
+    def run(self):
+        """
+        Run the orchestration process until the session should end.
+        """
         from controlflow.events.orchestrator_events import (
             OrchestratorEnd,
             OrchestratorError,
             OrchestratorStart,
         )
 
-        i = 0
-        while self.get_tasks("active") and i < (steps or math.inf):
-            breakpoint()
-            self.handle_event(OrchestratorStart(orchestrator=self))
+        self.handle_event(OrchestratorStart(orchestrator=self))
 
-            try:
-                messages = self.compile_messages()
-                for event in self.agent._run_model(
-                    messages=messages, tools=self.get_tools()
-                ):
-                    self.handle_event(event)
-
-            except Exception as exc:
-                self.handle_event(OrchestratorError(orchestrator=self, error=exc))
-                raise
-            finally:
-                self.handle_event(OrchestratorEnd(orchestrator=self))
-                i += 1
+        try:
+            while (
+                self.get_tasks("active") and not self.turn_strategy.should_end_session()
+            ):
+                self.run_turn()
+        except Exception as exc:
+            self.handle_event(OrchestratorError(orchestrator=self, error=exc))
+            raise
+        finally:
+            self.handle_event(OrchestratorEnd(orchestrator=self))
 
     def compile_prompt(self) -> str:
+        """
+        Compile the prompt for the current turn.
+
+        Returns:
+            str: The compiled prompt.
+        """
         from controlflow.orchestration.prompt_templates import (
             InstructionsTemplate,
             TasksTemplate,
@@ -136,6 +176,12 @@ class Orchestrator(ControlFlowModel):
         return prompt
 
     def compile_messages(self) -> list[BaseMessage]:
+        """
+        Compile messages for the current turn.
+
+        Returns:
+            list[BaseMessage]: The compiled messages.
+        """
         events = self.flow.get_events(limit=100)
 
         compiler = MessageCompiler(
