@@ -125,15 +125,6 @@ class Flow(ControlFlowModel):
         with ctx(**ctx_args), prefect_ctx:
             yield self
 
-    def run(self, steps: Optional[int] = None):
-        """
-        Runs the flow.
-        """
-        from controlflow.orchestration import Orchestrator
-
-        orchestrator = Orchestrator(flow=self)
-        orchestrator.run(steps=steps)
-
 
 def get_flow() -> Optional[Flow]:
     """

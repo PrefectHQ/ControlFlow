@@ -10,7 +10,6 @@ from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import prefect_flow, prefect_task
 
 # from controlflow.utilities.marvin import patch_marvin
-from controlflow.utilities.tasks import resolve_tasks
 
 logger = get_logger(__name__)
 
@@ -107,26 +106,7 @@ def flow(
 
         with flow_obj.create_context(create_prefect_flow_context=False):
             with controlflow.instructions(instructions):
-                result = fn(*wrapper_args, **wrapper_kwargs)
-
-                # Determine if we should run eagerly or lazily
-                if lazy_ is not None:
-                    run_eagerly = not lazy_
-                elif lazy is not None:
-                    run_eagerly = not lazy
-                else:
-                    run_eagerly = controlflow.settings.eager_mode
-
-                if run_eagerly:
-                    flow_obj.run()
-
-                    # resolve any returned tasks; this will raise on failure
-                    return resolve_tasks(result)
-                else:
-                    return flow_obj
-
-    if lazy is True or (lazy is None and not controlflow.settings.eager_mode):
-        wrapper.__annotations__["return"] = Flow
+                return fn(*wrapper_args, **wrapper_kwargs)
 
     return wrapper
 
