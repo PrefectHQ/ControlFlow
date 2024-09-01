@@ -89,4 +89,4 @@ def _get_initial_default_model() -> BaseChatModel:
                 """).replace("\n", " ")
                 + f"\n{exc}"
             )
-        logger.warn(msg)
+        logger.warning(msg)
