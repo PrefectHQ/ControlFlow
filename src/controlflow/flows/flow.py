@@ -1,14 +1,12 @@
 import uuid
-from collections import deque
 from contextlib import contextmanager, nullcontext
-from typing import TYPE_CHECKING, Any, Callable, Deque, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
-from pydantic import Field, PrivateAttr
+from pydantic import Field
 
 import controlflow
 from controlflow.agents import Agent
 from controlflow.events.base import Event
-from controlflow.events.events import AgentMessage, AgentMessageDelta
 from controlflow.events.history import History
 from controlflow.flows.graph import Graph
 from controlflow.tasks.task import Task
@@ -47,7 +45,6 @@ class Flow(ControlFlowModel):
     context: dict[str, Any] = {}
     graph: Graph = Field(default_factory=Graph, repr=False, exclude=True)
     _cm_stack: list[contextmanager] = []
-    _agent_stack: Deque[Agent] = PrivateAttr(default_factory=lambda: deque(maxlen=50))
 
     def __init__(self, *, copy_parent: bool = True, **kwargs):
         """
@@ -109,9 +106,6 @@ class Flow(ControlFlowModel):
         for event in events:
             event.thread_id = self.thread_id
         self.history.add_events(thread_id=self.thread_id, events=events)
-
-        if isinstance(event, (AgentMessage, AgentMessageDelta)):
-            self._agent_stack.append(event.agent)
 
     @contextmanager
     def create_context(self, create_prefect_flow_context: bool = True):
