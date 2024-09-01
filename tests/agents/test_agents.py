@@ -3,6 +3,7 @@ from langchain_openai import ChatOpenAI
 import controlflow
 from controlflow.agents import Agent
 from controlflow.instructions import instructions
+from controlflow.llm.rules import LLMRules
 from controlflow.tasks.task import Task
 
 
@@ -95,3 +96,41 @@ class TestAgentPrompt:
         agent = Agent(name="abc", prompt="{{ agent.name }}")
         prompt = agent.get_prompt()
         assert prompt == "abc"
+
+
+class TestAgentSerialization:
+    def test_serialize_for_prompt(self):
+        agent = Agent(name="Test", description="A test agent", user_access=True)
+        serialized = agent.serialize_for_prompt()
+        assert serialized["name"] == "Test"
+        assert serialized["description"] == "A test agent"
+        assert serialized["user_access"] is True
+        assert "id" in serialized
+        assert "tools" in serialized
+
+    def test_serialize_tools(self):
+        def dummy_tool():
+            """Dummy tool description"""
+            pass
+
+        agent = Agent(name="Test", tools=[dummy_tool])
+        serialized_tools = agent._serialize_tools(agent.tools)
+        assert len(serialized_tools) == 1
+        assert serialized_tools[0]["name"] == "dummy_tool"
+        assert serialized_tools[0]["description"] == "Dummy tool description"
+
+
+class TestAgentLLMRules:
+    def test_get_llm_rules(self):
+        agent = Agent(name="Test")
+        rules = agent.get_llm_rules()
+        assert isinstance(rules, LLMRules)
+
+
+class TestAgentContext:
+    def test_context_manager(self):
+        agent = Agent(name="Test")
+        with agent:
+            from controlflow.utilities.context import ctx
+
+            assert ctx.get("agent") is agent
