@@ -73,17 +73,6 @@ class Orchestrator(ControlFlowModel):
             v = [PrintHandler()]
         return v or []
 
-    def __init__(self, **kwargs):
-        """
-        Initialize the Orchestrator.
-
-        Args:
-            **kwargs: Keyword arguments for Orchestrator attributes.
-        """
-        super().__init__(**kwargs)
-        for task in self.tasks:
-            self.flow.add_task(task)
-
     def handle_event(self, event: Event):
         """
         Handle an event by passing it to all handlers and persisting if necessary.

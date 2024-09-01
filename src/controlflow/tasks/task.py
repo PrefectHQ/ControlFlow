@@ -177,10 +177,6 @@ class Task(ControlFlowModel):
         for task in context_tasks:
             self.add_dependency(task)
 
-        # add task to flow, if exists
-        if flow := controlflow.flows.get_flow():
-            flow.add_task(self)
-
         if self.id is None:
             self.id = self._generate_id()
 

@@ -8,8 +8,6 @@ import controlflow
 from controlflow.agents import Agent
 from controlflow.events.base import Event
 from controlflow.events.history import History
-from controlflow.flows.graph import Graph
-from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
 from controlflow.utilities.general import ControlFlowModel
 from controlflow.utilities.logging import get_logger
@@ -42,23 +40,18 @@ class Flow(ControlFlowModel):
         None, description="A prompt to display to the agent working on the flow."
     )
     context: dict[str, Any] = {}
-    graph: Graph = Field(default_factory=Graph, repr=False, exclude=True)
     _cm_stack: list[contextmanager] = []
 
     def __init__(self, *, copy_parent: bool = True, **kwargs):
         """
         By default, the flow will copy the event history from the parent flow if one
-        exists, including all completed tasks. Because each flow is a new
-        thread, new events will not be shared between the parent and child
-        flow.
+        exists. Because each flow is a new thread, new events will not be shared
+        between the parent and child flow.
         """
         super().__init__(**kwargs)
         parent = get_flow()
         if parent and copy_parent:
             self.add_events(parent.get_events())
-            for task in parent.tasks:
-                if task.is_complete():
-                    self.add_task(task)
 
     def __enter__(self):
         # use stack so we can enter the context multiple times
@@ -69,13 +62,6 @@ class Flow(ControlFlowModel):
     def __exit__(self, *exc_info):
         # exit the context manager
         return self._cm_stack.pop().__exit__(*exc_info)
-
-    def add_task(self, task: Task):
-        self.graph.add_task(task)
-
-    @property
-    def tasks(self) -> list[Task]:
-        return self.graph.topological_sort()
 
     def get_prompt(self) -> str:
         """

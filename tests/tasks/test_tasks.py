@@ -174,18 +174,6 @@ class TestFlowRegistration:
             task.run()
         assert task in flow.tasks
 
-    def test_parent_child_tracking(self):
-        with Flow() as flow:
-            with SimpleTask() as parent:
-                with SimpleTask() as child:
-                    grandchild = SimpleTask()
-
-        assert parent in flow.tasks
-        assert child in flow.tasks
-        assert grandchild in flow.tasks
-
-        assert len(flow.graph.edges) == 2
-
 
 class TestTaskStatus:
     def test_task_status_transitions(self):
