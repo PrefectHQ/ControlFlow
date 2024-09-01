@@ -14,7 +14,7 @@ from controlflow.orchestration import turn_strategies
 from controlflow.orchestration.handler import Handler
 from controlflow.orchestration.turn_strategies import Popcorn, TurnStrategy
 from controlflow.tasks.task import Task
-from controlflow.tools.tools import Tool
+from controlflow.tools.tools import Tool, as_tools
 from controlflow.utilities.general import ControlFlowModel
 
 logger = logging.getLogger(__name__)
@@ -120,6 +120,7 @@ class Orchestrator(ControlFlowModel):
         tools.extend(
             self.turn_strategy.get_tools(self.agent, self.get_available_agents())
         )
+        tools = as_tools(tools)
         return tools
 
     def _run_turn(self):

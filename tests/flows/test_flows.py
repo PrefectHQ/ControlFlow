@@ -1,9 +1,6 @@
-import pytest
-
 from controlflow.agents import Agent
 from controlflow.events.events import UserMessage
 from controlflow.flows import Flow, get_flow
-from controlflow.orchestration.agent_context import AgentContext
 from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
 
@@ -162,33 +159,29 @@ class TestFlowCreatesDefaults:
     def test_flow_agent_becomes_task_default(self):
         agent = Agent(name="Marvin")
         t1 = Task("t1")
-        assert t1.agent is not agent
+        assert agent not in t1.get_agents()  # Updated to check agents list
 
         with Flow(agent=agent):
             t2 = Task("t2")
-            assert t2.get_agent() == agent
+            assert t2.get_agents() == [agent]
 
 
 class TestFlowPrompt:
-    @pytest.fixture
-    def agent_context(self) -> AgentContext:
-        return AgentContext(flow=Flow(), tasks=[])
-
     def test_default_prompt(self):
         flow = Flow()
         assert flow.prompt is None
 
-    def test_default_template(self, agent_context):
+    def test_default_template(self):
         flow = Flow()
-        prompt = flow.get_prompt(context=agent_context)
+        prompt = flow.get_prompt()
         assert prompt.startswith("# Flow")
 
-    def test_custom_prompt(self, agent_context):
+    def test_custom_prompt(self):
         flow = Flow(prompt="Custom Prompt")
-        prompt = flow.get_prompt(context=agent_context)
+        prompt = flow.get_prompt()
         assert prompt == "Custom Prompt"
 
-    def test_custom_templated_prompt(self, agent_context):
+    def test_custom_templated_prompt(self):
         flow = Flow(prompt="{{ flow.name }}", name="abc")
-        prompt = flow.get_prompt(context=agent_context)
+        prompt = flow.get_prompt()
         assert prompt == "abc"
