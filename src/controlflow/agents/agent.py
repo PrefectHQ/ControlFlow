@@ -30,6 +30,7 @@ from controlflow.utilities.general import ControlFlowModel, hash_objects
 from .memory import Memory
 
 if TYPE_CHECKING:
+    from controlflow.orchestration.turn_strategies import TurnStrategy
     from controlflow.tools.tools import Tool
 logger = logging.getLogger(__name__)
 
@@ -172,14 +173,25 @@ class Agent(ControlFlowModel, abc.ABC):
     def __exit__(self, *exc_info):
         return self._cm_stack.pop().__exit__(*exc_info)
 
-    def run(self, *args, agents: list["Agent"] = None, **kwargs):
+    def run(
+        self,
+        objective: str,
+        agents: list["Agent"] = None,
+        turn_strategy: "TurnStrategy" = None,
+        **task_kwargs,
+    ):
         agents = agents or [] + [self]
-        task = controlflow.Task(*args, agents=agents, **kwargs)
+        task = controlflow.Task(
+            objective=objective,
+            agents=agents,
+            turn_strategy=turn_strategy,
+            **task_kwargs,
+        )
         return task.run()
 
-    async def run_async(self, *args, agents: list["Agent"] = None, **kwargs):
+    async def run_async(self, *args, agents: list["Agent"] = None, **task_kwargs):
         agents = agents or [] + [self]
-        task = controlflow.Task(*args, agents=agents, **kwargs)
+        task = controlflow.Task(*args, agents=agents, **task_kwargs)
         return await task.run_async()
 
     def _run_model(

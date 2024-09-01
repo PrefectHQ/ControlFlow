@@ -10,6 +10,7 @@ from controlflow.events.message_compiler import MessageCompiler
 from controlflow.flows import Flow
 from controlflow.instructions import get_instructions
 from controlflow.llm.messages import BaseMessage
+from controlflow.orchestration import turn_strategies
 from controlflow.orchestration.handler import Handler
 from controlflow.orchestration.turn_strategies import Popcorn, TurnStrategy
 from controlflow.tasks.task import Task
@@ -43,6 +44,16 @@ class Orchestrator(ControlFlowModel):
     def _validate_turn_strategy(cls, v):
         if v is None:
             v = Popcorn()
+        elif isinstance(v, str):
+            map = {
+                "SINGLE": turn_strategies.Single(),
+                "ROUND_ROBIN": turn_strategies.RoundRobin(),
+                "POPCORN": turn_strategies.Popcorn(),
+                "RANDOM": turn_strategies.Random(),
+            }
+            v = map.get(v.upper())
+            if v is None:
+                raise ValueError(f"Invalid turn strategy provided as string: {v}")
         return v
 
     @field_validator("handlers", mode="before")
@@ -92,8 +103,8 @@ class Orchestrator(ControlFlowModel):
         Returns:
             List[Agent]: A list of available agents.
         """
-        active_tasks = self.get_tasks("active")
-        return list(set(a for t in active_tasks for a in t.get_agents()) | {self.agent})
+        ready_tasks = self.get_tasks("ready")
+        return list(set(a for t in ready_tasks for a in t.get_agents()) | {self.agent})
 
     def get_tools(self) -> list[Tool]:
         """
@@ -111,19 +122,53 @@ class Orchestrator(ControlFlowModel):
         )
         return tools
 
-    def run_turn(self):
+    def _run_turn(self):
         """
         Run a single turn of the orchestration process.
         """
         self.turn_strategy.begin_turn()
+
+        for task in self.get_tasks("assigned"):
+            task.mark_running()
+
         while not self.turn_strategy.should_end_turn():
             messages = self.compile_messages()
             tools = self.get_tools()
             for event in self.agent._run_model(messages=messages, tools=tools):
                 self.handle_event(event)
 
-            # Check if there are any active tasks left
-            if not self.get_tasks("active"):
+            # Check if there are any ready tasks left
+            if not self.get_tasks("ready"):
+                break
+
+            # Check if the current agent is still available
+            if self.agent not in self.get_available_agents():
+                break
+
+        # at the end of each turn, select the next agent
+        self.agent = self.turn_strategy.get_next_agent(
+            self.agent, self.get_available_agents()
+        )
+
+    async def _run_turn_async(self):
+        """
+        Run a single turn of the orchestration process asynchronously.
+        """
+        self.turn_strategy.begin_turn()
+
+        for task in self.get_tasks("assigned"):
+            task.mark_running()
+
+        while not self.turn_strategy.should_end_turn():
+            messages = self.compile_messages()
+            tools = self.get_tools()
+            async for event in self.agent._run_model_async(
+                messages=messages, tools=tools
+            ):
+                self.handle_event(event)
+
+            # Check if there are any ready tasks left
+            if not self.get_tasks("ready"):
                 break
 
             # Check if the current agent is still available
@@ -147,9 +192,38 @@ class Orchestrator(ControlFlowModel):
 
         try:
             while (
-                self.get_tasks("active") and not self.turn_strategy.should_end_session()
+                self.get_tasks("ready") and not self.turn_strategy.should_end_session()
             ):
-                self.run_turn()
+                self._run_turn()
+        except Exception as exc:
+            self.handle_event(
+                controlflow.events.orchestrator_events.OrchestratorError(
+                    orchestrator=self, error=exc
+                )
+            )
+            raise
+        finally:
+            self.handle_event(
+                controlflow.events.orchestrator_events.OrchestratorEnd(
+                    orchestrator=self
+                )
+            )
+
+    async def run_async(self):
+        """
+        Run the orchestration process asynchronously until the session should end.
+        """
+        import controlflow.events.orchestrator_events
+
+        self.handle_event(
+            controlflow.events.orchestrator_events.OrchestratorStart(orchestrator=self)
+        )
+
+        try:
+            while (
+                self.get_tasks("ready") and not self.turn_strategy.should_end_session()
+            ):
+                await self._run_turn_async()
         except Exception as exc:
             self.handle_event(
                 controlflow.events.orchestrator_events.OrchestratorError(
@@ -182,7 +256,7 @@ class Orchestrator(ControlFlowModel):
         prompts = [
             self.agent.get_prompt(),
             self.flow.get_prompt(),
-            TasksTemplate(tasks=self.get_tasks("active")).render(),
+            TasksTemplate(tasks=self.get_tasks("ready")).render(),
             ToolTemplate(tools=tools).render(),
             InstructionsTemplate(instructions=get_instructions()).render(),
         ]
@@ -212,24 +286,24 @@ class Orchestrator(ControlFlowModel):
 
         Args:
             filter (str): Determines which tasks to return.
-                - "active": Tasks ready to execute (no unmet dependencies).
-                - "assigned": Active tasks assigned to the current agent.
+                - "ready": Tasks ready to execute (no unmet dependencies).
+                - "assigned": Ready tasks assigned to the current agent.
                 - "all": All tasks including subtasks and ancestors.
 
         Returns:
             list[Task]: List of tasks based on the specified filter.
         """
-        if filter not in ["active", "assigned", "all"]:
+        if filter not in ["ready", "assigned", "all"]:
             raise ValueError(f"Invalid filter: {filter}")
 
         all_tasks: list[Task] = []
-        active_tasks: list[Task] = []
+        ready_tasks: list[Task] = []
 
         def collect_tasks(task: Task, is_root: bool = False):
             if task not in all_tasks:
                 all_tasks.append(task)
                 if is_root and task.is_ready():
-                    active_tasks.append(task)
+                    ready_tasks.append(task)
                 for subtask in task.subtasks:
                     collect_tasks(subtask, is_root=is_root)
 
@@ -237,11 +311,11 @@ class Orchestrator(ControlFlowModel):
         for task in self.tasks:
             collect_tasks(task, is_root=True)
 
-        if filter == "active":
-            return active_tasks
+        if filter == "ready":
+            return ready_tasks
 
         if filter == "assigned":
-            return [task for task in active_tasks if self.agent in task.get_agents()]
+            return [task for task in ready_tasks if self.agent in task.get_agents()]
 
         # Collect ancestor tasks for "all" filter
         for task in self.tasks:
@@ -274,58 +348,3 @@ class Orchestrator(ControlFlowModel):
                 hierarchy[task.id] = task_dict_map[task.id]
 
         return hierarchy
-
-    async def run_turn_async(self):
-        """
-        Run a single turn of the orchestration process asynchronously.
-        """
-        self.turn_strategy.begin_turn()
-        while not self.turn_strategy.should_end_turn():
-            messages = self.compile_messages()
-            tools = self.get_tools()
-            async for event in self.agent._run_model_async(
-                messages=messages, tools=tools
-            ):
-                self.handle_event(event)
-
-            # Check if there are any active tasks left
-            if not self.get_tasks("active"):
-                break
-
-            # Check if the current agent is still available
-            if self.agent not in self.get_available_agents():
-                break
-
-        # at the end of each turn, select the next agent
-        self.agent = self.turn_strategy.get_next_agent(
-            self.agent, self.get_available_agents()
-        )
-
-    async def run_async(self):
-        """
-        Run the orchestration process asynchronously until the session should end.
-        """
-        import controlflow.events.orchestrator_events
-
-        self.handle_event(
-            controlflow.events.orchestrator_events.OrchestratorStart(orchestrator=self)
-        )
-
-        try:
-            while (
-                self.get_tasks("active") and not self.turn_strategy.should_end_session()
-            ):
-                await self.run_turn_async()
-        except Exception as exc:
-            self.handle_event(
-                controlflow.events.orchestrator_events.OrchestratorError(
-                    orchestrator=self, error=exc
-                )
-            )
-            raise
-        finally:
-            self.handle_event(
-                controlflow.events.orchestrator_events.OrchestratorEnd(
-                    orchestrator=self
-                )
-            )
