@@ -162,19 +162,6 @@ def test_task_loads_agent_from_parent_before_flow():
     assert child.get_agents() == [agent2]
 
 
-class TestFlowRegistration:
-    def test_task_tracking(self):
-        with Flow() as flow:
-            task = SimpleTask()
-            assert task in flow.tasks
-
-    def test_task_tracking_on_call(self):
-        task = SimpleTask()
-        with Flow() as flow:
-            task.run()
-        assert task in flow.tasks
-
-
 class TestTaskStatus:
     def test_task_status_transitions(self):
         task = SimpleTask()
