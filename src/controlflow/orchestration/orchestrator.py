@@ -123,16 +123,22 @@ class Orchestrator(ControlFlowModel):
         tools = as_tools(tools)
         return tools
 
-    def _run_turn(self):
+    def _run_turn(self, max_calls: int = None):
         """
         Run a single turn of the orchestration process.
+
+        Args:
+            max_calls (int, optional): Maximum number of LLM calls to run per turn.
         """
         self.turn_strategy.begin_turn()
 
         for task in self.get_tasks("assigned"):
             task.mark_running()
 
+        calls = 0
         while not self.turn_strategy.should_end_turn():
+            if max_calls is not None and calls >= max_calls:
+                break
             messages = self.compile_messages()
             tools = self.get_tools()
             for event in self.agent._run_model(messages=messages, tools=tools):
@@ -146,21 +152,29 @@ class Orchestrator(ControlFlowModel):
             if self.agent not in self.get_available_agents():
                 break
 
+            calls += 1
+
         # at the end of each turn, select the next agent
         self.agent = self.turn_strategy.get_next_agent(
             self.agent, self.get_available_agents()
         )
 
-    async def _run_turn_async(self):
+    async def _run_turn_async(self, max_calls: int = None):
         """
         Run a single turn of the orchestration process asynchronously.
+
+        Args:
+            max_calls (int, optional): Maximum number of LLM calls to run per turn.
         """
         self.turn_strategy.begin_turn()
 
         for task in self.get_tasks("assigned"):
             task.mark_running()
 
+        calls = 0
         while not self.turn_strategy.should_end_turn():
+            if max_calls is not None and calls >= max_calls:
+                break
             messages = self.compile_messages()
             tools = self.get_tools()
             async for event in self.agent._run_model_async(
@@ -176,14 +190,20 @@ class Orchestrator(ControlFlowModel):
             if self.agent not in self.get_available_agents():
                 break
 
+            calls += 1
+
         # at the end of each turn, select the next agent
         self.agent = self.turn_strategy.get_next_agent(
             self.agent, self.get_available_agents()
         )
 
-    def run(self):
+    def run(self, max_turns: int = None, max_calls_per_turn: int = None):
         """
         Run the orchestration process until the session should end.
+
+        Args:
+            max_turns (int, optional): Maximum number of turns to run.
+            max_calls_per_turn (int, optional): Maximum number of LLM calls per turn.
         """
         import controlflow.events.orchestrator_events
 
@@ -191,11 +211,15 @@ class Orchestrator(ControlFlowModel):
             controlflow.events.orchestrator_events.OrchestratorStart(orchestrator=self)
         )
 
+        turns = 0
         try:
             while (
                 self.get_tasks("ready") and not self.turn_strategy.should_end_session()
             ):
-                self._run_turn()
+                if max_turns is not None and turns >= max_turns:
+                    break
+                self._run_turn(max_calls=max_calls_per_turn)
+                turns += 1
         except Exception as exc:
             self.handle_event(
                 controlflow.events.orchestrator_events.OrchestratorError(
@@ -210,9 +234,13 @@ class Orchestrator(ControlFlowModel):
                 )
             )
 
-    async def run_async(self):
+    async def run_async(self, max_turns: int = None, max_calls_per_turn: int = None):
         """
         Run the orchestration process asynchronously until the session should end.
+
+        Args:
+            max_turns (int, optional): Maximum number of turns to run.
+            max_calls_per_turn (int, optional): Maximum number of LLM calls per turn.
         """
         import controlflow.events.orchestrator_events
 
@@ -220,11 +248,15 @@ class Orchestrator(ControlFlowModel):
             controlflow.events.orchestrator_events.OrchestratorStart(orchestrator=self)
         )
 
+        turns = 0
         try:
             while (
                 self.get_tasks("ready") and not self.turn_strategy.should_end_session()
             ):
-                await self._run_turn_async()
+                if max_turns is not None and turns >= max_turns:
+                    break
+                await self._run_turn_async(max_calls=max_calls_per_turn)
+                turns += 1
         except Exception as exc:
             self.handle_event(
                 controlflow.events.orchestrator_events.OrchestratorError(

@@ -71,5 +71,5 @@ def test_ddg_tool(default_fake_llm, monkeypatch):
         # agent=summarizer,
         result_type=list[str],
     )
-    task.run(steps=1)
+    task.run(max_turns=1, max_calls_per_turn=1)
     mock_run.assert_called_once()

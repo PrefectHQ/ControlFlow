@@ -318,6 +318,8 @@ class Task(ControlFlowModel):
         agent: Optional[Agent] = None,
         flow: "Flow" = None,
         turn_strategy: "TurnStrategy" = None,
+        max_calls_per_turn: int = None,
+        max_turns: int = None,
     ) -> T:
         """
         Run the task
@@ -342,7 +344,10 @@ class Task(ControlFlowModel):
             agent=agent or self.get_agents()[0],
             turn_strategy=turn_strategy,
         )
-        orchestrator.run()
+        orchestrator.run(
+            max_calls_per_turn=max_calls_per_turn,
+            max_turns=max_turns,
+        )
 
         if self.is_successful():
             return self.result
@@ -355,6 +360,8 @@ class Task(ControlFlowModel):
         agent: Optional[Agent] = None,
         flow: "Flow" = None,
         turn_strategy: "TurnStrategy" = None,
+        max_calls_per_turn: int = None,
+        max_turns: int = None,
     ) -> T:
         """
         Run the task
@@ -379,7 +386,10 @@ class Task(ControlFlowModel):
             agent=agent or self.get_agents()[0],
             turn_strategy=turn_strategy,
         )
-        await orchestrator.run_async()
+        await orchestrator.run_async(
+            max_calls_per_turn=max_calls_per_turn,
+            max_turns=max_turns,
+        )
 
         if self.is_successful():
             return self.result
