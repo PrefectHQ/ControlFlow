@@ -1,5 +1,5 @@
 import uuid
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from pydantic import Field
@@ -13,7 +13,6 @@ from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
 from controlflow.utilities.general import ControlFlowModel
 from controlflow.utilities.logging import get_logger
-from controlflow.utilities.prefect import prefect_flow_context
 
 if TYPE_CHECKING:
     pass
@@ -108,15 +107,8 @@ class Flow(ControlFlowModel):
         self.history.add_events(thread_id=self.thread_id, events=events)
 
     @contextmanager
-    def create_context(self, create_prefect_flow_context: bool = True):
-        ctx_args = dict(flow=self)
-        if create_prefect_flow_context and ctx.get("prefect_flow") is not self:
-            prefect_ctx = prefect_flow_context(name=self.name)
-            ctx_args["prefect_flow"] = self
-        else:
-            prefect_ctx = nullcontext()
-
-        with ctx(**ctx_args), prefect_ctx:
+    def create_context(self):
+        with ctx(flow=self):
             yield self
 
 

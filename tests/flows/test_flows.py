@@ -157,13 +157,15 @@ class TestFlowCreatesDefaults:
         assert flow.agent == agent1
 
     def test_flow_agent_becomes_task_default(self):
-        agent = Agent(name="Marvin")
+        agent = Agent(name="BB8")
         t1 = Task("t1")
-        assert agent not in t1.get_agents()  # Updated to check agents list
+        assert agent not in t1.get_agents()
+        assert len(t1.get_agents()) == 1
 
         with Flow(agent=agent):
             t2 = Task("t2")
-            assert t2.get_agents() == [agent]
+            assert agent in t2.get_agents()
+            assert len(t2.get_agents()) == 1
 
 
 class TestFlowPrompt:
