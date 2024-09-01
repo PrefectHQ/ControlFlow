@@ -39,19 +39,18 @@ class Flow(ControlFlowModel):
     prompt: Optional[str] = Field(
         None, description="A prompt to display to the agent working on the flow."
     )
+    parent: Optional["Flow"] = Field(
+        None,
+        description="The parent flow. This is the flow that created this flow.",
+    )
+    load_parent_events: bool = Field(
+        True,
+        description="Whether to load events from the parent flow. If a flow is nested, "
+        "this will load events from the parent flow so that the child flow can "
+        "access the full conversation history, even though the child flow is a separate thread.",
+    )
     context: dict[str, Any] = {}
     _cm_stack: list[contextmanager] = []
-
-    def __init__(self, *, copy_parent: bool = True, **kwargs):
-        """
-        By default, the flow will copy the event history from the parent flow if one
-        exists. Because each flow is a new thread, new events will not be shared
-        between the parent and child flow.
-        """
-        super().__init__(**kwargs)
-        parent = get_flow()
-        if parent and copy_parent:
-            self.add_events(parent.get_events())
 
     def __enter__(self):
         # use stack so we can enter the context multiple times
@@ -62,6 +61,11 @@ class Flow(ControlFlowModel):
     def __exit__(self, *exc_info):
         # exit the context manager
         return self._cm_stack.pop().__exit__(*exc_info)
+
+    def __init__(self, **kwargs):
+        if kwargs.get("parent") is None:
+            kwargs["parent"] = get_flow()
+        super().__init__(**kwargs)
 
     def get_prompt(self) -> str:
         """
@@ -79,13 +83,25 @@ class Flow(ControlFlowModel):
         limit: Optional[int] = None,
         types: Optional[list[str]] = None,
     ) -> list[Event]:
-        return self.history.get_events(
+        events = self.history.get_events(
             thread_id=self.thread_id,
             before_id=before_id,
             after_id=after_id,
             limit=limit,
             types=types,
         )
+
+        if self.parent and self.load_parent_events:
+            events.extend(
+                self.parent.get_events(
+                    before_id=before_id,
+                    after_id=after_id,
+                    limit=limit,
+                    types=types,
+                )
+            )
+        events = sorted(events, key=lambda x: x.timestamp)
+        return events
 
     def add_events(self, events: list[Event]):
         for event in events:
