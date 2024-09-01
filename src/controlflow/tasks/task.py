@@ -118,7 +118,6 @@ class Task(ControlFlowModel):
     _downstreams: set["Task"] = set()
     _iteration: int = 0
     _cm_stack: list[contextmanager] = []
-    _active_agent: Optional[Agent] = None
     _prefect_task: Optional[PrefectTrackingTask] = None
 
     model_config = dict(extra="forbid", arbitrary_types_allowed=True)
@@ -316,7 +315,6 @@ class Task(ControlFlowModel):
     def run(
         self,
         agent: Optional[Agent] = None,
-        raise_on_error: bool = True,
         flow: "Flow" = None,
     ) -> T:
         """
@@ -343,14 +341,13 @@ class Task(ControlFlowModel):
 
         if self.is_successful():
             return self.result
-        elif self.is_failed() and raise_on_error:
+        elif self.is_failed():
             raise ValueError(f"{self.friendly_name()} failed: {self.error}")
 
     @prefect_task(task_run_name=get_task_run_name)
     async def run_async(
         self,
         agent: Optional[Agent] = None,
-        raise_on_error: bool = True,
         flow: "Flow" = None,
     ) -> T:
         """
@@ -377,7 +374,7 @@ class Task(ControlFlowModel):
 
         if self.is_successful():
             return self.result
-        elif self.is_failed() and raise_on_error:
+        elif self.is_failed():
             raise ValueError(f"{self.friendly_name()} failed: {self.error}")
 
     @contextmanager
@@ -438,9 +435,6 @@ class Task(ControlFlowModel):
                 return [flow.agent]
             else:
                 return [controlflow.defaults.agent]
-
-    def set_active_agent(self, agent: Agent):
-        self._active_agent = agent
 
     def get_tools(self) -> list[Union[Tool, Callable]]:
         tools = self.tools.copy()

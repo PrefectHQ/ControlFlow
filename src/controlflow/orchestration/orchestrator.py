@@ -11,7 +11,7 @@ from controlflow.flows import Flow
 from controlflow.instructions import get_instructions
 from controlflow.llm.messages import BaseMessage
 from controlflow.orchestration.handler import Handler
-from controlflow.orchestration.turn_strategy import Popcorn, TurnStrategy
+from controlflow.orchestration.turn_strategies import Popcorn, TurnStrategy
 from controlflow.tasks.task import Task
 from controlflow.tools.tools import Tool
 from controlflow.utilities.general import ControlFlowModel
