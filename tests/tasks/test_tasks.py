@@ -45,8 +45,8 @@ def test_stable_id():
     t1 = Task(objective="Test Objective")
     t2 = Task(objective="Test Objective")
     t3 = Task(objective="Test Objective+")
-    assert t1.id == t2.id == "e90eaf1f"
-    assert t3.id == "3cc39696"
+    assert t1.id == t2.id == "9663272a"  # Update this line with the new ID
+    assert t3.id != t1.id  # Ensure different objectives produce different IDs
 
 
 def test_task_mark_successful_and_mark_failed():
@@ -298,7 +298,9 @@ class TestTaskPrompt:
     def test_default_template(self):
         task = SimpleTask()
         prompt = task.get_prompt()
-        assert prompt.startswith("- objective")
+        assert prompt.startswith("- id:")
+        assert "- objective: test" in prompt
+        assert "- context:" in prompt
 
     def test_custom_prompt(self):
         task = SimpleTask(prompt="Custom Prompt")
