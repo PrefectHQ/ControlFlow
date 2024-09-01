@@ -111,22 +111,22 @@ def test_task_parent_context():
 
 def test_task_agent_assignment():
     agent = Agent(name="Test Agent")
-    task = SimpleTask(agent=agent)
-    assert task.agent is None
+    task = SimpleTask(agents=[agent])
+    assert task.agents == [agent]
     assert task.get_agents() == [agent]
 
 
 def test_task_bad_agent_assignment():
     with pytest.raises(ValueError):
-        SimpleTask(agent=5)
+        SimpleTask(agents=5)
 
 
 def test_task_loads_agent_from_parent():
     agent = Agent(name="Test Agent")
-    with SimpleTask(agent=agent):
+    with SimpleTask(agents=[agent]):
         child = SimpleTask()
 
-    assert child.agent is None
+    assert child.agents == []
     assert child.get_agents() == [agent]
 
 
@@ -136,7 +136,7 @@ def test_task_loads_agent_from_flow():
     with Flow(agent=agent):
         task = SimpleTask()
 
-        assert task.agent is None
+        assert task.agents == []
         assert task.get_agents() == [agent]
 
     # outside the flow context, pick up the default agent
@@ -147,7 +147,7 @@ def test_task_loads_agent_from_default_if_none_otherwise():
     agent = controlflow.defaults.agent
     task = SimpleTask()
 
-    assert task.agent is None
+    assert task.agents == []
     assert task.get_agents() == [agent]
 
 
@@ -155,10 +155,10 @@ def test_task_loads_agent_from_parent_before_flow():
     agent1 = Agent(name="Test Agent 1")
     agent2 = Agent(name="Test Agent 2")
     with Flow(agent=agent1):
-        with SimpleTask(agent=agent2):
+        with SimpleTask(agents=[agent2]):
             child = SimpleTask()
 
-    assert child.agent is None
+    assert child.agents == []
     assert child.get_agents() == [agent2]
 
 

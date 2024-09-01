@@ -32,7 +32,7 @@ from controlflow.utilities.general import (
     ControlFlowModel,
     hash_objects,
 )
-from controlflow.utilities.logging import deprecated, get_logger
+from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import PrefectTrackingTask
 from controlflow.utilities.prefect import prefect_task as prefect_task
 from controlflow.utilities.tasks import (
@@ -616,16 +616,6 @@ class Task(ControlFlowModel):
             return f"{self.friendly_name()} marked failed."
 
         return fail
-
-    # Deprecated ---------------------------
-
-    @deprecated("Use Task.run(steps=1) instead.", version="0.9")
-    def run_once(self, *args, **kwargs):
-        return self.run(*args, steps=1, **kwargs)
-
-    @deprecated("Use Task.run_async(steps=1) instead.", version="0.9")
-    async def run_once_async(self, *args, **kwargs):
-        return await self.run_async(*args, steps=1, **kwargs)
 
 
 def validate_result(result: Any, result_type: type[T]) -> T:
