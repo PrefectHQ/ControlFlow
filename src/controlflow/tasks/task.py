@@ -42,6 +42,7 @@ from controlflow.utilities.tasks import (
 
 if TYPE_CHECKING:
     from controlflow.flows import Flow
+    from controlflow.orchestration.turn_strategies import TurnStrategy
 
 T = TypeVar("T")
 logger = get_logger(__name__)
@@ -316,6 +317,7 @@ class Task(ControlFlowModel):
         self,
         agent: Optional[Agent] = None,
         flow: "Flow" = None,
+        turn_strategy: "TurnStrategy" = None,
     ) -> T:
         """
         Run the task
@@ -335,7 +337,10 @@ class Task(ControlFlowModel):
         from controlflow.orchestration import Orchestrator
 
         orchestrator = Orchestrator(
-            tasks=[self], flow=flow, agent=agent or self.get_agents()[0]
+            tasks=[self],
+            flow=flow,
+            agent=agent or self.get_agents()[0],
+            turn_strategy=turn_strategy,
         )
         orchestrator.run()
 
@@ -349,6 +354,7 @@ class Task(ControlFlowModel):
         self,
         agent: Optional[Agent] = None,
         flow: "Flow" = None,
+        turn_strategy: "TurnStrategy" = None,
     ) -> T:
         """
         Run the task
@@ -368,7 +374,10 @@ class Task(ControlFlowModel):
         from controlflow.orchestration import Orchestrator
 
         orchestrator = Orchestrator(
-            tasks=[self], flow=flow, agent=agent or self.get_agents()[0]
+            tasks=[self],
+            flow=flow,
+            agent=agent or self.get_agents()[0],
+            turn_strategy=turn_strategy,
         )
         await orchestrator.run_async()
 

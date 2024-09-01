@@ -33,13 +33,20 @@ class Orchestrator(ControlFlowModel):
     agent: Agent = Field(description="The currently active agent")
     tasks: list[Task] = Field(description="Tasks to be executed by the agent.")
     turn_strategy: TurnStrategy = Field(
-        default_factory=Popcorn,
+        default=None,
         description="The strategy to use for managing agent turns",
+        validate_default=True,
     )
     handlers: list[Handler] = Field(None, validate_default=True)
 
+    @field_validator("turn_strategy", mode="before")
+    def _validate_turn_strategy(cls, v):
+        if v is None:
+            v = Popcorn()
+        return v
+
     @field_validator("handlers", mode="before")
-    def _handlers(cls, v):
+    def _validate_handlers(cls, v):
         """
         Validate and set default handlers.
 
