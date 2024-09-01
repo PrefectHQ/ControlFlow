@@ -9,7 +9,7 @@ import prefect
 import prefect.cache_policies
 import prefect.serializers
 import prefect.tasks
-from prefect import get_client
+from prefect import get_client as get_prefect_client
 from prefect.artifacts import ArtifactRequest
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import State, TaskRun
@@ -35,15 +35,6 @@ from pydantic import TypeAdapter
 
 import controlflow
 from controlflow.utilities.general import ControlFlowModel
-
-CLIENT: SyncPrefectClient = None
-
-
-def get_prefect_client():
-    global CLIENT
-    if CLIENT is None:
-        CLIENT = get_client(sync_client=True)
-    return CLIENT
 
 
 def prefect_task(*args, **kwargs):
@@ -89,7 +80,7 @@ def create_markdown_artifact(
     if fr_context:
         flow_run_id = flow_run_id or fr_context.flow_run.id
 
-    client = get_prefect_client()
+    client = get_prefect_client(sync_client=True)
 
     client.create_artifact(
         artifact=ArtifactRequest(
@@ -185,7 +176,7 @@ class PrefectTrackingTask(ControlFlowModel):
         if self.is_started:
             raise ValueError("Task already started")
         self.is_started = True
-        self._client = get_prefect_client()
+        self._client = get_prefect_client(sync_client=True)
 
         self._task = prefect_task(
             name=self.name,
