@@ -661,3 +661,33 @@ def _generate_result_schema(result_type: type[T]) -> type[T]:
             "Please use a custom type or add compatibility."
         )
     return result_schema
+
+
+def run(
+    objective: str,
+    *task_args,
+    turn_strategy: "TurnStrategy" = None,
+    **task_kwargs,
+):
+    task = controlflow.Task(
+        objective=objective,
+        *task_args,
+        **task_kwargs,
+    )
+    return task.run(turn_strategy=turn_strategy)
+
+
+async def run_async(
+    objective: str,
+    *task_args,
+    turn_strategy: "TurnStrategy" = None,
+    **task_kwargs,
+):
+    task = controlflow.Task(
+        objective=objective,
+        *task_args,
+        **task_kwargs,
+    )
+    return await task.run_async(
+        turn_strategy=turn_strategy,
+    )

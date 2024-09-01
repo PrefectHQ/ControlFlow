@@ -176,6 +176,7 @@ class Agent(ControlFlowModel, abc.ABC):
     def run(
         self,
         objective: str,
+        *task_args,
         agents: list["Agent"] = None,
         turn_strategy: "TurnStrategy" = None,
         **task_kwargs,
@@ -184,15 +185,27 @@ class Agent(ControlFlowModel, abc.ABC):
         task = controlflow.Task(
             objective=objective,
             agents=agents,
-            turn_strategy=turn_strategy,
+            *task_args,
             **task_kwargs,
         )
-        return task.run()
+        return task.run(turn_strategy=turn_strategy)
 
-    async def run_async(self, *args, agents: list["Agent"] = None, **task_kwargs):
+    async def run_async(
+        self,
+        objective: str,
+        *task_args,
+        agents: list["Agent"] = None,
+        turn_strategy: "TurnStrategy" = None,
+        **task_kwargs,
+    ):
         agents = agents or [] + [self]
-        task = controlflow.Task(*args, agents=agents, **task_kwargs)
-        return await task.run_async()
+        task = controlflow.Task(
+            objective=objective,
+            agents=agents,
+            *task_args,
+            **task_kwargs,
+        )
+        return await task.run_async(turn_strategy=turn_strategy)
 
     def _run_model(
         self,
