@@ -1,5 +1,6 @@
 import abc
 import logging
+import warnings
 from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
@@ -79,9 +80,16 @@ class Agent(ControlFlowModel, abc.ABC):
 
     _cm_stack: list[contextmanager] = []
 
-    def __init__(self, name: str = None, **kwargs):
+    def __init__(self, name: str = None, user_access: bool = None, **kwargs):
         if name is not None:
             kwargs["name"] = name
+
+        if user_access:
+            warnings.warn(
+                "The `user_access` argument is deprecated. Use `interactive=True` instead.",
+                DeprecationWarning,
+            )
+            kwargs["interactive"] = True
 
         if additional_instructions := get_instructions():
             kwargs["instructions"] = (

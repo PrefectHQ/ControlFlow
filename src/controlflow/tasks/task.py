@@ -1,4 +1,5 @@
 import datetime
+import warnings
 from contextlib import ExitStack, contextmanager
 from enum import Enum
 from typing import (
@@ -128,6 +129,7 @@ class Task(ControlFlowModel):
         objective: str = None,
         result_type: Any = NOTSET,
         infer_parent: bool = True,
+        user_access: bool = None,
         **kwargs,
     ):
         """
@@ -154,6 +156,13 @@ class Task(ControlFlowModel):
                 kwargs.get("instructions")
                 or "" + "\n" + "\n".join(additional_instructions)
             ).strip()
+
+        if user_access:
+            warnings.warn(
+                "The `user_access` argument is deprecated. Use `interactive=True` instead.",
+                DeprecationWarning,
+            )
+            kwargs["interactive"] = True
 
         super().__init__(**kwargs)
 
