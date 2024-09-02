@@ -40,7 +40,7 @@ def run_engineer():
                 or as little information as the user wants to share. Once you have
                 enough, write out a design document to complete the task.
                 """,
-        user_access=True,
+        interactive=True,
         result_type=DesignDoc,
     )
 

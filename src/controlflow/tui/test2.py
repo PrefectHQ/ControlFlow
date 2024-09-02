@@ -6,7 +6,7 @@ from controlflow.tui.app import TUIApp
 
 asyncio
 with Flow() as flow:
-    t = Task("get the user name", user_access=True)
+    t = Task("get the user name", interactive=True)
 
 
 async def run():

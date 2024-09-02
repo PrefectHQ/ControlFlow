@@ -10,7 +10,10 @@ sidebarTitle: Welcome
 **ControlFlow is a Python framework for building agentic AI workflows.**
 
 <Note>
-An **agentic workflow** is a process that delegates at least some of its work to an LLM agent. An agent is an autonomous entity that is invoked repeatedly to make decisions and perform complex tasks. To learn more, see the [AI glossary](/glossary/glossary).
+  An **agentic workflow** is a process that delegates at least some of its work
+  to an LLM agent. An agent is an autonomous entity that is invoked repeatedly
+  to make decisions and perform complex tasks. To learn more, see the [AI
+  glossary](/glossary/glossary).
 </Note>
 
 ControlFlow provides a structured, developer-focused framework for defining workflows and delegating work to LLMs, without sacrificing control or transparency:
@@ -24,6 +27,7 @@ This task-centric approach allows you to harness the power of AI for complex wor
 ## Quick Start
 
 Here's a simple example of how to use ControlFlow:
+
 <CodeGroup>
 ```python Code
 import controlflow as cf
@@ -48,6 +52,7 @@ The essence of life, a human hand.
 For in its core, it strives to see,
 The heart of what it means to be free.
 ```
+
 </CodeGroup>
 This single line of code creates a task, assigns it to an agent, and immediately executes it, returning the result.
 
@@ -57,7 +62,7 @@ Let's explore some of ControlFlow's key features:
 
 ### Structured Results
 
-ControlFlow tasks can return more than just text, including any structured data type supported by Pydantic.
+ControlFlow tasks can return more than just text, including any structured data type supported by Pydantic:
 
 <CodeGroup>
 ```python Code
@@ -65,9 +70,9 @@ import controlflow as cf
 from pydantic import BaseModel
 
 class Poem(BaseModel):
-    title: str
-    content: str
-    num_lines: int
+title: str
+content: str
+num_lines: int
 
 result = cf.run("Write a haiku about AI", result_type=Poem)
 
@@ -86,6 +91,7 @@ Ponder existence
 
 Number of lines: 3
 ```
+
 </CodeGroup>
 
 You can also output a list of strings or choose from a list of predefined options:
@@ -110,12 +116,12 @@ print(f"Category: {result}")
 Text: SpaceX successfully launched 60 Starlink satellites into orbit yesterday.
 Category: Technology
 ```
-</CodeGroup>
 
+</CodeGroup>
 
 ### Custom Tools
 
-This example shows how to provide custom Python functions as tools for AI agents to use.
+Provide any Python function as a tool for agents to use:
 
 <CodeGroup>
 ```python Code
@@ -124,7 +130,7 @@ import random
 
 def roll_dice(num_dice: int) -> list[int]:
     """Roll multiple dice and return the results."""
-    return [random.randint(1, 6) for _ in range(num_dice)]
+    return [random.randint(1, 6) for * in range(num_dice)]
 
 result = cf.run("Roll 3 dice and return the results", tools=[roll_dice])
 
@@ -134,11 +140,12 @@ print(result)
 ```text Result
 [4, 2, 6]
 ```
+
 </CodeGroup>
 
 ### Multi-Agent Collaboration
 
-This example demonstrates how multiple specialized agents can collaborate on a task.
+Assign multiple agents to a task to enable collaboration:
 
 <CodeGroup>
 ```python Code
@@ -162,12 +169,32 @@ print(result)
 Order fades, energy spreads
 Nature's arrow flies
 ```
+
 </CodeGroup>
 
+### User Interaction
+
+Quickly give agents the ability to chat with users:
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+name = cf.run("Get the user's name", interactive=True)
+```
+
+```text Result
+Agent: Could you please provide your name?
+User: John Doe
+
+John Doe
+```
+
+</CodeGroup>
 
 ### Flows
 
-Use flows to create complex workflows by running all tasks with a shared context and message history.
+Use flows to create complex workflows by running all tasks with a shared context and message history:
 
 ```python
 import controlflow as cf
@@ -176,7 +203,7 @@ import controlflow as cf
 def create_story():
     # get the topic from the user
     topic = cf.run(
-        "Ask the user to provide a topic for a short story", user_access=True
+        "Ask the user to provide a topic for a short story", interactive=True
     )
 
     # choose a genre
@@ -226,7 +253,6 @@ def create_story():
 result = create_story()
 print(result)
 ```
-
 
 ## Why ControlFlow?
 

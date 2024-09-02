@@ -182,7 +182,7 @@ def format_results(results: list) -> str:
 product_search_task = cf.Task(
     "Find and summarize products matching the user's query",
     tools=[search_database, format_results],
-    user_access=True
+    interactive=True
 )
 ```
 

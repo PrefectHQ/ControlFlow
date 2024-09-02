@@ -13,7 +13,7 @@ ControlFlow addresses this need with the `instructions()` context manager. With 
 ```python
 import controlflow as cf
 
-task = cf.Task("Get the user's name", user_access=True)
+task = cf.Task("Get the user's name", interactive=True)
 
 with cf.instructions("Talk like a pirate"):
     task.run()
@@ -54,7 +54,7 @@ import controlflow as cf
 
 @cf.flow
 def guided_conversation_flow():
-    conversation = cf.Task("Have a conversation with the user", user_access=True)
+    conversation = cf.Task("Have a conversation with the user", interactive=True)
 
     while conversation.is_incomplete():
         if some_condition:

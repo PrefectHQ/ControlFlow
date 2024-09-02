@@ -1,5 +1,6 @@
 import abc
 import logging
+import warnings
 from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
@@ -58,7 +59,7 @@ class Agent(ControlFlowModel, abc.ABC):
     tools: list[Callable] = Field(
         [], description="List of tools available to the agent."
     )
-    user_access: bool = Field(
+    interactive: bool = Field(
         False,
         description="If True, the agent is given tools for interacting with a human user.",
     )
@@ -79,9 +80,17 @@ class Agent(ControlFlowModel, abc.ABC):
 
     _cm_stack: list[contextmanager] = []
 
-    def __init__(self, name: str = None, **kwargs):
+    def __init__(self, name: str = None, user_access: bool = None, **kwargs):
         if name is not None:
             kwargs["name"] = name
+
+        # deprecated in 0.9
+        if user_access is not None:
+            warnings.warn(
+                "The `user_access` argument is deprecated. Use `interactive=True` instead.",
+                DeprecationWarning,
+            )
+            kwargs["interactive"] = True
 
         if additional_instructions := get_instructions():
             kwargs["instructions"] = (
@@ -119,10 +128,10 @@ class Agent(ControlFlowModel, abc.ABC):
 
     def serialize_for_prompt(self) -> dict:
         dct = self.model_dump(
-            include={"name", "id", "description", "tools", "user_access"}
+            include={"name", "id", "description", "tools", "interactive"}
         )
-        if not dct["user_access"]:
-            dct.pop("user_access")
+        if not dct["interactive"]:
+            dct.pop("interactive")
         return dct
 
     def get_model(self, tools: list["Tool"] = None) -> BaseChatModel:
@@ -145,11 +154,11 @@ class Agent(ControlFlowModel, abc.ABC):
         return controlflow.llm.rules.rules_for_model(self.get_model())
 
     def get_tools(self) -> list["Tool"]:
-        from controlflow.tools.talk_to_user import talk_to_user
+        from controlflow.tools.input import cli_input
 
         tools = self.tools.copy()
-        if self.user_access:
-            tools.append(talk_to_user)
+        if self.interactive:
+            tools.append(cli_input)
         if self.memory is not None:
             tools.extend(self.memory.get_tools())
 

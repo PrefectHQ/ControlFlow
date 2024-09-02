@@ -100,11 +100,11 @@ class TestAgentPrompt:
 
 class TestAgentSerialization:
     def test_serialize_for_prompt(self):
-        agent = Agent(name="Test", description="A test agent", user_access=True)
+        agent = Agent(name="Test", description="A test agent", interactive=True)
         serialized = agent.serialize_for_prompt()
         assert serialized["name"] == "Test"
         assert serialized["description"] == "A test agent"
-        assert serialized["user_access"] is True
+        assert serialized["interactive"] is True
         assert "id" in serialized
         assert "tools" in serialized
 

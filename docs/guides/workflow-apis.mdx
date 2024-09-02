@@ -16,7 +16,7 @@ with cf.Flow() as greeting_flow:
     name_task = cf.Task(
         "Get the user's name",
         result_type=str,
-        user_access=True
+        interactive=True
     )
     
     greeting_task = cf.Task(
@@ -28,7 +28,7 @@ with cf.Flow() as greeting_flow:
 greeting_flow.run()
 ```
 
-Here, tasks are created by instantiating the `Task` class, allowing explicit specification of properties like `result_type`, `user_access`, and `context`.
+Here, tasks are created by instantiating the `Task` class, allowing explicit specification of properties like `result_type`, `interactive`, and `context`.
 
 <Note>
 
@@ -42,7 +42,7 @@ The functional API uses decorators to transform Python functions into ControlFlo
 ```python
 import controlflow as cf
 
-@cf.task(user_access=True)
+@cf.task(interactive=True)
 def get_user_name() -> str:
     "Ask the user for their name"
     pass

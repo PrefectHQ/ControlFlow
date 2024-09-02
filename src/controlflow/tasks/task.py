@@ -1,4 +1,5 @@
 import datetime
+import warnings
 from contextlib import ExitStack, contextmanager
 from enum import Enum
 from typing import (
@@ -25,7 +26,7 @@ import controlflow
 from controlflow.agents import Agent
 from controlflow.instructions import get_instructions
 from controlflow.tools import Tool, tool
-from controlflow.tools.talk_to_user import talk_to_user
+from controlflow.tools.input import cli_input
 from controlflow.utilities.context import ctx
 from controlflow.utilities.general import (
     NOTSET,
@@ -109,7 +110,7 @@ class Task(ControlFlowModel):
         default_factory=list,
         description="Tools available to every agent working on this task.",
     )
-    user_access: bool = False
+    interactive: bool = False
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     max_iterations: Optional[int] = Field(
         default_factory=lambda: controlflow.settings.max_task_iterations,
@@ -128,6 +129,7 @@ class Task(ControlFlowModel):
         objective: str = None,
         result_type: Any = NOTSET,
         infer_parent: bool = True,
+        user_access: bool = None,
         **kwargs,
     ):
         """
@@ -154,6 +156,14 @@ class Task(ControlFlowModel):
                 kwargs.get("instructions")
                 or "" + "\n" + "\n".join(additional_instructions)
             ).strip()
+
+        # deprecated in 0.9
+        if user_access:
+            warnings.warn(
+                "The `user_access` argument is deprecated. Use `interactive=True` instead.",
+                DeprecationWarning,
+            )
+            kwargs["interactive"] = True
 
         super().__init__(**kwargs)
 
@@ -453,8 +463,8 @@ class Task(ControlFlowModel):
 
     def get_tools(self) -> list[Union[Tool, Callable]]:
         tools = self.tools.copy()
-        if self.user_access:
-            tools.append(talk_to_user)
+        if self.interactive:
+            tools.append(cli_input)
         tools.extend(
             [
                 self.create_success_tool(),

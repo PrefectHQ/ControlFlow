@@ -17,7 +17,7 @@ class Name(BaseModel):
 # Example usage with mock data
 
 with Flow() as flow:
-    # t = Task("get the user's name", result_type=str, user_access=True)
+    # t = Task("get the user's name", result_type=str, interactive=True)
     t0 = Task(
         "Introduce yourself",
         # status="SUCCESSFUL",

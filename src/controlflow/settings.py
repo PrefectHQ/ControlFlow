@@ -47,11 +47,6 @@ class Settings(ControlFlowSettings):
         description="If True, @task- and @flow-decorated functions are run immediately. "
         "This can be set on a per-task or per-flow basis using the `eager` argument.",
     )
-    enable_local_input: bool = Field(
-        default=True,
-        description="If True, the user can provide input via "
-        "the terminal. Otherwise, only API input is accepted.",
-    )
     strict_flow_context: bool = Field(
         default=False,
         description="If False, calling Task.run() outside a flow context will automatically "

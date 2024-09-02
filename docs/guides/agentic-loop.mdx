@@ -135,7 +135,7 @@ ControlFlow addresses this need through the `instructions()` context manager. Wi
 ```python
 import controlflow as cf
 
-task = cf.Task("Get the user's name", user_acces=True)
+task = cf.Task("Get the user's name", interactive=True)
 
 with instructions("Talk like a pirate"):
     task.run()

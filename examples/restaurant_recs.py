@@ -16,10 +16,10 @@ def restaurant_recs(n: int) -> list[Restaurant]:
     """
 
     # get the user's location
-    location = Task("Get a location", user_access=True)
+    location = Task("Get a location", interactive=True)
 
     # get the user's preferred cuisine
-    cuisine = Task("Get a preferred cuisine", user_access=True)
+    cuisine = Task("Get a preferred cuisine", interactive=True)
 
     # generate the recommendations from the user's input
     recs = Task(

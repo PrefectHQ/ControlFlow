@@ -5,7 +5,7 @@ thread_id = "test-thread"
 
 @cf.flow(thread=thread_id)
 def flow_1():
-    task = cf.Task("get the user's name", result_type=str, user_access=True)
+    task = cf.Task("get the user's name", result_type=str, interactive=True)
     return task
 
 
