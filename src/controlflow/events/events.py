@@ -138,12 +138,10 @@ class ToolResultEvent(Event):
                     name=self.agent.name,
                 )
             ]
-        elif not self.tool_result.is_private:
+        else:
             return OrchestratorMessage(
                 prefix=f'The following {"failed" if self.tool_result.is_error else "successful"} '
                 f'tool result was received by "{self.agent.name}" with ID {self.agent.id}',
                 content=self.tool_result.str_result,
                 name=self.agent.name,
             ).to_messages(context)
-        else:
-            return []

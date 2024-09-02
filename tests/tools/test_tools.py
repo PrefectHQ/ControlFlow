@@ -2,6 +2,8 @@ import random
 from typing import Annotated
 
 import pytest
+from pydantic import Field
+
 from controlflow.agents.agent import Agent
 from controlflow.llm.messages import ToolMessage
 from controlflow.tools.tools import (
@@ -9,7 +11,6 @@ from controlflow.tools.tools import (
     handle_tool_call,
     tool,
 )
-from pydantic import Field
 
 
 @pytest.mark.parametrize("style", ["decorator", "class"])

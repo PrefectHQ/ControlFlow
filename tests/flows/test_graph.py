@@ -162,3 +162,16 @@ def test_downstream_tasks():
 
     # never include a start task in the downstream list
     assert graph.downstream_tasks([task1, task3]) == [task1, task2, task3]
+
+
+# def test_parent_child_tracking():
+#     with Flow() as flow:
+#         with SimpleTask() as parent:
+#             with SimpleTask() as child:
+#                 grandchild = SimpleTask()
+
+#     assert parent in flow.tasks
+#     assert child in flow.tasks
+#     assert grandchild in flow.tasks
+
+#     assert len(flow.graph.edges) == 2

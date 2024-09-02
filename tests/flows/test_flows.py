@@ -1,8 +1,6 @@
-import pytest
 from controlflow.agents import Agent
 from controlflow.events.events import UserMessage
 from controlflow.flows import Flow, get_flow
-from controlflow.orchestration.agent_context import AgentContext
 from controlflow.tasks.task import Task
 from controlflow.utilities.context import ctx
 
@@ -68,32 +66,6 @@ class TestFlowContext:
             assert get_flow() == flow1
         assert get_flow() is None
 
-    def test_tasks_created_in_flow_context(self):
-        with Flow() as flow:
-            t1 = Task("test 1")
-            t2 = Task("test 2")
-
-        assert flow.tasks == [t1, t2]
-
-    def test_tasks_created_in_nested_flows_only_in_inner_flow(self):
-        with Flow() as flow1:
-            t1 = Task("test 1")
-            with Flow() as flow2:
-                t2 = Task("test 2")
-
-        assert flow1.tasks == [t1]
-        assert flow2.tasks == [t2]
-
-    def test_inner_flow_includes_completed_parent_tasks(self):
-        with Flow() as flow1:
-            t1 = Task("test 1", status="SUCCESSFUL")
-            t2 = Task("test 2")
-            with Flow() as flow2:
-                t3 = Task("test 3")
-
-        assert flow1.tasks == [t1, t2]
-        assert flow2.tasks == [t1, t3]
-
 
 class TestFlowHistory:
     def test_get_events_empty(self):
@@ -101,7 +73,7 @@ class TestFlowHistory:
         messages = flow.get_events()
         assert messages == []
 
-    def test_disable_copying_parent_history(self):
+    def test_load_parent_history(self):
         flow1 = Flow()
         flow1.add_events(
             [
@@ -111,7 +83,48 @@ class TestFlowHistory:
         )
 
         with flow1:
-            flow2 = Flow(copy_parent=False)
+            flow2 = Flow()
+
+        messages1 = flow1.get_events()
+        assert len(messages1) == 2
+        assert [m.content for m in messages1] == ["hello", "world"]
+
+        messages2 = flow2.get_events()
+        assert messages1 == messages2
+
+    def test_load_parent_history_sorts_messages(self):
+        flow1 = Flow()
+        flow1.add_events(
+            [
+                UserMessage(content="hello"),
+            ]
+        )
+
+        with flow1:
+            flow2 = Flow()
+            flow2.add_events([UserMessage(content="world")])
+
+        flow1.add_events([UserMessage(content="goodbye")])
+
+        messages1 = flow1.get_events()
+        assert len(messages1) == 2
+        assert [m.content for m in messages1] == ["hello", "goodbye"]
+
+        messages2 = flow2.get_events()
+        assert len(messages2) == 3
+        assert [m.content for m in messages2] == ["hello", "world", "goodbye"]
+
+    def test_disable_load_parent_history(self):
+        flow1 = Flow()
+        flow1.add_events(
+            [
+                UserMessage(content="hello"),
+                UserMessage(content="world"),
+            ]
+        )
+
+        with flow1:
+            flow2 = Flow(load_parent_events=False)
 
         messages1 = flow1.get_events()
         assert len(messages1) == 2
@@ -133,13 +146,13 @@ class TestFlowHistory:
             flow2 = Flow()
             flow2.add_events([UserMessage(content="goodbye")])
 
-        messages1 = flow1.get_events()
-        assert len(messages1) == 2
-        assert [m.content for m in messages1] == ["hello", "world"]
+            messages1 = flow1.get_events()
+            assert len(messages1) == 2
+            assert [m.content for m in messages1] == ["hello", "world"]
 
-        messages2 = flow2.get_events()
-        assert len(messages2) == 3
-        assert [m.content for m in messages2] == ["hello", "world", "goodbye"]
+            messages2 = flow2.get_events()
+            assert len(messages2) == 3
+            assert [m.content for m in messages2] == ["hello", "world", "goodbye"]
 
     def test_flow_sets_thread_id_for_history(self, tmpdir):
         f1 = Flow(thread_id="abc")
@@ -159,35 +172,33 @@ class TestFlowCreatesDefaults:
         assert flow.agent == agent1
 
     def test_flow_agent_becomes_task_default(self):
-        agent = Agent(name="Marvin")
+        agent = Agent(name="BB8")
         t1 = Task("t1")
-        assert t1.agent is not agent
+        assert agent not in t1.get_agents()
+        assert len(t1.get_agents()) == 1
 
         with Flow(agent=agent):
             t2 = Task("t2")
-            assert t2.get_agent() == agent
+            assert agent in t2.get_agents()
+            assert len(t2.get_agents()) == 1
 
 
 class TestFlowPrompt:
-    @pytest.fixture
-    def agent_context(self) -> AgentContext:
-        return AgentContext(flow=Flow(), tasks=[])
-
     def test_default_prompt(self):
         flow = Flow()
         assert flow.prompt is None
 
-    def test_default_template(self, agent_context):
+    def test_default_template(self):
         flow = Flow()
-        prompt = flow.get_prompt(context=agent_context)
+        prompt = flow.get_prompt()
         assert prompt.startswith("# Flow")
 
-    def test_custom_prompt(self, agent_context):
+    def test_custom_prompt(self):
         flow = Flow(prompt="Custom Prompt")
-        prompt = flow.get_prompt(context=agent_context)
+        prompt = flow.get_prompt()
         assert prompt == "Custom Prompt"
 
-    def test_custom_templated_prompt(self, agent_context):
+    def test_custom_templated_prompt(self):
         flow = Flow(prompt="{{ flow.name }}", name="abc")
-        prompt = flow.get_prompt(context=agent_context)
+        prompt = flow.get_prompt()
         assert prompt == "abc"

@@ -1,7 +1,8 @@
-import controlflow
 import prefect
-from controlflow.cli.main import app
 from typer.testing import CliRunner
+
+import controlflow
+from controlflow.cli.main import app
 
 runner = CliRunner()
 

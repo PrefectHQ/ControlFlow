@@ -7,8 +7,9 @@ from .settings import settings
 from controlflow.defaults import defaults
 
 from .agents import Agent
-from .tasks import Task
+from .tasks import Task, run, run_async
 from .flows import Flow
+from .orchestration import turn_strategies
 
 
 from .instructions import instructions

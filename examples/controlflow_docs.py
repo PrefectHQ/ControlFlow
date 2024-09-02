@@ -1,8 +1,9 @@
 from pathlib import Path
 
+from langchain_openai import OpenAIEmbeddings
+
 import controlflow as cf
 from controlflow.tools import tool
-from langchain_openai import OpenAIEmbeddings
 
 try:
     from langchain_community.document_loaders import DirectoryLoader

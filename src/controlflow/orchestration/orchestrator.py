@@ -1,207 +1,372 @@
 import logging
-import math
-from collections import defaultdict
-from typing import Optional, TypeVar
+from typing import List, TypeVar
 
-from pydantic import Field, PrivateAttr, field_validator
+from pydantic import Field, field_validator
 
 import controlflow
-from controlflow.agents.agent import BaseAgent
+from controlflow.agents.agent import Agent
 from controlflow.events.base import Event
+from controlflow.events.message_compiler import MessageCompiler
 from controlflow.flows import Flow
-from controlflow.orchestration.agent_context import AgentContext
+from controlflow.instructions import get_instructions
+from controlflow.llm.messages import BaseMessage
+from controlflow.orchestration import turn_strategies
 from controlflow.orchestration.handler import Handler
+from controlflow.orchestration.turn_strategies import Popcorn, TurnStrategy
 from controlflow.tasks.task import Task
-from controlflow.tools.tools import Tool
+from controlflow.tools.tools import Tool, as_tools
 from controlflow.utilities.general import ControlFlowModel
-from controlflow.utilities.prefect import prefect_task as prefect_task
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
-__all__ = ["Orchestrator"]
-
 
 class Orchestrator(ControlFlowModel):
     """
-    The orchestrator is responsible for managing the flow of tasks and agents. It
-    is given objects that it is responsible for managing. At each iteration, the
-    orchestrator will select a task and an agent to complete the task.
+    The orchestrator is responsible for managing the flow of tasks and agents.
+    It is given tasks to execute in a flow context, and an agent to execute the
+    tasks. The turn strategy determines how agents take turns and collaborate.
     """
 
     model_config = dict(arbitrary_types_allowed=True)
     flow: "Flow" = Field(description="The flow that the orchestrator is managing")
-    tasks: Optional[list[Task]] = Field(
-        None,
-        description="Target tasks to be completed by the orchestrator. "
-        "Note that any upstream dependencies will be completed as well. "
-        "If None, all tasks in the flow will be used.",
-    )
-    agents: dict[Task, BaseAgent] = Field(
-        default_factory=dict,
-        description="Optionally assign an agent to a task; this overrides the task's own configuration.",
+    agent: Agent = Field(description="The currently active agent")
+    tasks: list[Task] = Field(description="Tasks to be executed by the agent.")
+    turn_strategy: TurnStrategy = Field(
+        default=None,
+        description="The strategy to use for managing agent turns",
+        validate_default=True,
     )
     handlers: list[Handler] = Field(None, validate_default=True)
 
-    _task_iterations: dict[Task, int] = PrivateAttr(
-        default_factory=lambda: defaultdict(int)
-    )
-    _ready_task_counter: int = 0
+    @field_validator("turn_strategy", mode="before")
+    def _validate_turn_strategy(cls, v):
+        if v is None:
+            v = Popcorn()
+        elif isinstance(v, str):
+            map = {
+                "SINGLE": turn_strategies.Single(),
+                "ROUND_ROBIN": turn_strategies.RoundRobin(),
+                "POPCORN": turn_strategies.Popcorn(),
+                "RANDOM": turn_strategies.Random(),
+            }
+            v = map.get(v.upper())
+            if v is None:
+                raise ValueError(f"Invalid turn strategy provided as string: {v}")
+        return v
 
     @field_validator("handlers", mode="before")
-    def _handlers(cls, v):
+    def _validate_handlers(cls, v):
+        """
+        Validate and set default handlers.
+
+        Args:
+            v: The input value for handlers.
+
+        Returns:
+            list[Handler]: The validated list of handlers.
+        """
         from controlflow.orchestration.print_handler import PrintHandler
 
         if v is None and controlflow.settings.enable_print_handler:
             v = [PrintHandler()]
         return v or []
 
-    @field_validator("agents", mode="before")
-    def _agents(cls, v):
-        from controlflow.agents.teams import Team
-
-        if v is None:
-            v = {}
-
-        for task, agents in v.items():
-            if isinstance(agents, list):
-                if len(agents) == 1:
-                    agents = agents[0]
-                else:
-                    agents = Team(agents=agents)
-                v[task] = agents
-
-        return v
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.tasks = self.tasks or self.flow.tasks
-        for task in self.tasks:
-            self.flow.add_task(task)
-
     def handle_event(self, event: Event):
+        """
+        Handle an event by passing it to all handlers and persisting if necessary.
+
+        Args:
+            event (Event): The event to handle.
+        """
         for handler in self.handlers:
             handler.handle(event)
         if event.persist:
             self.flow.add_events([event])
 
-    def run(self, steps: Optional[int] = None):
-        from controlflow.events.orchestrator_events import (
-            OrchestratorEnd,
-            OrchestratorError,
-            OrchestratorStart,
-        )
-
-        i = 0
-        while any(t.is_incomplete() for t in self.tasks) and i < (steps or math.inf):
-            self.handle_event(OrchestratorStart(orchestrator=self))
-
-            try:
-                ready_tasks = self.get_ready_tasks()
-                if not ready_tasks:
-                    return
-                agent = self.get_agent(task=ready_tasks[0])
-                tasks = self.get_agent_tasks(agent=agent, ready_tasks=ready_tasks)
-                tools = self.get_tools(tasks=tasks)
-
-                context = AgentContext(
-                    flow=self.flow,
-                    tasks=tasks,
-                    tools=tools,
-                    handlers=self.handlers,
-                )
-                agent._run(context=context)
-
-            except Exception as exc:
-                self.handle_event(OrchestratorError(orchestrator=self, error=exc))
-                raise
-            finally:
-                self.handle_event(OrchestratorEnd(orchestrator=self))
-                i += 1
-
-    async def run_async(self, steps: Optional[int] = None):
-        from controlflow.events.orchestrator_events import (
-            OrchestratorEnd,
-            OrchestratorError,
-            OrchestratorStart,
-        )
-
-        i = 0
-        while any(t.is_incomplete() for t in self.tasks) and i < (steps or math.inf):
-            self.handle_event(OrchestratorStart(orchestrator=self))
-
-            try:
-                ready_tasks = self.get_ready_tasks()
-                if not ready_tasks:
-                    return
-                agent = self.get_agent(task=ready_tasks[0])
-                tasks = self.get_agent_tasks(agent=agent, ready_tasks=ready_tasks)
-                tools = self.get_tools(tasks=tasks)
-
-                context = AgentContext(
-                    flow=self.flow,
-                    tasks=tasks,
-                    tools=tools,
-                    handlers=self.handlers,
-                )
-                await agent._run_async(context=context)
-
-            except Exception as exc:
-                self.handle_event(OrchestratorError(orchestrator=self, error=exc))
-                raise
-            finally:
-                self.handle_event(OrchestratorEnd(orchestrator=self))
-                i += 1
-
-    def get_ready_tasks(self) -> list[Task]:
-        all_tasks = self.flow.graph.upstream_tasks(self.tasks)
-        ready_tasks = [t for t in all_tasks if t.is_ready()]
-
-        if not ready_tasks:
-            self._ready_task_counter += 1
-            if self._ready_task_counter >= 3:
-                raise ValueError("No tasks are ready to run. This is unexpected.")
-        else:
-            self._ready_task_counter = 0
-        return ready_tasks
-
-    def get_agent_tasks(self, agent: BaseAgent, ready_tasks: list[Task]) -> list[Task]:
+    def get_available_agents(self) -> List[Agent]:
         """
-        Get the subset of ready tasks that the agent is assigned to.
+        Get a list of all available agents for active tasks.
+
+        Returns:
+            List[Agent]: A list of available agents.
         """
-        agent_tasks = []
-        for task in ready_tasks:
-            if agent is self.get_agent(task):
-                if task._iteration >= (task.max_iterations or math.inf):
-                    logger.warning(
-                        f'Task "{task.friendly_name()}" has exceeded max iterations and will be marked failed'
-                    )
-                    task.mark_failed(
-                        reason="Task was not completed before exceeding its maximum number of iterations."
-                    )
-                    continue
+        ready_tasks = self.get_tasks("ready")
+        return list(set(a for t in ready_tasks for a in t.get_agents()) | {self.agent})
 
-                # if the task is pending, start it
-                if task.is_pending():
-                    task.mark_running()
+    def get_tools(self) -> list[Tool]:
+        """
+        Get all tools available for the current turn.
 
-                task._iteration += 1
-                agent_tasks.append(task)
-
-        return agent_tasks
-
-    def get_agent(self, task: Task) -> BaseAgent:
-        if task in self.agents:
-            return self.agents[task]
-        else:
-            return task.get_agent()
-
-    def get_tools(self, tasks: list[Task]) -> list[Tool]:
+        Returns:
+            list[Tool]: A list of available tools.
+        """
         tools = []
         tools.extend(self.flow.tools)
-        for task in tasks:
+        for task in self.get_tasks("assigned"):
             tools.extend(task.get_tools())
-            tools.append(task.create_success_tool())
-            tools.append(task.create_fail_tool())
+        tools.extend(
+            self.turn_strategy.get_tools(self.agent, self.get_available_agents())
+        )
+        tools = as_tools(tools)
         return tools
+
+    def _run_turn(self, max_calls: int = None):
+        """
+        Run a single turn of the orchestration process.
+
+        Args:
+            max_calls (int, optional): Maximum number of LLM calls to run per turn.
+        """
+        self.turn_strategy.begin_turn()
+
+        for task in self.get_tasks("assigned"):
+            task.mark_running()
+
+        calls = 0
+        while not self.turn_strategy.should_end_turn():
+            if max_calls is not None and calls >= max_calls:
+                break
+            messages = self.compile_messages()
+            tools = self.get_tools()
+            for event in self.agent._run_model(messages=messages, tools=tools):
+                self.handle_event(event)
+
+            # Check if there are any ready tasks left
+            if not self.get_tasks("ready"):
+                break
+
+            # Check if the current agent is still available
+            if self.agent not in self.get_available_agents():
+                break
+
+            calls += 1
+
+        # at the end of each turn, select the next agent
+        self.agent = self.turn_strategy.get_next_agent(
+            self.agent, self.get_available_agents()
+        )
+
+    async def _run_turn_async(self, max_calls: int = None):
+        """
+        Run a single turn of the orchestration process asynchronously.
+
+        Args:
+            max_calls (int, optional): Maximum number of LLM calls to run per turn.
+        """
+        self.turn_strategy.begin_turn()
+
+        for task in self.get_tasks("assigned"):
+            task.mark_running()
+
+        calls = 0
+        while not self.turn_strategy.should_end_turn():
+            if max_calls is not None and calls >= max_calls:
+                break
+            messages = self.compile_messages()
+            tools = self.get_tools()
+            async for event in self.agent._run_model_async(
+                messages=messages, tools=tools
+            ):
+                self.handle_event(event)
+
+            # Check if there are any ready tasks left
+            if not self.get_tasks("ready"):
+                break
+
+            # Check if the current agent is still available
+            if self.agent not in self.get_available_agents():
+                break
+
+            calls += 1
+
+        # at the end of each turn, select the next agent
+        self.agent = self.turn_strategy.get_next_agent(
+            self.agent, self.get_available_agents()
+        )
+
+    def run(self, max_turns: int = None, max_calls_per_turn: int = None):
+        """
+        Run the orchestration process until the session should end.
+
+        Args:
+            max_turns (int, optional): Maximum number of turns to run.
+            max_calls_per_turn (int, optional): Maximum number of LLM calls per turn.
+        """
+        import controlflow.events.orchestrator_events
+
+        self.handle_event(
+            controlflow.events.orchestrator_events.OrchestratorStart(orchestrator=self)
+        )
+
+        turns = 0
+        try:
+            while (
+                self.get_tasks("ready") and not self.turn_strategy.should_end_session()
+            ):
+                if max_turns is not None and turns >= max_turns:
+                    break
+                self._run_turn(max_calls=max_calls_per_turn)
+                turns += 1
+        except Exception as exc:
+            self.handle_event(
+                controlflow.events.orchestrator_events.OrchestratorError(
+                    orchestrator=self, error=exc
+                )
+            )
+            raise
+        finally:
+            self.handle_event(
+                controlflow.events.orchestrator_events.OrchestratorEnd(
+                    orchestrator=self
+                )
+            )
+
+    async def run_async(self, max_turns: int = None, max_calls_per_turn: int = None):
+        """
+        Run the orchestration process asynchronously until the session should end.
+
+        Args:
+            max_turns (int, optional): Maximum number of turns to run.
+            max_calls_per_turn (int, optional): Maximum number of LLM calls per turn.
+        """
+        import controlflow.events.orchestrator_events
+
+        self.handle_event(
+            controlflow.events.orchestrator_events.OrchestratorStart(orchestrator=self)
+        )
+
+        turns = 0
+        try:
+            while (
+                self.get_tasks("ready") and not self.turn_strategy.should_end_session()
+            ):
+                if max_turns is not None and turns >= max_turns:
+                    break
+                await self._run_turn_async(max_calls=max_calls_per_turn)
+                turns += 1
+        except Exception as exc:
+            self.handle_event(
+                controlflow.events.orchestrator_events.OrchestratorError(
+                    orchestrator=self, error=exc
+                )
+            )
+            raise
+        finally:
+            self.handle_event(
+                controlflow.events.orchestrator_events.OrchestratorEnd(
+                    orchestrator=self
+                )
+            )
+
+    def compile_prompt(self) -> str:
+        """
+        Compile the prompt for the current turn.
+
+        Returns:
+            str: The compiled prompt.
+        """
+        from controlflow.orchestration.prompt_templates import (
+            InstructionsTemplate,
+            TasksTemplate,
+            ToolTemplate,
+        )
+
+        tools = self.get_tools()
+
+        prompts = [
+            self.agent.get_prompt(),
+            self.flow.get_prompt(),
+            TasksTemplate(tasks=self.get_tasks("ready")).render(),
+            ToolTemplate(tools=tools).render(),
+            InstructionsTemplate(instructions=get_instructions()).render(),
+        ]
+        prompt = "\n\n".join([p for p in prompts if p])
+        return prompt
+
+    def compile_messages(self) -> list[BaseMessage]:
+        """
+        Compile messages for the current turn.
+
+        Returns:
+            list[BaseMessage]: The compiled messages.
+        """
+        events = self.flow.get_events(limit=100)
+
+        compiler = MessageCompiler(
+            events=events,
+            llm_rules=self.agent.get_llm_rules(),
+            system_prompt=self.compile_prompt(),
+        )
+        messages = compiler.compile_to_messages(agent=self.agent)
+        return messages
+
+    def get_tasks(self, filter: str = "assigned") -> list[Task]:
+        """
+        Collect tasks based on the specified filter.
+
+        Args:
+            filter (str): Determines which tasks to return.
+                - "ready": Tasks ready to execute (no unmet dependencies).
+                - "assigned": Ready tasks assigned to the current agent.
+                - "all": All tasks including subtasks and ancestors.
+
+        Returns:
+            list[Task]: List of tasks based on the specified filter.
+        """
+        if filter not in ["ready", "assigned", "all"]:
+            raise ValueError(f"Invalid filter: {filter}")
+
+        all_tasks: list[Task] = []
+        ready_tasks: list[Task] = []
+
+        def collect_tasks(task: Task, is_root: bool = False):
+            if task not in all_tasks:
+                all_tasks.append(task)
+                if is_root and task.is_ready():
+                    ready_tasks.append(task)
+                for subtask in task.subtasks:
+                    collect_tasks(subtask, is_root=is_root)
+
+        # Collect tasks from self.tasks (root tasks)
+        for task in self.tasks:
+            collect_tasks(task, is_root=True)
+
+        if filter == "ready":
+            return ready_tasks
+
+        if filter == "assigned":
+            return [task for task in ready_tasks if self.agent in task.get_agents()]
+
+        # Collect ancestor tasks for "all" filter
+        for task in self.tasks:
+            current = task.parent
+            while current:
+                if current not in all_tasks:
+                    all_tasks.append(current)
+                current = current.parent
+
+        return all_tasks
+
+    def get_task_hierarchy(self) -> dict:
+        """
+        Build a hierarchical structure of all tasks.
+
+        Returns:
+            dict: A nested dictionary representing the task hierarchy,
+            where each task has 'task' and 'children' keys.
+        """
+        all_tasks = self.get_tasks("all")
+
+        hierarchy = {}
+        task_dict_map = {task.id: {"task": task, "children": []} for task in all_tasks}
+
+        for task in all_tasks:
+            if task.parent:
+                parent_dict = task_dict_map[task.parent.id]
+                parent_dict["children"].append(task_dict_map[task.id])
+            else:
+                hierarchy[task.id] = task_dict_map[task.id]
+
+        return hierarchy

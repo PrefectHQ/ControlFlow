@@ -49,7 +49,6 @@ class Tool(ControlFlowModel):
         description="The JSON schema for the tool's input parameters"
     )
     metadata: dict = {}
-    private: bool = False
 
     fn: Callable = Field(None, exclude=True)
 
@@ -299,7 +298,6 @@ class ToolResult(ControlFlowModel):
     result: Any = Field(exclude=True, repr=False)
     str_result: str = Field(repr=False)
     is_error: bool = False
-    is_private: bool = False
 
 
 def handle_tool_call(
@@ -310,7 +308,6 @@ def handle_tool_call(
     a ToolResult object
     """
     is_error = False
-    is_private = False
     tool = None
     tool_lookup = {t.name: t for t in tools}
     fn_name = tool_call["name"]
@@ -318,7 +315,6 @@ def handle_tool_call(
     if fn_name not in tool_lookup:
         fn_output = f'There is no tool called "{fn_name}".'
         is_error = True
-        is_private = True
         if controlflow.settings.tools_raise_on_error:
             raise ValueError(fn_output)
 
@@ -343,7 +339,6 @@ def handle_tool_call(
         result=fn_output,
         str_result=output_to_string(fn_output),
         is_error=is_error,
-        is_private=getattr(tool, "private", is_private),
     )
 
 
@@ -353,7 +348,6 @@ async def handle_tool_call_async(tool_call: ToolCall, tools: list[Tool]) -> Any:
     a ToolResult object
     """
     is_error = False
-    is_private = False
     tool = None
     tool_lookup = {t.name: t for t in tools}
     fn_name = tool_call["name"]
@@ -361,7 +355,6 @@ async def handle_tool_call_async(tool_call: ToolCall, tools: list[Tool]) -> Any:
     if fn_name not in tool_lookup:
         fn_output = f'There is no tool called "{fn_name}".'
         is_error = True
-        is_private = True
         if controlflow.settings.tools_raise_on_error:
             raise ValueError(fn_output)
 
@@ -386,5 +379,4 @@ async def handle_tool_call_async(tool_call: ToolCall, tools: list[Tool]) -> Any:
         result=fn_output,
         str_result=output_to_string(fn_output),
         is_error=is_error,
-        is_private=getattr(tool, "private", is_private),
     )

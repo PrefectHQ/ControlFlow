@@ -1,5 +1,6 @@
-import controlflow
 import pytest
+
+import controlflow
 from controlflow.llm.messages import BaseMessage
 from controlflow.utilities.testing import FakeLLM
 

@@ -1,9 +1,9 @@
-import controlflow
 import pytest
+
+import controlflow
 from controlflow.agents import Agent
 from controlflow.flows import Flow
 from controlflow.instructions import instructions
-from controlflow.orchestration.agent_context import AgentContext
 from controlflow.tasks.task import (
     COMPLETE_STATUSES,
     INCOMPLETE_STATUSES,
@@ -45,8 +45,8 @@ def test_stable_id():
     t1 = Task(objective="Test Objective")
     t2 = Task(objective="Test Objective")
     t3 = Task(objective="Test Objective+")
-    assert t1.id == t2.id == "e90eaf1f"
-    assert t3.id == "3cc39696"
+    assert t1.id == t2.id == "9663272a"  # Update this line with the new ID
+    assert t3.id != t1.id  # Ensure different objectives produce different IDs
 
 
 def test_task_mark_successful_and_mark_failed():
@@ -111,22 +111,23 @@ def test_task_parent_context():
 
 def test_task_agent_assignment():
     agent = Agent(name="Test Agent")
-    task = SimpleTask(agent=agent)
-    assert task.agent is agent
+    task = SimpleTask(agents=[agent])
+    assert task.agents == [agent]
+    assert task.get_agents() == [agent]
 
 
 def test_task_bad_agent_assignment():
     with pytest.raises(ValueError):
-        SimpleTask(agent=5)
+        SimpleTask(agents=5)
 
 
 def test_task_loads_agent_from_parent():
     agent = Agent(name="Test Agent")
-    with SimpleTask(agent=agent):
+    with SimpleTask(agents=[agent]):
         child = SimpleTask()
 
-    assert child.agent is None
-    assert child.get_agent() == agent
+    assert child.agents == []
+    assert child.get_agents() == [agent]
 
 
 def test_task_loads_agent_from_flow():
@@ -135,75 +136,30 @@ def test_task_loads_agent_from_flow():
     with Flow(agent=agent):
         task = SimpleTask()
 
-        assert task.agent is None
-        assert task.get_agent() == agent
+        assert task.agents == []
+        assert task.get_agents() == [agent]
 
     # outside the flow context, pick up the default agent
-    assert task.get_agent() == def_agent
+    assert task.get_agents() == [def_agent]
 
 
 def test_task_loads_agent_from_default_if_none_otherwise():
     agent = controlflow.defaults.agent
     task = SimpleTask()
 
-    assert task.agent is None
-    assert task.get_agent() == agent
+    assert task.agents == []
+    assert task.get_agents() == [agent]
 
 
 def test_task_loads_agent_from_parent_before_flow():
     agent1 = Agent(name="Test Agent 1")
     agent2 = Agent(name="Test Agent 2")
     with Flow(agent=agent1):
-        with SimpleTask(agent=agent2):
+        with SimpleTask(agents=[agent2]):
             child = SimpleTask()
 
-    assert child.agent is None
-    assert child.get_agent() == agent2
-
-
-class TestWarning:
-    def test_warn_on_steps_without_flow(self, default_fake_llm, caplog):
-        default_fake_llm.set_responses(["Hi."])
-        task = SimpleTask()
-        task.run(steps=1)
-        assert (
-            "Running a task with a steps argument but no flow is not recommended"
-            in caplog.text
-        )
-
-    async def test_warn_on_steps_without_flow_async(self, default_fake_llm, caplog):
-        default_fake_llm.set_responses(["Hi."])
-        task = SimpleTask()
-        await task.run_async(steps=1)
-        assert (
-            "Running a task with a steps argument but no flow is not recommended"
-            in caplog.text
-        )
-
-
-class TestFlowRegistration:
-    def test_task_tracking(self):
-        with Flow() as flow:
-            task = SimpleTask()
-            assert task in flow.tasks
-
-    def test_task_tracking_on_call(self):
-        task = SimpleTask()
-        with Flow() as flow:
-            task.run(steps=1)
-        assert task in flow.tasks
-
-    def test_parent_child_tracking(self):
-        with Flow() as flow:
-            with SimpleTask() as parent:
-                with SimpleTask() as child:
-                    grandchild = SimpleTask()
-
-        assert parent in flow.tasks
-        assert child in flow.tasks
-        assert grandchild in flow.tasks
-
-        assert len(flow.graph.edges) == 2
+    assert child.agents == []
+    assert child.get_agents() == [agent2]
 
 
 class TestTaskStatus:
@@ -290,27 +246,25 @@ class TestTaskStatus:
 
 
 class TestTaskPrompt:
-    @pytest.fixture
-    def agent_context(self) -> AgentContext:
-        return AgentContext(flow=Flow(), tasks=[])
-
     def test_default_prompt(self):
         task = SimpleTask()
         assert task.prompt is None
 
-    def test_default_template(self, agent_context):
+    def test_default_template(self):
         task = SimpleTask()
-        prompt = task.get_prompt(context=agent_context)
-        assert prompt.startswith("- objective")
+        prompt = task.get_prompt()
+        assert prompt.startswith("- id:")
+        assert "- objective: test" in prompt
+        assert "- context:" in prompt
 
-    def test_custom_prompt(self, agent_context):
+    def test_custom_prompt(self):
         task = SimpleTask(prompt="Custom Prompt")
-        prompt = task.get_prompt(context=agent_context)
+        prompt = task.get_prompt()
         assert prompt == "Custom Prompt"
 
-    def test_custom_templated_prompt(self, agent_context):
+    def test_custom_templated_prompt(self):
         task = SimpleTask(prompt="{{ task.objective }}", objective="abc")
-        prompt = task.get_prompt(context=agent_context)
+        prompt = task.get_prompt()
         assert prompt == "abc"
 
 

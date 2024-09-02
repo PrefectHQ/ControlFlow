@@ -1,9 +1,10 @@
 from pathlib import Path
 
+from pydantic import BaseModel
+
 import controlflow as cf
 import controlflow.tools.code
 import controlflow.tools.filesystem
-from pydantic import BaseModel
 
 # load the instructions
 instructions = open(Path(__file__).parent / "instructions.md").read()

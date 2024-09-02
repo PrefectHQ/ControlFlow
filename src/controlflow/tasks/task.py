@@ -22,7 +22,7 @@ from pydantic import (
 )
 
 import controlflow
-from controlflow.agents import BaseAgent
+from controlflow.agents import Agent
 from controlflow.instructions import get_instructions
 from controlflow.tools import Tool, tool
 from controlflow.tools.talk_to_user import talk_to_user
@@ -32,7 +32,7 @@ from controlflow.utilities.general import (
     ControlFlowModel,
     hash_objects,
 )
-from controlflow.utilities.logging import deprecated, get_logger
+from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import PrefectTrackingTask
 from controlflow.utilities.prefect import prefect_task as prefect_task
 from controlflow.utilities.tasks import (
@@ -42,7 +42,7 @@ from controlflow.utilities.tasks import (
 
 if TYPE_CHECKING:
     from controlflow.flows import Flow
-    from controlflow.orchestration.agent_context import AgentContext
+    from controlflow.orchestration.turn_strategies import TurnStrategy
 
 T = TypeVar("T")
 logger = get_logger(__name__)
@@ -67,16 +67,17 @@ COMPLETE_STATUSES = {TaskStatus.SUCCESSFUL, TaskStatus.FAILED, TaskStatus.SKIPPE
 
 class Task(ControlFlowModel):
     id: str = None
+    name: Optional[str] = Field(None, description="A name for the task.")
     objective: str = Field(
         ..., description="A brief description of the required result."
     )
     instructions: Union[str, None] = Field(
         None, description="Detailed instructions for completing the task."
     )
-    agent: Optional[BaseAgent] = Field(
-        None,
-        description="The agent or team of agents assigned to the task. "
-        "If not provided, it will be inferred from the parent task, flow, or global default.",
+    agents: list[Agent] = Field(
+        default_factory=list,
+        description="A list of agents assigned to the task. "
+        "If not provided, it will be inferred from the caller, parent task, flow, or global default.",
     )
     context: dict = Field(
         default_factory=dict,
@@ -93,9 +94,7 @@ class Task(ControlFlowModel):
         default_factory=set, description="Tasks that this task depends on explicitly."
     )
     prompt: Optional[str] = Field(
-        None,
-        description="A prompt to display to the agent working on the task. "
-        "Prompts are formatted as jinja templates, with keywords `task: Task` and `context: AgentContext`.",
+        None, description="A prompt to display to the agent working on the task."
     )
     status: TaskStatus = TaskStatus.PENDING
     result: T = None
@@ -111,10 +110,6 @@ class Task(ControlFlowModel):
         description="Tools available to every agent working on this task.",
     )
     user_access: bool = False
-    private: bool = Field(
-        False,
-        description="Work on private tasks is not visible to agents other than those assigned to the task.",
-    )
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     max_iterations: Optional[int] = Field(
         default_factory=lambda: controlflow.settings.max_task_iterations,
@@ -133,8 +128,6 @@ class Task(ControlFlowModel):
         objective: str = None,
         result_type: Any = NOTSET,
         infer_parent: bool = True,
-        agent: Optional["BaseAgent"] = None,
-        agents: Optional[list["BaseAgent"]] = None,
         **kwargs,
     ):
         """
@@ -144,15 +137,9 @@ class Task(ControlFlowModel):
             objective (str, optional): The objective of the task. Defaults to None.
             result_type (Any, optional): The type of the result. Defaults to NOTSET.
             infer_parent (bool, optional): Whether to infer the parent task. Defaults to True.
-            agent (Optional[BaseAgent], optional): The agent associated with the task. Defaults to None.
-            agents (Optional[list[BaseAgent]], optional): The list of agents
-                associated with the task. These agents will automatically be
-                combined into a team. Defaults to None.
+            agents (Optional[list[Agent]], optional): The list of agents
+                associated with the task. Defaults to None.
             **kwargs: Additional keyword arguments.
-
-        Raises:
-            ValueError: If both 'agent' and 'agents' arguments are provided.
-
         """
         # allow certain args to be provided as a positional args
         if result_type is not NOTSET:
@@ -167,15 +154,6 @@ class Task(ControlFlowModel):
                 kwargs.get("instructions")
                 or "" + "\n" + "\n".join(additional_instructions)
             ).strip()
-
-        if agent and agents:
-            raise ValueError(
-                "The 'agent' argument cannot be used with the 'agents' argument."
-            )
-        elif agents:
-            kwargs["agent"] = agents
-        else:
-            kwargs["agent"] = agent
 
         super().__init__(**kwargs)
 
@@ -199,10 +177,6 @@ class Task(ControlFlowModel):
         for task in context_tasks:
             self.add_dependency(task)
 
-        # add task to flow, if exists
-        if flow := controlflow.flows.get_flow():
-            flow.add_task(self)
-
         if self.id is None:
             self.id = self._generate_id()
 
@@ -214,7 +188,6 @@ class Task(ControlFlowModel):
                 self.instructions,
                 str(self.result_type),
                 self.prompt,
-                self.private,
                 str(self.context),
             )
         )
@@ -229,7 +202,7 @@ class Task(ControlFlowModel):
         equal unless their set attributes satisfy an identity criteria, which is
         too strict.
         """
-        if type(self) == type(other):
+        if type(self) is type(other):
             d1 = dict(self)
             d2 = dict(other)
             # conver sets to lists for comparison
@@ -241,17 +214,6 @@ class Task(ControlFlowModel):
     def __repr__(self) -> str:
         serialized = self.model_dump(include={"id", "objective"})
         return f"{self.__class__.__name__}({', '.join(f'{key}={repr(value)}' for key, value in serialized.items())})"
-
-    @field_validator("agent", mode="before")
-    def _validate_agent(cls, v):
-        if isinstance(v, list):
-            if len(v) > 1:
-                v = controlflow.defaults.team(agents=v)
-            elif v:
-                v = v[0]
-            else:
-                v = None
-        return v
 
     @field_validator("parent", mode="before")
     def _default_parent(cls, v):
@@ -296,20 +258,22 @@ class Task(ControlFlowModel):
 
         return dict(type=repr(result_type), schema=schema)
 
-    @field_serializer("agent")
-    def _serialize_agents(self, agent: Optional[BaseAgent]):
-        return self.get_agent().serialize_for_prompt()
+    @field_serializer("agents")
+    def _serialize_agents(self, agents: list[Agent]):
+        return [agent.serialize_for_prompt() for agent in self.get_agents()]
 
     @field_serializer("tools")
     def _serialize_tools(self, tools: list[Callable]):
         return [t.serialize_for_prompt() for t in controlflow.tools.as_tools(tools)]
 
     def friendly_name(self):
-        if len(self.objective) > 50:
-            objective = f'"{self.objective[:50]}..."'
+        if self.name:
+            name = self.name
+        elif len(self.objective) > 50:
+            name = f'"{self.objective[:50]}..."'
         else:
-            objective = f'"{self.objective}"'
-        return f"Task {self.id} ({objective})"
+            name = f'"{self.objective}"'
+        return f"Task {self.id} ({name})"
 
     def serialize_for_prompt(self) -> dict:
         """
@@ -319,9 +283,12 @@ class Task(ControlFlowModel):
 
     @property
     def subtasks(self) -> list["Task"]:
-        from controlflow.flows.graph import Graph
+        return list(sorted(self._subtasks, key=lambda t: t.created_at))
 
-        return Graph(tasks=self._subtasks).topological_sort()
+    # def subtask(self, **kwargs) -> "Task":
+    #     task = Task(**kwargs)
+    #     self.add_subtask(task)
+    #     return task
 
     def add_subtask(self, task: "Task"):
         """
@@ -344,13 +311,14 @@ class Task(ControlFlowModel):
     @prefect_task(task_run_name=get_task_run_name)
     def run(
         self,
-        steps: Optional[int] = None,
-        agents: Optional[list[BaseAgent]] = None,
-        raise_on_error: bool = True,
+        agent: Optional[Agent] = None,
         flow: "Flow" = None,
+        turn_strategy: "TurnStrategy" = None,
+        max_calls_per_turn: int = None,
+        max_turns: int = None,
     ) -> T:
         """
-        Run the task for the specified number of steps or until it is complete
+        Run the task
         """
         from controlflow.flows import Flow, get_flow
 
@@ -362,35 +330,37 @@ class Task(ControlFlowModel):
                     "flow argument if implicit flows are disabled."
                 )
             else:
-                if steps:
-                    logger.warning(
-                        "Running a task with a steps argument but no flow is not "
-                        "recommended, because the agent's history will be lost."
-                    )
                 flow = Flow()
 
         from controlflow.orchestration import Orchestrator
 
         orchestrator = Orchestrator(
-            tasks=[self], flow=flow, agents={self: agents} if agents else None
+            tasks=[self],
+            flow=flow,
+            agent=agent or self.get_agents()[0],
+            turn_strategy=turn_strategy,
         )
-        orchestrator.run(steps=steps)
+        orchestrator.run(
+            max_calls_per_turn=max_calls_per_turn,
+            max_turns=max_turns,
+        )
 
         if self.is_successful():
             return self.result
-        elif self.is_failed() and raise_on_error:
+        elif self.is_failed():
             raise ValueError(f"{self.friendly_name()} failed: {self.error}")
 
     @prefect_task(task_run_name=get_task_run_name)
     async def run_async(
         self,
-        steps: Optional[int] = None,
-        agents: Optional[list[BaseAgent]] = None,
-        raise_on_error: bool = True,
+        agent: Optional[Agent] = None,
         flow: "Flow" = None,
+        turn_strategy: "TurnStrategy" = None,
+        max_calls_per_turn: int = None,
+        max_turns: int = None,
     ) -> T:
         """
-        Run the task for the specified number of steps or until it is complete
+        Run the task
         """
         from controlflow.flows import Flow, get_flow
 
@@ -402,23 +372,24 @@ class Task(ControlFlowModel):
                     "flow argument if implicit flows are disabled."
                 )
             else:
-                if steps:
-                    logger.warning(
-                        "Running a task with a steps argument but no flow is not "
-                        "recommended, because the agent's history will be lost."
-                    )
                 flow = Flow()
 
         from controlflow.orchestration import Orchestrator
 
         orchestrator = Orchestrator(
-            tasks=[self], flow=flow, agents={self: agents} if agents else None
+            tasks=[self],
+            flow=flow,
+            agent=agent or self.get_agents()[0],
+            turn_strategy=turn_strategy,
         )
-        await orchestrator.run_async(steps=steps)
+        await orchestrator.run_async(
+            max_calls_per_turn=max_calls_per_turn,
+            max_turns=max_turns,
+        )
 
         if self.is_successful():
             return self.result
-        elif self.is_failed() and raise_on_error:
+        elif self.is_failed():
             raise ValueError(f"{self.friendly_name()} failed: {self.error}")
 
     @contextmanager
@@ -463,11 +434,11 @@ class Task(ControlFlowModel):
         """
         return self.is_incomplete() and all(t.is_complete() for t in self.depends_on)
 
-    def get_agent(self) -> BaseAgent:
-        if self.agent:
-            return self.agent
+    def get_agents(self) -> list[Agent]:
+        if self.agents:
+            return self.agents
         elif self.parent:
-            return self.parent.get_agent()
+            return self.parent.get_agents()
         else:
             from controlflow.flows import get_flow
 
@@ -476,25 +447,29 @@ class Task(ControlFlowModel):
             except ValueError:
                 flow = None
             if flow and flow.agent:
-                return flow.agent
+                return [flow.agent]
             else:
-                return controlflow.defaults.agent
+                return [controlflow.defaults.agent]
 
     def get_tools(self) -> list[Union[Tool, Callable]]:
         tools = self.tools.copy()
         if self.user_access:
             tools.append(talk_to_user)
+        tools.extend(
+            [
+                self.create_success_tool(),
+                self.create_fail_tool(),
+            ]
+        )
         return tools
 
-    def get_prompt(self, context: "AgentContext") -> str:
+    def get_prompt(self) -> str:
         """
         Generate a prompt to share information about the task with an agent.
         """
         from controlflow.orchestration import prompt_templates
 
-        template = prompt_templates.TaskTemplate(
-            template=self.prompt, task=self, context=context
-        )
+        template = prompt_templates.TaskTemplate(template=self.prompt, task=self)
         return template.render()
 
     def set_status(self, status: TaskStatus):
@@ -543,23 +518,23 @@ class Task(ControlFlowModel):
     def mark_skipped(self):
         self.set_status(TaskStatus.SKIPPED)
 
-    def generate_subtasks(self, instructions: str = None, agent: BaseAgent = None):
-        """
-        Generate subtasks for this task based on the provided instructions.
-        Subtasks can reuse the same tools and agents as this task.
-        """
-        from controlflow.planning.plan import create_plan
+    # def generate_subtasks(self, instructions: str = None, agents: list[Agent] = None):
+    # """
+    # Generate subtasks for this task based on the provided instructions.
+    # Subtasks can reuse the same tools and agents as this task.
+    # """
+    # from controlflow.planning.plan import create_plan
 
-        # enter a context to set the parent task
-        with self:
-            create_plan(
-                self.objective,
-                instructions=instructions,
-                planning_agent=agent or self.agent,
-                agents=[self.agent],
-                tools=self.tools,
-                context=self.context,
-            )
+    # # enter a context to set the parent task
+    # with self:
+    #     create_plan(
+    #         self.objective,
+    #         instructions=instructions,
+    #         planning_agent=agents[0] if agents else self.agents[0],
+    #         agents=agents or self.agents,
+    #         tools=self.tools,
+    #         context=self.context,
+    #     )
 
     def create_success_tool(self) -> Tool:
         """
@@ -604,7 +579,6 @@ class Task(ControlFlowModel):
             name=f"mark_task_{self.id}_successful",
             description=f"Mark task {self.id} as successful.",
             instructions=instructions,
-            private=True,
             include_return_description=False,
         )
         def succeed(result: result_schema) -> str:  # type: ignore
@@ -631,7 +605,6 @@ class Task(ControlFlowModel):
             description=(
                 f"Mark task {self.id} as failed. Only use when technical errors prevent success. Provide a detailed reason for the failure."
             ),
-            private=True,
             include_return_description=False,
         )
         def fail(reason: str) -> str:
@@ -639,16 +612,6 @@ class Task(ControlFlowModel):
             return f"{self.friendly_name()} marked failed."
 
         return fail
-
-    # Deprecated ---------------------------
-
-    @deprecated("Use Task.run(steps=1) instead.", version="0.9")
-    def run_once(self, *args, **kwargs):
-        return self.run(*args, steps=1, **kwargs)
-
-    @deprecated("Use Task.run_async(steps=1) instead.", version="0.9")
-    async def run_once_async(self, *args, **kwargs):
-        return await self.run_async(*args, steps=1, **kwargs)
 
 
 def validate_result(result: Any, result_type: type[T]) -> T:
@@ -698,3 +661,33 @@ def _generate_result_schema(result_type: type[T]) -> type[T]:
             "Please use a custom type or add compatibility."
         )
     return result_schema
+
+
+def run(
+    objective: str,
+    *task_args,
+    turn_strategy: "TurnStrategy" = None,
+    **task_kwargs,
+):
+    task = controlflow.Task(
+        objective=objective,
+        *task_args,
+        **task_kwargs,
+    )
+    return task.run(turn_strategy=turn_strategy)
+
+
+async def run_async(
+    objective: str,
+    *task_args,
+    turn_strategy: "TurnStrategy" = None,
+    **task_kwargs,
+):
+    task = controlflow.Task(
+        objective=objective,
+        *task_args,
+        **task_kwargs,
+    )
+    return await task.run_async(
+        turn_strategy=turn_strategy,
+    )

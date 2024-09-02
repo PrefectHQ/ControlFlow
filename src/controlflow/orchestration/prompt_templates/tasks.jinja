@@ -1,14 +1,31 @@
+{% macro render_task_hierarchy(task_info, indent='') -%}
+{{ indent }}- {{ task_info.task.id }} ({{ task_info.task.status.value }}){% if task_info['is_active'] %}
+(active){% endif %}
+{%- if task_info.children %}
+{% for child in task_info.children %}
+{{ render_task_hierarchy(child, indent + ' ') }}
+{%- endfor %}
+{%- endif %}
+{%- endmacro -%}
+
 # Active Tasks
 
-These tasks are assigned to your or your team. Always follow
-the instructions. When the objective is complete, which may take multiple turns, use the provided tools to mark the task
-successful and provide a result.
+The following tasks are active:
+
+{% for task in tasks %}
+<Task ID {{ task.id }}>
+    Assigned agents: {{ task._serialize_agents(task.get_agents()) }}
+
+    {{ task.get_prompt() }}
+</Task>
+{% endfor %}
+
+Only agents assigned to a task are able to mark the task as complete. Delegate work appropriately to your collaborators.
 
 Only mark a task failed if there is a technical error or issue preventing completion.
 
-{% for task in tasks %}
-### Task {{ task.id }}
+## Task hierarchy
 
-{{ task.get_prompt(context=context) }}
-
+{% for task in task_hierarchy %}
+{{ render_task_hierarchy(task) }}
 {% endfor %}

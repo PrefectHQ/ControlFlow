@@ -75,6 +75,5 @@ ctx = ScopedContext(
         agent=None,
         orchestrator=None,
         tui=None,
-        agent_context=None,
     )
 )

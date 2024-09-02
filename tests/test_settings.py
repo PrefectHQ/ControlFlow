@@ -1,10 +1,11 @@
 import importlib
 
+import pytest
+from prefect.logging import get_logger
+
 import controlflow
 import controlflow.llm.models
-import pytest
 from controlflow.settings import temporary_settings
-from prefect.logging import get_logger
 
 
 def test_defaults():

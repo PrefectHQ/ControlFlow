@@ -1,5 +1,6 @@
-from controlflow import Task, flow
 from pydantic import BaseModel
+
+from controlflow import Task, flow
 
 
 class Restaurant(BaseModel):
