@@ -98,14 +98,13 @@ class Task(ControlFlowModel):
         None, description="A prompt to display to the agent working on the task."
     )
     status: TaskStatus = TaskStatus.PENDING
-    result: T = None
+    result: Optional[Union[T, str]] = None
     result_type: Union[type[T], GenericAlias, tuple, None] = Field(
         str,
         description="The expected type of the result. This should be a type"
         ", generic alias, BaseModel subclass, or list of choices. "
         "Can be None if no result is expected or the agent should communicate internally.",
     )
-    error: Union[str, None] = None
     tools: list[Callable] = Field(
         default_factory=list,
         description="Tools available to every agent working on this task.",
@@ -358,7 +357,7 @@ class Task(ControlFlowModel):
         if self.is_successful():
             return self.result
         elif self.is_failed():
-            raise ValueError(f"{self.friendly_name()} failed: {self.error}")
+            raise ValueError(f"{self.friendly_name()} failed: {self.result}")
 
     @prefect_task(task_run_name=get_task_run_name)
     async def run_async(
@@ -400,7 +399,7 @@ class Task(ControlFlowModel):
         if self.is_successful():
             return self.result
         elif self.is_failed():
-            raise ValueError(f"{self.friendly_name()} failed: {self.error}")
+            raise ValueError(f"{self.friendly_name()} failed: {self.result}")
 
     @contextmanager
     def create_context(self):
@@ -496,7 +495,7 @@ class Task(ControlFlowModel):
             if status == TaskStatus.SUCCESSFUL:
                 self._prefect_task.succeed(self.result)
             elif status == TaskStatus.FAILED:
-                self._prefect_task.fail(self.error)
+                self._prefect_task.fail(self.result)
             elif status == TaskStatus.SKIPPED:
                 self._prefect_task.skip()
 
@@ -522,7 +521,7 @@ class Task(ControlFlowModel):
         self.set_status(TaskStatus.SUCCESSFUL)
 
     def mark_failed(self, reason: Optional[str] = None):
-        self.error = reason
+        self.result = reason
         self.set_status(TaskStatus.FAILED)
 
     def mark_skipped(self):
@@ -698,6 +697,7 @@ async def run_async(
         *task_args,
         **task_kwargs,
     )
+
     return await task.run_async(
         turn_strategy=turn_strategy,
     )

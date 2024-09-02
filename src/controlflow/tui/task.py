@@ -55,11 +55,10 @@ class TUITask(Static):
             self.status = task.status.value
 
         self.result = task.result
-        self.error_msg = task.error
-        if self.is_mounted:
-            if self.result is not None:
+        if self.is_mounted and self.result is not None:
+            if self.status.value == "SUCCESSFUL":
                 self.query_one(".result-collapsible", Collapsible).display = "block"
-            if self.error_msg is not None:
+            elif self.status.value == "FAILED":
                 self.query_one(".error-collapsible", Collapsible).display = "block"
 
     def compose(self):
