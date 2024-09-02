@@ -97,16 +97,16 @@ def flow(
         if agents is not None:
             flow_kwargs.setdefault("agents", agents)
 
-        flow_obj = Flow(
-            name=fn.__name__,
-            description=fn.__doc__,
-            context=bound.arguments,
-            **flow_kwargs,
-        )
-
-        with flow_obj.create_context(create_prefect_flow_context=False):
-            with controlflow.instructions(instructions):
-                return fn(*wrapper_args, **wrapper_kwargs)
+        with (
+            Flow(
+                name=fn.__name__,
+                description=fn.__doc__,
+                context=bound.arguments,
+                **flow_kwargs,
+            ),
+            controlflow.instructions(instructions),
+        ):
+            return fn(*wrapper_args, **wrapper_kwargs)
 
     return wrapper
 
