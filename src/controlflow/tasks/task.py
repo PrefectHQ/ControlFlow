@@ -157,6 +157,7 @@ class Task(ControlFlowModel):
                 or "" + "\n" + "\n".join(additional_instructions)
             ).strip()
 
+        # deprecated in 0.9
         if user_access:
             warnings.warn(
                 "The `user_access` argument is deprecated. Use `interactive=True` instead.",

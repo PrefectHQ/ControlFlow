@@ -84,7 +84,8 @@ class Agent(ControlFlowModel, abc.ABC):
         if name is not None:
             kwargs["name"] = name
 
-        if user_access:
+        # deprecated in 0.9
+        if user_access is not None:
             warnings.warn(
                 "The `user_access` argument is deprecated. Use `interactive=True` instead.",
                 DeprecationWarning,
