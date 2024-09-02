@@ -1,5 +1,5 @@
 import logging
-from typing import List, TypeVar
+from typing import TypeVar
 
 from pydantic import Field, field_validator
 
@@ -85,15 +85,20 @@ class Orchestrator(ControlFlowModel):
         if event.persist:
             self.flow.add_events([event])
 
-    def get_available_agents(self) -> List[Agent]:
+    def get_available_agents(self) -> dict[Agent, list[Task]]:
         """
-        Get a list of all available agents for active tasks.
+        Get a dictionary of all available agents for active tasks, mapped to
+        their assigned tasks.
 
         Returns:
-            List[Agent]: A list of available agents.
+            dict[Agent, list[Task]]
         """
         ready_tasks = self.get_tasks("ready")
-        return list(set(a for t in ready_tasks for a in t.get_agents()) | {self.agent})
+        agents = {}
+        for task in ready_tasks:
+            for agent in task.get_agents():
+                agents.setdefault(agent, []).append(task)
+        return agents
 
     def get_tools(self) -> list[Tool]:
         """
