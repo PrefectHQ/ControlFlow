@@ -1,5 +1,5 @@
 import logging
-from typing import List, TypeVar
+from typing import TypeVar
 
 from pydantic import Field, field_validator
 
@@ -10,7 +10,6 @@ from controlflow.events.message_compiler import MessageCompiler
 from controlflow.flows import Flow
 from controlflow.instructions import get_instructions
 from controlflow.llm.messages import BaseMessage
-from controlflow.orchestration import turn_strategies
 from controlflow.orchestration.handler import Handler
 from controlflow.orchestration.turn_strategies import Popcorn, TurnStrategy
 from controlflow.tasks.task import Task
@@ -44,16 +43,6 @@ class Orchestrator(ControlFlowModel):
     def _validate_turn_strategy(cls, v):
         if v is None:
             v = Popcorn()
-        elif isinstance(v, str):
-            map = {
-                "SINGLE": turn_strategies.Single(),
-                "ROUND_ROBIN": turn_strategies.RoundRobin(),
-                "POPCORN": turn_strategies.Popcorn(),
-                "RANDOM": turn_strategies.Random(),
-            }
-            v = map.get(v.upper())
-            if v is None:
-                raise ValueError(f"Invalid turn strategy provided as string: {v}")
         return v
 
     @field_validator("handlers", mode="before")
@@ -85,15 +74,20 @@ class Orchestrator(ControlFlowModel):
         if event.persist:
             self.flow.add_events([event])
 
-    def get_available_agents(self) -> List[Agent]:
+    def get_available_agents(self) -> dict[Agent, list[Task]]:
         """
-        Get a list of all available agents for active tasks.
+        Get a dictionary of all available agents for active tasks, mapped to
+        their assigned tasks.
 
         Returns:
-            List[Agent]: A list of available agents.
+            dict[Agent, list[Task]]
         """
         ready_tasks = self.get_tasks("ready")
-        return list(set(a for t in ready_tasks for a in t.get_agents()) | {self.agent})
+        agents = {}
+        for task in ready_tasks:
+            for agent in task.get_agents():
+                agents.setdefault(agent, []).append(task)
+        return agents
 
     def get_tools(self) -> list[Tool]:
         """
@@ -144,9 +138,8 @@ class Orchestrator(ControlFlowModel):
             calls += 1
 
         # at the end of each turn, select the next agent
-        self.agent = self.turn_strategy.get_next_agent(
-            self.agent, self.get_available_agents()
-        )
+        if available_agents := self.get_available_agents():
+            self.agent = self.turn_strategy.get_next_agent(self.agent, available_agents)
 
     async def _run_turn_async(self, max_calls: int = None):
         """
@@ -182,9 +175,8 @@ class Orchestrator(ControlFlowModel):
             calls += 1
 
         # at the end of each turn, select the next agent
-        self.agent = self.turn_strategy.get_next_agent(
-            self.agent, self.get_available_agents()
-        )
+        if available_agents := self.get_available_agents():
+            self.agent = self.turn_strategy.get_next_agent(self.agent, available_agents)
 
     def run(self, max_turns: int = None, max_calls_per_turn: int = None):
         """
