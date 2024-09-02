@@ -331,3 +331,37 @@ class TestSuccessTool:
         tool = task.create_success_tool()
         with pytest.raises(ValueError):
             tool.run(input=dict(result="good"))
+
+
+@pytest.mark.parametrize(
+    "max_turns, max_calls_per_turn, expected_calls",
+    [
+        (1, 1, 1),
+        (1, 2, 2),
+        (2, 1, 2),
+        (3, 2, 6),
+    ],
+)
+def test_run_with_limits(
+    monkeypatch, default_fake_llm, max_turns, max_calls_per_turn, expected_calls
+):
+    # Tests that the run function correctly limits the number of turns and calls per turn
+    default_fake_llm.set_responses(["hello", "world", "how", "are", "you"])
+
+    call_count = 0
+    original_run_model = Agent._run_model
+
+    def mock_run_model(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        return original_run_model(*args, **kwargs)
+
+    monkeypatch.setattr(Agent, "_run_model", mock_run_model)
+
+    task = Task("send messages")
+    task.run(
+        max_calls_per_turn=max_calls_per_turn,
+        max_turns=max_turns,
+    )
+
+    assert call_count == expected_calls
