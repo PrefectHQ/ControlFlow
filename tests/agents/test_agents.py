@@ -16,7 +16,7 @@ class TestAgentInitialization:
         assert agent.get_model() is controlflow.defaults.model
 
     def test_agent_model(self):
-        model = ChatOpenAI(model="gpt-3.5-turbo")
+        model = ChatOpenAI(model="gpt-4o-mini")
         agent = Agent(name="Marvin", model=model)
 
         # None indicates it will be loaded from the default model

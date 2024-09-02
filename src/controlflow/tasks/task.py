@@ -10,6 +10,7 @@ from typing import (
     Optional,
     TypeVar,
     Union,
+    _AnnotatedAlias,
     _LiteralGenericAlias,
 )
 
@@ -99,7 +100,7 @@ class Task(ControlFlowModel):
     )
     status: TaskStatus = TaskStatus.PENDING
     result: Optional[Union[T, str]] = None
-    result_type: Union[type[T], GenericAlias, tuple, None] = Field(
+    result_type: Union[type[T], GenericAlias, _AnnotatedAlias, tuple, None] = Field(
         str,
         description="The expected type of the result. This should be a type"
         ", generic alias, BaseModel subclass, or list of choices. "

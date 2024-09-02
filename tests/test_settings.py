@@ -14,7 +14,8 @@ def test_defaults():
     assert controlflow.settings.tools_raise_on_error is False
     assert controlflow.settings.tools_verbose is True
     # 4o is the default
-    assert controlflow.settings.llm_model == "openai/gpt-4o"
+    assert controlflow.settings.llm_model == "openai/gpt-4o-mini"
+    assert controlflow.settings.prefect_log_level == "DEBUG"
 
 
 def test_temporary_settings():
@@ -26,7 +27,7 @@ def test_temporary_settings():
 
 def test_prefect_settings_apply_at_runtime(caplog):
     prefect_logger = get_logger()
-    assert controlflow.settings.prefect_log_level == "WARNING"
+    controlflow.settings.prefect_log_level = "WARNING"
     prefect_logger.warning("test-log-1")
     controlflow.settings.prefect_log_level = "ERROR"
     prefect_logger.warning("test-log-2")

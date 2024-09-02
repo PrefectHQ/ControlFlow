@@ -96,3 +96,20 @@ skip-magic-trailing-comma = false
 [tool.pytest.ini_options]
 timeout = 120
 asyncio_mode = "auto"
+norecursedirs = [
+    "*.egg-info",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".vscode",
+    "node_modules",
+]
+testpaths = ["tests"]
+env = [
+    "CONTROLFLOW_TEST_MODE=1",
+    # use 4o-mini for tests by default
+    'D:CONTROLFLOW_LLM_MODEL=openai/gpt-4o-mini',
+    'D:CONTROLFLOW_TOOLS_VERBOSE=1',
+    'D:PREFECT_LOGGING_LEVEL=DEBUG',
+]

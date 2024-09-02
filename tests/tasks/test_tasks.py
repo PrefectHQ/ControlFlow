@@ -1,4 +1,7 @@
+from typing import Annotated
+
 import pytest
+from pydantic import BaseModel
 
 import controlflow
 from controlflow.agents import Agent
@@ -289,6 +292,23 @@ class TestResultType:
         task = Task("choose 5", result_type=(4, 5, 6))
         with pytest.raises(ValueError):
             task.mark_successful(result=7)
+
+    def test_pydantic_result(self):
+        class Name(BaseModel):
+            first: str
+            last: str
+
+        task = Task("The character said his name is John Doe", result_type=Name)
+        task.run()
+        assert task.result == Name(first="John", last="Doe")
+
+    def test_annotated_result(self):
+        task = Task(
+            "complete the task", result_type=Annotated[str, "a 5 digit zip code"]
+        )
+        task.run()
+        assert len(task.result) == 5
+        assert int(task.result)
 
 
 class TestSuccessTool:
