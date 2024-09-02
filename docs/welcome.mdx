@@ -70,9 +70,9 @@ import controlflow as cf
 from pydantic import BaseModel
 
 class Poem(BaseModel):
-title: str
-content: str
-num_lines: int
+    title: str
+    content: str
+    num_lines: int
 
 result = cf.run("Write a haiku about AI", result_type=Poem)
 
