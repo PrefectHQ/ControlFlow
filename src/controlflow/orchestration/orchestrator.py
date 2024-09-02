@@ -10,7 +10,6 @@ from controlflow.events.message_compiler import MessageCompiler
 from controlflow.flows import Flow
 from controlflow.instructions import get_instructions
 from controlflow.llm.messages import BaseMessage
-from controlflow.orchestration import turn_strategies
 from controlflow.orchestration.handler import Handler
 from controlflow.orchestration.turn_strategies import Popcorn, TurnStrategy
 from controlflow.tasks.task import Task
@@ -44,16 +43,6 @@ class Orchestrator(ControlFlowModel):
     def _validate_turn_strategy(cls, v):
         if v is None:
             v = Popcorn()
-        elif isinstance(v, str):
-            map = {
-                "SINGLE": turn_strategies.Single(),
-                "ROUND_ROBIN": turn_strategies.RoundRobin(),
-                "POPCORN": turn_strategies.Popcorn(),
-                "RANDOM": turn_strategies.Random(),
-            }
-            v = map.get(v.upper())
-            if v is None:
-                raise ValueError(f"Invalid turn strategy provided as string: {v}")
         return v
 
     @field_validator("handlers", mode="before")
