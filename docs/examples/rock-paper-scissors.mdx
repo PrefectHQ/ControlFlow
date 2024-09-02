@@ -24,7 +24,7 @@ user_helper = cf.Agent(
 # Create tasks for getting the user's choice, 
 # the AI's choice, and reporting the score
 
-@cf.task(user_access=True, agents=[user_helper])
+@cf.task(interactive=True, agents=[user_helper])
 def get_user_choice() -> ["rock", "paper", "scissors"]:
     """Ask the user to choose rock, paper, or scissors."""
 
@@ -32,7 +32,7 @@ def get_user_choice() -> ["rock", "paper", "scissors"]:
 def get_ai_choice() -> ["rock", "paper", "scissors"]:
     """Choose rock paper or scissors"""
 
-@cf.task(user_access=True)
+@cf.task(interactive=True)
 def report_score(user_choice, ai_choice) -> bool:
     """
     Tell the user if they won, the overall score, 

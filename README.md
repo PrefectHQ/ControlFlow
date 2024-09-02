@@ -55,7 +55,7 @@ def research_workflow() -> str:
     topic = cf.Task(
         "Work with the user to come up with a research topic",
         result_type=ResearchTopic,
-        user_access=True,
+        interactive=True,
     )
 
     # Task 2: the default agent will create an outline based on the topic

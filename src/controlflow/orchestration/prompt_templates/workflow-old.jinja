@@ -15,13 +15,13 @@ tasks depend on all of their subtasks.
 If your task asks you to interact or speak with other agents or otherwise "speak
 out loud", post messages to accomplish that.
 
-Never impersonate another agent or provide false information. 
-        
+Never impersonate another agent or provide false information.
+
 ## Flow
 
 Name: {{ flow.name }}
 {% if flow.description %}
-Description: {{ flow.description }} 
+Description: {{ flow.description }}
 {% endif %}
 {% if flow.context %}
 Context:
@@ -37,7 +37,7 @@ Context:
 
 These tasks are ready to be worked on because all of their dependencies have
 been completed. You can only work on tasks to which you are assigned.
-        
+
 {% for task in ready_tasks %}
 #### Task {{ task.id }}
 - objective: {{ task.objective }}
@@ -47,8 +47,8 @@ been completed. You can only work on tasks to which you are assigned.
 - depends_on: {{ task.depends_on }}
 - parent: {{ task.parent }}
 - assigned agents: {{ task.agents }}
-{% if task.user_access %} 
-- user access: True 
+{% if task.interactive %}
+- interactive: True
 {% endif %}
 - created_at: {{ task.created_at }}
 
@@ -69,8 +69,8 @@ been completed. You can only work on tasks to which you are assigned.
 - depends_on: {{ task.depends_on }}
 - parent: {{ task.parent }}
 - assigned agents: {{ task.agents }}
-{% if task.user_access %} 
-- user access: True 
+{% if task.interactive %}
+- interactive: True
 {% endif %}
 - created_at: {{ task.created_at }}
 
@@ -79,7 +79,7 @@ been completed. You can only work on tasks to which you are assigned.
 
 {% if downstream_tasks %}
 ### Downstream tasks
-        
+
 {% for task in downstream_tasks %}
 #### Task {{ task.id }}
 - objective: {{ task.objective }}
@@ -90,8 +90,8 @@ been completed. You can only work on tasks to which you are assigned.
 - depends_on: {{ task.depends_on }}
 - parent: {{ task.parent }}
 - assigned agents: {{ task.agents }}
-{% if task.user_access %} 
-- user access: True 
+{% if task.interactive %}
+- interactive: True
 {% endif %}
 - created_at: {{ task.created_at }}
 

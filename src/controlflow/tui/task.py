@@ -71,12 +71,8 @@ class TUITask(Static):
         with Vertical(classes="task-info-row"):
             yield Label(
                 f"Agents: {', '.join(a.name for a in self.task.get_agents())}",
-                classes="user-access task-info",
+                classes="interactive task-info",
             )
-            # yield Label(
-            #     f"User access: {self.task.user_access}",
-            #     classes="user-access task-info",
-            # )
 
             # ------------------ success
 

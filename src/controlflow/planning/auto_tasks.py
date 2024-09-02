@@ -41,7 +41,7 @@ class AgentTemplate(ControlFlowModel):
         None,
         description="Private instructions for the agent to follow when completing tasks.",
     )
-    user_access: bool = Field(
+    interactive: bool = Field(
         False, description="If True, the agent can interact with a human user."
     )
     tools: list[str] = Field([], description="The tools that the agent has access to.")
@@ -79,7 +79,7 @@ class TaskTemplate(ControlFlowModel):
         description="Any agents assigned to the task. If not specified, the default agent will be used.",
     )
     tools: list[str] = Field([], description="The tools available for this task.")
-    user_access: bool = Field(
+    interactive: bool = Field(
         False, description="If True, the task requires interaction with a human user."
     )
 
@@ -107,7 +107,7 @@ def create_tasks(
             name=agent_template.name,
             description=agent_template.description,
             instructions=agent_template.instructions,
-            user_access=agent_template.user_access,
+            interactive=agent_template.interactive,
             tools=[tools[tool] for tool in agent_template.tools],
         )
 
@@ -125,7 +125,7 @@ def create_tasks(
             instructions=task_template.instructions,
             result_type=result_type,
             tools=[tools[tool] for tool in task_template.tools],
-            use_access=task_template.user_access,
+            use_access=task_template.interactive,
         )
 
     # resolve references

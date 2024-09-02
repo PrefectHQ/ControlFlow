@@ -107,7 +107,7 @@ def research_workflow():
     topic = cf.Task(
         "Generate a research topic",
         result_type=ResearchTopic,
-        user_access=True
+        interactive=True
     )
     outline = cf.Task("Create an outline", context=dict(topic=topic))
     draft = cf.Task("Write a first draft", context=dict(outline=outline))

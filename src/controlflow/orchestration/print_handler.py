@@ -83,7 +83,7 @@ class PrintHandler(Handler):
     def on_tool_call(self, event: ToolCallEvent):
         # if collecting input on the terminal, pause the live display
         # to avoid overwriting the input prompt
-        if event.tool_call["name"] == "talk_to_user":
+        if event.tool_call["name"] == "cli_input":
             self.paused_id = event.tool_call["id"]
             self.live.stop()
             self.events.clear()

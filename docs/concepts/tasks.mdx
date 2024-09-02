@@ -15,7 +15,7 @@ from controlflow import Task
 interests = Task(
     objective="Ask user for three interests",
     result_type=list[str],
-    user_access=True,
+    interactive=True,
     instructions="Politely ask the user to provide three of their interests or hobbies."
 )
 ```
@@ -29,7 +29,7 @@ The `@task` decorator provides a concise and intuitive way to define tasks using
 ```python
 from controlflow import task
 
-@task(user_access=True)
+@task(interactive=True)
 def get_user_name() -> str:
     "Politely ask the user for their name."
     pass
@@ -151,18 +151,18 @@ calculation_task = Task(
 
 ## Handling User Interaction
 
-ControlFlow provides a built-in mechanism for tasks to interact with human users. By setting the `user_access` property to `True`, a task can indicate that it requires human input or feedback to be completed.
+ControlFlow provides a built-in mechanism for tasks to interact with human users. By setting the `interactive` property to `True`, a task can indicate that it requires human input or feedback to be completed.
 
 ```python
 feedback_task = Task(
     objective="Collect user feedback on the new feature",
-    user_access=True,
+    interactive=True,
     result_type=str,
     instructions="Ask the user to provide their thoughts on the new feature.",
 )
 ```
 
-When a task with `user_access=True` is executed, the AI agents assigned to the task will be given access to a special `talk_to_user` tool. This tool allows the agents to send messages to the user and receive their responses, enabling a conversation between the AI and the human.
+When a task with `interactive=True` is executed, the AI agents assigned to the task will be given access to a tool that allows them to interact with the user on the command line.
 
 ## Creating Task Dependencies and Subtasks
 

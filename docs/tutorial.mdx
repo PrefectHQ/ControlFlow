@@ -7,7 +7,7 @@ Welcome to ControlFlow!
 
 ControlFlow is a declarative framework for building agentic workflows. That means that you define the objectives you want an AI agent to complete, and ControlFlow handles the rest. You can think of ControlFlow as a high-level orchestrator for AI agents, allowing you to focus on the logic of your application while ControlFlow manages the details of agent selection, data flow, and error handling.
 
-In this tutorial, we’ll introduce the basics of ControlFlow, including tasks, flows, agents, and more. By the end, you’ll have a solid understanding of how to create and run complex agentic workflows. 
+In this tutorial, we'll introduce the basics of ControlFlow, including tasks, flows, agents, and more. By the end, you'll have a solid understanding of how to create and run complex agentic workflows. 
 
 The tutorial is divided into the following sections:
 - [Hello, world](#hello-world): Your first task
@@ -26,7 +26,7 @@ To run the code in this tutorial, you'll need to install ControlFlow and configu
 ## Hello, world
 
 ### Creating a task
-The starting point of every agentic workflow is a `Task`. Each task represents an objective that we want an AI agent to complete. Let’s create a simple task to say hello:
+The starting point of every agentic workflow is a `Task`. Each task represents an objective that we want an AI agent to complete. Let's create a simple task to say hello:
 <CodeGroup>
     
 ```python Code
@@ -49,7 +49,7 @@ Task(
 </CodeGroup>
 
 
-If you examine this `Task` object, you’ll notice a few important things: it's in an `INCOMPLETE` state and while it has no `result` value, its `result_type` is a string. This means that the task has not been completed yet, but when it does, the result will be a string.
+If you examine this `Task` object, you'll notice a few important things: it's in an `INCOMPLETE` state and while it has no `result` value, its `result_type` is a string. This means that the task has not been completed yet, but when it does, the result will be a string.
 
 ### Running a task
 To run a task to completion, call its `.run()` method. This will set up an agentic loop, assigning the task to an agent and waiting for it to complete. The agent's job is to provide a result that satisfies the task's requirements as quickly as possible.
@@ -95,7 +95,7 @@ If you run the task a second time, it will immediately return the previous resul
 
 ### User input
 
-By default, agents cannot interact with (human) users. ControlFlow is designed primarily to be an agentic workflow orchestrator, not a chatbot. However, there are times when user input is necessary to complete a task. In these cases, you can set the `user_access` parameter to `True` when creating a task. 
+By default, agents cannot interact with (human) users. ControlFlow is designed primarily to be an agentic workflow orchestrator, not a chatbot. However, there are times when user input is necessary to complete a task. In these cases, you can set the `interactive` parameter to `True` when creating a task. 
 
 Let's create a task to ask the user for their name. We'll also create a Pydantic model to represent the user's name, which will allow us to apply complex typing or validation, if needed.
 <CodeGroup>
@@ -111,7 +111,7 @@ class Name(BaseModel):
     last: Optional[str]
 
 
-name_task = cf.Task("Get the user's name", result_type=Name, user_access=True)
+name_task = cf.Task("Get the user's name", result_type=Name, interactive=True)
 
 
 name_task.run()
@@ -138,7 +138,7 @@ In the previous example, if you refuse to provide your name a few times, your ag
 <Check>
 **What we learned**
 
-- Setting `user_access=True` allows agents to interact with a user
+- Setting `interactive=True` allows agents to interact with a user
 - Pydantic models can be used to represent and validate complex result types
 - Agents will continue to work until the task's requirements are met
 - Agents can fail a task if they are unable to complete it
@@ -165,7 +165,7 @@ class Name(BaseModel):
     last: str
 
 
-name = cf.Task("Get the user's name", user_access=True, result_type=Name)
+name = cf.Task("Get the user's name", interactive=True, result_type=Name)
 poem = cf.Task("Write a personalized poem", context=dict(name=name))
 
 
@@ -263,7 +263,7 @@ import controlflow as cf
 
 @cf.flow
 def hello_flow(poem_topic:str):
-    name = cf.Task("Get the user's name", user_access=True)
+    name = cf.Task("Get the user's name", interactive=True)
     poem = cf.Task(
         "Write a personalized poem about the provided topic",
         context=dict(name=name, topic=poem_topic),
@@ -302,7 +302,7 @@ import controlflow as cf
 
 @cf.flow
 def height_flow(poem_topic:str):
-    height = cf.Task("Get the user's height", user_access=True, result_type=int, instructions='convert the height to inches')
+    height = cf.Task("Get the user's height", interactive=True, result_type=int, instructions='convert the height to inches')
     height.run()
 
     if height.result < 40:

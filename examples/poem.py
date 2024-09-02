@@ -8,7 +8,7 @@ class Name(BaseModel):
     last_name: str
 
 
-@task(user_access=True)
+@task(interactive=True)
 def get_user_name() -> Name:
     pass
 
@@ -28,7 +28,7 @@ def demo():
 
         # define an AI task imperatively
         interests = Task(
-            "ask user for three interests", result_type=list[str], user_access=True
+            "ask user for three interests", result_type=list[str], interactive=True
         )
         interests.run()
 

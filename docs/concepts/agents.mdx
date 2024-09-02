@@ -32,7 +32,7 @@ An agent has the following key properties:
 - `instructions`: Specific instructions or guidelines for the agent to follow during task execution. These instructions are private and not shared with other agents.
 - `tools`: A list of tools available to the agent. Tools are Python functions that the agent can call to perform specific actions or computations.
 - `model`: A LangChain model that powers the agent responses.
-- `user_access`: Indicates whether the agent has access to user interactions. If set to `True`, the agent will be provided with the `talk_to_user` tool to communicate with users.
+- `interactive`: Indicates whether the agent has access to user interactions. If set to `True`, the agent will be provided with a tool for interacting with users on the command line.
 
 These properties help define the agent's characteristics, behavior, and capabilities within the flow.
 
@@ -76,7 +76,7 @@ For a full guide on how to use LLMs in ControlFlow, including changing the defau
 
 ## User Access and Interaction
 
-Agents with the `user_access` flag set to `True` have the ability to interact with users using the `talk_to_user` tool. This tool allows agents to send messages to users and receive responses.
+Agents with the `interactive` flag set to `True` have the ability to interact with users on the command line.
 
 ```python
 from controlflow import Agent
@@ -84,8 +84,8 @@ from controlflow import Agent
 agent = Agent(
     name="Support Agent",
     description="An AI agent that interacts with users",
-    user_access=True
+    interactive=True
 )
 ```
 
-In this example, we create an agent named "UserAssistant" with the `user_access` flag set to `True`. This agent will have access to the `talk_to_user` tool to communicate with users when necessary.
+In this example, we create an agent named "UserAssistant" with the `interactive` flag set to `True`. This agent will have access to a tool to communicate with users on the CLI.

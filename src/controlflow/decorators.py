@@ -118,7 +118,7 @@ def task(
     instructions: Optional[str] = None,
     agents: Optional[list["Agent"]] = None,
     tools: Optional[list[Callable[..., Any]]] = None,
-    user_access: Optional[bool] = None,
+    interactive: Optional[bool] = None,
     lazy: Optional[bool] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[float, int]] = None,
@@ -143,8 +143,7 @@ def task(
             case the function docstring is used as the instructions.
         agents (list[Agent], optional): List of agents to be used in the task. Defaults to None.
         tools (list[Callable], optional): List of tools to be used in the task. Defaults to None.
-        user_access (bool, optional): Whether the task requires user access. Defaults to None,
-            in which case it is set to False.
+        interactive (bool, optional): Whether the task requires human interaction or input during its execution. Defaults to None, in which case it is set to False.
         lazy (bool, optional): Whether the task should be run lazily. If not
             set, behavior is determined by the global `eager_mode` setting. Lazy
             execution means that a `Task` object is returned instead of running the task.
@@ -160,7 +159,7 @@ def task(
             instructions=instructions,
             agents=agents,
             tools=tools,
-            user_access=user_access,
+            interactive=interactive,
             lazy=lazy,
             retries=retries,
             retry_delay_seconds=retry_delay_seconds,
@@ -195,7 +194,7 @@ def task(
             agents=agents,
             context=bound.arguments,
             result_type=result_type,
-            user_access=user_access or False,
+            interactive=interactive or False,
             tools=tools or [],
             **task_kwargs,
         )

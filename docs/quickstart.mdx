@@ -47,7 +47,7 @@ def dice_flow():
     user_task = cf.Task(
         "Ask the user how many dice to roll", 
         result_type=int, 
-        user_access=True
+        interactive=True
     )
 
     # task 2: roll the dice
@@ -156,7 +156,7 @@ Here's what you learned today:
 - **Tasks** are how you create goals for agents.
 They have a `result_type` that determines the type of data they return.
 They have a `context` that can include results of other tasks, enabling multi-step workflows.
-If `tools` or `user_access` is provided, the agent can use them to complete the task.
+If `tools` are provided, the agent can use them to complete the task.
 - **Agents** are AI models that complete tasks and can be specialized with different capabilities, tools, instructions, and even LLM models.
 Agents can be assigned to tasks.
 - **Flows** can involve dynamic control flow like loops, based on eager task result.
