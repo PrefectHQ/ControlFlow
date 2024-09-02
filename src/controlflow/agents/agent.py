@@ -282,6 +282,6 @@ class Agent(ControlFlowModel, abc.ABC):
         yield AgentMessage(agent=self, message=response)
 
         for tool_call in response.tool_calls + response.invalid_tool_calls:
-            yield ToolCallEvent(agent=self, tool_call=tool_call, message=response)
+            yield ToolCallEvent(agent=self, tool_call=tool_call)
             result = await handle_tool_call_async(tool_call, tools=tools)
             yield ToolResultEvent(agent=self, tool_call=tool_call, tool_result=result)
