@@ -38,7 +38,6 @@ def test_task_initialization():
     assert task.objective == "Test objective"
     assert task.status == TaskStatus.PENDING
     assert task.result is None
-    assert task.error is None
 
 
 def test_stable_id():
@@ -50,11 +49,13 @@ def test_stable_id():
 
 
 def test_task_mark_successful_and_mark_failed():
-    task = SimpleTask()
-    task.mark_successful(result=None)
+    task = Task(objective="Test Objective", result_type=int)
+    task.mark_successful(result=5)
+    assert task.result == 5
     assert task.status == TaskStatus.SUCCESSFUL
     task.mark_failed(reason="test error")
     assert task.status == TaskStatus.FAILED
+    assert task.result == "test error"
 
 
 def test_task_loads_instructions_at_creation():
