@@ -44,6 +44,9 @@ jobs:
       - name: Install ControlFlow
         run: uv pip install --system ".[tests]"
 
+      - name: Install Prefect @ b6d19c1 (remove after release)
+        run: uv pip install prefect@git+https://github.com/prefecthq/prefect@b6d19c1
+
       - name: Run tests
         run: pytest -vv
         if: ${{ !(github.event.pull_request.head.repo.fork) }}
