@@ -149,9 +149,8 @@ class Orchestrator(ControlFlowModel):
             calls += 1
 
         # at the end of each turn, select the next agent
-        self.agent = self.turn_strategy.get_next_agent(
-            self.agent, self.get_available_agents()
-        )
+        if available_agents := self.get_available_agents():
+            self.agent = self.turn_strategy.get_next_agent(self.agent, available_agents)
 
     async def _run_turn_async(self, max_calls: int = None):
         """
@@ -187,9 +186,8 @@ class Orchestrator(ControlFlowModel):
             calls += 1
 
         # at the end of each turn, select the next agent
-        self.agent = self.turn_strategy.get_next_agent(
-            self.agent, self.get_available_agents()
-        )
+        if available_agents := self.get_available_agents():
+            self.agent = self.turn_strategy.get_next_agent(self.agent, available_agents)
 
     def run(self, max_turns: int = None, max_calls_per_turn: int = None):
         """

@@ -29,11 +29,18 @@ class TurnStrategy(ControlFlowModel, ABC):
         self.next_agent = None
 
     def should_end_turn(self) -> bool:
+        """
+        Determine if the current turn should end.
+
+        Returns:
+            bool: True if the turn should end, False otherwise.
+        """
         return self.end_turn
 
     def should_end_session(self) -> bool:
         """
-        Determine if the session should end.
+        Determine if the session should end. The session is the collection of
+        all turns for all agents.
 
         Returns:
             bool: True if the session should end, False otherwise.
