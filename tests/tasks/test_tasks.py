@@ -358,11 +358,10 @@ def test_run_with_limits(
 
     monkeypatch.setattr(Agent, "_run_model", mock_run_model)
 
-    task = Task(
-        "send messages",
+    task = Task("send messages")
+    task.run(
         max_calls_per_turn=max_calls_per_turn,
         max_turns=max_turns,
     )
-    task.run()
 
     assert call_count == expected_calls
