@@ -345,18 +345,9 @@ class Task(ControlFlowModel):
         Run the task
         """
         from controlflow.flows import Flow, get_flow
-
-        flow = flow or get_flow()
-        if flow is None:
-            if controlflow.settings.strict_flow_context:
-                raise ValueError(
-                    "Task.run() must be called within a flow context or with a "
-                    "flow argument if implicit flows are disabled."
-                )
-            else:
-                flow = Flow()
-
         from controlflow.orchestration import Orchestrator
+
+        flow = flow or get_flow() or Flow()
 
         orchestrator = Orchestrator(
             tasks=[self],
@@ -387,18 +378,9 @@ class Task(ControlFlowModel):
         Run the task
         """
         from controlflow.flows import Flow, get_flow
-
-        flow = flow or get_flow()
-        if flow is None:
-            if controlflow.settings.strict_flow_context:
-                raise ValueError(
-                    "Task.run() must be called within a flow context or with a "
-                    "flow argument if implicit flows are disabled."
-                )
-            else:
-                flow = Flow()
-
         from controlflow.orchestration import Orchestrator
+
+        flow = flow or get_flow() or Flow()
 
         orchestrator = Orchestrator(
             tasks=[self],
