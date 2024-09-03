@@ -166,6 +166,29 @@ def task(
 
     result_type = fn.__annotations__.get("return")
 
+    def _get_task(*args, **kwargs) -> Task:
+        # first process callargs
+        bound = sig.bind(*args, **kwargs)
+        bound.apply_defaults()
+        context = bound.arguments.copy()
+
+        # call the function to see if it produces an updated objective
+        result = fn(*args, **kwargs)
+        if result is not None:
+            context["Additional context"] = result
+
+        return Task(
+            objective=objective,
+            instructions=instructions,
+            name=name,
+            agents=agents,
+            context=context,
+            result_type=result_type,
+            interactive=interactive or False,
+            tools=tools or [],
+            **task_kwargs,
+        )
+
     @functools.wraps(fn)
     @prefect_task(
         timeout_seconds=timeout_seconds,
@@ -174,33 +197,12 @@ def task(
     )
     def wrapper(
         *args,
-        _return_task: bool = False,
         **kwargs,
     ):
-        # first process callargs
-        bound = sig.bind(*args, **kwargs)
-        bound.apply_defaults()
+        task = _get_task(*args, **kwargs)
+        return task.run()
 
-        # call the function to see if it produces an updated objective
-        result = fn(*args, **kwargs)
-        if result is None:
-            result = ""
-
-        task = Task(
-            objective=(objective + "\n\n" + str(result)).strip(),
-            instructions=instructions,
-            name=name,
-            agents=agents,
-            context=bound.arguments,
-            result_type=result_type,
-            interactive=interactive or False,
-            tools=tools or [],
-            **task_kwargs,
-        )
-
-        if _return_task:
-            return task
-        else:
-            return task.run()
+    # store the `as_task` method for loading the task object
+    wrapper.as_task = _get_task
 
     return wrapper
