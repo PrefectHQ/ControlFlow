@@ -130,7 +130,7 @@ def test_task_loads_agent_from_parent():
     with SimpleTask(agents=[agent]):
         child = SimpleTask()
 
-    assert child.agents == []
+    assert child.agents is None
     assert child.get_agents() == [agent]
 
 
@@ -140,7 +140,7 @@ def test_task_loads_agent_from_flow():
     with Flow(agent=agent):
         task = SimpleTask()
 
-        assert task.agents == []
+        assert task.agents is None
         assert task.get_agents() == [agent]
 
     # outside the flow context, pick up the default agent
@@ -151,7 +151,7 @@ def test_task_loads_agent_from_default_if_none_otherwise():
     agent = controlflow.defaults.agent
     task = SimpleTask()
 
-    assert task.agents == []
+    assert task.agents is None
     assert task.get_agents() == [agent]
 
 
@@ -162,7 +162,7 @@ def test_task_loads_agent_from_parent_before_flow():
         with SimpleTask(agents=[agent2]):
             child = SimpleTask()
 
-    assert child.agents == []
+    assert child.agents is None
     assert child.get_agents() == [agent2]
 
 
