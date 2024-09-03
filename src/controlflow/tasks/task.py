@@ -650,6 +650,10 @@ class Task(ControlFlowModel):
                 else:
                     result = self.result_type(raw_result)
 
+        # the raw result is None
+        else:
+            result = raw_result
+
             # Convert DataFrame schema back into pd.DataFrame object
             # if result_type == PandasDataFrame:
             #     import pandas as pd
