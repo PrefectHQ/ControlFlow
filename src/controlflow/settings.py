@@ -55,7 +55,7 @@ class Settings(ControlFlowSettings):
 
     # ------------ orchestration settings ------------
     task_max_turns: Optional[int] = Field(
-        default=100,
+        default=None,
         description="The maximum number of agent turns allowed when attempting to run any task. "
         "Turns are counted across the life of the task. If None, tasks may run indefinitely.",
     )
