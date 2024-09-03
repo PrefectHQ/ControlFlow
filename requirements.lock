@@ -10,11 +10,11 @@
 -e file:.
 aiosqlite==0.20.0
     # via prefect
-alembic==1.13.1
+alembic==1.13.2
     # via prefect
-annotated-types==0.6.0
+annotated-types==0.7.0
     # via pydantic
-anthropic==0.29.0
+anthropic==0.34.1
     # via langchain-anthropic
 anyio==4.4.0
     # via anthropic
@@ -22,24 +22,25 @@ anyio==4.4.0
     # via openai
     # via prefect
     # via starlette
-    # via watchfiles
-apprise==1.7.5
+apprise==1.9.0
     # via prefect
 asgi-lifespan==2.1.0
     # via prefect
 asyncpg==0.29.0
     # via prefect
-attrs==23.2.0
+attrs==24.2.0
     # via jsonschema
     # via referencing
-cachetools==5.3.3
+beautifulsoup4==4.12.3
+    # via markdownify
+cachetools==5.5.0
     # via prefect
-certifi==2024.2.2
+certifi==2024.8.30
     # via apprise
     # via httpcore
     # via httpx
     # via requests
-cffi==1.16.0
+cffi==1.17.0
     # via cryptography
 charset-normalizer==3.3.2
     # via requests
@@ -54,9 +55,9 @@ colorama==0.4.6
     # via griffe
 coolname==2.2.0
     # via prefect
-croniter==2.0.3
+croniter==3.0.3
     # via prefect
-cryptography==42.0.5
+cryptography==43.0.1
     # via prefect
 dateparser==1.2.0
     # via prefect
@@ -65,28 +66,22 @@ defusedxml==0.7.1
 distro==1.9.0
     # via anthropic
     # via openai
-dnspython==2.6.1
-    # via email-validator
-docker==6.1.3
+docker==7.1.0
     # via prefect
-email-validator==2.1.1
-    # via fastapi
-exceptiongroup==1.2.1
+exceptiongroup==1.2.2
     # via prefect
-fastapi==0.111.0
+fastapi==0.112.2
     # via prefect
-fastapi-cli==0.0.4
-    # via fastapi
-filelock==3.15.3
+filelock==3.15.4
     # via huggingface-hub
-fsspec==2024.3.1
+fsspec==2024.6.1
     # via huggingface-hub
     # via prefect
 graphviz==0.20.3
     # via prefect
 greenlet==3.0.3
     # via sqlalchemy
-griffe==0.42.1
+griffe==1.2.0
     # via prefect
 h11==0.14.0
     # via httpcore
@@ -98,65 +93,62 @@ hpack==4.0.0
 httpcore==1.0.5
     # via httpx
     # via prefect
-httptools==0.6.1
-    # via uvicorn
-httpx==0.27.0
+httpx==0.27.2
     # via anthropic
-    # via fastapi
+    # via langsmith
     # via openai
     # via prefect
-huggingface-hub==0.23.4
+huggingface-hub==0.24.6
     # via tokenizers
-humanize==4.9.0
+humanize==4.10.0
     # via jinja2-humanize-extension
     # via prefect
 hyperframe==6.0.1
     # via h2
-idna==3.6
+idna==3.8
     # via anyio
-    # via email-validator
     # via httpx
     # via requests
-importlib-resources==6.1.3
-    # via prefect
 jinja2==3.1.4
     # via controlflow
-    # via fastapi
     # via jinja2-humanize-extension
     # via prefect
 jinja2-humanize-extension==0.4.0
     # via prefect
-jiter==0.4.2
+jiter==0.5.0
     # via anthropic
+    # via openai
 jsonpatch==1.33
     # via langchain-core
     # via prefect
-jsonpointer==2.4
+jsonpointer==3.0.0
     # via jsonpatch
-jsonschema==4.21.1
+jsonschema==4.23.0
     # via prefect
 jsonschema-specifications==2023.12.1
     # via jsonschema
-langchain-anthropic==0.1.15
+langchain-anthropic==0.1.23
     # via controlflow
-langchain-core==0.2.4
+langchain-core==0.2.38
     # via controlflow
     # via langchain-anthropic
     # via langchain-openai
-langchain-openai==0.1.8
+langchain-openai==0.1.23
     # via controlflow
-langsmith==0.1.74
+langsmith==0.1.110
     # via langchain-core
 linkify-it-py==2.0.3
     # via markdown-it-py
-mako==1.3.2
+mako==1.3.5
     # via alembic
-markdown==3.6
+markdown==3.7
     # via apprise
 markdown-it-py==3.0.0
     # via mdit-py-plugins
     # via rich
     # via textual
+markdownify==0.13.1
+    # via controlflow
 markupsafe==2.1.5
     # via jinja2
     # via mako
@@ -166,14 +158,12 @@ mdurl==0.1.2
     # via markdown-it-py
 oauthlib==3.2.2
     # via requests-oauthlib
-openai==1.28.1
+openai==1.43.0
     # via langchain-openai
-orjson==3.10.0
-    # via fastapi
+orjson==3.10.7
     # via langsmith
     # via prefect
-packaging==23.2
-    # via docker
+packaging==24.1
     # via huggingface-hub
     # via langchain-core
     # via prefect
@@ -181,11 +171,15 @@ pathspec==0.12.1
     # via prefect
 pendulum==3.0.0
     # via prefect
-prefect==3.0.0rc7
+platformdirs==4.2.2
+    # via textual
+prefect==3.0.0
     # via controlflow
+prometheus-client==0.20.0
+    # via prefect
 pycparser==2.22
     # via cffi
-pydantic==2.7.2
+pydantic==2.8.2
     # via anthropic
     # via fastapi
     # via langchain-core
@@ -194,15 +188,15 @@ pydantic==2.7.2
     # via prefect
     # via pydantic-extra-types
     # via pydantic-settings
-pydantic-core==2.18.3
+pydantic-core==2.20.1
     # via prefect
     # via pydantic
-pydantic-extra-types==2.8.2
+pydantic-extra-types==2.9.0
     # via prefect
-pydantic-settings==2.2.1
+pydantic-settings==2.4.0
     # via controlflow
     # via prefect
-pygments==2.17.2
+pygments==2.18.0
     # via rich
 python-dateutil==2.9.0.post0
     # via croniter
@@ -212,30 +206,26 @@ python-dateutil==2.9.0.post0
     # via time-machine
 python-dotenv==1.0.1
     # via pydantic-settings
-    # via uvicorn
-python-multipart==0.0.9
-    # via fastapi
 python-slugify==8.0.4
     # via prefect
 pytz==2024.1
     # via croniter
     # via dateparser
     # via prefect
-pyyaml==6.0.1
+pyyaml==6.0.2
     # via apprise
     # via huggingface-hub
     # via langchain-core
     # via prefect
-    # via uvicorn
-readchar==4.0.6
+readchar==4.2.0
     # via prefect
-referencing==0.34.0
+referencing==0.35.1
     # via jsonschema
     # via jsonschema-specifications
-regex==2023.12.25
+regex==2024.7.24
     # via dateparser
     # via tiktoken
-requests==2.31.0
+requests==2.32.3
     # via apprise
     # via docker
     # via huggingface-hub
@@ -246,22 +236,21 @@ requests-oauthlib==2.0.0
     # via apprise
 rfc3339-validator==0.1.4
     # via prefect
-rich==13.7.1
+rich==13.8.0
     # via prefect
     # via textual
     # via typer
-rpds-py==0.18.0
+rpds-py==0.20.0
     # via jsonschema
     # via referencing
 ruamel-yaml==0.18.6
     # via prefect
 ruamel-yaml-clib==0.2.8
     # via ruamel-yaml
-setuptools==69.2.0
-    # via readchar
 shellingham==1.5.4
     # via typer
 six==1.16.0
+    # via markdownify
     # via python-dateutil
     # via rfc3339-validator
 sniffio==1.3.1
@@ -271,38 +260,41 @@ sniffio==1.3.1
     # via httpx
     # via openai
     # via prefect
-sqlalchemy==2.0.29
+soupsieve==2.6
+    # via beautifulsoup4
+sqlalchemy==2.0.33
     # via alembic
     # via prefect
-starlette==0.37.2
+starlette==0.38.4
     # via fastapi
-tenacity==8.3.0
+tenacity==8.5.0
     # via langchain-core
 text-unidecode==1.3
     # via python-slugify
-textual==0.61.1
+textual==0.79.1
     # via controlflow
 tiktoken==0.7.0
     # via controlflow
     # via langchain-openai
-time-machine==2.14.1
+time-machine==2.15.0
     # via pendulum
-tokenizers==0.19.1
+tokenizers==0.20.0
     # via anthropic
 toml==0.10.2
     # via prefect
-tqdm==4.66.2
+tqdm==4.66.5
     # via huggingface-hub
     # via openai
-typer==0.12.3
-    # via fastapi-cli
+typer==0.12.5
+    # via controlflow
     # via prefect
-typing-extensions==4.10.0
+typing-extensions==4.12.2
     # via aiosqlite
     # via alembic
     # via anthropic
     # via fastapi
     # via huggingface-hub
+    # via langchain-core
     # via openai
     # via prefect
     # via pydantic
@@ -316,21 +308,12 @@ tzlocal==5.2
     # via dateparser
 uc-micro-py==1.0.3
     # via linkify-it-py
-ujson==5.9.0
-    # via fastapi
+ujson==5.10.0
     # via prefect
-urllib3==2.2.1
+urllib3==2.2.2
     # via docker
     # via requests
-uvicorn==0.28.1
-    # via fastapi
+uvicorn==0.30.6
     # via prefect
-uvloop==0.19.0
-    # via uvicorn
-watchfiles==0.21.0
-    # via uvicorn
-websocket-client==1.7.0
-    # via docker
-websockets==12.0
+websockets==13.0.1
     # via prefect
-    # via uvicorn
