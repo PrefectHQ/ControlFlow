@@ -170,18 +170,19 @@ def task(
         # first process callargs
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
+        context = bound.arguments.copy()
 
         # call the function to see if it produces an updated objective
         result = fn(*args, **kwargs)
-        if result is None:
-            result = ""
+        if result is not None:
+            context["Additional context"] = result
 
         return Task(
-            objective=(objective + "\n\n" + str(result)).strip(),
+            objective=objective,
             instructions=instructions,
             name=name,
             agents=agents,
-            context=bound.arguments,
+            context=context,
             result_type=result_type,
             interactive=interactive or False,
             tools=tools or [],

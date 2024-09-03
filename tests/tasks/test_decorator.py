@@ -12,22 +12,13 @@ class TestDecorator:
         assert task.objective == "write a poem about `topic`"
         assert task.result_type is str
 
-    def test_decorator_can_return_objective(self):
+    def test_decorator_can_return_context(self):
         @controlflow.task
         def write_poem(topic: str) -> str:
             return f"write a poem about {topic}"
 
         task = write_poem.as_task("AI")
-        assert task.objective == "write a poem about AI"
-
-    def test_return_value_is_added_to_objective(self):
-        @controlflow.task
-        def write_poem(topic: str) -> str:
-            """Writes a poem."""
-            return f"write a poem about {topic}"
-
-        task = write_poem.as_task("AI")
-        assert task.objective == "Writes a poem.\n\nwrite a poem about AI"
+        assert task.context["Additional context"] == "write a poem about AI"
 
     def test_return_annotation(self):
         @controlflow.task
