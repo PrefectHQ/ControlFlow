@@ -1,5 +1,5 @@
 import logging
-from typing import TypeVar
+from typing import Optional, TypeVar
 
 from pydantic import Field, field_validator
 
@@ -69,6 +69,7 @@ class Orchestrator(ControlFlowModel):
         Args:
             event (Event): The event to handle.
         """
+        logger.debug(f"Handling event: {event}")
         for handler in self.handlers:
             handler.handle(event)
         if event.persist:
@@ -106,57 +107,78 @@ class Orchestrator(ControlFlowModel):
         tools = as_tools(tools)
         return tools
 
-    def _run_turn(self, max_calls: int = None):
+    def _run_turn(self, max_calls_per_turn: Optional[int] = None):
         """
         Run a single turn of the orchestration process.
 
         Args:
-            max_calls (int, optional): Maximum number of LLM calls to run per turn.
+            calls_per_turn (int, optional): Maximum number of LLM calls to run per turn.
         """
+        if max_calls_per_turn is None:
+            max_calls_per_turn = controlflow.settings.orchestrator_max_calls_per_turn
+
         self.turn_strategy.begin_turn()
 
         for task in self.get_tasks("assigned"):
             task.mark_running()
+            if task.max_turns and task._turns >= task.max_turns:
+                task.mark_failed(reason="Max turns exceeded.")
+            else:
+                task._turns += 1
 
         calls = 0
         while not self.turn_strategy.should_end_turn():
-            if max_calls is not None and calls >= max_calls:
+            if max_calls_per_turn is not None and calls >= max_calls_per_turn:
                 break
-            messages = self.compile_messages()
-            tools = self.get_tools()
-            for event in self.agent._run_model(messages=messages, tools=tools):
-                self.handle_event(event)
+            calls += 1
 
             # Check if there are any ready tasks left
             if not self.get_tasks("ready"):
                 break
 
+            messages = self.compile_messages()
+            tools = self.get_tools()
+
+            for event in self.agent._run_model(messages=messages, tools=tools):
+                self.handle_event(event)
+
             # Check if the current agent is still available
             if self.agent not in self.get_available_agents():
                 break
-
-            calls += 1
 
         # at the end of each turn, select the next agent
         if available_agents := self.get_available_agents():
             self.agent = self.turn_strategy.get_next_agent(self.agent, available_agents)
 
-    async def _run_turn_async(self, max_calls: int = None):
+    async def _run_turn_async(self, max_calls_per_turn: Optional[int] = None):
         """
         Run a single turn of the orchestration process asynchronously.
 
         Args:
-            max_calls (int, optional): Maximum number of LLM calls to run per turn.
+            calls_per_turn (int, optional): Maximum number of LLM calls to run per turn.
         """
+        if max_calls_per_turn is None:
+            max_calls_per_turn = controlflow.settings.orchestrator_max_calls_per_turn
+
         self.turn_strategy.begin_turn()
 
         for task in self.get_tasks("assigned"):
             task.mark_running()
+            if task.max_turns and task._turns >= task.max_turns:
+                task.mark_failed(reason="Max turns exceeded.")
+            else:
+                task._turns += 1
 
         calls = 0
         while not self.turn_strategy.should_end_turn():
-            if max_calls is not None and calls >= max_calls:
+            if max_calls_per_turn is not None and calls >= max_calls_per_turn:
                 break
+            calls += 1
+
+            # Check if there are any ready tasks left
+            if not self.get_tasks("ready"):
+                break
+
             messages = self.compile_messages()
             tools = self.get_tools()
             async for event in self.agent._run_model_async(
@@ -164,43 +186,42 @@ class Orchestrator(ControlFlowModel):
             ):
                 self.handle_event(event)
 
-            # Check if there are any ready tasks left
-            if not self.get_tasks("ready"):
-                break
-
             # Check if the current agent is still available
             if self.agent not in self.get_available_agents():
                 break
-
-            calls += 1
 
         # at the end of each turn, select the next agent
         if available_agents := self.get_available_agents():
             self.agent = self.turn_strategy.get_next_agent(self.agent, available_agents)
 
-    def run(self, max_turns: int = None, max_calls_per_turn: int = None):
+    def run(
+        self, max_turns: Optional[int] = None, max_calls_per_turn: Optional[int] = None
+    ):
         """
         Run the orchestration process until the session should end.
 
         Args:
-            max_turns (int, optional): Maximum number of turns to run.
-            max_calls_per_turn (int, optional): Maximum number of LLM calls per turn.
+            turns (int, optional): Maximum number of turns to run.
+            calls_per_turn (int, optional): Maximum number of LLM calls per turn.
         """
         import controlflow.events.orchestrator_events
+
+        if max_turns is None:
+            max_turns = controlflow.settings.orchestrator_max_turns
 
         self.handle_event(
             controlflow.events.orchestrator_events.OrchestratorStart(orchestrator=self)
         )
 
-        turns = 0
+        turn = 0
         try:
             while (
                 self.get_tasks("ready") and not self.turn_strategy.should_end_session()
             ):
-                if max_turns is not None and turns >= max_turns:
+                if max_turns is not None and turn >= max_turns:
                     break
-                self._run_turn(max_calls=max_calls_per_turn)
-                turns += 1
+                self._run_turn(max_calls_per_turn=max_calls_per_turn)
+                turn += 1
         except Exception as exc:
             self.handle_event(
                 controlflow.events.orchestrator_events.OrchestratorError(
@@ -215,29 +236,34 @@ class Orchestrator(ControlFlowModel):
                 )
             )
 
-    async def run_async(self, max_turns: int = None, max_calls_per_turn: int = None):
+    async def run_async(
+        self, max_turns: Optional[int] = None, max_calls_per_turn: Optional[int] = None
+    ):
         """
         Run the orchestration process asynchronously until the session should end.
 
         Args:
-            max_turns (int, optional): Maximum number of turns to run.
-            max_calls_per_turn (int, optional): Maximum number of LLM calls per turn.
+            turns (int, optional): Maximum number of turns to run.
+            calls_per_turn (int, optional): Maximum number of LLM calls per turn.
         """
         import controlflow.events.orchestrator_events
+
+        if max_turns is None:
+            max_turns = controlflow.settings.orchestrator_max_turns
 
         self.handle_event(
             controlflow.events.orchestrator_events.OrchestratorStart(orchestrator=self)
         )
 
-        turns = 0
+        turn = 0
         try:
             while (
                 self.get_tasks("ready") and not self.turn_strategy.should_end_session()
             ):
-                if max_turns is not None and turns >= max_turns:
+                if max_turns is not None and turn >= max_turns:
                     break
-                await self._run_turn_async(max_calls=max_calls_per_turn)
-                turns += 1
+                await self._run_turn_async(max_calls_per_turn=max_calls_per_turn)
+                turn += 1
         except Exception as exc:
             self.handle_event(
                 controlflow.events.orchestrator_events.OrchestratorError(

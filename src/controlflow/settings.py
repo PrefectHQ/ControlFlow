@@ -40,24 +40,21 @@ class Settings(ControlFlowSettings):
         description="Whether to log workflow prints to the Prefect logger by default.",
     )
 
-    # ------------ flow settings ------------
-
-    eager_mode: bool = Field(
-        default=True,
-        description="If True, @task- and @flow-decorated functions are run immediately. "
-        "This can be set on a per-task or per-flow basis using the `eager` argument.",
-    )
-    strict_flow_context: bool = Field(
-        default=False,
-        description="If False, calling Task.run() outside a flow context will automatically "
-        "create a flow and run the task within it. If True, an error will be raised.",
-    )
-
     # ------------ orchestration settings ------------
-    max_task_iterations: Optional[int] = Field(
+    task_max_turns: Optional[int] = Field(
+        default=None,
+        description="The maximum number of agent turns allowed when attempting to run any task. "
+        "Turns are counted across the life of the task. If None, tasks may run indefinitely.",
+    )
+    orchestrator_max_turns: Optional[int] = Field(
         default=100,
-        description="The maximum number of iterations to attempt to run a task"
-        "before raising an error. If None, the system will run indefinitely. ",
+        description="The maximum number of agent turns allowed when orchestrating tasks. "
+        "Turns are counted within a single orchestrator session. If None, orchestration may run indefinitely.",
+    )
+    orchestrator_max_calls_per_turn: Optional[int] = Field(
+        default=100,
+        description="The maximum number of LLM calls allowed per agent turn when orchestrating tasks. "
+        "If None, orchestration may run indefinitely.",
     )
 
     # ------------ LLM settings ------------

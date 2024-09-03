@@ -2,13 +2,9 @@
 title: Running Tasks
 ---
 
-A task describes an objective for one or more agents to accomplish. When a task is run, an orchestrator object coordinates all assigned agents to complete the task. 
+A task represents an objective for an agent. In order to actually do work, you need to run the task.
 
-There are a few ways to [create tasks](/concepts/tasks/creating-tasks), and the method you choose will determine how you run the task.
-
-## Running a `Task` object
-
-To run a `Task` object, call its `run()` method.
+The most straightforward way to run a `Task` object is to call its `run()` method:
 
 <CodeGroup>
 ```python Code
@@ -18,16 +14,25 @@ task = cf.Task("Write a poem about AI")
 poem = task.run()
 
 print(poem)
-```
+
+````
 
 ```text Result
 In circuits deep and code profound,
 An AI's mind begins to sound.
 Electric thoughts and data streams,
 Crafting worlds and shaping dreams.
-```
+````
+
 </CodeGroup>
 
+Calling `Task.run()` does a few things behind the scenes:
+
+1. It creates an `Orchestrator` to coordinate the agentic loop
+2. It provides the orchestrator with details about all of the tasks to run (which could include any dependencies or children of the task invoked) as well as information about how to orchestrate any agents involved.
+3. It starts a loop that continues until the task is complete.
+
+`Task.run()` either returns the task's result (if the task was successful) or raises an exception (if the task failed). You can also view the result (or the error message) at a later time by accessing the task's `result` property.
 
 ## Running with `cf.run()`
 
@@ -38,14 +43,16 @@ Crafting worlds and shaping dreams.
 import controlflow as cf
 
 poem = cf.run("Write a poem about AI")
-```
+
+````
 
 ```text Result
 In circuits deep and code profound,
 An AI's mind begins to sound.
 Electric thoughts and data streams,
 Crafting worlds and shaping dreams.
-```
+````
+
 </CodeGroup>
 
 ## Running with `@task`
@@ -58,18 +65,20 @@ import controlflow as cf
 
 @cf.task
 def write_poem(topic: str) -> str:
-    """Write a poem about {topic}"""
+"""Write a poem about {topic}"""
 
 poem = write_poem("AI")
 
 print(poem)
-```
+
+````
 ```text Result
 In circuits deep and code profound,
 An AI's mind begins to sound.
 Electric thoughts and data streams,
 Crafting worlds and shaping dreams.
-```
+````
+
 </CodeGroup>
 
 ## Controlling task execution
@@ -77,15 +86,16 @@ Crafting worlds and shaping dreams.
 You can control the execution of a task by passing in additional parameters to the `run()` method.
 
 ### Limiting LLM calls
+
 It is possible for agents to get stuck in a loop, invoking the LLM repeatedly without making progress. To prevent this, you can limit the number of LLM calls that an agent can make during its turn, or the total number of turns.
 
 This example sets up a task that might result in an infinite loop, since the agents are prohibited from marking the task complete. However, the `max_turns` parameter limits the number of turns to 5, and the `max_calls_per_turn` parameter limits the number of LLM invocations per turn to 1. If you run this code, you should see only 5 actions (either tool calls or messages) before execution ends.
 
-```python 
+```python
 import controlflow as cf
 
 task = cf.Task(
-    'Talk amongst yourselves. Do not mark the task as complete.', 
+    'Talk amongst yourselves. Do not mark the task as complete.',
     agents=[cf.Agent(name='One'), cf.Agent(name='Two'), cf.Agent(name='Three')],
 )
 
@@ -96,5 +106,6 @@ assert task.is_running()
 ```
 
 <Tip>
-If you're using `cf.run()`, you can pass `max_turns` and `max_calls_per_turn` directly to the `run` function.
+  If you're using `cf.run()`, you can pass `max_turns` and `max_calls_per_turn`
+  directly to the `run` function.
 </Tip>

@@ -120,13 +120,13 @@ class Task(ControlFlowModel):
     )
     interactive: bool = False
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    max_iterations: Optional[int] = Field(
-        default_factory=lambda: controlflow.settings.max_task_iterations,
-        description="The maximum number of iterations to attempt to run a task.",
+    max_turns: Optional[int] = Field(
+        default_factory=lambda: controlflow.settings.task_max_turns,
+        description="The maximum number of turns to attempt to run a task.",
     )
     _subtasks: set["Task"] = set()
     _downstreams: set["Task"] = set()
-    _iteration: int = 0
+    _turns: int = 0
     _cm_stack: list[contextmanager] = []
     _prefect_task: Optional[PrefectTrackingTask] = None
 
@@ -344,21 +344,10 @@ class Task(ControlFlowModel):
         """
         Run the task
         """
-        from controlflow.flows import Flow, get_flow
 
-        flow = flow or get_flow()
-        if flow is None:
-            if controlflow.settings.strict_flow_context:
-                raise ValueError(
-                    "Task.run() must be called within a flow context or with a "
-                    "flow argument if implicit flows are disabled."
-                )
-            else:
-                flow = Flow()
+        flow = flow or controlflow.flows.get_flow() or controlflow.flows.Flow()
 
-        from controlflow.orchestration import Orchestrator
-
-        orchestrator = Orchestrator(
+        orchestrator = controlflow.orchestration.Orchestrator(
             tasks=[self],
             flow=flow,
             agent=agent or self.get_agents()[0],
@@ -386,21 +375,10 @@ class Task(ControlFlowModel):
         """
         Run the task
         """
-        from controlflow.flows import Flow, get_flow
 
-        flow = flow or get_flow()
-        if flow is None:
-            if controlflow.settings.strict_flow_context:
-                raise ValueError(
-                    "Task.run() must be called within a flow context or with a "
-                    "flow argument if implicit flows are disabled."
-                )
-            else:
-                flow = Flow()
+        flow = flow or controlflow.flows.get_flow() or controlflow.flows.Flow()
 
-        from controlflow.orchestration import Orchestrator
-
-        orchestrator = Orchestrator(
+        orchestrator = controlflow.orchestration.Orchestrator(
             tasks=[self],
             flow=flow,
             agent=agent or self.get_agents()[0],
