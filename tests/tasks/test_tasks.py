@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Any
 
 import pytest
 from pydantic import BaseModel
@@ -309,6 +309,83 @@ class TestResultType:
         task.run()
         assert len(task.result) == 5
         assert int(task.result)
+
+
+class TestResultValidator:
+    def test_result_validator(self):
+        def validate_even(value: int) -> int:
+            if value % 2 != 0:
+                raise ValueError("Value must be even")
+            return value
+
+        task = Task(
+            "choose an even number", result_type=int, result_validator=validate_even
+        )
+        task.mark_successful(result=4)
+        assert task.result == 4
+
+        with pytest.raises(ValueError, match="Value must be even"):
+            task.mark_successful(result=5)
+
+    def test_result_validator_with_constraints(self):
+        def validate_range(value: int) -> int:
+            if not 10 <= value <= 20:
+                raise ValueError("Value must be between 10 and 20")
+            return value
+
+        task = Task("choose a number", result_type=int, result_validator=validate_range)
+        task.mark_successful(result=15)
+        assert task.result == 15
+
+        with pytest.raises(ValueError, match="Value must be between 10 and 20"):
+            task.mark_successful(result=5)
+
+    def test_result_validator_with_modification(self):
+        def round_to_nearest_ten(value: int) -> int:
+            return round(value, -1)
+
+        task = Task(
+            "choose a number", result_type=int, result_validator=round_to_nearest_ten
+        )
+        task.mark_successful(result=44)
+        assert task.result == 40
+
+        task.mark_successful(result=46)
+        assert task.result == 50
+
+    def test_result_validator_with_pydantic_model(self):
+        class User(BaseModel):
+            name: str
+            age: int
+
+        def validate_adult(user: User) -> User:
+            if user.age < 18:
+                raise ValueError("User must be an adult")
+            return user
+
+        task = Task(
+            "create an adult user", result_type=User, result_validator=validate_adult
+        )
+        task.mark_successful(result={"name": "John", "age": 25})
+        assert task.result == User(name="John", age=25)
+
+        with pytest.raises(ValueError, match="User must be an adult"):
+            task.mark_successful(result={"name": "Jane", "age": 16})
+
+    def test_result_validator_applied_after_type_coercion(self):
+        def always_return_none(value: Any) -> None:
+            return None
+
+        task = Task(
+            "do something with no result",
+            result_type=None,
+            result_validator=always_return_none,
+        )
+
+        with pytest.raises(
+            ValueError, match="Task has result_type=None, but a result was provided"
+        ):
+            task.mark_successful(result="anything")
 
 
 class TestSuccessTool:

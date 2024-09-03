@@ -106,6 +106,14 @@ class Task(ControlFlowModel):
         ", generic alias, BaseModel subclass, or list of choices. "
         "Can be None if no result is expected or the agent should communicate internally.",
     )
+    result_validator: Optional[Callable] = Field(
+        None,
+        description="A function that validates the result. This should be a "
+        "function that takes the raw result and either returns a validated "
+        "result or raises an informative error if the result is not valid. The "
+        "result validator function is called *after* the `result_type` is "
+        "processed.",
+    )
     tools: list[Callable] = Field(
         default_factory=list,
         description="Tools available to every agent working on this task.",
@@ -518,7 +526,7 @@ class Task(ControlFlowModel):
                     f"are: {', '.join(t.friendly_name() for t in self._subtasks if t.is_incomplete())}"
                 )
 
-        self.result = validate_result(result, self.result_type)
+        self.result = self.validate_result(result)
         self.set_status(TaskStatus.SUCCESSFUL)
 
     def mark_failed(self, reason: Optional[str] = None):
@@ -623,35 +631,40 @@ class Task(ControlFlowModel):
 
         return fail
 
-
-def validate_result(result: Any, result_type: type[T]) -> T:
-    if result_type is None and result is not None:
-        raise ValueError("Task has result_type=None, but a result was provided.")
-    elif isinstance(result_type, tuple):
-        if result not in result_type:
-            raise ValueError(
-                f"Result {result} is not in the list of valid result types: {result_type}"
-            )
-    elif result_type is not None:
-        try:
-            result = TypeAdapter(result_type).validate_python(result)
-        except PydanticSchemaGenerationError:
-            if isinstance(result, dict):
-                result = result_type(**result)
+    def validate_result(self, raw_result: Any) -> T:
+        if self.result_type is None and raw_result is not None:
+            raise ValueError("Task has result_type=None, but a result was provided.")
+        elif isinstance(self.result_type, tuple):
+            if raw_result not in self.result_type:
+                raise ValueError(
+                    f"Result {raw_result} is not in the list of valid result types: {self.result_type}"
+                )
             else:
-                result = result_type(result)
+                result = raw_result
+        elif self.result_type is not None:
+            try:
+                result = TypeAdapter(self.result_type).validate_python(raw_result)
+            except PydanticSchemaGenerationError:
+                if isinstance(raw_result, dict):
+                    result = self.result_type(**raw_result)
+                else:
+                    result = self.result_type(raw_result)
 
-        # Convert DataFrame schema back into pd.DataFrame object
-        # if result_type == PandasDataFrame:
-        #     import pandas as pd
+            # Convert DataFrame schema back into pd.DataFrame object
+            # if result_type == PandasDataFrame:
+            #     import pandas as pd
 
-        #     result = pd.DataFrame(**result)
-        # elif result_type == PandasSeries:
-        #     import pandas as pd
+            #     result = pd.DataFrame(**result)
+            # elif result_type == PandasSeries:
+            #     import pandas as pd
 
-        #     result = pd.Series(**result)
+            #     result = pd.Series(**result)
 
-    return result
+        # apply custom validation
+        if self.result_validator is not None:
+            result = self.result_validator(result)
+
+        return result
 
 
 def _generate_result_schema(result_type: type[T]) -> type[T]:
@@ -681,15 +694,13 @@ def run(
     max_turns: int = None,
     **task_kwargs,
 ):
-    task = controlflow.Task(
-        objective=objective,
+    return controlflow.run(
+        objective,
         *task_args,
-        **task_kwargs,
-    )
-    return task.run(
         turn_strategy=turn_strategy,
         max_calls_per_turn=max_calls_per_turn,
         max_turns=max_turns,
+        **task_kwargs,
     )
 
 
@@ -701,14 +712,11 @@ async def run_async(
     max_turns: int = None,
     **task_kwargs,
 ):
-    task = controlflow.Task(
-        objective=objective,
+    return await controlflow.run_async(
+        objective,
         *task_args,
-        **task_kwargs,
-    )
-
-    return await task.run_async(
         turn_strategy=turn_strategy,
         max_calls_per_turn=max_calls_per_turn,
         max_turns=max_turns,
+        **task_kwargs,
     )
