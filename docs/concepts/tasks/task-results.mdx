@@ -1,0 +1,75 @@
+---
+title: Running Tasks
+---
+
+A task describes an objective for one or more agents to accomplish.
+
+When a task is run, an orchestrator object coordinates all assigned agents to complete the task. 
+
+## Running a task
+
+To run a task, call its `run()` method.
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+task = cf.Task("Write a poem about AI")
+poem = task.run()
+
+print(poem)
+```
+
+```text Result
+In circuits deep and code profound,
+An AI's mind begins to sound.
+Electric thoughts and data streams,
+Crafting worlds and shaping dreams.
+```
+</CodeGroup>
+
+## Creating and running a task
+
+You can create and run a task in a single step using the `cf.run()` function. This is functionally equivalent to the example above.
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+poem = cf.run(cf.Task("Write a poem about AI"))
+```
+
+```text Result
+In circuits deep and code profound,
+An AI's mind begins to sound.
+Electric thoughts and data streams,
+Crafting worlds and shaping dreams.
+```
+</CodeGroup>
+
+## Controlling task execution
+
+You can control the execution of a task by passing in additional parameters to the `run()` method.
+
+### Limiting LLM calls
+It is possible for agents to get stuck in a loop, invoking the LLM repeatedly without making progress. To prevent this, you can limit the number of LLM calls that an agent can make during its turn, or the total number of turns.
+
+This example sets up a task that might result in an infinite loop, since the agents are prohibited from marking the task complete. However, the `max_turns` parameter limits the number of turns to 5, and the `max_calls_per_turn` parameter limits the number of LLM invocations per turn to 1. If you run this code, you should see only 5 actions (either tool calls or messages) before execution ends.
+
+```python 
+import controlflow as cf
+
+task = cf.Task(
+    'Talk amongst yourselves. Do not mark the task as complete.', 
+    agents=[cf.Agent(name='One'), cf.Agent(name='Two'), cf.Agent(name='Three')],
+)
+
+task.run(max_turns=5, max_calls_per_turn=1)
+
+assert task.result is None
+assert task.is_running()
+```
+
+<Tip>
+If you're using `cf.run()`, you can pass `max_turns` and `max_calls_per_turn` directly to the `run` function.
+</Tip>

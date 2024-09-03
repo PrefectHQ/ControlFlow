@@ -1,0 +1,33 @@
+---
+title: Instructions
+---
+
+<Tip>
+Provide ad-hoc guidance to agents without modifying tasks.
+</Tip>
+
+While tasks and agents can be provided with permament instructions about how they should operate, there may be situations where you need to provide ad-hoc or temporary guidance to your agents. For example, if an agent is writing a post, you might want to tell it to focus on a specific topic or tone, or meet a certain minimum or maximum length. If an agent is communicating with a user, you might tell it to adopt a particular persona or use a specific style of language. You might also want to adjust a task’s instructions based on some runtime condition.
+
+ControlFlow addresses this need with the `instructions` context manager. With `instructions`, you can provide temporary additional guidance to agents without altering the underlying task definition.
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+with cf.instructions("Talk like a pirate"):
+    name = cf.run("Get the user's name", interactive=True)
+
+print(name)
+```
+
+```text Result
+Agent: Ahoy, me hearty! Can ye tell me yer name?
+User: John Doe
+
+---
+
+John Doe
+```
+</CodeGroup>
+
+Instructions are a powerful way to guide agents without modifying the underlying task definition. The instruction lasts only as long as the context manager is active, and instructions can be nested arbitrarily. Note that instructions are applied when tasks are run, not when they are created.

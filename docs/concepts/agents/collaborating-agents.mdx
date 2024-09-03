@@ -1,0 +1,21 @@
+---
+title: Collaboration
+---
+
+### Turn strategy
+
+When a task is run, its agents are repeatedly invoked until the task is complete. Agents operate in "turns", each of which may involve multiple calls to the LLM before the turn is over. For example, during its turn an agent might use a tool (one call), examine the result of that tool (a second call), and finally mark the task as successful (a third call).
+
+ControlFlow has a few built-in strategies for selecting which agent should take the next turn. 
+
+| Turn strategy | Description | Works best when... |
+|---------------|-------------|--------------------|
+| `Popcorn` (default)| Each agent takes a turn, then picks the next agent to go next. | All agents are collaborating and have visibility into all tasks. |
+| `Moderated` | A moderator agent always decides which agent should act next. | Individual agents are not well-suited to making decisions about which other agents should act, either because of a lack of information or because their LLMs are not powerful enough to make the decision. |
+| `RoundRobin` | Agents take turns in a round-robin fashion. | The sequence of agents is important. |
+| `MostBusy` | The agent with the most tasks currently assigned goes next. | You want to prioritize agents who are currently handling the most tasks. |
+| `Random` | Invokes a random agent. | You want to distribute the load evenly across agents. |
+
+Popcorn is the default turn strategy because it works well in most cases. In this strategy, each agent is given a tool that lets it end its turn and pick the next agent. 
+
+Another common strategy is `Moderated`, in which a moderator agent decides which agent should act next. This strategy is useful when the individual agents are not well-suited to making decisions about which other agents should act.

@@ -1,0 +1,120 @@
+---
+title: Creating Tasks
+---
+
+
+There are three primary ways to define a ControlFlow task: using the `Task` object, the `cf.run` function, and the `@task` decorator. Each method has its own benefits, and the choice may depend on preference.
+
+## The `Task` object
+
+The `Task` object provides the most explicit and configurable way to define a task:
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+task = cf.Task(objective='Write a poem about AI')
+
+print(repr(task))
+```
+
+```text Result
+Task(
+    objective='Write a poem about AI',
+    instructions=None,
+    agents=[],
+    context={},
+    status=<TaskStatus.PENDING: 'PENDING'>,
+    result=None,
+    result_type=<class 'str'>,
+    result_validator=None,
+    tools=[],
+    interactive=False,
+    ... 
+)
+```
+</CodeGroup>
+
+
+Once you've created a `Task` object, you can run it using the `Task.run()` method:
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+task = cf.Task(objective='Write a poem about AI')
+poem = task.run()
+
+print(poem)
+```
+
+```text Result
+In circuits deep and code profound,
+An AI's mind begins to sound.
+Electric thoughts and data streams,
+Crafting worlds and shaping dreams.
+```
+</CodeGroup>
+
+Creating a `Task` object gives you full control over all task properties and is ideal when you need to create tasks with complex configurations or when you want to create tasks without immediately executing them. For example, you might organize a group of tasks to be presented to an agent all at once.
+
+## The `cf.run()` function
+
+Most of the time, you'll want to create a task and run it immediately to get an AI-produced result. ControlFlow's top-level `cf.run()` function makes this easy. When you call `cf.run()`, it creates and runs a task for you, returning the result directly.
+
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+poem = cf.run("Write a poem about AI")
+
+print(poem)
+```
+
+```text Result
+In circuits deep and code profound,
+An AI's mind begins to sound.
+Electric thoughts and data streams,
+Crafting worlds and shaping dreams.
+```
+</CodeGroup>
+
+This method is ideal for straightforward tasks or when you're prototyping and want to quickly see results.
+
+## The `@task` decorator
+
+For tasks that are frequently invoked with different context values, it may be convenient to define the task as a Python function. ControlFlow has a `@task` decorator that can infer many task properties from a standard function definition. For example, the function's name becomes the task's name; the docstring becomes the objective; the return annotation becomes the result type, etc. All of the normal `Task` parameters can be provided as keyword arguments to the decorator itself. In addition, if the function returns a value, it is appended to the objective before creating the task. 
+
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+@cf.task
+def key_words(content: str, n: int) -> list[str]:
+    return f"Generate a list of {n} key words for the content"
+
+keys = key_words("The quick brown fox jumps over the lazy dog", n=2)
+
+print(keys)
+```
+
+```text Result
+['fox', 'dog']
+```
+</CodeGroup>
+
+
+Here is an example of providing additional configuration to the `@task` decorator:
+
+```python
+import controlflow as cf
+
+@cf.task(
+    tools=[roll_dice], 
+    agents=[gambler_agent, tourist_agent],
+)
+def casino_task(money: float) -> str:
+    ...
+```
