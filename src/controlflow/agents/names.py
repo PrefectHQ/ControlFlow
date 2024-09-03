@@ -1,4 +1,4 @@
-AGENTS = [
+AGENT_NAMES = [
     "HAL 9000",
     "R2-D2",
     "C-3PO",
@@ -21,7 +21,7 @@ AGENTS = [
     "Norby",
 ]
 
-TEAMS = [
+TEAM_NAMES = [
     "Autobots",
     "Decepticons",
     "Borg",
