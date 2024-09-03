@@ -121,7 +121,7 @@ class Orchestrator(ControlFlowModel):
 
         for task in self.get_tasks("assigned"):
             task.mark_running()
-            if task._turns >= task.max_turns:
+            if task.max_turns and task._turns >= task.max_turns:
                 task.mark_failed(reason="Max turns exceeded.")
             else:
                 task._turns += 1
@@ -164,7 +164,7 @@ class Orchestrator(ControlFlowModel):
 
         for task in self.get_tasks("assigned"):
             task.mark_running()
-            if task._turns >= task.max_turns:
+            if task.max_turns and task._turns >= task.max_turns:
                 task.mark_failed(reason="Max turns exceeded.")
             else:
                 task._turns += 1

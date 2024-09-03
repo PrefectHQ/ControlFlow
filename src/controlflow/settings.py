@@ -40,19 +40,6 @@ class Settings(ControlFlowSettings):
         description="Whether to log workflow prints to the Prefect logger by default.",
     )
 
-    # ------------ flow settings ------------
-
-    eager_mode: bool = Field(
-        default=True,
-        description="If True, @task- and @flow-decorated functions are run immediately. "
-        "This can be set on a per-task or per-flow basis using the `eager` argument.",
-    )
-    strict_flow_context: bool = Field(
-        default=False,
-        description="If False, calling Task.run() outside a flow context will automatically "
-        "create a flow and run the task within it. If True, an error will be raised.",
-    )
-
     # ------------ orchestration settings ------------
     task_max_turns: Optional[int] = Field(
         default=None,
