@@ -76,8 +76,8 @@ class Task(ControlFlowModel):
     instructions: Union[str, None] = Field(
         None, description="Detailed instructions for completing the task."
     )
-    agents: list[Agent] = Field(
-        default_factory=list,
+    agents: Optional[list[Agent]] = Field(
+        default=None,
         description="A list of agents assigned to the task. "
         "If not provided, it will be inferred from the caller, parent task, flow, or global default.",
     )
@@ -232,6 +232,12 @@ class Task(ControlFlowModel):
     def __repr__(self) -> str:
         serialized = self.model_dump(include={"id", "objective"})
         return f"{self.__class__.__name__}({', '.join(f'{key}={repr(value)}' for key, value in serialized.items())})"
+
+    @field_validator("agents", mode="after")
+    def _validate_agents(cls, v):
+        if isinstance(v, list) and not v:
+            raise ValueError("Agents must be `None` or a non-empty list of agents.")
+        return v
 
     @field_validator("parent", mode="before")
     def _default_parent(cls, v):
@@ -453,7 +459,7 @@ class Task(ControlFlowModel):
         return self.is_incomplete() and all(t.is_complete() for t in self.depends_on)
 
     def get_agents(self) -> list[Agent]:
-        if self.agents:
+        if self.agents is not None:
             return self.agents
         elif self.parent:
             return self.parent.get_agents()
