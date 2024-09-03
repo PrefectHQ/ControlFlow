@@ -17,7 +17,7 @@ def test_default_model_failed_validation():
 def test_set_default_model():
     model = ChatOpenAI(temperature=0.1)
     controlflow.defaults.model = model
-    assert controlflow.Agent(name="Marvin").get_model() is model
+    assert controlflow.Agent().get_model() is model
 
 
 def test_default_agent_failed_validation():
@@ -29,9 +29,9 @@ def test_default_agent_failed_validation():
 
 
 def test_set_default_agent():
-    agent = controlflow.Agent(name="Marvin")
+    agent = controlflow.Agent()
     controlflow.defaults.agent = agent
-    assert controlflow.Task("").get_agents() == [agent]  # Updated to check agents list
+    assert controlflow.Task("").get_agents() == [agent]
 
 
 def test_default_history_failed_validation():

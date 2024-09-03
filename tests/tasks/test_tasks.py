@@ -114,7 +114,7 @@ def test_task_parent_context():
 
 
 def test_task_agent_assignment():
-    agent = Agent(name="Test Agent")
+    agent = Agent()
     task = SimpleTask(agents=[agent])
     assert task.agents == [agent]
     assert task.get_agents() == [agent]
@@ -126,7 +126,7 @@ def test_task_bad_agent_assignment():
 
 
 def test_task_loads_agent_from_parent():
-    agent = Agent(name="Test Agent")
+    agent = Agent()
     with SimpleTask(agents=[agent]):
         child = SimpleTask()
 
@@ -136,7 +136,7 @@ def test_task_loads_agent_from_parent():
 
 def test_task_loads_agent_from_flow():
     def_agent = controlflow.defaults.agent
-    agent = Agent(name="Test Agent")
+    agent = Agent()
     with Flow(agent=agent):
         task = SimpleTask()
 
@@ -156,8 +156,8 @@ def test_task_loads_agent_from_default_if_none_otherwise():
 
 
 def test_task_loads_agent_from_parent_before_flow():
-    agent1 = Agent(name="Test Agent 1")
-    agent2 = Agent(name="Test Agent 2")
+    agent1 = Agent()
+    agent2 = Agent()
     with Flow(agent=agent1):
         with SimpleTask(agents=[agent2]):
             child = SimpleTask()

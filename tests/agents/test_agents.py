@@ -8,8 +8,12 @@ from controlflow.tasks.task import Task
 
 
 class TestAgentInitialization:
+    def test_positional_arg(self):
+        agent = Agent("talk like a pirate")
+        assert agent.instructions == "talk like a pirate"
+
     def test_agent_default_model(self):
-        agent = Agent(name="Marvin")
+        agent = Agent()
 
         # None indicates it will be loaded from the default model
         assert agent.model is None
@@ -17,7 +21,7 @@ class TestAgentInitialization:
 
     def test_agent_model(self):
         model = ChatOpenAI(model="gpt-4o-mini")
-        agent = Agent(name="Marvin", model=model)
+        agent = Agent(model=model)
 
         # None indicates it will be loaded from the default model
         assert agent.model is model
@@ -25,7 +29,7 @@ class TestAgentInitialization:
 
     def test_agent_loads_instructions_at_creation(self):
         with instructions("test instruction"):
-            agent = Agent(name="Marvin")
+            agent = Agent()
 
         assert "test instruction" in agent.instructions
 
@@ -34,10 +38,10 @@ class TestAgentInitialization:
         assert agent.id == "69dd1abd"
 
     def test_id_includes_instructions(self):
-        a1 = Agent(name="Test Agent")
-        a2 = Agent(name="Test Agent", instructions="abc")
-        a3 = Agent(name="Test Agent", instructions="def")
-        a4 = Agent(name="Test Agent", instructions="abc", description="xyz")
+        a1 = Agent()
+        a2 = Agent(instructions="abc")
+        a3 = Agent(instructions="def")
+        a4 = Agent(instructions="abc", description="xyz")
 
         assert a1.id != a2.id != a3.id != a4.id
 
@@ -79,16 +83,16 @@ class TestDefaultAgent:
 
 class TestAgentPrompt:
     def test_default_prompt(self):
-        agent = Agent(name="Marvin")
+        agent = Agent()
         assert agent.prompt is None
 
     def test_default_template(self):
-        agent = Agent(name="Marvin")
+        agent = Agent()
         prompt = agent.get_prompt()
         assert prompt.startswith("# Agent")
 
     def test_custom_prompt(self):
-        agent = Agent(name="Marvin", prompt="Custom Prompt")
+        agent = Agent(prompt="Custom Prompt")
         prompt = agent.get_prompt()
         assert prompt == "Custom Prompt"
 
