@@ -119,13 +119,8 @@ class Task(ControlFlowModel):
     )
     interactive: bool = False
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    max_turns: Optional[int] = Field(
-        default_factory=lambda: controlflow.settings.task_max_turns,
-        description="The maximum number of turns to attempt to run a task.",
-    )
     _subtasks: set["Task"] = set()
     _downstreams: set["Task"] = set()
-    _turns: int = 0
     _cm_stack: list[contextmanager] = []
 
     model_config = dict(extra="forbid", arbitrary_types_allowed=True)
