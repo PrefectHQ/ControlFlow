@@ -166,17 +166,7 @@ def task(
 
     result_type = fn.__annotations__.get("return")
 
-    @functools.wraps(fn)
-    @prefect_task(
-        timeout_seconds=timeout_seconds,
-        retries=retries,
-        retry_delay_seconds=retry_delay_seconds,
-    )
-    def wrapper(
-        *args,
-        _return_task: bool = False,
-        **kwargs,
-    ):
+    def _get_task(*args, **kwargs) -> Task:
         # first process callargs
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
@@ -186,7 +176,7 @@ def task(
         if result is None:
             result = ""
 
-        task = Task(
+        return Task(
             objective=(objective + "\n\n" + str(result)).strip(),
             instructions=instructions,
             name=name,
@@ -198,9 +188,20 @@ def task(
             **task_kwargs,
         )
 
-        if _return_task:
-            return task
-        else:
-            return task.run()
+    @functools.wraps(fn)
+    @prefect_task(
+        timeout_seconds=timeout_seconds,
+        retries=retries,
+        retry_delay_seconds=retry_delay_seconds,
+    )
+    def wrapper(
+        *args,
+        **kwargs,
+    ):
+        task = _get_task(*args, **kwargs)
+        return task.run()
+
+    # store the `as_task` method for loading the task object
+    wrapper.as_task = _get_task
 
     return wrapper
