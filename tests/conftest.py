@@ -10,7 +10,6 @@ from .fixtures import *
 def temp_controlflow_settings():
     with temporary_settings(
         enable_print_handler=False,
-        task_max_turns=10,
         orchestrator_max_turns=10,
         orchestrator_max_calls_per_turn=10,
     ):
