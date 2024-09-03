@@ -9,6 +9,7 @@ from controlflow.flows import Flow
 from controlflow.instructions import instructions
 from controlflow.orchestration import turn_strategies
 from controlflow.orchestration.orchestrator import Orchestrator
+from controlflow.settings import temporary_settings
 from controlflow.tasks.task import (
     COMPLETE_STATUSES,
     INCOMPLETE_STATUSES,
@@ -451,8 +452,9 @@ class TestRun:
 
 class TestMaxTurns:
     def test_default_max_turns(self):
-        task = Task("Test task")
-        assert task.max_turns == controlflow.settings.task_max_turns
+        with temporary_settings(task_max_turns=99):
+            task = Task("Test task")
+            assert task.max_turns == 99
 
     def test_custom_max_turns(self):
         task = Task("Test task", max_turns=10)
@@ -482,6 +484,7 @@ class TestMaxTurns:
             agent=agent1,
             turn_strategy=turn_strategies.Single(),
         ).run(max_calls_per_turn=1)
+
         assert task1._turns == 3
         assert task1.is_failed()
         assert task1.result == "Max turns exceeded."
