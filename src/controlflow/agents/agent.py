@@ -1,5 +1,6 @@
 import abc
 import logging
+import random
 import warnings
 from contextlib import contextmanager
 from typing import (
@@ -15,6 +16,7 @@ from langchain_core.language_models import BaseChatModel
 from pydantic import Field, field_serializer
 
 import controlflow
+from controlflow.agents.names import AGENT_NAMES
 from controlflow.events.base import Event
 from controlflow.instructions import get_instructions
 from controlflow.llm.messages import AIMessage, BaseMessage
@@ -44,7 +46,10 @@ class Agent(ControlFlowModel, abc.ABC):
     model_config = dict(arbitrary_types_allowed=True)
 
     id: str = Field(None)
-    name: str = Field(description="The name of the agent.")
+    name: str = Field(
+        default_factory=lambda: random.choice(AGENT_NAMES),
+        description="The name of the agent.",
+    )
     description: Optional[str] = Field(
         None, description="A description of the agent, visible to other agents."
     )
@@ -80,17 +85,17 @@ class Agent(ControlFlowModel, abc.ABC):
 
     _cm_stack: list[contextmanager] = []
 
-    def __init__(self, name: str = None, user_access: bool = None, **kwargs):
-        if name is not None:
-            kwargs["name"] = name
+    def __init__(self, instructions: str = None, **kwargs):
+        if instructions is not None:
+            kwargs["instructions"] = instructions
 
         # deprecated in 0.9
-        if user_access is not None:
+        if "user_access" in kwargs:
             warnings.warn(
                 "The `user_access` argument is deprecated. Use `interactive=True` instead.",
                 DeprecationWarning,
             )
-            kwargs["interactive"] = True
+            kwargs["interactive"] = kwargs.pop("user_access")
 
         if additional_instructions := get_instructions():
             kwargs["instructions"] = (

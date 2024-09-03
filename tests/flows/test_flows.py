@@ -167,12 +167,12 @@ class TestFlowHistory:
 
 class TestFlowCreatesDefaults:
     def test_flow_with_custom_agents(self):
-        agent1 = Agent(name="Agent 1")
+        agent1 = Agent()
         flow = Flow(agent=agent1)
         assert flow.agent == agent1
 
     def test_flow_agent_becomes_task_default(self):
-        agent = Agent(name="BB8")
+        agent = Agent()
         t1 = Task("t1")
         assert agent not in t1.get_agents()
         assert len(t1.get_agents()) == 1
