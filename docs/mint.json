@@ -49,7 +49,6 @@
                     "pages": [
                         "concepts/tasks/tasks",
                         "concepts/tasks/creating-tasks",
-                        "concepts/tasks/configuring-tasks",
                         "concepts/tasks/running-tasks",
                         "concepts/tasks/result-types"
                     ]
