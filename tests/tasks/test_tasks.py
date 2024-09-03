@@ -410,35 +410,94 @@ class TestSuccessTool:
             tool.run(input=dict(result="good"))
 
 
-@pytest.mark.parametrize(
-    "max_turns, max_calls_per_turn, expected_calls",
-    [
-        (1, 1, 1),
-        (1, 2, 2),
-        (2, 1, 2),
-        (3, 2, 6),
-    ],
-)
-def test_run_with_limits(
-    monkeypatch, default_fake_llm, max_turns, max_calls_per_turn, expected_calls
-):
-    # Tests that the run function correctly limits the number of turns and calls per turn
-    default_fake_llm.set_responses(["hello", "world", "how", "are", "you"])
-
-    call_count = 0
-    original_run_model = Agent._run_model
-
-    def mock_run_model(*args, **kwargs):
-        nonlocal call_count
-        call_count += 1
-        return original_run_model(*args, **kwargs)
-
-    monkeypatch.setattr(Agent, "_run_model", mock_run_model)
-
-    task = Task("send messages")
-    task.run(
-        max_calls_per_turn=max_calls_per_turn,
-        max_turns=max_turns,
+class TestRun:
+    @pytest.mark.parametrize(
+        "max_turns, max_calls_per_turn, expected_calls",
+        [
+            (1, 1, 1),
+            (1, 2, 2),
+            (2, 1, 2),
+            (3, 2, 6),
+        ],
     )
+    def test_run_with_limits(
+        self,
+        monkeypatch,
+        default_fake_llm,
+        max_turns,
+        max_calls_per_turn,
+        expected_calls,
+    ):
+        # Tests that the run function correctly limits the number of turns and calls per turn
+        default_fake_llm.set_responses(["hello", "world", "how", "are", "you"])
 
-    assert call_count == expected_calls
+        call_count = 0
+        original_run_model = Agent._run_model
+
+        def mock_run_model(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            return original_run_model(*args, **kwargs)
+
+        monkeypatch.setattr(Agent, "_run_model", mock_run_model)
+
+        task = Task("send messages")
+        task.run(
+            max_calls_per_turn=max_calls_per_turn,
+            max_turns=max_turns,
+        )
+
+        assert call_count == expected_calls
+
+
+class TestDecorator:
+    def test_decorator(self):
+        @controlflow.task
+        def write_poem(topic: str) -> str:
+            """write a poem about `topic`"""
+
+        task = write_poem("AI", _return_task=True)
+        assert task.name == "write_poem"
+        assert task.objective == "write a poem about `topic`"
+        assert task.result_type is str
+
+    def test_decorator_can_return_objective(self):
+        @controlflow.task
+        def write_poem(topic: str) -> str:
+            return f"write a poem about {topic}"
+
+        task = write_poem("AI", _return_task=True)
+        assert task.objective == "write a poem about AI"
+
+    def test_return_value_is_added_to_objective(self):
+        @controlflow.task
+        def write_poem(topic: str) -> str:
+            """Writes a poem."""
+            return f"write a poem about {topic}"
+
+        task = write_poem("AI", _return_task=True)
+        assert task.objective == "Writes a poem.\n\nwrite a poem about AI"
+
+    def test_return_annotation(self):
+        @controlflow.task
+        def generate_tags(text: str) -> list[str]:
+            """Generate a list of tags for the given text."""
+
+        task = generate_tags("Fly me to the moon", _return_task=True)
+        assert task.result_type == list[str]
+
+    def test_objective_can_be_provided_as_kwarg(self):
+        @controlflow.task(objective="Write a poem about `topic`")
+        def write_poem(topic: str) -> str:
+            """Writes a poem."""
+
+        task = write_poem("AI", _return_task=True)
+        assert task.objective == "Write a poem about `topic`"
+
+    def test_run_task(self):
+        @controlflow.task
+        def extract_fruit(text: str) -> list[str]:
+            return "Extract any fruit mentioned in the text; all lowercase"
+
+        result = extract_fruit("I like apples and bananas")
+        assert result == ["apples", "bananas"]

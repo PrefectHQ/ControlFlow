@@ -21,7 +21,6 @@ def flow(
     instructions: Optional[str] = None,
     tools: Optional[list[Callable[..., Any]]] = None,
     agents: Optional[list[Agent]] = None,
-    lazy: Optional[bool] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[float, int]] = None,
     timeout_seconds: Optional[Union[float, int]] = None,
@@ -45,9 +44,6 @@ def flow(
         instructions (str, optional): Instructions for the flow. Defaults to None.
         tools (list[Callable], optional): List of tools to be used in the flow. Defaults to None.
         agents (list[Agent], optional): List of agents to be used in the flow. Defaults to None.
-        lazy (bool, optional): Whether the flow should be run lazily. If not
-            set, behavior is determined by the global `eager_mode` setting. Lazy execution means
-            that tasks are not run and a `Flow` object is returned instead.
 
     Returns:
         callable: The wrapped function or a new flow decorator if `fn` is not provided.
@@ -61,7 +57,6 @@ def flow(
             instructions=instructions,
             tools=tools,
             agents=agents,
-            lazy=lazy,
             retries=retries,
             retry_delay_seconds=retry_delay_seconds,
             timeout_seconds=timeout_seconds,
@@ -81,7 +76,6 @@ def flow(
     def wrapper(
         *wrapper_args,
         flow_kwargs: dict = None,
-        lazy_: bool = False,
         **wrapper_kwargs,
     ):
         # first process callargs
@@ -116,10 +110,10 @@ def task(
     *,
     objective: Optional[str] = None,
     instructions: Optional[str] = None,
+    name: Optional[str] = None,
     agents: Optional[list["Agent"]] = None,
     tools: Optional[list[Callable[..., Any]]] = None,
     interactive: Optional[bool] = None,
-    lazy: Optional[bool] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[float, int]] = None,
     timeout_seconds: Optional[Union[float, int]] = None,
@@ -128,11 +122,9 @@ def task(
     """
     A decorator that turns a Python function into a Task. The Task objective is
     set to the function name, and the instructions are set to the function
-    docstring. When the function is called in eager mode (default), the arguments are
-    provided to the task as context, and the task is run to completion. If
-    successful, the task result is returned; if failed, an error is raised. When
-    the function is called with eager mode disabled or `lazy=True`, a Task object is
-    returned which can be run later.
+    docstring. When the function is called, the arguments are provided to the
+    task as context, and the task is run to completion. If successful, the task
+    result is returned; if failed, an error is raised.
 
     Args:
         fn (callable, optional): The function to be wrapped as a task. If not provided,
@@ -144,9 +136,6 @@ def task(
         agents (list[Agent], optional): List of agents to be used in the task. Defaults to None.
         tools (list[Callable], optional): List of tools to be used in the task. Defaults to None.
         interactive (bool, optional): Whether the task requires human interaction or input during its execution. Defaults to None, in which case it is set to False.
-        lazy (bool, optional): Whether the task should be run lazily. If not
-            set, behavior is determined by the global `eager_mode` setting. Lazy
-            execution means that a `Task` object is returned instead of running the task.
 
     Returns:
         callable: The wrapped function or a new task decorator if `fn` is not provided.
@@ -157,10 +146,10 @@ def task(
             task,
             objective=objective,
             instructions=instructions,
+            name=name,
             agents=agents,
             tools=tools,
             interactive=interactive,
-            lazy=lazy,
             retries=retries,
             retry_delay_seconds=retry_delay_seconds,
             timeout_seconds=timeout_seconds,
@@ -169,28 +158,38 @@ def task(
 
     sig = inspect.signature(fn)
 
-    if objective is None:
-        objective = fn.__name__
+    if name is None:
+        name = fn.__name__
 
-    if instructions is None:
-        instructions = fn.__doc__
+    if objective is None:
+        objective = fn.__doc__ or ""
 
     result_type = fn.__annotations__.get("return")
 
+    @functools.wraps(fn)
     @prefect_task(
         timeout_seconds=timeout_seconds,
         retries=retries,
         retry_delay_seconds=retry_delay_seconds,
     )
-    @functools.wraps(fn)
-    def wrapper(*args, lazy_: bool = None, **kwargs):
+    def wrapper(
+        *args,
+        _return_task: bool = False,
+        **kwargs,
+    ):
         # first process callargs
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
 
+        # call the function to see if it produces an updated objective
+        result = fn(*args, **kwargs)
+        if result is None:
+            result = ""
+
         task = Task(
-            objective=objective,
+            objective=(objective + "\n\n" + str(result)).strip(),
             instructions=instructions,
+            name=name,
             agents=agents,
             context=bound.arguments,
             result_type=result_type,
@@ -199,21 +198,9 @@ def task(
             **task_kwargs,
         )
 
-        # Determine if we should run eagerly or lazily
-        if lazy_ is not None:
-            run_eagerly = not lazy_
-        elif lazy is not None:
-            run_eagerly = not lazy
-        else:
-            run_eagerly = controlflow.settings.eager_mode
-
-        if run_eagerly:
-            task.run()
-            return task.result
-        else:
+        if _return_task:
             return task
-
-    if lazy is True or (lazy is None and not controlflow.settings.eager_mode):
-        wrapper.__annotations__["return"] = Task
+        else:
+            return task.run()
 
     return wrapper
