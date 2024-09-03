@@ -694,13 +694,15 @@ def run(
     max_turns: int = None,
     **task_kwargs,
 ):
-    return controlflow.run(
-        objective,
+    task = Task(
+        objective=objective,
         *task_args,
+        **task_kwargs,
+    )
+    return task.run(
         turn_strategy=turn_strategy,
         max_calls_per_turn=max_calls_per_turn,
         max_turns=max_turns,
-        **task_kwargs,
     )
 
 
@@ -712,11 +714,13 @@ async def run_async(
     max_turns: int = None,
     **task_kwargs,
 ):
-    return await controlflow.run_async(
-        objective,
+    task = Task(
+        objective=objective,
         *task_args,
+        **task_kwargs,
+    )
+    return await task.run_async(
         turn_strategy=turn_strategy,
         max_calls_per_turn=max_calls_per_turn,
         max_turns=max_turns,
-        **task_kwargs,
     )
