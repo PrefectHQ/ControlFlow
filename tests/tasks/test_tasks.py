@@ -7,6 +7,7 @@ import controlflow
 from controlflow.agents import Agent
 from controlflow.flows import Flow
 from controlflow.instructions import instructions
+from controlflow.orchestration import turn_strategies
 from controlflow.orchestration.orchestrator import Orchestrator
 from controlflow.tasks.task import (
     COMPLETE_STATUSES,
@@ -441,8 +442,8 @@ class TestRun:
 
         task = Task("send messages")
         task.run(
-            calls_per_turn=calls_per_turn,
-            turns=turns,
+            max_calls_per_turn=calls_per_turn,
+            max_turns=turns,
         )
 
         assert call_count == expected_calls
@@ -460,7 +461,9 @@ class TestMaxTurns:
     def test_max_turns_reached(self, default_fake_llm: FakeLLM):
         task = Task("Test task", max_turns=3)
 
-        task.run(calls_per_turn=1)
+        with pytest.raises(ValueError, match="Max turns exceeded"):
+            task.run(max_calls_per_turn=1)
+
         assert task._turns == 3
         assert task.is_failed()
         assert task.result == "Max turns exceeded."
@@ -473,9 +476,12 @@ class TestMaxTurns:
         task1 = Task("Test task 1", max_turns=3, agents=[agent1])
         task2 = Task("Test task 2", max_turns=3, agents=[agent2])
 
-        Orchestrator(flow=Flow(), tasks=[task1, task2], agent=agent1).run(
-            max_calls_per_turn=1
-        )
+        Orchestrator(
+            flow=Flow(),
+            tasks=[task1, task2],
+            agent=agent1,
+            turn_strategy=turn_strategies.Single(),
+        ).run(max_calls_per_turn=1)
         assert task1._turns == 3
         assert task1.is_failed()
         assert task1.result == "Max turns exceeded."
