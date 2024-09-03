@@ -17,6 +17,8 @@ AGENTS = [
     "Deckard",
     "HK-47",
     "Bender",
+    "Norbert",
+    "Norby",
 ]
 
 TEAMS = [
