@@ -344,12 +344,10 @@ class Task(ControlFlowModel):
         """
         Run the task
         """
-        from controlflow.flows import Flow, get_flow
-        from controlflow.orchestration import Orchestrator
 
-        flow = flow or get_flow() or Flow()
+        flow = flow or controlflow.flows.get_flow() or controlflow.flows.Flow()
 
-        orchestrator = Orchestrator(
+        orchestrator = controlflow.orchestration.Orchestrator(
             tasks=[self],
             flow=flow,
             agent=agent or self.get_agents()[0],
@@ -377,12 +375,10 @@ class Task(ControlFlowModel):
         """
         Run the task
         """
-        from controlflow.flows import Flow, get_flow
-        from controlflow.orchestration import Orchestrator
 
-        flow = flow or get_flow() or Flow()
+        flow = flow or controlflow.flows.get_flow() or controlflow.flows.Flow()
 
-        orchestrator = Orchestrator(
+        orchestrator = controlflow.orchestration.Orchestrator(
             tasks=[self],
             flow=flow,
             agent=agent or self.get_agents()[0],
