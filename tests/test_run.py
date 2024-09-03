@@ -15,7 +15,7 @@ async def test_run_async():
 
 
 @pytest.mark.parametrize(
-    "max_turns, max_calls_per_turn, expected_calls",
+    "turns, calls_per_turn, expected_calls",
     [
         (1, 1, 1),
         (1, 2, 2),
@@ -24,11 +24,8 @@ async def test_run_async():
     ],
 )
 def test_run_with_limits(
-    monkeypatch, default_fake_llm, max_turns, max_calls_per_turn, expected_calls
+    monkeypatch, default_fake_llm, turns, calls_per_turn, expected_calls
 ):
-    # Tests that the run function correctly limits the number of turns and calls per turn
-    default_fake_llm.set_responses(["hello", "world", "how", "are", "you"])
-
     call_count = 0
     original_run_model = Agent._run_model
 
@@ -41,8 +38,8 @@ def test_run_with_limits(
 
     controlflow.run(
         "send messages",
-        max_calls_per_turn=max_calls_per_turn,
-        max_turns=max_turns,
+        max_calls_per_turn=calls_per_turn,
+        max_turns=turns,
     )
 
     assert call_count == expected_calls
