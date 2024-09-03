@@ -35,7 +35,6 @@ from controlflow.utilities.general import (
     hash_objects,
 )
 from controlflow.utilities.logging import get_logger
-from controlflow.utilities.prefect import PrefectTrackingTask
 from controlflow.utilities.prefect import prefect_task as prefect_task
 from controlflow.utilities.tasks import (
     collect_tasks,
@@ -128,7 +127,6 @@ class Task(ControlFlowModel):
     _downstreams: set["Task"] = set()
     _turns: int = 0
     _cm_stack: list[contextmanager] = []
-    _prefect_task: Optional[PrefectTrackingTask] = None
 
     model_config = dict(extra="forbid", arbitrary_types_allowed=True)
 
@@ -174,12 +172,6 @@ class Task(ControlFlowModel):
             kwargs["interactive"] = True
 
         super().__init__(**kwargs)
-
-        self._prefect_task = PrefectTrackingTask(
-            name=f"Working on {self.friendly_name()}...",
-            description=self.instructions,
-            tags=[self.__class__.__name__],
-        )
 
         # create dependencies to tasks passed in as depends_on
         for task in self.depends_on:
@@ -480,17 +472,6 @@ class Task(ControlFlowModel):
         # update TUI
         if tui := ctx.get("tui"):
             tui.update_task(self)
-
-        # update Prefect
-        if not self._prefect_task.is_started and status == TaskStatus.RUNNING:
-            self._prefect_task.start(depends_on=[t.result for t in self.depends_on])
-        elif self._prefect_task.is_started:
-            if status == TaskStatus.SUCCESSFUL:
-                self._prefect_task.succeed(self.result)
-            elif status == TaskStatus.FAILED:
-                self._prefect_task.fail(self.result)
-            elif status == TaskStatus.SKIPPED:
-                self._prefect_task.skip()
 
     def mark_running(self):
         self.set_status(TaskStatus.RUNNING)

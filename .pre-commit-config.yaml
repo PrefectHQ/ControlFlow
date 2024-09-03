@@ -15,7 +15,7 @@ repos:
       - id: mypy
         additional_dependencies:
           - pydantic>=2,<3.0.0
-          - prefect==3.0.0rc3
+          - prefect>=3.0
           - langchain_core
           - langchain_anthropic
           - langchain_openai
