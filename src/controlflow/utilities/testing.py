@@ -23,7 +23,17 @@ def SimpleTask(**kwargs):
 
 
 class FakeLLM(FakeMessagesListChatModel):
+    def __init__(self, *, responses: list[Union[str, BaseMessage]] = None, **kwargs):
+        super().__init__(responses=[], **kwargs)
+        self.set_responses(responses or ["Hello! This is a response from the FakeLLM."])
+
     def set_responses(self, responses: list[Union[str, BaseMessage]]):
+        if any(not isinstance(m, (str, BaseMessage)) for m in responses):
+            raise ValueError(
+                "Responses must be provided as either a list of strings or AIMessages. "
+                "Each item in the list will be emitted in a cycle when the LLM is called."
+            )
+
         responses = [
             AIMessage(content=m) if isinstance(m, str) else m for m in responses
         ]
