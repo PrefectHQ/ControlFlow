@@ -120,13 +120,13 @@ class Task(ControlFlowModel):
     )
     interactive: bool = False
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    max_iterations: Optional[int] = Field(
-        default_factory=lambda: controlflow.settings.max_task_iterations,
-        description="The maximum number of iterations to attempt to run a task.",
+    max_turns: Optional[int] = Field(
+        default_factory=lambda: controlflow.settings.task_max_turns,
+        description="The maximum number of turns to attempt to run a task.",
     )
     _subtasks: set["Task"] = set()
     _downstreams: set["Task"] = set()
-    _iteration: int = 0
+    _turns: int = 0
     _cm_stack: list[contextmanager] = []
     _prefect_task: Optional[PrefectTrackingTask] = None
 
