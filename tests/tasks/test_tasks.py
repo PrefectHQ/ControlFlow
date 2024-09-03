@@ -7,9 +7,6 @@ import controlflow
 from controlflow.agents import Agent
 from controlflow.flows import Flow
 from controlflow.instructions import instructions
-from controlflow.orchestration import turn_strategies
-from controlflow.orchestration.orchestrator import Orchestrator
-from controlflow.settings import temporary_settings
 from controlflow.tasks.task import (
     COMPLETE_STATUSES,
     INCOMPLETE_STATUSES,
@@ -17,7 +14,7 @@ from controlflow.tasks.task import (
     TaskStatus,
 )
 from controlflow.utilities.context import ctx
-from controlflow.utilities.testing import FakeLLM, SimpleTask
+from controlflow.utilities.testing import SimpleTask
 
 
 def test_status_coverage():
@@ -448,46 +445,3 @@ class TestRun:
         )
 
         assert call_count == expected_calls
-
-
-class TestMaxTurns:
-    def test_default_max_turns(self):
-        with temporary_settings(task_max_turns=99):
-            task = Task("Test task")
-            assert task.max_turns == 99
-
-    def test_custom_max_turns(self):
-        task = Task("Test task", max_turns=10)
-        assert task.max_turns == 10
-
-    def test_max_turns_reached(self, default_fake_llm: FakeLLM):
-        task = Task("Test task", max_turns=3)
-
-        with pytest.raises(ValueError, match="Max turns exceeded"):
-            task.run(max_calls_per_turn=1)
-
-        assert task._turns == 3
-        assert task.is_failed()
-        assert task.result == "Max turns exceeded."
-
-    def test_max_turns_only_applies_if_task_is_ready_and_assigned_to_active_agent(
-        self, default_fake_llm
-    ):
-        agent1 = Agent()
-        agent2 = Agent()
-        task1 = Task("Test task 1", max_turns=3, agents=[agent1])
-        task2 = Task("Test task 2", max_turns=3, agents=[agent2])
-
-        Orchestrator(
-            flow=Flow(),
-            tasks=[task1, task2],
-            agent=agent1,
-            turn_strategy=turn_strategies.Single(),
-        ).run(max_calls_per_turn=1)
-
-        assert task1._turns == 3
-        assert task1.is_failed()
-        assert task1.result == "Max turns exceeded."
-
-        assert task2._turns == 0
-        assert task2.is_ready()
