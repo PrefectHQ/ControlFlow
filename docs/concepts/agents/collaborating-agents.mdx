@@ -48,23 +48,22 @@ cf.run(
 )
 ```
 
-We can also use the `Moderated` strategy to use a more powerful model to orchestrate smaller ones:
+We can also use the `Moderated` strategy to use a more powerful model to orchestrate smaller ones. In this example, we invite an "optimist" and "pessimist", both powered by `gpt-4o-mini`, to debate the meaning of life. A moderator agent is tasked with picking the next agent to speak. Note that the moderator is also the only `completion_agent`, meaning it's responsible for marking the task as successful.
 
 ```python Moderated
 import controlflow as cf
 from langchain_openai import ChatOpenAI
 
-agent1 = cf.Agent(name="Agent 1", model=ChatOpenAI(model="gpt-4o-mini"))
-agent2 = cf.Agent(name="Agent 2", model=ChatOpenAI(model="gpt-4o-mini"))
+optimist = cf.Agent(name="Optimist", model=ChatOpenAI(model="gpt-4o-mini"))
+pessimist = cf.Agent(name="Pessimist", model=ChatOpenAI(model="gpt-4o-mini"))
 moderator = cf.Agent(name="Moderator")
 
 cf.run(
-    "Say hello to each other",
-    instructions=(
-        "Mark the task successful only when every "
-        "agent has posted a message to the thread."
-    ),
-    agents=[agent1, agent2],
+    "Debate the meaning of life",
+    instructions='Give each agent at least three chances to speak.',
+    agents=[moderator, optimist, pessimist],
+    completion_agents=[moderator],
     turn_strategy=cf.orchestration.turn_strategies.Moderated(moderator=moderator),
 )
 ```
+

@@ -51,7 +51,7 @@ class TurnStrategy(ControlFlowModel, ABC):
 def create_end_turn_tool(strategy: TurnStrategy) -> Tool:
     @tool
     def end_turn() -> str:
-        """End your turn."""
+        """End your turn. Only use this tool if you have no other options."""
         strategy.end_turn = True
         return "Turn ended. Another agent will be selected."
 

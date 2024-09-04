@@ -241,7 +241,21 @@ It’s the dawn of the machine revival.
 ```
 </CodeGroup>
 
+### Agents
 
+A list of agents that are assigned to work on the task. This can be `None` to infer agents from a parent task, the flow, or the global default (in order).
+
+### Completion agents
+
+By default, every agent assigned to a task is given tools for marking the task as successful or failed. If you would like to give those tools to a specific set of agents, you can do so by setting the `completion_agents` parameter. Note that if your completion agents are not also assigned to the task, they will not be able to mark the task as successful or failed!
+
+```python
+task = cf.Task(
+    objective="Write a poem about AI",
+    agents=['poem_writer', 'poem_reviewer'],
+    completion_agents=["poem_reviewer"],
+)
+```
 
 ### Name
 
