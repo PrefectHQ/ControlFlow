@@ -34,7 +34,7 @@ def available_agents(agents: list[Agent], tasks: list[Task]):
 
 
 def test_single_strategy(agents, available_agents):
-    strategy = Single(agents[0])
+    strategy = Single(agent=agents[0])
     current_agent = agents[0]
 
     tools = strategy.get_tools(current_agent, available_agents)
