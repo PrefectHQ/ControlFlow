@@ -535,21 +535,26 @@ class Task(ControlFlowModel):
         result_schema = None
 
         # if the result_type is a tuple of options, then we want the LLM to provide
-        # a single integer index instead of writing out the entire option
+        # a single integer index instead of writing out the entire option. Therefore
+        # we create a tool that describes a series of options and accepts the index
+        # as a result.
         if isinstance(self.result_type, tuple):
             result_schema = int
+            options = {}
+            serialized_options = {}
             for i, option in enumerate(self.result_type):
+                options[i] = option
                 try:
                     serialized = TypeAdapter(type(option)).dump_python(option)
                 except PydanticSchemaGenerationError:
                     serialized = repr(option)
-                options[i] = serialized
+                serialized_options[i] = serialized
             options_str = "\n\n".join(
-                f"Option {i}: {option}" for i, option in options.items()
+                f"Option {i}: {option}" for i, option in serialized_options.items()
             )
             instructions = f"""
                 Provide a single integer as the result, corresponding to the index
-                of your chosen option. You options are: {options_str}
+                of your chosen option. Your options are: {options_str}
                 """
 
         # otherwise try to load the schema for the result type
