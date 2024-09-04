@@ -421,6 +421,26 @@ class TestSuccessTool:
         with pytest.raises(ValueError):
             tool.run(input=dict(result="good"))
 
+    def test_tuple_of_ints_result(self):
+        task = Task("choose 5", result_type=(4, 5, 6))
+        tool = task.create_success_tool()
+        tool.run(input=dict(result=1))
+        assert task.result == 5
+
+    def test_tuple_of_pydantic_models_result(self):
+        class Person(BaseModel):
+            name: str
+            age: int
+
+        task = Task(
+            "Who is the oldest?",
+            result_type=(Person(name="Alice", age=30), Person(name="Bob", age=35)),
+        )
+        tool = task.create_success_tool()
+        tool.run(input=dict(result=1))
+        assert task.result == Person(name="Bob", age=35)
+        assert isinstance(task.result, Person)
+
 
 class TestRun:
     @pytest.mark.parametrize(
