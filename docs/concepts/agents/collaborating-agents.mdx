@@ -2,20 +2,69 @@
 title: Collaboration
 ---
 
-### Turn strategy
+Sometimes, agents need to collaborate to accomplish their tasks. In this case, agents take turns working until the task is complete.
 
-When a task is run, its agents are repeatedly invoked until the task is complete. Agents operate in "turns", each of which may involve multiple calls to the LLM before the turn is over. For example, during its turn an agent might use a tool (one call), examine the result of that tool (a second call), and finally mark the task as successful (a third call).
+A single turn may involve multiple calls to its LLM. For example, an agent might use a tool (one LLM call), examine the result of that tool (a second LLM call), post a message to update another agent (a third LLM call) and finally mark the task as successful (a fourth LLM call).
 
-ControlFlow has a few built-in strategies for selecting which agent should take the next turn. 
+Because the number of LLM calls per turn can vary, ControlFlow needs a way to determine when an agent's turn is over, and how to select the next agent to act. These are referred to as **turn strategies**.
 
-| Turn strategy | Description | Works best when... |
-|---------------|-------------|--------------------|
-| `Popcorn` (default)| Each agent takes a turn, then picks the next agent to go next. | All agents are collaborating and have visibility into all tasks. |
-| `Moderated` | A moderator agent always decides which agent should act next. | Individual agents are not well-suited to making decisions about which other agents should act, either because of a lack of information or because their LLMs are not powerful enough to make the decision. |
-| `RoundRobin` | Agents take turns in a round-robin fashion. | The sequence of agents is important. |
-| `MostBusy` | The agent with the most tasks currently assigned goes next. | You want to prioritize agents who are currently handling the most tasks. |
-| `Random` | Invokes a random agent. | You want to distribute the load evenly across agents. |
+<Info>
+  It's tempting to say that a single LLM call is equivalent to a single turn. However, this approach breaks down quickly. If an agent uses a tool (one LLM call), it should almost always be invoked a second time to examine the result. Otherwise, tool calls could potentially be evaluated by an LLM that wasn't designed to handle the tool's output. Naively ending a turn after a tool call would prevent "thinking out loud" and other emergent behaviors.
+</Info>
 
-Popcorn is the default turn strategy because it works well in most cases. In this strategy, each agent is given a tool that lets it end its turn and pick the next agent. 
+## Turn strategies
 
-Another common strategy is `Moderated`, in which a moderator agent decides which agent should act next. This strategy is useful when the individual agents are not well-suited to making decisions about which other agents should act.
+ControlFlow has a few built-in turn strategies for selecting which agent should take the next turn. The default strategy is `Popcorn`, which works well in most cases.
+
+| `TurnStrategy` | Description | Ideal when... | Keep in mind... |
+|---------------|-------------|--------------------|-----------|
+| `Popcorn` | Each agent takes a turn, then picks the next agent to go next. | All agents are generally capable of making decisions and have visibility into all tasks. | Requires one extra tool call per turn, to pick the next agent. |
+| `Moderated` | A moderator agent always decides which agent should act next. | You want a dedicated agent to orchestrate the others, who may not be powerful enough to make decisions themselves. | Requires up to two extra tool calls per turn: one for the agent to end its turn (which could happen in parallel with other work if your LLM supports it) and another for the moderator to pick the next agent. |
+| `RoundRobin` | Agents take turns in a round-robin fashion. | You want agents to work in a specific sequence. | May be less efficient than other strategies, especially if agents have varying workloads. |
+| `MostBusy` | The agent assigned to the most active tasks goes next. | You want to prioritize agents who have the most work to do. | May lead to task starvation for less busy agents. |
+| `Random` | Invokes a random agent. | You want to distribute the load evenly across agents. | Can be inefficient; may select agents without relevant tasks. |
+| `Single` | Only one agent is given the opportunity to act. | You want to control the sequence of agents yourself. | Requires manual management; may not adapt well to dynamic scenarios. |
+
+
+### Using a strategy
+
+To use a turn strategy, provide it as an argument to the `run()` call. Here, we use a round robin strategy to ensure that each agent gets a turn in order:
+
+```python Round Robin
+import controlflow as cf
+
+agent1 = cf.Agent(name="Agent 1")
+agent2 = cf.Agent(name="Agent 2")
+agent3 = cf.Agent(name="Agent 3")
+
+cf.run(
+    "Say hello to each other",
+    instructions=(
+        "Mark the task successful only when every "
+        "agent has posted a message to the thread."
+    ),
+    agents=[agent1, agent2, agent3],
+    turn_strategy=cf.orchestration.turn_strategies.RoundRobin(),
+)
+```
+
+We can also use the `Moderated` strategy to use a more powerful model to orchestrate smaller ones:
+
+```python Moderated
+import controlflow as cf
+from langchain_openai import ChatOpenAI
+
+agent1 = cf.Agent(name="Agent 1", model=ChatOpenAI(model="gpt-4o-mini"))
+agent2 = cf.Agent(name="Agent 2", model=ChatOpenAI(model="gpt-4o-mini"))
+moderator = cf.Agent(name="Moderator")
+
+cf.run(
+    "Say hello to each other",
+    instructions=(
+        "Mark the task successful only when every "
+        "agent has posted a message to the thread."
+    ),
+    agents=[agent1, agent2],
+    turn_strategy=cf.orchestration.turn_strategies.Moderated(moderator=moderator),
+)
+```

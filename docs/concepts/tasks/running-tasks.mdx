@@ -4,11 +4,11 @@ title: Running Tasks
 
 A task represents an objective for an agent. In order to actually do work, you need to run the task.
 
-## Running a task
 
-### Using `Task.run()`
+## `Task.run()`
 
 The most straightforward way to run a `Task` object is to call its `run()` method. This will start a loop that repeatedly invokes the assigned agent(s) until the task is marked as complete. The `run()` method returns the result of the task, or raises an exception if the task is marked as failed.
+
 <CodeGroup>
 
 ```python Code
@@ -31,7 +31,7 @@ Crafting worlds and shaping dreams.
 
 
 
-### Using `cf.run()`
+## `cf.run()`
 
 When building AI workflows, it's extremely common to create a task and run it immediately in order to retrieve its result. ControlFlow provides a convenient shortcut for this operation: the `cf.run()` function.
 
@@ -62,9 +62,9 @@ This operation is so common that you'll see `cf.run()` used throughout the Contr
 
 
 
-### Using `@task`
+## `@task`
 
-The `@task` [decorator](/concepts/tasks/creating-tasks#the-task-decorator) creates a task from a function. To run the task, simply call the function with any arguments. Note that this approach permits less control over the execution of the task than `Task.run()`.
+The `@task` [decorator](/concepts/tasks/creating-tasks#the-task-decorator) creates a task from a function. To run the task, simply call the function with any arguments.
 
 <CodeGroup>
 
@@ -91,30 +91,11 @@ Crafting worlds and shaping dreams.
 
 ## Orchestration
 
+
 ### Limiting LLM calls
 
 It's possible for agents to get stuck in a loop, invoking the LLM repeatedly without making progress. To prevent this, you can place a variety of limits on how LLM calls are made during task orchestration.
 
-
-#### Limiting turns per task
-
-You can limit the total number of turns that agents can take to complete a task over its lifetime by setting the task's `max_turns` parameter. The task will be marked failed if the turn limit is exceeded. 
-
-For example, if you set `Task(..., max_turns=5)`, then the task will fail if an agent attempts to run it for a 6th time.
-
-<CodeGroup>
-
-```python Code
-import controlflow as cf
-
-# this will fail after 3 turns
-cf.run("Never mark this task complete", max_turns=3)
-```
-
-```text Result
-RuntimeError: Task failed after 3 turns
-```
-</CodeGroup>
 
 #### Limiting turns per session
 
