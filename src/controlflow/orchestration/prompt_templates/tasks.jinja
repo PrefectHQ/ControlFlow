@@ -14,9 +14,12 @@ The following tasks are active:
 
 {% for task in tasks %}
 <Task ID {{ task.id }}>
-    Assigned agents: {{ task._serialize_agents(task.get_agents()) }}
+Assigned agents: {{ task._serialize_agents(task.get_agents()) }}
+{% if task.completion_agents -%}
+Completion agents: {{ task._serialize_agents(task.completion_agents) }}
+{% endif %}
 
-    {{ task.get_prompt() }}
+{{ task.get_prompt() }}
 </Task>
 {% endfor %}
 
