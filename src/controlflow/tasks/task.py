@@ -224,13 +224,13 @@ class Task(ControlFlowModel):
         serialized = self.model_dump(include={"id", "objective"})
         return f"{self.__class__.__name__}({', '.join(f'{key}={repr(value)}' for key, value in serialized.items())})"
 
-    @field_validator("agents", mode="after")
+    @field_validator("agents")
     def _validate_agents(cls, v):
         if isinstance(v, list) and not v:
             raise ValueError("Agents must be `None` or a non-empty list of agents.")
         return v
 
-    @field_validator("parent", mode="before")
+    @field_validator("parent")
     def _default_parent(cls, v):
         if v is None:
             parent_tasks = ctx.get("tasks", [])
@@ -239,7 +239,7 @@ class Task(ControlFlowModel):
             v = None
         return v
 
-    @field_validator("result_type", mode="before")
+    @field_validator("result_type")
     def _ensure_result_type_is_list_if_literal(cls, v):
         if isinstance(v, _LiteralGenericAlias):
             v = v.__args__
@@ -278,7 +278,7 @@ class Task(ControlFlowModel):
         return [agent.serialize_for_prompt() for agent in self.get_agents()]
 
     @field_serializer("completion_agents")
-    def _serialize_agents(self, completion_agents: Optional[list[Agent]]):
+    def _serialize_completion_agents(self, completion_agents: Optional[list[Agent]]):
         if completion_agents is not None:
             return [agent.serialize_for_prompt() for agent in completion_agents]
         else:
