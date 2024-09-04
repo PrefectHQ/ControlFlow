@@ -316,7 +316,8 @@ class TestResultType:
 
     def test_annotated_result(self):
         task = Task(
-            "complete the task", result_type=Annotated[str, "a 5 digit zip code"]
+            "generate any result that satisfies the result type",
+            result_type=Annotated[str, "a 5 digit zip code"],
         )
         task.run()
         assert len(task.result) == 5
