@@ -34,7 +34,7 @@ def available_agents(agents: list[Agent], tasks: list[Task]):
 
 
 def test_single_strategy(agents, available_agents):
-    strategy = Single()
+    strategy = Single(agents[0])
     current_agent = agents[0]
 
     tools = strategy.get_tools(current_agent, available_agents)
@@ -43,10 +43,6 @@ def test_single_strategy(agents, available_agents):
 
     next_agent = strategy.get_next_agent(current_agent, available_agents)
     assert next_agent == current_agent
-
-    assert not strategy.should_end_session()
-    strategy.end_turn = True
-    assert strategy.should_end_session()
 
 
 def test_popcorn_strategy(agents, available_agents):

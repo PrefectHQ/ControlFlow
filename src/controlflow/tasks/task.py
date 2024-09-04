@@ -705,3 +705,12 @@ async def run_async(
         max_calls_per_turn=max_calls_per_turn,
         max_turns=max_turns,
     )
+
+
+def run_tasks(tasks: list[Task], *args, agent: Agent = None, **kwargs):
+    orchestrator = controlflow.orchestration.Orchestrator(
+        tasks=tasks,
+        agent=agent or controlflow.defaults.agent,
+        flow=controlflow.flows.get_flow() or controlflow.flows.Flow(),
+    )
+    return orchestrator.run()

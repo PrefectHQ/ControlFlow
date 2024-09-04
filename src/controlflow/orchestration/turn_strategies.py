@@ -20,7 +20,7 @@ class TurnStrategy(ControlFlowModel, ABC):
 
     @abstractmethod
     def get_next_agent(
-        self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
+        self, current_agent: Optional[Agent], available_agents: Dict[Agent, List[Task]]
     ) -> Agent:
         pass
 
@@ -36,16 +36,6 @@ class TurnStrategy(ControlFlowModel, ABC):
             bool: True if the turn should end, False otherwise.
         """
         return self.end_turn
-
-    def should_end_session(self) -> bool:
-        """
-        Determine if the session should end. The session is the collection of
-        all turns for all agents.
-
-        Returns:
-            bool: True if the session should end, False otherwise.
-        """
-        return False
 
 
 def create_end_turn_tool(strategy: TurnStrategy) -> Tool:
@@ -79,18 +69,19 @@ def create_delegate_tool(
 
 
 class Single(TurnStrategy):
+    agent: Agent
+
     def get_tools(
         self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
     ) -> List[Tool]:
         return [create_end_turn_tool(self)]
 
     def get_next_agent(
-        self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
+        self, current_agent: Optional[Agent], available_agents: Dict[Agent, List[Task]]
     ) -> Agent:
-        return current_agent
-
-    def should_end_session(self) -> bool:
-        return self.end_turn
+        if self.agent not in available_agents:
+            raise ValueError(f"The specified agent {self.agent.id} is not available.")
+        return self.agent
 
 
 class Popcorn(TurnStrategy):
@@ -103,11 +94,11 @@ class Popcorn(TurnStrategy):
             return [create_end_turn_tool(self)]
 
     def get_next_agent(
-        self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
+        self, current_agent: Optional[Agent], available_agents: Dict[Agent, List[Task]]
     ) -> Agent:
         if self.next_agent and self.next_agent in available_agents:
             return self.next_agent
-        return next(iter(available_agents))  # Always return an available agent
+        return next(iter(available_agents))
 
 
 class Random(TurnStrategy):
@@ -117,7 +108,7 @@ class Random(TurnStrategy):
         return [create_end_turn_tool(self)]
 
     def get_next_agent(
-        self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
+        self, current_agent: Optional[Agent], available_agents: Dict[Agent, List[Task]]
     ) -> Agent:
         return random.choice(list(available_agents.keys()))
 
@@ -129,10 +120,10 @@ class RoundRobin(TurnStrategy):
         return [create_end_turn_tool(self)]
 
     def get_next_agent(
-        self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
+        self, current_agent: Optional[Agent], available_agents: Dict[Agent, List[Task]]
     ) -> Agent:
         agents = list(available_agents.keys())
-        if current_agent not in agents:
+        if current_agent is None or current_agent not in agents:
             return agents[0]
         current_index = agents.index(current_agent)
         next_index = (current_index + 1) % len(agents)
@@ -146,7 +137,7 @@ class MostBusy(TurnStrategy):
         return [create_end_turn_tool(self)]
 
     def get_next_agent(
-        self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
+        self, current_agent: Optional[Agent], available_agents: Dict[Agent, List[Task]]
     ) -> Agent:
         # Select the agent with the most tasks
         return max(available_agents, key=lambda agent: len(available_agents[agent]))
@@ -164,9 +155,9 @@ class Moderated(TurnStrategy):
             return [create_end_turn_tool(self)]
 
     def get_next_agent(
-        self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
+        self, current_agent: Optional[Agent], available_agents: Dict[Agent, List[Task]]
     ) -> Agent:
-        if current_agent is self.moderator:
+        if current_agent is None or current_agent is self.moderator:
             return (
                 self.next_agent
                 if self.next_agent in available_agents

@@ -4,6 +4,7 @@ import controlflow
 from controlflow.agents import Agent
 from controlflow.flows import Flow
 from controlflow.orchestration.orchestrator import Orchestrator
+from controlflow.orchestration.turn_strategies import Popcorn  # Add this import
 from controlflow.tasks.task import Task
 
 
@@ -93,6 +94,60 @@ class TestOrchestratorLimits:
         orchestrator.run(max_calls_per_turn=3)
 
         assert get_call_count() == 3 * controlflow.settings.orchestrator_max_turns
+
+
+class TestOrchestratorCreation:
+    def test_create_orchestrator_with_agent(self):
+        agent = Agent()
+        task = Task("Test task", agents=[agent])
+        flow = Flow()
+        orchestrator = Orchestrator(tasks=[task], flow=flow, agent=agent)
+
+        assert orchestrator.agent == agent
+        assert orchestrator.flow == flow
+        assert orchestrator.tasks == [task]
+
+    def test_create_orchestrator_without_agent(self):
+        task = Task("Test task")
+        flow = Flow()
+        orchestrator = Orchestrator(tasks=[task], flow=flow, agent=None)
+
+        assert orchestrator.agent is None
+        assert orchestrator.flow == flow
+        assert orchestrator.tasks == [task]
+
+    def test_run_sets_agent_if_none(self):
+        agent1 = Agent(id="agent1")
+        agent2 = Agent(id="agent2")
+        task = Task("Test task", agents=[agent1, agent2])
+        flow = Flow()
+        turn_strategy = Popcorn()
+        orchestrator = Orchestrator(
+            tasks=[task], flow=flow, agent=None, turn_strategy=turn_strategy
+        )
+
+        assert orchestrator.agent is None
+
+        orchestrator.run(max_turns=0)
+
+        assert orchestrator.agent is not None
+        assert orchestrator.agent in [agent1, agent2]
+
+    def test_run_keeps_existing_agent_if_set(self):
+        agent1 = Agent(id="agent1")
+        agent2 = Agent(id="agent2")
+        task = Task("Test task", agents=[agent1, agent2])
+        flow = Flow()
+        turn_strategy = Popcorn()
+        orchestrator = Orchestrator(
+            tasks=[task], flow=flow, agent=agent1, turn_strategy=turn_strategy
+        )
+
+        assert orchestrator.agent == agent1
+
+        orchestrator.run(max_turns=0)
+
+        assert orchestrator.agent == agent1
 
 
 def test_run():
