@@ -6,6 +6,7 @@ from pydantic import Field, field_validator
 import controlflow
 from controlflow.agents.agent import Agent
 from controlflow.events.base import Event
+from controlflow.events.events import AgentMessageDelta
 from controlflow.events.message_compiler import MessageCompiler
 from controlflow.flows import Flow
 from controlflow.instructions import get_instructions
@@ -61,7 +62,7 @@ class Orchestrator(ControlFlowModel):
         """
         from controlflow.orchestration.print_handler import PrintHandler
 
-        if v is None and controlflow.settings.enable_print_handler:
+        if v is None and controlflow.settings.pretty_print_agent_events:
             v = [PrintHandler()]
         return v or []
 
@@ -72,7 +73,8 @@ class Orchestrator(ControlFlowModel):
         Args:
             event (Event): The event to handle.
         """
-        logger.debug(f"Handling event: {event}")
+        if not isinstance(event, AgentMessageDelta):
+            logger.debug(f"Handling event: {repr(event)}")
         for handler in self.handlers:
             handler.handle(event)
         if event.persist:
