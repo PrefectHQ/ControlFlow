@@ -6,7 +6,7 @@ from pydantic import Field, field_validator
 import controlflow
 from controlflow.agents.agent import Agent
 from controlflow.events.base import Event
-from controlflow.events.events import AgentMessageDelta
+from controlflow.events.events import AgentMessageDelta, OrchestratorMessage
 from controlflow.events.message_compiler import MessageCompiler
 from controlflow.flows import Flow
 from controlflow.instructions import get_instructions
@@ -140,7 +140,15 @@ class Orchestrator(ControlFlowModel):
         self.turn_strategy.begin_turn()
 
         for task in self.get_tasks("assigned"):
-            task.mark_running()
+            if not task.is_running():
+                task.mark_running()
+                self.flow.add_events(
+                    [
+                        OrchestratorMessage(
+                            content=f"Starting task {task.name} (ID {task.id}) with objective: {task.objective}"
+                        )
+                    ]
+                )
 
         calls = 0
         while not self.turn_strategy.should_end_turn():
@@ -178,7 +186,15 @@ class Orchestrator(ControlFlowModel):
         self.turn_strategy.begin_turn()
 
         for task in self.get_tasks("assigned"):
-            task.mark_running()
+            if not task.is_running():
+                task.mark_running()
+                self.flow.add_events(
+                    [
+                        OrchestratorMessage(
+                            content=f"Starting task {task.name} (ID {task.id}) with objective: {task.objective}"
+                        )
+                    ]
+                )
 
         calls = 0
         while not self.turn_strategy.should_end_turn():
