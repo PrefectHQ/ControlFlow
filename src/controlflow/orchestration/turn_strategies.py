@@ -62,8 +62,10 @@ def create_delegate_tool(
     strategy: TurnStrategy, available_agents: Dict[Agent, List[Task]]
 ) -> Tool:
     @tool
-    def delegate_to_agent(agent_id: str) -> str:
-        """Delegate to another agent."""
+    def delegate_to_agent(agent_id: str, message: str = None) -> str:
+        """Delegate to another agent and optionally send a message."""
+        if len(available_agents) <= 1:
+            return "Cannot delegate as there are no other available agents."
         next_agent = next(
             (a for a in available_agents.keys() if a.id == agent_id), None
         )
@@ -95,18 +97,17 @@ class Popcorn(TurnStrategy):
     def get_tools(
         self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
     ) -> List[Tool]:
-        return [create_delegate_tool(self, available_agents)]
+        if len(available_agents) > 1:
+            return [create_delegate_tool(self, available_agents)]
+        else:
+            return [create_end_turn_tool(self)]
 
     def get_next_agent(
         self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
     ) -> Agent:
         if self.next_agent and self.next_agent in available_agents:
             return self.next_agent
-        return (
-            current_agent
-            if current_agent in available_agents
-            else next(iter(available_agents))
-        )
+        return next(iter(available_agents))  # Always return an available agent
 
 
 class Random(TurnStrategy):

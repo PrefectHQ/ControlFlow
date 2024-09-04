@@ -117,6 +117,10 @@ class Task(ControlFlowModel):
         default_factory=list,
         description="Tools available to every agent working on this task.",
     )
+    completion_agents: Optional[list[Agent]] = Field(
+        default=None,
+        description="Agents that are allowed to mark this task as complete. If None, all agents are allowed.",
+    )
     interactive: bool = False
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     _subtasks: set["Task"] = set()
@@ -272,6 +276,13 @@ class Task(ControlFlowModel):
     @field_serializer("agents")
     def _serialize_agents(self, agents: list[Agent]):
         return [agent.serialize_for_prompt() for agent in self.get_agents()]
+
+    @field_serializer("completion_agents")
+    def _serialize_agents(self, completion_agents: Optional[list[Agent]]):
+        if completion_agents is not None:
+            return [agent.serialize_for_prompt() for agent in completion_agents]
+        else:
+            return None
 
     @field_serializer("tools")
     def _serialize_tools(self, tools: list[Callable]):
@@ -444,12 +455,13 @@ class Task(ControlFlowModel):
         tools = self.tools.copy()
         if self.interactive:
             tools.append(cli_input)
-        tools.extend(
-            [
-                self.create_success_tool(),
-                self.create_fail_tool(),
-            ]
-        )
+        return tools
+
+    def get_completion_tools(self) -> list[Tool]:
+        tools = [
+            self.create_success_tool(),
+            self.create_fail_tool(),
+        ]
         return tools
 
     def get_prompt(self) -> str:

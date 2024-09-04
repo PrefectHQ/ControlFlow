@@ -98,12 +98,24 @@ class Orchestrator(ControlFlowModel):
             list[Tool]: A list of available tools.
         """
         tools = []
+
+        # add flow tools
         tools.extend(self.flow.tools)
+
+        # add task tools
         for task in self.get_tasks("assigned"):
             tools.extend(task.get_tools())
+
+            # add completion tools
+            if task.completion_agents is None or self.agent in task.completion_agents:
+                tools.append(task.create_success_tool())
+                tools.append(task.create_fail_tool())
+
+        # add turn strategy tools
         tools.extend(
             self.turn_strategy.get_tools(self.agent, self.get_available_agents())
         )
+
         tools = as_tools(tools)
         return tools
 
@@ -137,10 +149,6 @@ class Orchestrator(ControlFlowModel):
 
             for event in self.agent._run_model(messages=messages, tools=tools):
                 self.handle_event(event)
-
-            # Check if the current agent is still available
-            if self.agent not in self.get_available_agents():
-                break
 
         # at the end of each turn, select the next agent
         if available_agents := self.get_available_agents():
@@ -177,10 +185,6 @@ class Orchestrator(ControlFlowModel):
                 messages=messages, tools=tools
             ):
                 self.handle_event(event)
-
-            # Check if the current agent is still available
-            if self.agent not in self.get_available_agents():
-                break
 
         # at the end of each turn, select the next agent
         if available_agents := self.get_available_agents():
