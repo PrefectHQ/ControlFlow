@@ -77,7 +77,7 @@
             "group": "Patterns",
             "pages": [
                 "patterns/tools",
-                "patterns/user-input",
+                "patterns/interactivity",
                 "patterns/dependencies",
                 "patterns/subtasks",
                 "patterns/planning",
@@ -92,12 +92,6 @@
                 "guides/default-agent",
                 "guides/agentic-loop",
                 "guides/orchestration"
-            ]
-        },
-        {
-            "group": "Reference",
-            "pages": [
-                "reference/task-class"
             ]
         },
         {
