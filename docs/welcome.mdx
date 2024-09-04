@@ -1,6 +1,7 @@
 ---
 title: ControlFlow
 sidebarTitle: Welcome
+icon: slideshare
 ---
 
 ![ControlFlow Banner](/assets/brand/controlflow_banner.png)
@@ -24,9 +25,9 @@ ControlFlow provides a structured, developer-focused framework for defining work
 
 This task-centric approach allows you to harness the power of AI for complex workflows while maintaining fine-grained control. By defining clear objectives and constraints for each task, you can balance AI autonomy with precise oversight, letting you build sophisticated AI-powered applications with confidence.
 
-## Quick Start
+## Quickstart
 
-Here's a simple example of how to use ControlFlow:
+Here's a simple but complete ControlFlow script that writes a poem:
 
 <CodeGroup>
 ```python Code
@@ -54,13 +55,13 @@ The heart of what it means to be free.
 ```
 
 </CodeGroup>
-This single line of code creates a task, assigns it to an agent, and immediately executes it, returning the result.
+The `run()` function is the main entry point for ControlFlow. This single line of code creates a task, assigns it to an agent, and immediately executes it, returning the result. You can completely customize those behaviors by learning more about [tasks](/concepts/tasks), [agents](/concepts/agents), and [flows](/concepts/flows).
 
-## Key Features
+## Key features
 
 Let's explore some of ControlFlow's key features:
 
-### Structured Results
+### Structured results
 
 ControlFlow tasks can return more than just text, including any structured data type supported by Pydantic:
 
@@ -119,7 +120,7 @@ Category: Technology
 
 </CodeGroup>
 
-### Custom Tools
+### Custom tools
 
 Provide any Python function as a tool for agents to use:
 
@@ -143,7 +144,7 @@ print(result)
 
 </CodeGroup>
 
-### Multi-Agent Collaboration
+### Multi-agent collaboration
 
 Assign multiple agents to a task to enable collaboration:
 
@@ -172,7 +173,7 @@ Nature's arrow flies
 
 </CodeGroup>
 
-### User Interaction
+### User interaction
 
 Quickly give agents the ability to chat with users:
 

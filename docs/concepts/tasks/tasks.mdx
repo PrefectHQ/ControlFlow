@@ -1,0 +1,30 @@
+---
+title: What are Tasks?
+sidebarTitle: Introduction
+---
+
+<Tip>Tasks are the fundamental building blocks of AI workflows.</Tip> 
+
+Tasks represent discrete, well-defined objectives that need to be accomplished by one or more AI agents. Tasks serve as a bridge between the structured world of traditional software and the more fluid, adaptive world of AI.
+
+```python
+import controlflow as cf
+
+task = cf.Task(objective="Write documentation for the ControlFlow library")
+```
+
+Tasks are central to ControlFlow's philosophy because they align with how Large Language Models (LLMs) operate most effectively. LLMs excel when given clear, specific objectives, allowing them to focus their vast knowledge and capabilities on a defined goal. By breaking down complex workflows into discrete tasks, ControlFlow enables LLMs to operate autonomously within well-defined boundaries, leading to more reliable and controllable AI-powered applications.
+
+This task-centric approach allows you to leverage the full power of AI while maintaining precise oversight. Each task becomes a checkpoint where you can validate outputs, ensuring that the AI's work aligns with your application's requirements and constraints.
+
+## Why Tasks Matter
+
+Tasks are crucial to ControlFlow's approach to AI workflows for three key reasons:
+
+1. **Structured AI Interactions**: Tasks provide a clear, programmatic way to define what you want AI to do. By breaking down complex workflows into discrete tasks, you can manage and control AI behaviors more effectively. This structure allows for better integration of AI capabilities into existing software systems and development practices.
+
+2. **Validated Outputs**: Tasks in ControlFlow can specify expected result types, ensuring that AI outputs conform to the structure your application expects. This built-in validation bridges the gap between the often unpredictable nature of AI responses and the strict requirements of software systems, making it easier to build reliable AI-powered applications.
+
+3. **Observability and Control**: Tasks serve as clear checkpoints in your AI workflow, making it easier to monitor progress, identify bottlenecks, and debug issues. Each task has a defined objective and result, allowing for granular tracking and control of the AI's decision-making process. This visibility is crucial for building trustworthy AI systems that can be confidently deployed in production environments.
+
+By leveraging these key aspects of tasks in ControlFlow, you can create more robust, predictable, and scalable AI workflows. Tasks provide the structure, validation, and visibility needed to harness the power of AI while maintaining the reliability expected in production software systems.

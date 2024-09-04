@@ -1,0 +1,111 @@
+---
+title: Assigning Agents to Tasks
+sidebarTitle: Task Assignment
+---
+
+To assign an agent to a task, use the `agents` parameter when creating a task. Each task requires at least one assigned agent, and will use a default agent if none are provided. Agents can be assigned to multiple tasks, and tasks can have multiple agents. 
+
+### Tasks with one agent
+
+To assign a single agent to a task, create the task and pass the agent to the `agents` parameter:
+
+```python
+import controlflow as cf
+
+poet = cf.Agent(name="Poet")
+
+poem = cf.run("Write a short poem about AI", agents=[poet])
+```
+
+Alternatively, you can use the agent's own `run` method:
+
+```python
+import controlflow as cf
+
+poet = cf.Agent(name="Poet")
+
+poem = poet.run("Write a short poem about AI")
+```
+
+These two approaches are functionally equivalent.
+
+
+### Tasks with multiple agents
+
+Assign multiple agents to a task by passing them to the task's `agents` parameter as a list.
+
+Here, we create two agents and assign them to a task that has them debate each other.
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+optimist = cf.Agent(
+    name="Optimist",
+    instructions="Always find the best in every situation.",
+)
+
+pessimist = cf.Agent(
+    name="Pessimist",
+    instructions="Always find the worst in every situation.",
+)
+
+cf.run(
+    "Debate world peace",
+    agents=[optimist, pessimist],
+    instructions=(
+        "Mark the task successful once both agents have "
+        "found something to agree on."
+    )
+)
+```
+```text Result
+Optimist: I see where you're coming from, Pessimist. Human nature and the
+disparities among nations do present significant challenges to achieving world
+peace. However, it's important to focus on the positive aspects and the
+potential for improvement.
+
+Pessimist: While it's true that efforts towards peace can lead to some positive
+outcomes, the reality is that these efforts are often met with setbacks,
+failures, and unintended consequences. The end of apartheid and the fall of the
+Berlin Wall were monumental achievements, but they didn't come without immense
+struggle, loss, and suffering. Moreover, the aftermath of such events often
+leaves lingering issues that take decades to resolve, if they ever are.
+
+Optimist: For instance, while human nature has its flaws, it also has incredible
+capacity for compassion, cooperation, and progress. These positive traits have
+led to remarkable achievements in history, such as the end of apartheid, the
+fall of the Berlin Wall, and advancements in human rights.
+
+Pessimist: International cooperation through organizations like the United
+Nations is often hampered by bureaucracy, political agendas, and lack of
+enforcement power. Peace treaties can be fragile and easily broken, leading to
+renewed conflicts that sometimes are even worse than before.
+
+Optimist: Additionally, efforts like international cooperation through
+organizations such as the United Nations and various peace treaties show that
+despite differences, nations can come together for a common good. While world
+peace may be difficult to achieve, the journey towards it can foster greater
+understanding, reduce conflicts, and improve the quality of life for many
+people.
+
+Pessimist: So, while there might be some value in striving for peace, the harsh
+truth is that the road is fraught with difficulties that may never be fully
+overcome. In essence, the pursuit of world peace often feels like an endless,
+Sisyphean task.
+
+Optimist: Can we agree that, even though world peace is challenging, the efforts
+and progress made towards it are valuable and can lead to significant positive
+outcomes?
+
+Pessimist: I suppose we can reluctantly agree that efforts towards peace might
+lead to some temporary positive outcomes, but the overall picture remains bleak
+and discouraging.
+
+---
+
+Result: Both agents agreed that efforts towards world peace can lead to some
+temporary positive outcomes, despite the overall bleak and discouraging reality.
+````
+
+</CodeGroup>

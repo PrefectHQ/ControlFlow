@@ -1,5 +1,5 @@
 ---
-title: Custom Tools
+title: Tools
 ---
 
 <Tip>
@@ -10,7 +10,8 @@ A tool is a Python function that your agents can use to accomplish tasks. They l
 
 Tools can be simple utility functions, complex data processing operations, or API calls to external services. Here's a basic example of a tool for rolling dice:
 
-```python
+<CodeGroup>
+```python Code
 import controlflow as cf
 import random
 
@@ -18,15 +19,14 @@ def roll_die() -> int:
     """Roll a 6-sided diee."""
     return random.randint(1, 6)
 
-task = cf.Task(
-    objective="Roll a die, then roll again as many times as the first value", 
-    instructions="Report the history of rolls",
-    tools=[roll_die],
-)
+rolls = cf.run("Roll a die four times", tools=[roll_die])
 
-task.run()
+print(rolls)
 ```
-
+```text Result
+[3, 1, 4, 2]
+```
+</CodeGroup>
 ## Best Practices
 
 Any Python function can be used as a tool, but you'll get the best performance with the following best practices.
@@ -138,27 +138,26 @@ def get_weather(location: str) -> dict:
 
 LangChain has many [pre-built tools](https://python.langchain.com/v0.2/docs/integrations/tools/) that you can leverage. For example, here's how to get recent data from the web with DuckDuckGo.
 
-Install dependencies with your preferred package manager:
+First, install the dependencies:
 
-<CodeGroup>
-```bash pip
-# ControlFlow requires Python 3.9 or greater
+```bash
 pip install -U langchain-community, duckduckgo-search
 ```
 
-```bash uv
-# ControlFlow requires Python 3.9 or greater
-uv pip install -U langchain-community, duckduckgo-search
-```
-</CodeGroup>
+Then import the tool for use:
 
-Then import the tool for use.
 
-```python 
+Import the tool and assign it to an agent or task:
+```python   
 import controlflow as cf
 from langchain_community.tools import DuckDuckGoSearchRun
-```
 
+agent = cf.Agent(
+    name="Timely agent",
+    description="An AI agent that knows current events",
+    tools=[DuckDuckGoSearchRun()],
+)
+```
 
 ## Using Tools
 
@@ -211,15 +210,6 @@ agent = cf.Agent(
 
 Using Pydantic models for tool return types helps ensure that the data returned by the tool is properly structured and validated.
 
-To use the LangChain tool you imported earlier, provide it to a task like this:
-
-```python   
-agent = cf.Agent(
-    name="Timely agent",
-    description="An AI agent that knows current events",
-    tools=[DuckDuckGoSearchRun()],
-)
-```
 
 ## Debugging Tools
 

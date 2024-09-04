@@ -37,25 +37,46 @@
             "pages": [
                 "welcome",
                 "installation",
-                "quickstart",
-                "concepts",
-                "tutorial"
+                "quickstart"
             ]
         },
         {
             "group": "Core Concepts",
             "pages": [
-                "concepts/tasks",
-                "concepts/agents",
-                "concepts/flows"
+                {
+                    "group": "Tasks",
+                    "icon": "list-check",
+                    "pages": [
+                        "concepts/tasks/tasks",
+                        "concepts/tasks/creating-tasks",
+                        "concepts/tasks/running-tasks",
+                        "concepts/tasks/task-results"
+                    ]
+                },
+                {
+                    "group": "Agents",
+                    "icon": "users",
+                    "pages": [
+                        "concepts/agents/agents",
+                        "concepts/agents/creating-agents",
+                        "concepts/agents/assigning-agents",
+                        "concepts/agents/collaborating-agents"
+                    ]
+                },
+                {
+                    "group": "Flows",
+                    "icon": "diagram-project",
+                    "pages": [
+                        "concepts/flows/flows",
+                        "concepts/flows/instructions"
+                    ]
+                }
             ]
         },
         {
             "group": "Patterns",
             "pages": [
-                "patterns/result-types",
                 "patterns/tools",
-                "patterns/instructions",
                 "patterns/user-input",
                 "patterns/dependencies",
                 "patterns/subtasks",
@@ -69,9 +90,6 @@
                 "guides/tasks-and-agents",
                 "guides/llms",
                 "guides/default-agent",
-                "guides/workflow-apis",
-                "guides/execution-modes",
-                "guides/event-log",
                 "guides/agentic-loop",
                 "guides/orchestration"
             ]
@@ -79,7 +97,7 @@
         {
             "group": "Reference",
             "pages": [
-                "reference/task-class",
+                "reference/task-class"
             ]
         },
         {

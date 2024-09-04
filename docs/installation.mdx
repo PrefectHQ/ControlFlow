@@ -1,6 +1,7 @@
 ---
 title: Installation & Setup
 description: Learn how to install ControlFlow and configure your API keys.
+icon: wrench
 ---
 
 <Card title="ControlFlow is under active development" icon="excavator" iconType="duotone">
@@ -8,14 +9,37 @@ Pin to a specific version if you want to avoid breaking changes.
 However, we recommend frequent updates to get new features and bug fixes.
 </Card>
 
-import Installation from '/snippets/installation.mdx';
+## Install ControlFlow
 
-<Installation />
+You can install ControlFlow with `pip`:
 
-<Tip>
-ControlFlow supports many other LLM providers as well.
-See the [LLM documentation](/guides/llms) for more information.
-</Tip>
+```bash
+pip install controlflow 
+```
+
+## Provide an API key
+
+### OpenAI
+
+ControlFlow's default LLM is OpenAI's GPT-4o model, which provides excellent performance out of the box. To use it, you'll need to provide an API key as an environment variable:
+
+```bash
+export OPENAI_API_KEY="your-api-key"
+```
+
+### Anthropic
+
+To use an Anthropic model, provide an API key as an environment variable and change the default LLM, like this:
+
+```bash
+export ANTHROPIC_API_KEY="your-api-key"
+export CONTROLFLOW_LLM_MODEL="anthropic/claude-3-5-sonnet-20240620"
+```
+
+### Other providers
+
+ControlFlow supports many other LLM providers as well, though you'll need to install their respective packages and configure the default LLM appropriately. See the [LLM documentation](/guides/llms) for more information.
+
 
 ## Next steps
 

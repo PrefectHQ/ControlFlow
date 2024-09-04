@@ -1,168 +1,239 @@
 ---
 title: "Quickstart"
-description: Build your first agentic workflow in under five minutes
+description: Build your first agentic workflow in less than 30 seconds
+icon: rocket
 ---
 
-import Installation from '/snippets/installation.mdx';
 
-This quickstart is designed to **show** you how ControlFlow works, rather than **teach** you.
-For a more detailed introduction, check out the full [tutorial](/tutorial).
+Welcome to ControlFlow! This quickstart guide will walk you through the basics of using ControlFlow to create AI-powered workflows, culminating in a practical email processing application.
 
-<Installation />
+## Install ControlFlow
 
-## Define Tasks and Tools
+Install ControlFlow with pip:
 
-You define agentic workflows using tasks and tools.
+```bash
+pip install controlflow
+```
 
-<CardGroup>
-  <Card title="Tasks" icon="list-check" iconType="duotone" href="/concepts/tasks">
-    Discrete objectives that you want an AI agent to complete, such as "write a poem" or "summarize this article".
-  </Card>
-  <Card title="Tools" icon="hammer" iconType="duotone" href="/concepts/tasks#providing-tools">
-    Additional functionality that agents can use to complete tasks.
-    For example, a calculator or a database query tool.
-  </Card>
-</CardGroup>
+Configure your preferred LLM provider. By default, ControlFlow uses OpenAI, so you'll need to set your API key:
 
-Let's define a flow with two dependent tasks:
+```bash
+export OPENAI_API_KEY="your-api-key"
+```
 
-1. Ask the user for input.
-2. Roll some dice.
+To use another provider, see the docs on [configuring LLMs](/guides/llms). Note that one of the agents in this quickstart is configured with OpenAI's GPT-4o-mini model; you can change the model name to whatever you prefer.
 
-The `roll_dice` function is a tool that the second task uses to complete its objective.
+## Quickstart setup
+
+In this quickstart, we're going to create a simple email processing workflow. To make the quickstart code easier to read, we'll begin by creating a few example emails here. You should execute this code in your own Python interpreter before running the quickstart examples.
+
+Feel free to replace the emails with your own content to see how ControlFlow works with different inputs.
 
 ```python
-import controlflow as cf
-import random
-
-# this function will be used as a tool by task 2
-def roll_dice(n: int) -> int:
-    '''Roll n dice'''
-    return [random.randint(1, 6) for _ in range(n)]
-
-@cf.flow
-def dice_flow():
-
-    # task 1: ask the user how many dice to roll
-    user_task = cf.Task(
-        "Ask the user how many dice to roll", 
-        result_type=int, 
-        interactive=True
-    )
-
-    # task 2: roll the dice
-    dice_task = cf.Task(
-        "Roll the dice",
-        context=dict(n=user_task),
-        tools=[roll_dice],
-        result_type=list[int],
-    )
-
-    return dice_task
-
-result = dice_flow()
-print(f"The result is: {result}")
+emails = [
+    "Hello, I need an update on the project status.",
+    "Subject: Exclusive offer just for you!",
+    "Urgent: Project deadline moved up by one week.",
+]
 ```
+
+## Running a simple task
+
+Let's start with the basics. The `cf.run()` function is the main entry point for ControlFlow. It creates a task, assigns it to the default agent, and runs it to completion.
+
+Here, we create a task that generates a simple email reply, and provide the content of an email as additional context.
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+# Create a ControlFlow task to generate an reply
+reply = cf.run(
+    "Write a polite reply to an email",
+    context=dict(email=emails[0]),
+)
+
+print(reply)
+```
+
+```text Result
+Dear [Recipient's Name],
+
+Thank you for reaching out. I appreciate your patience.
+
+I wanted to inform you that the project is progressing 
+well. We have completed several key milestones and are 
+currently working on the next phase. We anticipate 
+meeting our deadlines and will keep you updated with 
+any new developments.
+
+Please feel free to reach out if you have any further 
+questions or need additional information.
+
+Best regards,
+
+[Your Name]
+```
+</CodeGroup>
+
+## Creating specialized agents
+
+We've seen how to instruct the default agent to perform a task, but what if we want to perform a task that requires a specialized agent? We can create a new agent with its own model, instructions, or tools.
+
+In this example, we'll use an agent to categorize emails. This agent uses a smaller, faster model than the default agent, and it has specialized instructions for the task.
 
 <Tip>
-All tasks in a `@flow` function are run automatically when the function is called, but you can run tasks eagerly by calling `task.run()`.
+Not using OpenAI? You can use any LangChain-compatible LLM here. Follow the instructions in the [LLM docs](/guides/llms) to learn more.
 </Tip>
 
-## Assign Agents to a Flow
+In addition, note that we're instructing the agent to return a list of `EmailCategory` objects. ControlFlow will automatically convert the result into the appropriate data type. The `result_type` field supports any Pydantic-compatible type as well as lists of objects when you want the model to choose one of several options.
 
-Agents collaborate with each other using flows.
+<CodeGroup>
+```python Code
+from langchain_openai import ChatOpenAI
+from enum import Enum
 
-<CardGroup>
-  <Card title="Agents" icon="robot" iconType="duotone" href="/concepts/agents">
-    AI models that complete tasks in your workflows.
-    You can create agents that are optimized for particular tasks.
-  </Card>
-  <Card title="Flows" icon="arrow-progress" iconType="duotone" href="/concepts/flows">
-    Containers that group tasks and let multiple agents share context while working towards a larger objective.
-  </Card>
-</CardGroup>
-
-Let's create three agents: a `writer`, an `editor`, and a `manager`.
-
-- The writer begins the workflow by drafting a paragraph.
-- The editor refines the draft.
-- The manager reviews the final result and approves if its criteria is met.
-
-The `approval_task` function is run at the end of each iteration to see if the manager approved the paragraph.
-If not, the editing process continues until approval is granted.
-
-```python
-import controlflow as cf
-
-# Create three agents
-writer = cf.Agent(
-    name="Writer",
-    description="An AI agent that writes paragraphs",
+# Create a specialized agent 
+classifier = cf.Agent(
+    name="Email Classifier",
+    model=ChatOpenAI(model="gpt-4o-mini"),
+    instructions="You are an expert at quickly classifying emails.",
 )
 
-editor = cf.Agent(
-    name="Editor",
-    description="An AI agent that edits paragraphs for clarity and coherence",
+# Set up a ControlFlow task to classify emails
+class EmailCategory(str, Enum):
+    IMPORTANT = "important"
+    SPAM = "spam"
+
+categories = cf.run(
+    'Classify the emails',
+    result_type=list[EmailCategory],
+    agents=[classifier],
+    context=dict(emails=emails),
 )
 
-manager = cf.Agent(
-    name="Manager",
-    description="An AI agent that manages the writing process",
-    instructions="""
-        Your goal is to ensure the final paragraph meets high standards 
-        of quality, clarity, and coherence. You should be strict in your 
-        assessments and only approve the paragraph if it fully meets 
-        these criteria.
-        """,
-)
-
-@cf.flow
-def writing_flow():
-    draft_task = cf.Task(
-        "Write a paragraph about the importance of AI safety",
-        agents=[writer],
-    )
-
-    # we will continue editing until the manager approves the paragraph
-    approved = False
-    while not approved:
-
-        edit_task = cf.Task(
-            "Edit the paragraph for clarity and coherence",
-            context=dict(draft=draft_task),
-            agents=[editor],
-        )
-
-        approval_task = cf.Task(
-            "Review the edited paragraph to see if it meets the quality standards",
-            result_type=bool,
-            context=dict(edit=edit_task),
-            agents=[manager],
-        )
-
-        # eagerly run the approval task to see if the paragraph is approved
-        approved = approval_task.run()
-
-    return approved, edit_task.result
-
-approved, draft = writing_flow()
-print(f'{"Approved" if approved else "Rejected"} paragraph:\n{draft}')
+print(categories)
 ```
 
-## Conclusion
+```text Result
+[
+    EmailCategory.IMPORTANT,
+    EmailCategory.SPAM,
+    EmailCategory.IMPORTANT,
+]
+```
+</CodeGroup>
 
-Here's what you learned today:
+Our agent correctly identifies the first and third emails as important, and the second as spam.
 
-- **Tasks** are how you create goals for agents.
-They have a `result_type` that determines the type of data they return.
-They have a `context` that can include results of other tasks, enabling multi-step workflows.
-If `tools` are provided, the agent can use them to complete the task.
-- **Agents** are AI models that complete tasks and can be specialized with different capabilities, tools, instructions, and even LLM models.
-Agents can be assigned to tasks.
-- **Flows** can involve dynamic control flow like loops, based on eager task result.
-They allow multiple agents to collaborate on a larger objective with shared history.
+## Composing tasks into a flow
 
-## What's Next? 
+Thus far, each of our tasks has run as a one-off operation. To create a more complex workflow, we can use a ControlFlow flow.
 
-Congratulations, you've completed the ControlFlow quickstart!
-To continue learning, please explore the full [ControlFlow tutorial](/tutorial).
+A flow provides a shared context and history for all agents, even across multiple tasks. The easiest way to create a flow is to use the `@cf.flow` decorator on a function with ControlFlow agents working inside it.
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+from langchain_openai import ChatOpenAI
+from enum import Enum
+
+class EmailCategory(str, Enum):
+    IMPORTANT = "important"
+    SPAM = "spam"
+
+# Create agents
+classifier = cf.Agent(
+    name="Email Classifier",
+    model=ChatOpenAI(model="gpt-4o-mini"),
+    instructions="You are an expert at quickly classifying emails. Always "
+                 "respond with exactly one word: either 'important' or 'spam'."
+)
+
+responder = cf.Agent(
+    name="Email Responder",
+    model=ChatOpenAI(model="gpt-4o"),
+    instructions="You are an expert at crafting professional email responses. "
+                 "Your replies should be concise but friendly."
+)
+
+# Create the flow
+@cf.flow
+def process_email(email_content: str):
+    # Classify the email
+    category = cf.run(
+        f"Classify this email",
+        result_type=EmailCategory,
+        agents=[classifier],
+        context=dict(email=email_content),
+    )
+
+    # If the email is important, write a response
+    if category == EmailCategory.IMPORTANT:
+        response = cf.run(
+            f"Write a response to this important email",
+            result_type=str,
+            agents=[responder],
+            context=dict(email=email_content),
+        )
+        return response
+    else:
+        print("No response needed for spam email.")
+
+
+# Run the flow on each email
+for email in emails:
+    response = process_email(email)
+    print(response)
+```
+
+```text Response to Email 1
+Dear [Recipient's Name],
+
+I'm glad to report that the project is progressing well. We have 
+completed several key milestones and are currently working on the 
+next phase. We anticipate meeting our deadlines and will keep you 
+updated with any new developments.
+
+Please feel free to reach out if you have any further questions 
+or need additional information.
+
+Best regards,
+
+[Your Name]
+```
+
+```text Response to Email 2
+<No response needed for spam email.>
+```
+
+```text Response to Email 3
+Dear [Recipient's Name],
+
+Thanks for letting me know. We'll make sure to adjust our plans accordingly.
+
+Best regards,
+[Your Name]
+```
+</CodeGroup>
+
+## Review
+
+Congratulations! You've completed the ControlFlow quickstart. You've learned how to:
+
+1. Run simple tasks with `cf.run()`
+2. Create specialized agents for specific tasks
+3. Compose tasks into complex workflows using flows
+
+This email processing example showcases how ControlFlow can be used to create sophisticated AI-powered applications. As you continue to explore ControlFlow, you'll discover even more ways to leverage AI in your projects.
+
+To dive deeper into ControlFlow's capabilities, check out:
+
+- [Agent concepts](/concepts/agents) to learn about creating powerful, specialized agents
+- [Task concepts](/concepts/tasks) for more on defining and customizing tasks
+- [Flow concepts](/concepts/flows) for advanced workflow orchestration techniques
+- [Using tools](/guides/tools) to extend agent capabilities
+- [Chatting with agents](/guides/chat) to create interactive experiences
+- [Agent collaboration](/guides/collaboration) to coordinate agents across multiple tasks and flows
+
+Happy engineering!

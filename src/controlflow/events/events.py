@@ -140,9 +140,9 @@ class ToolResultEvent(Event):
             ]
         else:
             return OrchestratorMessage(
-                prefix=f'The following {"failed " if self.tool_result.is_error else ""}'
-                f'tool result was received by "{self.agent.name}" with ID {self.agent.id}. '
-                f'The tool call was: {self.tool_call}',
+                prefix=f'Agent "{self.agent.name}" with ID {self.agent.id} made a tool '
+                f'call: {self.tool_call}. The tool{" failed and" if self.tool_result.is_error else " "} '
+                f'produced this result:',
                 content=self.tool_result.str_result,
                 name=self.agent.name,
             ).to_messages(context)

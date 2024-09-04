@@ -1,0 +1,294 @@
+---
+title: Typed Results
+---
+
+<Tip>
+Validate task outputs with structured result types.
+</Tip>
+
+ControlFlow tasks are designed to translate between the unstructured, conversational world of your AI agents and the structured, programmatic world of your application. The primary mechanism for this translation is the task's result, which should be a well-defined, validated output that can be used by other tasks or components in your workflow.
+
+
+ControlFlow allows you to specify the expected structure of a task's result using the `result_type` parameter. This ensures that the result conforms to a specific data schema, making it easier to work with and reducing the risk of errors in downstream tasks.
+
+
+
+## String results
+
+By default, the `result_type` of a task is a string, which essentially means the agent can return any value that satisfies the task's objective. 
+
+For example, if you ask an agent to "Say hello in three languages", it might return a simple string like `"Hello; Hola; Bonjour"` or a more complex, conversational response instead:
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+result = cf.run("Say hello in three languages")
+
+print(result)
+```
+
+```text Simple result
+Hello; Hola; Bonjour
+```
+
+```text Complex result
+Hello there!
+
+In three languages, "Hello" can be expressed as follows:
+
+1. English: Hello
+2. Spanish: Hola
+3. French: Bonjour
+```
+</CodeGroup>
+
+Sometimes this flexibility is useful, especially if your task's result will only be consumed as the input to another ControlFlow task. However, it can also lead to ambiguity and errors if the agent produces unexpected output, and is difficult to work with in an automated or programmatic way.
+
+## Builtin types
+
+You can cast task results to any of Python's built-in types.
+
+### Basic types
+
+If your result is a number, you can specify the `result_type` as `int` or `float`:
+
+<CodeGroup>
+```python Code  
+import controlflow as cf
+
+result = cf.run("What is 2 + 2?", result_type=int)
+
+print(result)
+assert isinstance(result, int)
+```
+```text Result
+4
+```
+</CodeGroup>
+
+You can use `bool` for tasks whose result is a simple true/false value:
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+result = cf.run("The Earth is flat", result_type=bool)
+
+print(result)
+assert result is False
+```
+```text Result
+False
+```
+</CodeGroup>
+
+
+### Compound types
+You can also use typed collections like lists and dicts to specify the structure of your task's result.
+
+Let's revisit the example of asking an agent to say hello in three languages, but this time specifying that the result should be a list of strings, or `list[str]`. This forces the agent to produce the result you probably expected (three separate strings, each representing a greeting in a different language):
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+result = cf.run("Say hello in three languages", result_type=list[str])
+
+print(result)
+print(result[0])
+```
+
+```text Result
+['Hello', 'Hola', 'Bonjour']
+'Hello'
+```
+</CodeGroup>
+
+### Annotated types
+
+Sometimes, data types are not precise enough to guide the agent to the desired result. In these cases, you can use an annotated type to provide more specific instructions. 
+
+For example, if we want to ensure that the agent returns a string that is only a zip code, we can specify the `result_type` as `Annotated[str, "a 5 digit zip code"]`.
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+result = cf.run(
+    "What is the zip code of the White House?", 
+    result_type=Annotated[str, "a 5 digit zip code"],
+)
+
+print(result)
+```
+
+```text Result
+20500
+```
+</CodeGroup>
+
+<Tip>
+Note that annotated types are not validated; the annotation is provided as part of the agent's natural language instructions. You could additionaly provide a custom [result validator](#result-validators) to enforce the constraint.
+</Tip>
+
+## Classification
+
+You can limit the result to one of a specific set of values, in order to label or classify a response. To do this, specify a list or tuple of allowed values for the result type. Here, we classify the media type of "Star Wars: Return of the Jedi":
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+media = cf.run(
+    "Star Wars: Return of the Jedi", 
+    result_type=["movie", "tv show", "book", "comic", "other"]
+)
+
+print(media)
+```
+
+```text Result
+movie
+```
+</CodeGroup>
+
+
+<Tip>
+For classification tasks, ControlFlow asks agents to choose a value by index rather than writing out the entire response. This optimization significantly improves latency while also conserving output tokens.
+</Tip>
+
+## Structured results
+
+For complex, structured results, you can use a Pydantic model as the `result_type`. Pydantic models provide a powerful way to define data schemas and validate input data.
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+from pydantic import BaseModel, Field
+
+class ResearchReport(BaseModel):
+    title: str
+    summary: str
+    key_findings: list[str] = Field(min_items=3, max_items=10)
+    references: list[str]
+
+result = cf.run(
+    "Generate a research report on quantum computing",
+    result_type=ResearchReport,
+)
+
+print(repr(result))
+```
+
+```text Result
+ResearchReport(
+    title='Quantum Computing: Current Landscape and Future Prospects',
+    summary='Quantum computing represents a significant leap in computational capabilities, leveraging the principles of quantum mechanics to perform complex calculations far beyond the reach of classical computers. This report delves into the current state of quantum computing, exploring its foundational principles, recent advancements, and the potential implications for various industries. Key findings highlight the technological hurdles, notable achievements, and the transformative potential of quantum computing in solving intractable problems.',
+    key_findings=[
+        'Principles of Quantum Mechanics: Quantum computing utilizes qubits, superposition, and entanglement to process information in fundamentally new ways, enabling parallel computation on a massive scale.',
+        'Technological Achievements: Major milestones include the development of stable qubits, error correction algorithms, and quantum supremacy demonstrations by leading tech companies like Google and IBM.',
+        'Applications and Impacts: Quantum computing shows promise in fields such as cryptography, materials science, pharmaceuticals, and artificial intelligence, potentially revolutionizing these sectors by providing unprecedented computational power.',
+        'Challenges and Limitations: Significant obstacles remain, including qubit stability, error rates, and the need for extremely low temperatures. Overcoming these challenges is essential for the practical deployment of quantum computers.',
+        'Future Directions: Ongoing research focuses on improving qubit coherence times, developing scalable quantum architectures, and creating robust quantum algorithms to harness the full potential of quantum computing.'
+    ],
+    references=[
+        'Nielsen, M. A., & Chuang, I. L. (2010). Quantum Computation and Quantum Information. Cambridge University Press.',
+        'Arute, F., Arya, K., Babbush, R., Bacon, D., Bardin, J. C., Barends, R., ... & Martinis, J. M. (2019). Quantum supremacy using a programmable superconducting processor. Nature, 574(7779), 505-510.',
+        'Preskill, J. (2018). Quantum Computing in the NISQ era and beyond. Quantum, 2, 79.',
+        'Montanaro, A. (2016). Quantum algorithms: an overview. npj Quantum Information, 2, 15023.',
+        'Shor, P. W. (1997). Polynomial-Time Algorithms for Prime Factorization and Discrete Logarithms on a Quantum Computer. SIAM Journal on Computing, 26(5), 1484-1509.'
+    ]
+)
+```
+</CodeGroup>
+
+### Advanced validation
+
+Because Pydantic models are fully hydrated by ControlFlow, you can use any of Pydantic's built-in or custom validators to further constrain or modify the result after it has been produced.
+
+<CodeGroup>
+```python
+from pydantic import BaseModel, field_validator
+
+class SentimentAnalysis(BaseModel):
+    text: str
+    sentiment: float
+    
+    @field_validator('sentiment')
+    def check_sentiment_range(cls, v):
+        if not -1 <= v <= 1:
+            raise ValueError('Sentiment must be between -1 and 1')
+        return v
+
+result = cf.run(
+    "Analyze sentiment of given text",
+    result_type=SentimentAnalysis,
+    context=dict(text="I love ControlFlow!"),
+)
+
+print(repr(result))
+```
+
+```text Result
+SentimentAnalysis(text='I love ControlFlow!', sentiment=0.9)
+```
+</CodeGroup>
+
+## No result
+
+Sometimes, you may want to ask an agent to perform an action without expecting or requiring a result. In this case, you can specify `result_type=None`. For example, you might want to ask an agent to use a tool or post a message to the workflow thread, without requiring any task output.
+
+```python
+import controlflow as cf
+
+def status_tool(status: str) -> None:
+    """Submit a status update to the workflow thread."""
+    print(f"Submitting status update: {status}")
+
+cf.run(
+    "Use your tool to submit a status update",
+    result_type=None,
+    tools=[status_tool],
+)
+```
+
+Note that it is generally recommended to ask agents to produce a result, even if its just a quick status update. This is because other agents in the workflow can usually see the result of a task, but they may not be able to see any tool calls, messages, or side effects that the agent used to produce the result. Therefore, results can be helpful even if the assigned agent doesn't need them.
+
+
+## Custom result validation
+
+In addition to using Pydantic validation, you can also supply a custom validation function as the task's `result_validator`.
+
+After the raw LLM result has been coerced into the `result_type`, it will be passed to your custom validator, which must either return the result or raise an exception. This gives you the opportunity to perform additional validation or modification of the result.
+
+
+<CodeGroup>
+
+```python Code
+import controlflow as cf
+
+def constrain_sentiment(value: float) -> float:
+    if not 0 <= value <= 1:
+        raise ValueError("Sentiment must be between 0 and 1")
+    return value
+
+sentiment = cf.run(
+    "Analyze sentiment of given text",
+    result_type=float,
+    context=dict(text="I love ControlFlow!"),
+    result_validator=constrain_sentiment,
+)
+
+print(sentiment)
+```
+
+```text Result
+0.9
+``` 
+</CodeGroup>
+Because the output of the result validator is used as the result, you can use it to modify the result after it has been produced by an agent. For example, you might want to round a floating point number or convert a string to a specific format. Note, however, that result validation takes place *after* the raw LLM result has been coerced to the provided `result_type`.
+
+<Tip>
+Remember that result validators must either **return** the result or **raise** an exception. They are not true/false checks!
+</Tip>
