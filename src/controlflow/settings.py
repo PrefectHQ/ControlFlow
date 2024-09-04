@@ -131,19 +131,6 @@ class Settings(ControlFlowSettings):
         return self
 
     @model_validator(mode="after")
-    def test_mode(self):
-        if os.getenv("CONTROLFLOW_TEST_MODE"):
-            if self.log_level != "DEBUG":
-                self.log_level = "DEBUG"
-            if not self.log_all_messages:
-                self.log_all_messages = True
-            if not self.tools_verbose:
-                self.tools_verbose = True
-            if self.pretty_print_agent_events:
-                self.pretty_print_agent_events = False
-        return self
-
-    @model_validator(mode="after")
     def _apply_prefect_settings(self):
         """
         Prefect settings are set at runtime by opening a settings context.
