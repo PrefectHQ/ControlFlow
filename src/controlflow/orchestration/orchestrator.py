@@ -30,7 +30,10 @@ class Orchestrator(ControlFlowModel):
 
     model_config = dict(arbitrary_types_allowed=True)
     flow: "Flow" = Field(description="The flow that the orchestrator is managing")
-    agent: Agent = Field(description="The currently active agent")
+    agent: Optional[Agent] = Field(
+        None,
+        description="The currently active agent. If not provided, the turn strategy will select one.",
+    )
     tasks: list[Task] = Field(description="Tasks to be executed by the agent.")
     turn_strategy: TurnStrategy = Field(
         default=None,
@@ -124,8 +127,11 @@ class Orchestrator(ControlFlowModel):
         Run a single turn of the orchestration process.
 
         Args:
-            calls_per_turn (int, optional): Maximum number of LLM calls to run per turn.
+            max_calls_per_turn (int, optional): Maximum number of LLM calls to run per turn.
         """
+        if not self.agent:
+            raise ValueError("No agent set.")
+
         if max_calls_per_turn is None:
             max_calls_per_turn = controlflow.settings.orchestrator_max_calls_per_turn
 
@@ -159,8 +165,11 @@ class Orchestrator(ControlFlowModel):
         Run a single turn of the orchestration process asynchronously.
 
         Args:
-            calls_per_turn (int, optional): Maximum number of LLM calls to run per turn.
+            max_calls_per_turn (int, optional): Maximum number of LLM calls to run per turn.
         """
+        if not self.agent:
+            raise ValueError("No agent set.")
+
         if max_calls_per_turn is None:
             max_calls_per_turn = controlflow.settings.orchestrator_max_calls_per_turn
 
@@ -198,9 +207,14 @@ class Orchestrator(ControlFlowModel):
 
         Args:
             turns (int, optional): Maximum number of turns to run.
-            calls_per_turn (int, optional): Maximum number of LLM calls per turn.
+            max_calls_per_turn (int, optional): Maximum number of LLM calls per turn.
         """
         import controlflow.events.orchestrator_events
+
+        if not self.agent:
+            self.agent = self.turn_strategy.get_next_agent(
+                None, self.get_available_agents()
+            )
 
         if max_turns is None:
             max_turns = controlflow.settings.orchestrator_max_turns
@@ -211,9 +225,7 @@ class Orchestrator(ControlFlowModel):
 
         turn = 0
         try:
-            while (
-                self.get_tasks("ready") and not self.turn_strategy.should_end_session()
-            ):
+            while self.get_tasks("ready"):
                 if max_turns is not None and turn >= max_turns:
                     break
                 self._run_turn(max_calls_per_turn=max_calls_per_turn)
@@ -240,9 +252,14 @@ class Orchestrator(ControlFlowModel):
 
         Args:
             turns (int, optional): Maximum number of turns to run.
-            calls_per_turn (int, optional): Maximum number of LLM calls per turn.
+            max_calls_per_turn (int, optional): Maximum number of LLM calls per turn.
         """
         import controlflow.events.orchestrator_events
+
+        if not self.agent:
+            self.agent = self.turn_strategy.get_next_agent(
+                None, self.get_available_agents()
+            )
 
         if max_turns is None:
             max_turns = controlflow.settings.orchestrator_max_turns
@@ -253,9 +270,7 @@ class Orchestrator(ControlFlowModel):
 
         turn = 0
         try:
-            while (
-                self.get_tasks("ready") and not self.turn_strategy.should_end_session()
-            ):
+            while self.get_tasks("ready"):
                 if max_turns is not None and turn >= max_turns:
                     break
                 await self._run_turn_async(max_calls_per_turn=max_calls_per_turn)
