@@ -6,15 +6,16 @@ from .settings import settings
 
 from controlflow.defaults import defaults
 
+# base classes
 from .agents import Agent
-from .tasks import Task, run, run_async
+from .tasks import Task
 from .flows import Flow
-from .orchestration import turn_strategies
 
-
+# functions and decorators
 from .instructions import instructions
 from .decorators import flow, task
 from .tools import tool
+from .run import run, run_async, run_tasks, run_tasks_async
 
 
 # --- Version ---
