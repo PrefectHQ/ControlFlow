@@ -166,6 +166,18 @@ def test_task_loads_agent_from_parent_before_flow():
     assert child.get_agents() == [agent2]
 
 
+def test_completion_agents_default():
+    task = Task(objective="Test task")
+    assert task.completion_agents is None
+
+
+def test_completion_agents_set():
+    agent1 = Agent(name="Agent 1")
+    agent2 = Agent(name="Agent 2")
+    task = Task(objective="Test task", completion_agents=[agent1, agent2])
+    assert task.completion_agents == [agent1, agent2]
+
+
 class TestTaskStatus:
     def test_task_status_transitions(self):
         task = SimpleTask()
