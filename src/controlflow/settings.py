@@ -35,9 +35,22 @@ class Settings(ControlFlowSettings):
 
     # ------------ display and logging settings ------------
 
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
+        default="INFO",
+        description="The log level for ControlFlow.",
+    )
     log_prints: bool = Field(
         default=False,
         description="Whether to log workflow prints to the Prefect logger by default.",
+    )
+    log_all_messages: bool = Field(
+        default=False,
+        description="If True, all LLM messages will be logged at the debug level.",
+    )
+    pretty_print_agent_events: bool = Field(
+        default=True,
+        description="If True, a PrintHandler will be enabled and automatically "
+        "pretty-print agent events. Note that this may interfere with logging.",
     )
 
     # ------------ orchestration settings ------------
@@ -63,23 +76,12 @@ class Settings(ControlFlowSettings):
         100_000, description="The maximum number of tokens to send to an LLM."
     )
 
-    # ------------ Flow visualization settings ------------
-
-    enable_print_handler: bool = Field(
-        default=True,
-        description="If True, the PrintHandler will be enabled.",
-    )
-
-    enable_experimental_tui: bool = Field(
-        default=False,
-        description="If True, the experimental TUI will be enabled. If False, the TUI will be disabled.",
-    )
-    run_tui_headless: bool = Field(
-        default=False,
-        description="If True, the experimental TUI will run in headless mode, which is useful for debugging.",
-    )
-
     # ------------ Debug settings ------------
+
+    debug_messages: bool = Field(
+        default=False,
+        description="If True, all messages will be logged at the debug level.",
+    )
 
     tools_raise_on_error: bool = Field(
         default=False,
@@ -88,6 +90,17 @@ class Settings(ControlFlowSettings):
 
     tools_verbose: bool = Field(
         default=True, description="If True, tools will log additional information."
+    )
+
+    # ------------ experimental settings ------------
+
+    enable_experimental_tui: bool = Field(
+        default=False,
+        description="If True, the experimental TUI will be enabled. If False, the TUI will be disabled.",
+    )
+    run_tui_headless: bool = Field(
+        default=False,
+        description="If True, the experimental TUI will run in headless mode, which is useful for debugging.",
     )
 
     # ------------ Prefect settings ------------
@@ -109,6 +122,13 @@ class Settings(ControlFlowSettings):
         if not v.exists():
             v.mkdir(parents=True, exist_ok=True)
         return v
+
+    @model_validator(mode="after")
+    def set_log_level(self):
+        from controlflow.utilities.logging import setup_logging
+
+        setup_logging(level=self.log_level)
+        return self
 
     @model_validator(mode="after")
     def _apply_prefect_settings(self):

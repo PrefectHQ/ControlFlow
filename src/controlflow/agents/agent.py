@@ -236,6 +236,9 @@ class Agent(ControlFlowModel, abc.ABC):
 
         model = self.get_model(tools=tools)
 
+        if controlflow.settings.log_all_messages:
+            logger.debug(f"Input messages: {messages}")
+
         if stream:
             response = None
             for delta in model.stream(messages):
@@ -250,6 +253,9 @@ class Agent(ControlFlowModel, abc.ABC):
             response: AIMessage = model.invoke(messages)
 
         yield AgentMessage(agent=self, message=response)
+
+        if controlflow.settings.log_all_messages:
+            logger.debug(f"Response: {response}")
 
         for tool_call in response.tool_calls + response.invalid_tool_calls:
             yield ToolCallEvent(agent=self, tool_call=tool_call)
@@ -271,6 +277,9 @@ class Agent(ControlFlowModel, abc.ABC):
 
         model = self.get_model(tools=tools)
 
+        if controlflow.settings.log_all_messages:
+            logger.debug(f"Input messages: {messages}")
+
         if stream:
             response = None
             async for delta in model.astream(messages):
@@ -285,6 +294,9 @@ class Agent(ControlFlowModel, abc.ABC):
             response: AIMessage = await model.ainvoke(messages)
 
         yield AgentMessage(agent=self, message=response)
+
+        if controlflow.settings.log_all_messages:
+            logger.debug(f"Response: {response}")
 
         for tool_call in response.tool_calls + response.invalid_tool_calls:
             yield ToolCallEvent(agent=self, tool_call=tool_call)

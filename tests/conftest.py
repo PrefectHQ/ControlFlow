@@ -9,7 +9,9 @@ from .fixtures import *
 @pytest.fixture(autouse=True, scope="session")
 def temp_controlflow_settings():
     with temporary_settings(
-        enable_print_handler=False,
+        pretty_print_agent_events=False,
+        log_all_messages=True,
+        log_level="DEBUG",
         orchestrator_max_turns=10,
         orchestrator_max_calls_per_turn=10,
     ):
