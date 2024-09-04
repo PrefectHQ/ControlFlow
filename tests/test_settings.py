@@ -49,7 +49,7 @@ def test_import_without_default_api_key_warns_but_does_not_fail(monkeypatch, cap
             caplog.clear()
 
             # Import the library
-            with caplog.at_level("WARNING"):
+            with caplog.at_level("DEBUG"):
                 # Reload the library to apply changes
                 defaults_module = importlib.import_module("controlflow.defaults")
                 importlib.reload(defaults_module)
