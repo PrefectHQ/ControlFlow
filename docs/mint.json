@@ -68,6 +68,7 @@
                     "icon": "diagram-project",
                     "pages": [
                         "concepts/flows/flows",
+                        "concepts/flows/creating-flows",
                         "concepts/flows/instructions"
                     ]
                 }

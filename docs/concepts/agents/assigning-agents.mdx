@@ -1,15 +1,29 @@
 ---
 title: Assigning Agents to Tasks
-sidebarTitle: Task Assignment
+sidebarTitle: Assigning to Tasks
 ---
 
-To assign an agent to a task, use the `agents` parameter when creating a task. Each task requires at least one assigned agent, and will use a default agent if none are provided. Agents can be assigned to multiple tasks, and tasks can have multiple agents. 
+Agents must be assigned to tasks in order to work on them.
+
+Use the `agents` parameter when creating a task to assign agents. Each task requires at least one assigned agent, and will use a default agent if none are provided. Agents can be assigned to multiple tasks, and tasks can have multiple agents. 
+
+## Assigning agents
+
+### Tasks with no agents
+
+If you do not assign any agents to a task, it will determine its agents at runtimeaccording to the following rules:
+
+1. If the task has a parent, it will use the parent's agents.
+2. If the task's flow has a default agent, it will use that agent.
+3. It will use the global default agent (`controlflow.defaults.agent`).
+
+To see the agents assigned to a task, use its `get_agents()` method. This will return a list of all the agents assigned to the task, including any inherited from its environment.
 
 ### Tasks with one agent
 
-To assign a single agent to a task, create the task and pass the agent to the `agents` parameter:
+To assign a single agent to a task, pass a  agent to the `agents` parameter:
 
-```python
+```python Providing agents to a task
 import controlflow as cf
 
 poet = cf.Agent(name="Poet")
@@ -17,9 +31,9 @@ poet = cf.Agent(name="Poet")
 poem = cf.run("Write a short poem about AI", agents=[poet])
 ```
 
-Alternatively, you can use the agent's own `run` method:
+Alternatively, you can use the agent's own `run` method to create and run a task in one step:
 
-```python
+```python Calling Agent.run()
 import controlflow as cf
 
 poet = cf.Agent(name="Poet")
@@ -109,3 +123,29 @@ temporary positive outcomes, despite the overall bleak and discouraging reality.
 ````
 
 </CodeGroup>
+
+
+## Completion agents
+
+By default, every agent assigned to a task will be given tools for marking the task as successful or failed. If you want to restrict completion tools to a specific agent or agents, you can do so by setting the task's `completion_agents`.
+
+<Warning>
+  Setting `completion_agents` will prevent other agents from marking the task as successful or failed. Make sure your completion agents are also assigned to the task!
+</Warning>
+
+```python Completion agents
+import controlflow as cf
+
+a1 = cf.Agent(name="A1")
+a2 = cf.Agent(name="A2")
+a3 = cf.Agent(name="A3")
+
+
+task = cf.Task(
+    ...,
+    # all three agents can work on the task
+    agents=[a1, a2, a3],
+    # only a1 and a2 can mark the task as successful
+    completion_agents=[a1, a2],
+)
+```
