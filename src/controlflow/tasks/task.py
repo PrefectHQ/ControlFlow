@@ -394,7 +394,7 @@ class Task(ControlFlowModel):
 
     @contextmanager
     def create_context(self):
-        stack = ctx.get("tasks", [])
+        stack = ctx.get("tasks") or []
         with ctx(tasks=stack + [self]):
             yield self
 
