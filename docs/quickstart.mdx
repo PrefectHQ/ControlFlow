@@ -5,7 +5,13 @@ icon: rocket
 ---
 
 
-Welcome to ControlFlow! This quickstart guide will walk you through the basics of using ControlFlow to create AI-powered workflows, culminating in a practical email processing application.
+Welcome to ControlFlow! This quickstart guide will walk you through the basics of using ControlFlow to create AI-powered workflows. 
+
+You'll learn how to:
+
+1. [Run simple tasks](#running-a-single-task) with `cf.run()`
+2. [Create specialized agents](#creating-specialized-agents) for specific tasks
+3. [Compose tasks into complex workflows](#composing-tasks-into-a-flow) using flows
 
 ## Install ControlFlow
 
@@ -25,9 +31,8 @@ To use another provider, see the docs on [configuring LLMs](/guides/llms). Note 
 
 ## Quickstart setup
 
-In this quickstart, we're going to create a simple email processing workflow. To make the quickstart code easier to read, we'll begin by creating a few example emails here. You should execute this code in your own Python interpreter before running the quickstart examples.
 
-Feel free to replace the emails with your own content to see how ControlFlow works with different inputs.
+In this quickstart, we're going to build an email processing pipelines, so let's create some sample data to work with. Execute this code in your Python interpreter to set up the (very simple) example emails we'll use throughout the quickstart:
 
 ```python
 emails = [
@@ -36,12 +41,16 @@ emails = [
     "Urgent: Project deadline moved up by one week.",
 ]
 ```
+<Tip>
+Try changing the emails to your own content to see how ControlFlow works with different inputs.
+</Tip>
+## Running a single task
 
-## Running a simple task
+Let's start with the basics. We're going to create a task that generates a reply to an email.
 
-Let's start with the basics. The `cf.run()` function is the main entry point for ControlFlow. It creates a task, assigns it to the default agent, and runs it to completion.
+The `cf.run()` function is the main entry point for ControlFlow. It creates a task, assigns it to the default agent, and runs it to completion.
 
-Here, we create a task that generates a simple email reply, and provide the content of an email as additional context.
+Here, we create a **task** that generates a simple email reply, and provide the content of an email as additional **context**:
 
 <CodeGroup>
 ```python Code
@@ -76,22 +85,40 @@ Best regards,
 ```
 </CodeGroup>
 
+### Recap
+<Check>
+**What we learned:**
+- Create and run tasks with `cf.run()`
+- Provide additional `context` as necessary
+</Check>
+
+
 ## Creating specialized agents
 
-We've seen how to instruct the default agent to perform a task, but what if we want to perform a task that requires a specialized agent? We can create a new agent with its own model, instructions, or tools.
+Now let's create a task to identify whether an email is spam. 
 
-In this example, we'll use an agent to categorize emails. This agent uses a smaller, faster model than the default agent, and it has specialized instructions for the task.
+For classification tasks, we want to use a smaller, faster LLM. In ControlFlow, `Agents` are used to represent portable LLM configurations, including model choice, tools, specialized instructions, and more.
 
 <Tip>
-Not using OpenAI? You can use any LangChain-compatible LLM here. Follow the instructions in the [LLM docs](/guides/llms) to learn more.
+You may have noticed that in the last example, we didn't assign an agent to the task. In that case, ControlFlow uses a general-purpose [default agent](/guides/default-agent).
 </Tip>
 
-In addition, note that we're instructing the agent to return a list of `EmailCategory` objects. ControlFlow will automatically convert the result into the appropriate data type. The `result_type` field supports any Pydantic-compatible type as well as lists of objects when you want the model to choose one of several options.
+Agents are sort of like portable configurations for how to perform tasks, which could include specific LLMs, tools, instructions, and more. For our spam classifier, we'll create a new agent that uses a smaller, faster LLM and specialized instructions.
+
+
+
+In addition, note that the `result_type` of this task is a list of labels, indicating that the agent must choose one of the provided options. This is the simplest way to create a classification task, but you can require more complex [output formats](/concepts/tasks/task-results) as well.
+
+
+<Warning>
+This example uses an OpenAI model, but you can use any LangChain-compatible LLM here. Follow the instructions in the [LLM docs](/guides/llms) to learn more.
+</Warning>
 
 <CodeGroup>
 ```python Code
 from langchain_openai import ChatOpenAI
 from enum import Enum
+
 
 # Create a specialized agent 
 classifier = cf.Agent(
@@ -100,31 +127,36 @@ classifier = cf.Agent(
     instructions="You are an expert at quickly classifying emails.",
 )
 
-# Set up a ControlFlow task to classify emails
-class EmailCategory(str, Enum):
-    IMPORTANT = "important"
-    SPAM = "spam"
 
-categories = cf.run(
+# Set up a ControlFlow task to classify emails
+classifications = cf.run(
     'Classify the emails',
-    result_type=list[EmailCategory],
+    result_type=['important', 'spam'],
     agents=[classifier],
     context=dict(emails=emails),
 )
 
-print(categories)
+print(classifications)
 ```
 
-```text Result
+```python Result
 [
-    EmailCategory.IMPORTANT,
-    EmailCategory.SPAM,
-    EmailCategory.IMPORTANT,
+    "important",
+    "spam",
+    "important",
 ]
 ```
 </CodeGroup>
 
 Our agent correctly identifies the first and third emails as important, and the second as spam.
+
+### Recap
+<Check>
+**What we learned:**
+- Create specialized agents to configure LLMs, tools, or instructions
+- Use `result_type` to define the task's output format
+- Use `agents` to specify which agent to use for the task
+</Check>
 
 ## Composing tasks into a flow
 
@@ -138,9 +170,6 @@ import controlflow as cf
 from langchain_openai import ChatOpenAI
 from enum import Enum
 
-class EmailCategory(str, Enum):
-    IMPORTANT = "important"
-    SPAM = "spam"
 
 # Create agents
 classifier = cf.Agent(
@@ -157,19 +186,21 @@ responder = cf.Agent(
                  "Your replies should be concise but friendly."
 )
 
+
 # Create the flow
 @cf.flow
 def process_email(email_content: str):
+
     # Classify the email
     category = cf.run(
         f"Classify this email",
-        result_type=EmailCategory,
+        result_type=["important", "spam"],
         agents=[classifier],
         context=dict(email=email_content),
     )
 
     # If the email is important, write a response
-    if category == EmailCategory.IMPORTANT:
+    if category == "important":
         response = cf.run(
             f"Write a response to this important email",
             result_type=str,
@@ -177,6 +208,8 @@ def process_email(email_content: str):
             context=dict(email=email_content),
         )
         return response
+
+    # Otherwise, no response is needed
     else:
         print("No response needed for spam email.")
 
@@ -217,8 +250,14 @@ Best regards,
 ```
 </CodeGroup>
 
-## Review
+### Recap
+<Check>
+**What we learned:**
+- Use `@cf.flow` to create a shared context for multiple tasks
+- Use task results to dynamically adjust your workflow
+</Check>
 
+## Conclusion
 Congratulations! You've completed the ControlFlow quickstart. You've learned how to:
 
 1. Run simple tasks with `cf.run()`
@@ -226,14 +265,3 @@ Congratulations! You've completed the ControlFlow quickstart. You've learned how
 3. Compose tasks into complex workflows using flows
 
 This email processing example showcases how ControlFlow can be used to create sophisticated AI-powered applications. As you continue to explore ControlFlow, you'll discover even more ways to leverage AI in your projects.
-
-To dive deeper into ControlFlow's capabilities, check out:
-
-- [Agent concepts](/concepts/agents) to learn about creating powerful, specialized agents
-- [Task concepts](/concepts/tasks) for more on defining and customizing tasks
-- [Flow concepts](/concepts/flows) for advanced workflow orchestration techniques
-- [Using tools](/guides/tools) to extend agent capabilities
-- [Chatting with agents](/guides/chat) to create interactive experiences
-- [Agent collaboration](/guides/collaboration) to coordinate agents across multiple tasks and flows
-
-Happy engineering!
