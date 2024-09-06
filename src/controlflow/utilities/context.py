@@ -71,7 +71,7 @@ class ScopedContext:
 ctx = ScopedContext(
     dict(
         flow=None,
-        tasks=[],
+        tasks=None,
         agent=None,
         orchestrator=None,
         tui=None,
