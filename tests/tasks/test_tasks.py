@@ -22,13 +22,13 @@ def test_status_coverage():
 
 
 def test_context_open_and_close():
-    assert ctx.get("tasks") == []
+    assert ctx.get("tasks") is None
     with SimpleTask() as ta:
         assert ctx.get("tasks") == [ta]
         with SimpleTask() as tb:
             assert ctx.get("tasks") == [ta, tb]
         assert ctx.get("tasks") == [ta]
-    assert ctx.get("tasks") == []
+    assert ctx.get("tasks") is None
 
 
 def test_task_requires_objective():
