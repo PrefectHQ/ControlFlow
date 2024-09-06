@@ -66,6 +66,17 @@ class TestFlowContext:
             assert get_flow() == flow1
         assert get_flow() is None
 
+    def test_flow_context_resets_task_tracking(self):
+        parent_task = Task("Parent task")
+        with parent_task:
+            assert ctx.get("tasks") == [parent_task]
+            with Flow():
+                assert ctx.get("tasks") is None
+                nested_task = Task("Nested task")
+                assert nested_task.parent is None
+            assert ctx.get("tasks") == [parent_task]
+        assert ctx.get("tasks") == []
+
 
 class TestFlowHistory:
     def test_get_events_empty(self):

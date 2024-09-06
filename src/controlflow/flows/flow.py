@@ -110,7 +110,8 @@ class Flow(ControlFlowModel):
 
     @contextmanager
     def create_context(self):
-        with ctx(flow=self):
+        # creating a new flow will reset any parent task tracking
+        with ctx(flow=self, tasks=None):
             yield self
 
 
