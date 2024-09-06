@@ -43,6 +43,7 @@
         {
             "group": "Core Concepts",
             "pages": [
+                "concepts/concepts",
                 {
                     "group": "Tasks",
                     "icon": "list-check",
