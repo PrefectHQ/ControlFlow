@@ -87,7 +87,6 @@ def create_plan(
         or {},
         agents=[planning_agent] if planning_agent else None,
         result_type=list[PlanTask],
-        infer_parent=False,
     )
 
     # create a new flow to avoid polluting the main flow's history

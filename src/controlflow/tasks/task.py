@@ -86,7 +86,7 @@ class Task(ControlFlowModel):
         "context, they are automatically added as `depends_on`",
     )
     parent: Optional["Task"] = Field(
-        None,
+        NOTSET,
         description="The parent task of this task. Subtasks are considered"
         " upstream dependencies of their parents.",
         validate_default=True,
@@ -100,10 +100,11 @@ class Task(ControlFlowModel):
     status: TaskStatus = TaskStatus.PENDING
     result: Optional[Union[T, str]] = None
     result_type: Union[type[T], GenericAlias, _AnnotatedAlias, tuple, None] = Field(
-        str,
+        NOTSET,
         description="The expected type of the result. This should be a type"
         ", generic alias, BaseModel subclass, or list of choices. "
         "Can be None if no result is expected or the agent should communicate internally.",
+        validate_default=True,
     )
     result_validator: Optional[Callable] = Field(
         None,
@@ -132,8 +133,6 @@ class Task(ControlFlowModel):
     def __init__(
         self,
         objective: str = None,
-        result_type: Any = NOTSET,
-        infer_parent: bool = True,
         user_access: bool = None,
         **kwargs,
     ):
@@ -143,19 +142,13 @@ class Task(ControlFlowModel):
         Args:
             objective (str, optional): The objective of the task. Defaults to None.
             result_type (Any, optional): The type of the result. Defaults to NOTSET.
-            infer_parent (bool, optional): Whether to infer the parent task. Defaults to True.
-            agents (Optional[list[Agent]], optional): The list of agents
-                associated with the task. Defaults to None.
+            user_access (bool, optional): Whether the task is interactive. Defaults to None.
             **kwargs: Additional keyword arguments.
         """
         # allow certain args to be provided as a positional args
-        if result_type is not NOTSET:
-            kwargs["result_type"] = result_type
         if objective is not None:
             kwargs["objective"] = objective
-        # if parent is None and infer parent is False, set parent to NOTSET
-        if not infer_parent and kwargs.get("parent") is None:
-            kwargs["parent"] = NOTSET
+
         if additional_instructions := get_instructions():
             kwargs["instructions"] = (
                 kwargs.get("instructions")
@@ -230,17 +223,17 @@ class Task(ControlFlowModel):
             raise ValueError("Agents must be `None` or a non-empty list of agents.")
         return v
 
-    @field_validator("parent")
+    @field_validator("parent", mode="before")
     def _default_parent(cls, v):
-        if v is None:
+        if v == NOTSET:
             parent_tasks = ctx.get("tasks", [])
             v = parent_tasks[-1] if parent_tasks else None
-        elif v is NOTSET:
-            v = None
         return v
 
-    @field_validator("result_type")
-    def _ensure_result_type_is_list_if_literal(cls, v):
+    @field_validator("result_type", mode="before")
+    def _validate_result_type(cls, v):
+        if v == NOTSET:
+            v = str
         if isinstance(v, _LiteralGenericAlias):
             v = v.__args__
         if isinstance(v, (list, tuple, set)):
