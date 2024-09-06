@@ -104,6 +104,7 @@ class Task(ControlFlowModel):
         description="The expected type of the result. This should be a type"
         ", generic alias, BaseModel subclass, or list of choices. "
         "Can be None if no result is expected or the agent should communicate internally.",
+        validate_default=True,
     )
     result_validator: Optional[Callable] = Field(
         None,
@@ -132,7 +133,6 @@ class Task(ControlFlowModel):
     def __init__(
         self,
         objective: str = None,
-        result_type: Any = NOTSET,
         user_access: bool = None,
         **kwargs,
     ):
@@ -225,14 +225,14 @@ class Task(ControlFlowModel):
 
     @field_validator("parent", mode="before")
     def _default_parent(cls, v):
-        if v is NOTSET:
+        if v == NOTSET:
             parent_tasks = ctx.get("tasks", [])
             v = parent_tasks[-1] if parent_tasks else None
         return v
 
     @field_validator("result_type", mode="before")
-    def _ensure_result_type_is_list_if_literal(cls, v):
-        if v is NOTSET:
+    def _validate_result_type(cls, v):
+        if v == NOTSET:
             v = str
         if isinstance(v, _LiteralGenericAlias):
             v = v.__args__
