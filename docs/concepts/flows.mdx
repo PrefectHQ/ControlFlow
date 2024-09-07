@@ -1,0 +1,169 @@
+---
+title: Flows
+description: Orchestrating tasks and agents in your AI workflows.
+icon: diagram-project
+---
+
+Flows are high-level containers that encapsulate and orchestrate entire AI-powered workflows in ControlFlow. They provide a structured way to manage tasks, agents, tools, and shared context. 
+
+```python
+import controlflow as cf
+
+@cf.flow
+def demo_flow(topic: str=None) -> str:
+    name = cf.run("Get the user's name", interactive=True)
+    return cf.run("Write a poem about the user", context=dict(topic=topic))
+```
+
+
+## What are flows?
+
+Flows are the highest-level organizational unit for an AI workflow. They act as containers for tasks and agents, providing a shared context and history for all components within the workflow. A flow corresponds to a specific "thread" that maintains the state of all LLM activity.
+
+
+While flows are a fundamental concept in ControlFlow, you may have noticed that many example in the documentation do not explicitly create them. This is because ControlFlow will automatically create a new flow for every task invocation. For one-off tasks, this is convenient and sufficient. However, as we build more complex AI workflows, we'll need to explicitly manage flows to maintain context and ensure proper task coordination. 
+
+<Tip>
+TLDR: Create a flow whenever you have multiple tasks that relate to each other.
+</Tip>
+
+Let's look at an example that illustrates why explicit flow management becomes important. Here, we create and run two tasks in sequence. **Because each task will automatically create its own flow, they will not have access to each other's results:**
+
+<CodeGroup>
+```python Code
+# NOTE: this snippet demonstrates BAD practice
+
+import controlflow as cf
+
+x = cf.run("Choose a number between 1 and 1000", result_type=int)
+y = cf.run("Add 5 to the number", result_type=int)
+
+print(x)
+print(y)
+print(f"The difference between x and y is {y - x}")
+```
+
+```text Result
+649
+5
+The difference between x and y is -644
+```
+</CodeGroup>
+
+Notice how the result is nonsensical, as the second task didn't know what number the first task chose.
+
+<Tip>
+For a simple example like this, you could resolve the issue by passing the result of the first task to the second task's context. However, this approach can be inadequate for more complex workflows where the LLM's iterative thoughts are relevant to downstream tasks.
+</Tip>
+
+By creating a flow and running the tasks within it, we ensure that both tasks have access to the same context. Now the result is correct:
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+with cf.Flow() as flow:
+    x = cf.run("Choose a number between 1 and 1000", result_type=int)
+    y = cf.run("Add 5 to the number", result_type=int)
+
+print(x)
+print(y)
+print(f"The difference between x and y is {y - x}")
+```
+
+```text Result
+732
+737
+The difference between x and y is 5
+```
+</CodeGroup>
+
+Using a flow is especially useful when your workflow involves many intermediate steps that may be relevant to its final outcome, such as having a multi-turn conversation with a user. Even if the entire conversation relates to a single task, all subseqent tasks will be able to see and refer to the entire conversation history.
+
+## Creating flows
+
+There are two ways to create and use a flow in ControlFlow: using the `Flow` object as a context manager, or using the `@flow` decorator.
+
+In both cases, the goal is to instantiate a flow that provides a shared context for all tasks and agents within the flow. The @flow decorator is the most portable and flexible way to create a flow, as it encapsulates the entire flow within a function that gains additional capabilities as a result, because it becomes a Prefect flow as well. However, the `Flow` context manager can be used to quickly create flows for ad-hoc purposes.
+
+### The `@flow` decorator
+
+To create a flow using the `@flow` decorator, apply `@cf.flow` to any function. Any tasks run inside the decorated function will execute within the context of the same flow. Flow functions can 
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+@cf.flow
+def my_flow(x):
+    y = cf.run('Add 5 to the number', result_type=int, context=dict(x=x))
+    z = cf.run('Multiply the result by 2', result_type=int)
+    return z
+
+print(my_flow(10))
+```
+
+```text Result
+30
+```
+</CodeGroup>
+
+The following flow properties are inferred from the decorated function:
+
+| Flow property | Inferred from |
+| ------------- | ------------- |
+| `name` | The function's name |
+| `description` | The function's docstring |
+| `context` | The function's arguments (keyed by argument name) |
+
+Additional properties can be set by passing keyword arguments directly to the `@flow` decorator or to the `flow_kwargs` parameter when calling the decorated function.
+
+### The `Flow` object and context manager
+
+For more precise control over a flow, you can instantiate a `Flow` object directly. Most commonly, you'll use the flow as a context manager to create a new thread for one or more tasks. 
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+x = 10
+
+with cf.Flow(context=dict(x=x)) as flow:
+    y = cf.run('Add 5 to the number', result_type=int)
+    z = cf.run('Multiply the result by 2', result_type=int)
+
+print(z)
+```
+
+```text Result
+30
+```
+</CodeGroup>
+
+## Configuring flows
+
+### Thread ID
+
+Each flow is assigned a unique (random) thread ID when it is created. The flow's history is stored under this thread ID. If you provide an existing thread ID to the `Flow` constructor, the flow will load any existing history (subject to the limitations of how you've configured history storage). 
+
+If you don't provide a thread ID, one will be automatically generated for you.
+
+### Name
+The name of the flow is used to identify it and characterize the nature of the workflow to all participating agents. 
+
+### Description
+The flow's description is shown to all participating agents to help them understand the flow's purpose and context.
+
+### Tools
+If you provide a list of tools to the flow, they will be available to all agents on all tasks within the flow. This is useful if you have a tool that you want to be universally available.
+
+### Agent
+You can provide a default agent that will be used in place of ControlFlow's global default agent for any tasks that don't explicitly specify their own agents.
+
+### Context
+Like a task, a flow has a context that can be used to pass information between tasks. The flow's context is displayed to all agents working on the flow.
+
+### Parent flow
+
+Each flow tracks the parent flow that created it. This is usually inferred automatically. The tasks in a flow will be able to reference the parent flow's context, history, and tools, but the parent flow will not be able to see any events from the child flow.
+

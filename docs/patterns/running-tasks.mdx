@@ -1,41 +1,14 @@
 ---
-title: Running Tasks
+title: Running tasks
+description: How to run tasks and retrieve their results.
+icon: play
 ---
 
-A task represents an objective for an agent. In order to actually do work, you need to run the task.
-
-
-## `Task.run()`
-
-The most straightforward way to run a `Task` object is to call its `run()` method. This will start a loop that repeatedly invokes the assigned agent(s) until the task is marked as complete. The `run()` method returns the result of the task, or raises an exception if the task is marked as failed.
-
-<CodeGroup>
-
-```python Code
-import controlflow as cf
-
-task = cf.Task("Write a poem about AI")
-poem = task.run()
-
-print(poem)
-```
-
-```text Result
-In circuits deep and code profound,
-An AI's mind begins to sound.
-Electric thoughts and data streams,
-Crafting worlds and shaping dreams.
-```
-
-</CodeGroup>
-
-
+Tasks are the fundamental building blocks of ControlFlow workflows. While creating tasks defines what work needs to be done, running tasks is how you actually execute that work and get results. 
 
 ## `cf.run()`
+The most common and straightforward way to run a task in ControlFlow is using the cf.run() function. This convenient shortcut creates and runs a task in a single call, returning its result (or raising an error):
 
-When building AI workflows, it's extremely common to create a task and run it immediately in order to retrieve its result. ControlFlow provides a convenient shortcut for this operation: the `cf.run()` function.
-
-`cf.run()` creates and runs a task in a single call, returning its result (or raising an error):
 
 <CodeGroup>
 
@@ -57,8 +30,39 @@ Crafting worlds and shaping dreams.
 </CodeGroup>
 
 Note that this example is functionally equivalent to the previous one. There is also an async equivalent, `cf.run_async()`.
+<Tip>
+`cf.run()` is so convenient that you'll see it used throughout the ControlFlow documentation.
+</Tip>
 
-This operation is so common that you'll see `cf.run()` used throughout the ControlFlow documentation.
+
+
+## `Task.run()`
+
+If you've already created a `Task` object and want to execute it, you can use its `run()` method. This will start a loop that repeatedly invokes the assigned agent(s) until the task is marked as complete. The `run()` method returns the result of the task, or raises an exception if the task is marked as failed.
+
+Note that the following example is functionally equivalent to the previous one:
+<CodeGroup>
+
+```python Code
+import controlflow as cf
+
+task = cf.Task("Write a poem about AI")
+poem = task.run()
+
+print(poem)
+```
+
+```text Result
+In circuits deep and code profound,
+An AI's mind begins to sound.
+Electric thoughts and data streams,
+Crafting worlds and shaping dreams.
+```
+
+</CodeGroup>
+
+There is also an async equivalent, `Task.run_async()`.
+
 
 ## `cf.run_tasks()`
 
@@ -78,9 +82,8 @@ print(task_2.result)
 
 There is also an equivalent async function, `cf.run_tasks_async`.
 
-<Tip>
-When you run tasks as a batch, they share context because they are automatically run in a single flow.
-</Tip>
+All tasks passed to `cf.run_tasks()` are automatically run in a single flow, so they all share context. The orchestrator will also respect dependencies between tasks, so in the above example `task_2` will not run until `task_1` is completed.
+
 
 ## `@task`
 
@@ -109,15 +112,12 @@ Crafting worlds and shaping dreams.
 
 </CodeGroup>
 
-## Orchestration
-
-
-### Limiting LLM calls
+## Limiting LLM calls
 
 It's possible for agents to get stuck in a loop, invoking the LLM repeatedly without making progress. To prevent this, you can place a variety of limits on how LLM calls are made during task orchestration.
 
 
-#### Limiting turns per session
+### Limiting turns per session
 
 You can limit the number of turns that agents can take within a single orchestration session (i.e., a single call to `Task.run()`) by passing a `max_turns` argument to `Task.run()`. The session will end when the turn limit is reached whether the task has been completed or not. For example, if you call `Task.run(max_turns=5)`, then any assigned agents will be permitted to take up to 5 combined turns to complete the task.
 
@@ -130,6 +130,6 @@ pessimistic_agent.run(task, max_turns=1)
 optimistic_agent.run(task)
 ```
 
-#### Limiting LLM calls per turn
+### Limiting LLM calls per turn
 
 You can limit the number of LLM calls that an agent can make during a single turn by passing a `max_calls_per_turn` argument to `Task.run()`. The turn will end when the limit is reached whether the LLM wanted to end its turn or not. For example, if you call `Task.run(max_calls_per_turn=5)`, then each agent will be permitted to make up to 5 LLM calls during its turn.
