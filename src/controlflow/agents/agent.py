@@ -34,6 +34,7 @@ from .memory import Memory
 
 if TYPE_CHECKING:
     from controlflow.orchestration.turn_strategies import TurnStrategy
+    from controlflow.tasks import Task
     from controlflow.tools.tools import Tool
 logger = logging.getLogger(__name__)
 
@@ -190,36 +191,61 @@ class Agent(ControlFlowModel, abc.ABC):
     def run(
         self,
         objective: str,
-        *task_args,
-        agents: list["Agent"] = None,
+        *,
         turn_strategy: "TurnStrategy" = None,
         **task_kwargs,
     ):
-        agents = agents or [] + [self]
-        task = controlflow.Task(
+        return controlflow.run(
             objective=objective,
-            agents=agents,
-            *task_args,
+            agents=[self],
+            turn_strategy=turn_strategy,
             **task_kwargs,
         )
-        return task.run(turn_strategy=turn_strategy)
 
     async def run_async(
         self,
         objective: str,
-        *task_args,
-        agents: list["Agent"] = None,
+        *,
         turn_strategy: "TurnStrategy" = None,
         **task_kwargs,
     ):
-        agents = agents or [] + [self]
-        task = controlflow.Task(
+        return await controlflow.run_async(
             objective=objective,
-            agents=agents,
-            *task_args,
+            agents=[self],
+            turn_strategy=turn_strategy,
             **task_kwargs,
         )
-        return await task.run_async(turn_strategy=turn_strategy)
+
+    def plan(
+        self,
+        objective: str,
+        instructions: Optional[str] = None,
+        agents: Optional[list["Agent"]] = None,
+        tools: Optional[list["Tool"]] = None,
+        context: Optional[dict] = None,
+    ) -> list["Task"]:
+        """
+        Generate a list of tasks that represent a structured plan for achieving
+        the objective.
+
+        Args:
+            objective (str): The objective to plan for.
+            instructions (Optional[str]): Optional instructions for the planner.
+            agents (Optional[list[Agent]]): Optional list of agents to include in the plan. If None, this agent is used.
+            tools (Optional[list[Tool]]): Optional list of tools to include in the plan. If None, this agent's tools are used.
+            context (Optional[dict]): Optional context to include in the plan.
+
+        Returns:
+            list[Task]: A list of tasks that represent a structured plan for achieving the objective.
+        """
+        return controlflow.tasks.plan(
+            objective=objective,
+            instructions=instructions,
+            agent=self,
+            agents=agents or [self],
+            tools=tools or [self.tools],
+            context=context,
+        )
 
     def _run_model(
         self,

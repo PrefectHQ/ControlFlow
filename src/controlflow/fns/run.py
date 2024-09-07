@@ -45,6 +45,7 @@ def run_tasks(
     tasks: list[Task],
     flow: Flow = None,
     turn_strategy: TurnStrategy = None,
+    raise_on_error: bool = False,
     **run_kwargs,
 ):
     """
@@ -52,13 +53,19 @@ def run_tasks(
     """
     flow = flow or get_flow() or Flow()
     orchestrator = Orchestrator(tasks=tasks, flow=flow, turn_strategy=turn_strategy)
-    return orchestrator.run(**run_kwargs)
+    orchestrator.run(**run_kwargs)
+
+    if raise_on_error:
+        errors = [f"- {t.friendly_name()}: {t.result}" for t in tasks if t.is_failed()]
+        if errors:
+            raise ValueError(f"{len(errors)} task(s) failed: " + "\n".join(errors))
 
 
 async def run_tasks_async(
     tasks: list[Task],
     flow: Flow = None,
     turn_strategy: TurnStrategy = None,
+    raise_on_error: bool = False,
     **run_kwargs,
 ):
     """
@@ -66,4 +73,9 @@ async def run_tasks_async(
     """
     flow = flow or get_flow() or Flow()
     orchestrator = Orchestrator(tasks=tasks, flow=flow, turn_strategy=turn_strategy)
-    return await orchestrator.run_async(**run_kwargs)
+    await orchestrator.run_async(**run_kwargs)
+
+    if raise_on_error:
+        errors = [f"- {t.friendly_name()}: {t.result}" for t in tasks if t.is_failed()]
+        if errors:
+            raise ValueError(f"{len(errors)} task(s) failed: " + "\n".join(errors))

@@ -501,24 +501,6 @@ class Task(ControlFlowModel):
     def mark_skipped(self):
         self.set_status(TaskStatus.SKIPPED)
 
-    # def generate_subtasks(self, instructions: str = None, agents: list[Agent] = None):
-    # """
-    # Generate subtasks for this task based on the provided instructions.
-    # Subtasks can reuse the same tools and agents as this task.
-    # """
-    # from controlflow.planning.plan import create_plan
-
-    # # enter a context to set the parent task
-    # with self:
-    #     create_plan(
-    #         self.objective,
-    #         instructions=instructions,
-    #         planning_agent=agents[0] if agents else self.agents[0],
-    #         agents=agents or self.agents,
-    #         tools=self.tools,
-    #         context=self.context,
-    #     )
-
     def create_success_tool(self) -> Tool:
         """
         Create an agent-compatible tool for marking this task as successful.

@@ -1,6 +1,6 @@
 ---
 title: "Quickstart"
-description: Build your first agentic workflow in less than 30 seconds.
+description: Build your first agentic workflow in less than a minute.
 icon: rocket
 ---
 
@@ -21,18 +21,22 @@ Install ControlFlow with pip:
 pip install controlflow
 ```
 
-Configure your preferred LLM provider. By default, ControlFlow uses OpenAI, so you'll need to set your API key:
+Next, set up your LLM provider. By default, ControlFlow uses OpenAI, so you'll need to configure an OpenAI API key:
 
 ```bash
 export OPENAI_API_KEY="your-api-key"
 ```
 
-To use another provider, see the docs on [configuring LLMs](/guides/llms). Note that one of the agents in this quickstart is configured with OpenAI's GPT-4o-mini model; you can change the model name to whatever you prefer.
+To use another provider, see the docs on [configuring LLMs](/guides/llms).
 
-## Quickstart setup
+## Create some data
 
 
 In this quickstart, we're going to build an email processing pipelines, so let's create some sample data to work with. Execute this code in your Python interpreter to set up the (very simple) example emails we'll use throughout the quickstart:
+
+<Tip>
+Try changing the emails to your own content to see how ControlFlow works with different inputs.
+</Tip>
 
 ```python
 emails = [
@@ -41,9 +45,6 @@ emails = [
     "Urgent: Project deadline moved up by one week.",
 ]
 ```
-<Tip>
-Try changing the emails to your own content to see how ControlFlow works with different inputs.
-</Tip>
 ## Running a single task
 
 Let's start with the basics. We're going to create a task that generates a reply to an email.
@@ -104,8 +105,6 @@ You may have noticed that in the last example, we didn't assign an agent to the 
 </Tip>
 
 Agents are sort of like portable configurations for how to perform tasks, which could include specific LLMs, tools, instructions, and more. For our spam classifier, we'll create a new agent that uses a smaller, faster LLM and specialized instructions.
-
-
 
 In addition, note that the `result_type` of this task is a list of labels, indicating that the agent must choose one of the provided options. This is the simplest way to create a classification task, but you can require more complex [output formats](/concepts/tasks/task-results) as well.
 
