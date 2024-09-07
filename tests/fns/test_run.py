@@ -2,15 +2,16 @@ import pytest
 
 import controlflow
 from controlflow.agents.agent import Agent
+from controlflow.fns.run import run, run_async, run_tasks, run_tasks_async
 
 
 def test_run():
-    result = controlflow.run("what's 2 + 2", result_type=int)
+    result = run("what's 2 + 2", result_type=int)
     assert result == 4
 
 
 async def test_run_async():
-    result = await controlflow.run_async("what's 2 + 2", result_type=int)
+    result = await run_async("what's 2 + 2", result_type=int)
     assert result == 4
 
 
@@ -51,7 +52,7 @@ class TestLimits:
         max_calls_per_turn,
         expected_calls,
     ):
-        controlflow.run(
+        run(
             "send messages",
             max_calls_per_turn=max_calls_per_turn,
             max_turns=max_turns,
@@ -74,7 +75,7 @@ class TestLimits:
         max_calls_per_turn,
         expected_calls,
     ):
-        await controlflow.run_async(
+        await run_async(
             "send messages",
             max_calls_per_turn=max_calls_per_turn,
             max_turns=max_turns,
@@ -97,7 +98,7 @@ class TestLimits:
         max_calls_per_turn,
         expected_calls,
     ):
-        controlflow.run_tasks(
+        run_tasks(
             tasks=[
                 controlflow.Task("send messages"),
                 controlflow.Task("send messages"),
@@ -123,7 +124,7 @@ class TestLimits:
         max_calls_per_turn,
         expected_calls,
     ):
-        await controlflow.run_tasks_async(
+        await run_tasks_async(
             tasks=[
                 controlflow.Task("send messages"),
                 controlflow.Task("send messages"),

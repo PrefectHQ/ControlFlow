@@ -56,11 +56,31 @@ Crafting worlds and shaping dreams.
 
 </CodeGroup>
 
-Note that this example is functionally equivalent to the previous one.
+Note that this example is functionally equivalent to the previous one. There is also an async equivalent, `cf.run_async()`.
 
 This operation is so common that you'll see `cf.run()` used throughout the ControlFlow documentation.
 
+## `cf.run_tasks()`
 
+ControlFlow also provides a `run_tasks` function, which orchestrates one or more preexisting tasks to completion. Note that you need to access the task's `result` to see the output.
+
+```python
+import controlflow as cf
+
+task_1 = cf.Task('Write a poem about AI')
+task_2 = cf.Task('Critique the poem', depends_on=[task_1])
+
+cf.run_tasks([task_1, task_2])
+
+print(task_1.result)
+print(task_2.result)
+```
+
+There is also an equivalent async function, `cf.run_tasks_async`.
+
+<Tip>
+When you run tasks as a batch, they share context because they are automatically run in a single flow.
+</Tip>
 
 ## `@task`
 

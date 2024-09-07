@@ -15,7 +15,7 @@ from .flows import Flow
 from .instructions import instructions
 from .decorators import flow, task
 from .tools import tool
-from .run import run, run_async, run_tasks, run_tasks_async
+from .fns import run, run_async, run_tasks, run_tasks_async, plan
 
 
 # --- Version ---
