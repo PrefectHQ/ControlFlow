@@ -1,7 +1,7 @@
 ---
-title: Core Concepts
+title: Core concepts
 sidebarTitle: Overview
-description: The building blocks of agentic workflows.
+description: The building blocks of agentic workflows
 ---
 
 ControlFlow is a framework for building AI workflows that bridges the gap between 
@@ -18,29 +18,58 @@ of AI while maintaining fine-grained control over your applications.
 Tasks represent the structured side of ControlFlow. They are specific, 
 well-defined objectives that form the backbone of your workflow. Tasks 
 encapsulate the "what" and "how" of your AI-driven operations, providing a 
-clear, programmatic structure. By defining expected result types and validation 
-criteria, Tasks ensure that AI outputs align with your application's requirements.
+clear, programmatic structure.
 
-To learn more about tasks, see the [Tasks](/concepts/tasks) section.
+Key features of Tasks:
+- Define specific objectives for AI to accomplish
+- Specify expected result types and validation criteria
+- Can include instructions, context, and tools for execution
+- Serve as checkpoints in your workflow
+
+Learn more in the [Tasks](/concepts/tasks) section.
 
 ## 🦾 Agents
 
 Agents embody the unstructured, natural language side of ControlFlow. They are 
 AI-powered entities capable of understanding and generating human-like text,
-bringing flexibility and adaptability to your workflows. Agents can be 
-specialized for specific tasks, have access to different tools, or even 
-represent different LLM models, allowing you to optimize your workflow for 
-various requirements. Assign agents to tasks to determine "who" will execute 
-your work.
+bringing flexibility and adaptability to your workflows.
 
-To learn more about agents, see the [Agents](/concepts/agents) section.
+Key features of Agents:
+- Represent configurable AI entities with their own identity and capabilities
+- Can be specialized for specific tasks or have access to different tools
+- Collaborate to complete tasks according to provided instructions
+- Can be interactive, allowing communication with users
+- Allow configuration of different LLM models to power their responses
+
+Agents can be configured with different LLM models, enabling you to choose the 
+most suitable model for your needs based on factors such as performance, 
+latency, and cost.
+
+Learn more in the [Agents](/concepts/agents) section.
 
 ## 🧩 Flows
 
 Flows provide a shared context for all tasks and agents within a workflow. They 
 orchestrate the execution of tasks and the interaction of agents, allowing you 
-to create complex, adaptive AI workflows. Flows maintain a consistent state and 
-history across all components, enabling seamless collaboration and information 
-sharing. 
+to create complex, adaptive AI workflows.
 
-To learn more about flows, see the [Flows](/concepts/flows) section.
+Key features of Flows:
+- Act as high-level containers for entire AI-powered workflows
+- Maintain consistent state and history across all components
+- Provide shared context for tasks and agents
+- Can be nested to create hierarchical workflows
+
+Learn more in the [Flows](/concepts/flows) section.
+
+## Putting it all together
+
+In a typical ControlFlow application:
+
+1. You define a Flow to represent your overall workflow
+2. Within the Flow, you create Tasks to represent specific objectives
+3. You assign Agents to work on these Tasks
+4. The Flow orchestrates the execution of Tasks and the interaction of Agents
+
+This structure allows you to create powerful, flexible AI workflows while 
+maintaining control over the process and ensuring that outputs align with your 
+application's requirements.

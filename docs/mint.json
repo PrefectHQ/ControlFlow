@@ -44,45 +44,23 @@
             "group": "Core Concepts",
             "pages": [
                 "concepts/concepts",
-                {
-                    "group": "Tasks",
-                    "icon": "list-check",
-                    "pages": [
-                        "concepts/tasks/tasks",
-                        "concepts/tasks/creating-tasks",
-                        "concepts/tasks/running-tasks",
-                        "concepts/tasks/task-results"
-                    ]
-                },
-                {
-                    "group": "Agents",
-                    "icon": "users",
-                    "pages": [
-                        "concepts/agents/agents",
-                        "concepts/agents/creating-agents",
-                        "concepts/agents/assigning-agents",
-                        "concepts/agents/collaborating-agents"
-                    ]
-                },
-                {
-                    "group": "Flows",
-                    "icon": "diagram-project",
-                    "pages": [
-                        "concepts/flows/flows",
-                        "concepts/flows/creating-flows",
-                        "concepts/flows/instructions"
-                    ]
-                }
+                "concepts/tasks",
+                "concepts/agents",
+                "concepts/flows"
             ]
         },
         {
-            "group": "Patterns",
+            "group": "Using ControlFlow",
             "pages": [
+                "patterns/running-tasks",
+                "patterns/task-results",
                 "patterns/tools",
                 "patterns/interactivity",
+                "patterns/instructions",
+                "patterns/planning",
                 "patterns/dependencies",
                 "patterns/subtasks",
-                "patterns/planning",
+                "patterns/collaborating-agents",
                 "patterns/stopping-tasks-early"
             ]
         },

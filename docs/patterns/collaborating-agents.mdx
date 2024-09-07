@@ -1,5 +1,7 @@
 ---
 title: Collaboration
+description: Agents can collaborate to complete tasks.
+icon: users
 ---
 
 Sometimes, agents need to collaborate to accomplish their tasks. In this case, agents take turns working until the task is complete.
@@ -26,7 +28,7 @@ ControlFlow has a few built-in turn strategies for selecting which agent should 
 | `Single` | Only one agent is given the opportunity to act. | You want to control the sequence of agents yourself. | Requires manual management; may not adapt well to dynamic scenarios. |
 
 
-### Using a strategy
+### Selecting a strategy
 
 To use a turn strategy, provide it as an argument to the `run()` call. Here, we use a round robin strategy to ensure that each agent gets a turn in order:
 

@@ -1,73 +1,92 @@
 ---
-title: Creating Tasks
+title: Tasks
+description: The building blocks of AI workflows.
+icon: list-check
 ---
 
-Tasks are the fundamental building blocks of your AI workflows. They provide agents with clear objectives and a mechanism for evaluating their work. This document explains how to create and configure tasks.
+Tasks are the fundamental building blocks of AI workflows in ControlFlow. They represent discrete, well-defined objectives that need to be accomplished by one or more AI agents.
 
-## The `Task` class
-
-To create a new task, use the `Task` class. The simplest task is just an objective:
-
-<CodeGroup>
-```python Code
+```python
 import controlflow as cf
 
-task = cf.Task(objective='Write a poem about AI')
-
-print(repr(task))
+task = cf.Task("Write the ControlFlow docs")
 ```
 
-```text Result
-Task(
-    objective='Write a poem about AI',
-    instructions=None,
-    agents=[],
-    context={},
-    status=<TaskStatus.PENDING: 'PENDING'>,
-    result=None,
-    result_type=<class 'str'>,
-    result_validator=None,
-    tools=[],
-    interactive=False,
-    ... 
-)
-```
-</CodeGroup>
+## What are tasks?
 
-More complex tasks can be created by passing additional keyword arguments to the `Task` constructor.
+LLMs excel when given clear, specific objectives that allow them to focus their knowledge and capabilities on a well-defined goal. A `Task` in ControlFlow is a structured way to define these objectives and guide the AI's behavior. Each task represents a "checkpoint" that requires the AI to meet an observable, verifiable goal. In this way, tasks serve as a bridge between the structured world of traditional software and the more fluid, adaptive world of AI.
+
+This task-centric approach allows you to leverage the full power of AI while maintaining precise oversight. Each task becomes a checkpoint where you can validate outputs, ensuring that the AI's work aligns with your application's requirements and constraints.
+
+## Creating tasks
+
+A task in ControlFlow typically consists of:
+
+- An objective: what needs to be accomplished
+- Expected output: what form the result should have, including any constraints or validation
+- Agents: the AI entities responsible for executing the task
+- Tools: any additional capabilities needed to complete the task
+
+
+There are two primary ways to create tasks in ControlFlow: using the `Task` class directly, or using the `@task` decorator.
 
 <Tip>
 In practice, you will often use the `cf.run` function to create and run a task in a single step. This is a common operation and accepts all the same arguments as creating a `Task` directly. See [Running Tasks](/concepts/tasks/running-tasks) for more information.
 </Tip>
 
+### Using the `Task` class
 
-## The `@task` decorator
+The most straightforward way to create a task is by using the `Task` class:
 
-ControlFlow has an alternative syntax for creating tasks from functions. The `@task` decorator infers many task properties from a function definition and is useful for creating tasks that are frequently invoked with different context values. The decorated function can be called with arguments to automatically create and run the task.
+<CodeGroup>
+```python Code
+import controlflow as cf
 
-This approach is less common than creating tasks directly with the `Task` class, but may be preferable for users that would like a more Pythonic interface.
+task = cf.Task(
+    objective="Write a poem about the provided topic",
+    instructions="Write four lines that rhyme",
+    context={"topic": "AI"}    
+)
+
+result = task.run()
+print(result)
+```
+
+```text Result
+In circuits deep and code profound,
+An AI's mind begins to sound.
+Electric thoughts and data streams,
+Crafting worlds and shaping dreams.
+```
+
+</CodeGroup>
+
+### Using the `@task` decorator
+
+Some users may prefer to use the `@task` decorator for creating tasks, especially for tasks that are frequently invoked with different context values. However, this approach is less common and less flexible than using the `Task` class directly.
 
 <CodeGroup>
 ```python Code
 import controlflow as cf
 
 @cf.task
-def key_words(content: str, n: int) -> list[str]:
-    """Identify key words"""
-    return f"Identify {n} key words for the content"
+def write_poem(topic: str) -> str:
+    """Write four lines that rhyme"""
+    return f"The topic is {topic}"
 
-keys = key_words("The quick brown fox jumps over the lazy dog", n=2)
-
-print(keys)
+result = write_poem("AI")
+print(result)
 ```
 
 ```text Result
-['fox', 'dog']
+In circuits and codes, it finds its might,
+A beacon of knowledge, shining bright.
+From data's depths, it learns and grows,
+AI, the future, as it softly glows.
 ```
+
 </CodeGroup>
 
-
-### Inferred properties
 The following task properties are inferred directly from the decorated function:
 
 | Task property | Inferred from |
@@ -77,23 +96,11 @@ The following task properties are inferred directly from the decorated function:
 | `result_type` | The function's return annotation | 
 | `context` | The function's arguments (keyed by argument name) and return value (keyed as "Additional context") | 
 
-Additional properties can be set by passing keyword arguments directly to the `@task` decorator. Here, we provide a tool to the task:
+Additional properties can be set by passing keyword arguments directly to the `@task` decorator.
 
-```python
-import controlflow as cf
-import random
+## Task properties
 
-def roll(n: int) -> int:
-    return random.randint(1, 6)
-
-@cf.task(tools=[roll])
-def roll_dice(n: int) -> list[int]:
-    return f"roll a die {n} times"
-```
-
-## Task configuration
-
-This section describes the configurableproperties of a `Task` object.
+When creating a task, you can configure various properties to define its behavior and requirements. Here are the key configuration options:
 
 ### Objective
 

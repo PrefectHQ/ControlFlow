@@ -1,17 +1,89 @@
 ---
-title: Assigning Agents to Tasks
-sidebarTitle: Assigning to Tasks
+title: Agents
+description: The intelligent workers in your AI workflows.
+icon: robot
 ---
 
-Agents must be assigned to tasks in order to work on them.
+Agents are the intelligent, autonomous entities that power your AI workflows in ControlFlow. They represent AI models capable of understanding instructions, making decisions, and completing tasks.
 
-Use the `agents` parameter when creating a task to assign agents. Each task requires at least one assigned agent, and will use a default agent if none are provided. Agents can be assigned to multiple tasks, and tasks can have multiple agents. 
+```python
+import controlflow as cf
 
-## Assigning agents
+agent = cf.Agent("Marvin")
+```
+## What are agents?
+Agents in ControlFlow are configurable AI entities, each with its own identity, capabilities, and even personality. They act as the "workers" in your AI workflows, responsible for executing tasks and making decisions based on their assigned objectives and available tools.
+
+You can think of each agent as a portable LLM configuration. When you assign one or more agents to a task, they will collaborate to complete the task according to the instructions and tools you provide.
+
+
+## Creating agents
+
+To create an agent, use the `Agent` class.
+
+```python
+import controlflow as cf
+
+agent = cf.Agent(name="Marvin")
+```
+
+A more complex agent can be created by providing additional configuration. This agent shows almost every possible configuration option:
+
+```python
+import controlflow as cf
+from langchain_openai import ChatOpenAI
+
+agent = cf.Agent(
+    name="Data Analyst",
+    description="An AI agent specialized in data analysis",
+    instructions=(
+        "Perform data analysis tasks efficiently and accurately. "
+        "Browse the web for data and use Python to analyze it."
+    ),
+    tools=[cf.tools.web.get_url, cf.tools.code.python],
+    model=ChatpOpenAI('gpt-4o-mini'),
+    interactive=True,
+)
+```
+
+## Agent properties
+
+### Name
+
+An agent's name is an identifier that is visible to other agents in the workflow. It is used to distinguish between agents and for logging and debugging purposes. If possible, keep agent names unique within a flow to avoid confusion. While agents do have deterministic IDs that can be used to disambiguate two agents with the same name, they will often use names when interacting with each other.
+
+### Description
+
+A description is a brief summary of the agent's role or specialization. This information is visible to other agents, and helps them understand the agent's capabilities and expertise.
+
+### Instructions
+
+Instructions are specific instructions or guidelines for the agent to follow during task execution. These instructions are private and not shared with other agents.
+
+### Tools
+
+Tools are Python functions that the agent can call to perform specific actions or computations. They are defined as a list of functions when creating an agent, and can be used to enhance the agent's capabilities. The agent will have access to these tools in every task they are assigned to. If a task defines additional tools, the agent will have access to those as well.
+
+### Model
+
+Each agent has a model, which is the LLM that powers the agent responses. This allows you to choose the most suitable model for your needs, based on factors such as performance, latency, and cost.
+
+ControlFlow supports any LangChain LLM that supports chat and function calling. For more details on how to configure models, see the [LLMs guide](/guides/llms).
+
+### Interactivity
+
+By default, agents have no way to communicate with users. If you want to chat with an agent, set `interactive=True`. By default, this will let the agent communicate with users on the command line.
+
+To learn more, see the [Interactivity guide](/patterns/interactivity).
+
+## Assigning agents to tasks
+
+Agents must be assigned to tasks in order to work on them. You can assign agents by passing them to the `agents` parameter when creating a task. Each task requires at least one assigned agent, and will use a default agent if none are provided. Agents can be assigned to multiple tasks, and tasks can have multiple agents. 
+
 
 ### Tasks with no agents
 
-If you do not assign any agents to a task, it will determine its agents at runtimeaccording to the following rules:
+If you do not assign any agents to a task, it will determine its agents at runtime according to the following rules:
 
 1. If the task has a parent, it will use the parent's agents.
 2. If the task's flow has a default agent, it will use that agent.
@@ -124,8 +196,9 @@ temporary positive outcomes, despite the overall bleak and discouraging reality.
 
 </CodeGroup>
 
+When tasks have multiple agents, it's important to understand how they collaborate (and to provide them with clear instructions to guide that behavior). To learn more, see the [collaboration](/patterns/collaborating-agents) doc.
 
-## Completion agents
+#### Assigning completion agents
 
 By default, every agent assigned to a task will be given tools for marking the task as successful or failed. If you want to restrict completion tools to a specific agent or agents, you can do so by setting the task's `completion_agents`.
 
