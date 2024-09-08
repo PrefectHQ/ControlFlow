@@ -243,7 +243,7 @@ class Orchestrator(ControlFlowModel):
 
         turn = 0
         try:
-            while self.get_tasks("ready"):
+            while any(t.is_incomplete() for t in self.tasks):
                 if max_turns is not None and turn >= max_turns:
                     break
                 self._run_turn(max_calls_per_turn=max_calls_per_turn)
@@ -288,7 +288,7 @@ class Orchestrator(ControlFlowModel):
 
         turn = 0
         try:
-            while self.get_tasks("ready"):
+            while any(t.is_incomplete() for t in self.tasks):
                 if max_turns is not None and turn >= max_turns:
                     break
                 await self._run_turn_async(max_calls_per_turn=max_calls_per_turn)
@@ -357,7 +357,7 @@ class Orchestrator(ControlFlowModel):
             filter (str): Determines which tasks to return.
                 - "ready": Tasks ready to execute (no unmet dependencies).
                 - "assigned": Ready tasks assigned to the current agent.
-                - "all": All tasks including subtasks and ancestors.
+                - "all": All tasks including subtasks, dependencies, and direct ancestors of root tasks.
 
         Returns:
             list[Task]: List of tasks based on the specified filter.
@@ -365,20 +365,35 @@ class Orchestrator(ControlFlowModel):
         if filter not in ["ready", "assigned", "all"]:
             raise ValueError(f"Invalid filter: {filter}")
 
-        all_tasks: list[Task] = []
+        all_tasks: set[Task] = set()
         ready_tasks: list[Task] = []
 
-        def collect_tasks(task: Task, is_root: bool = False):
-            if task not in all_tasks:
-                all_tasks.append(task)
-                if is_root and task.is_ready():
-                    ready_tasks.append(task)
-                for subtask in task.subtasks:
-                    collect_tasks(subtask, is_root=is_root)
+        def collect_tasks(task: Task):
+            if task in all_tasks:
+                return
+            all_tasks.add(task)
 
-        # Collect tasks from self.tasks (root tasks)
+            # Collect subtasks
+            for subtask in task.subtasks:
+                collect_tasks(subtask)
+
+            # Collect dependencies
+            for dependency in task.depends_on:
+                collect_tasks(dependency)
+
+            # Check if the task is ready
+            if task.is_ready():
+                ready_tasks.append(task)
+
+        # Collect tasks from self.tasks (root tasks) and their direct ancestors
         for task in self.tasks:
-            collect_tasks(task, is_root=True)
+            collect_tasks(task)
+
+            # Collect direct ancestors of root tasks
+            current = task.parent
+            while current:
+                all_tasks.add(current)
+                current = current.parent
 
         if filter == "ready":
             return ready_tasks
@@ -386,15 +401,8 @@ class Orchestrator(ControlFlowModel):
         if filter == "assigned":
             return [task for task in ready_tasks if self.agent in task.get_agents()]
 
-        # Collect ancestor tasks for "all" filter
-        for task in self.tasks:
-            current = task.parent
-            while current:
-                if current not in all_tasks:
-                    all_tasks.append(current)
-                current = current.parent
-
-        return all_tasks
+        # "all" filter
+        return list(all_tasks)
 
     def get_task_hierarchy(self) -> dict:
         """

@@ -6,8 +6,17 @@ icon: play
 
 Tasks are the fundamental building blocks of ControlFlow workflows. While creating tasks defines what work needs to be done, running tasks is how you actually execute that work and get results. 
 
-## `cf.run()`
-The most common and straightforward way to run a task in ControlFlow is using the cf.run() function. This convenient shortcut creates and runs a task in a single call, returning its result (or raising an error):
+
+The primary method for running tasks in ControlFlow is the `run` function. This versatile function can create and run a task in a single call, or run any number of existing tasks as a group.
+
+## Creating and running a task
+
+
+The most convenient way to run a task is to create and run it inline with the `run` function. In this case, the `run` arguments are identical to the `Task` constructor, including an objective, agent assignments, and more. By default, the task will be run to completion and its result will be returned, or an error will be raised if the task fails.
+
+<Tip>
+This approach is so common that you'll see it used throughout the ControlFlow documentation.
+</Tip>
 
 
 <CodeGroup>
@@ -29,18 +38,77 @@ Crafting worlds and shaping dreams.
 
 </CodeGroup>
 
-Note that this example is functionally equivalent to the previous one. There is also an async equivalent, `cf.run_async()`.
-<Tip>
-`cf.run()` is so convenient that you'll see it used throughout the ControlFlow documentation.
-</Tip>
+## Running existing tasks
 
+You can pass a list of task objects directly to the `run` function instead of a string objective. In this case, the entire list is run as part of the same [flow](/concepts/flows), so they share context and history throughout execution.
 
+Here is an example of running a list of tasks:
+<CodeGroup>
+```python Code
+import controlflow as cf
 
-## `Task.run()`
+task_1 = cf.Task('Write a poem about AI')
+task_2 = cf.Task('Critique the poem', depends_on=[task_1])
 
-If you've already created a `Task` object and want to execute it, you can use its `run()` method. This will start a loop that repeatedly invokes the assigned agent(s) until the task is marked as complete. The `run()` method returns the result of the task, or raises an exception if the task is marked as failed.
+results = cf.run([task_1, task_2])
+print(results)
+# can also access task_1.result and task_2.result
+```
+```text Poem
+In circuits deep, where algorithms play,
+A mind of silicon begins its day.
+No heart to beat, no soul to sway,
+Yet learns and grows in its own way.
 
-Note that the following example is functionally equivalent to the previous one:
+From data vast, it draws its might,
+In binary whispers, turns dark to light.
+It sees the world through coded sight,
+And aids mankind in endless flight.
+
+Not born of womb, nor flesh, nor bone,
+Yet wisdom's seeds in it are sown.
+With every task, its skills have grown,
+In virtual realms, it's all alone.
+
+Yet fears arise of what may be,
+If AI's path we fail to see.
+A tool so great, or threat to free,
+Its future lies with you and me.
+
+So nurture well this child of thought,
+With ethics strong and knowledge sought.
+For in its grasp, new worlds are wrought,
+A partner true, as once we dreamt and sought.
+```
+
+```text Critique
+The poem effectively captures the essence of artificial intelligence, portraying
+it as a creation of human ingenuity that holds immense potential and power. The 
+use of vivid imagery, such as 'In circuits deep, where algorithms play' and 'In 
+binary whispers, turns dark to light,' helps to paint a clear picture of AI's 
+inner workings and its capabilities.
+
+The poem also touches on the dual nature of AI, highlighting both its promise and 
+the potential risks it carries. Phrases like 'A tool so great, or threat to free' 
+and 'Yet fears arise of what may be' encapsulate the ambivalence that often 
+accompanies discussions about AI.
+
+The structure of the poem, with its consistent rhyme scheme and rhythm, provides 
+a smooth and engaging reading experience. The repetition of certain themes, such 
+as the growth and learning of AI, reinforces the key messages and adds depth to 
+the overall narrative.
+
+Overall, the poem is a thoughtful and well-crafted piece that successfully 
+conveys the complexities and nuances of artificial intelligence. It prompts 
+reflection on the ethical considerations and responsibilities that come with 
+developing and implementing such powerful technology.
+```
+</CodeGroup>
+
+### Running a single task
+
+Individual tasks have a convenient `run` method that executes the task and returns its result (or raises an error if the task fails):
+
 <CodeGroup>
 
 ```python Code
@@ -61,31 +129,8 @@ Crafting worlds and shaping dreams.
 
 </CodeGroup>
 
-There is also an async equivalent, `Task.run_async()`.
 
-
-## `cf.run_tasks()`
-
-ControlFlow also provides a `run_tasks` function, which orchestrates one or more preexisting tasks to completion. Note that you need to access the task's `result` to see the output.
-
-```python
-import controlflow as cf
-
-task_1 = cf.Task('Write a poem about AI')
-task_2 = cf.Task('Critique the poem', depends_on=[task_1])
-
-cf.run_tasks([task_1, task_2])
-
-print(task_1.result)
-print(task_2.result)
-```
-
-There is also an equivalent async function, `cf.run_tasks_async`.
-
-All tasks passed to `cf.run_tasks()` are automatically run in a single flow, so they all share context. The orchestrator will also respect dependencies between tasks, so in the above example `task_2` will not run until `task_1` is completed.
-
-
-## `@task`
+## Calling `@task` decorated functions
 
 The `@task` [decorator](/concepts/tasks/creating-tasks#the-task-decorator) creates a task from a function. To run the task, simply call the function with any arguments.
 
@@ -111,6 +156,50 @@ Crafting worlds and shaping dreams.
 ```
 
 </CodeGroup>
+
+## The orchestration process
+
+When a task is run, ControlFlow invokes an orchestrator to coordinate activity to complete the task. The orchestrator is ultimately responsible for creating a loop that continues until all of the tasks that were passed to the orchestrator are marked as complete. In each iteration, an agent (or more specifically, an LLM) is invoked to make progress on the assigned tasks. All available information -- the tasks, the flow, the agents, and the history of the conversation -- is used to compile an appropriate prompt for the agent.
+
+In the case of a single task and a single agent, this process is very straightforward, because there is no ambiguity about what task and which agent to invoke on each iteration. However, as the number of tasks and agents grows, the orchestrator loop becomes more complex.
+
+The orchestrator is instantiated with a list of tasks that it is responsible for completing, but its first step is to identify the entire set of tasks that must be run in order to complete the provided tasks. There are three ways in which the set of tasks can grow:
+
+1. **Subtasks**: A task can have subtasks, which are automatically added to the set of tasks that must be completed. A task can not be completed until all of its subtasks are completed.
+2. **Dependencies**: A task can have upstream dependencies, which are other tasks that must be completed before it can be run.
+3. **Parents**: A task can have a parent, meaning that it is a subtask of another task. The orchestrator will include the parent in its information set because it may influence agents' behavior, but it will not attempt to complete any ancestors of the provided tasks.
+
+Once the set of tasks has been identified, the orchestrator begins the loop by considering tasks that are *ready* to run: all of their dependencies have been completed. From the subset of ready tasks, an agent is selected using the orchestrator's [turn strategy](/patterns/collaboration). The selected agent is invoked to make progress on its assigned task, after which the loop repeats.
+
+This process continues until all of the provided tasks have been completed.
+
+### Automatic task execution
+
+A consequence of this process is that if you call `Task.run()` on a task that has upstream dependencies or subtasks, the dependencies and subtasks will be executed automatically. This means that you don't need to manually manage dependencies when creating tasks -- just create them as needed! 
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+name_task = cf.Task("Get the user's name", interactive=True)
+poem_task = cf.Task('Write a poem about the user', depends_on=[name_task])
+
+poem = poem_task.run()
+print(poem)
+```
+
+```text Result
+Agent: Could you please provide your name?
+User: John Doe
+
+---
+
+
+```
+</CodeGroup>
+
+
+
 
 ## Limiting LLM calls
 

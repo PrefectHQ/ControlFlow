@@ -60,7 +60,7 @@
                 "patterns/planning",
                 "patterns/dependencies",
                 "patterns/subtasks",
-                "patterns/collaborating-agents",
+                "patterns/collaboration",
                 "patterns/stopping-tasks-early"
             ]
         },

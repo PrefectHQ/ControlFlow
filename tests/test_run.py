@@ -2,7 +2,7 @@ import pytest
 
 import controlflow
 from controlflow.agents.agent import Agent
-from controlflow.fns.run import run, run_async, run_tasks, run_tasks_async
+from controlflow.run import run, run_async, run_tasks, run_tasks_async
 
 
 def test_run():
