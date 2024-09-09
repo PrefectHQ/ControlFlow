@@ -19,13 +19,11 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.events.schemas.events import Event
-from prefect.results import ResultFactory
 from prefect.states import (
     Cancelled,
     Completed,
     Failed,
     Running,
-    return_value_to_state,
 )
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.engine import (
@@ -223,17 +221,7 @@ class PrefectTrackingTask(ControlFlowModel):
         return new_state
 
     def succeed(self, result: Any):
-        if result is not None:
-            terminal_state = run_coro_as_sync(
-                return_value_to_state(
-                    result,
-                    result_factory=run_coro_as_sync(
-                        ResultFactory.from_autonomous_task(self._task)
-                    ),
-                )
-            )
-        else:
-            terminal_state = Completed()
+        terminal_state = Completed()
         self.set_state(terminal_state)
 
     def fail(self, error: Optional[str] = None):
