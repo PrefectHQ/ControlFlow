@@ -189,8 +189,8 @@ class Orchestrator(ControlFlowModel):
                             task.mark_failed(
                                 reason="Max LLM calls reached for this task."
                             )
-                    else:
-                        task._llm_calls += 1
+                        else:
+                            task._llm_calls += 1
 
                     # Check if there are any ready tasks left
                     if not any(t.is_ready() for t in assigned_tasks):
@@ -296,8 +296,8 @@ class Orchestrator(ControlFlowModel):
                             task.mark_failed(
                                 reason="Max LLM calls reached for this task."
                             )
-                    else:
-                        task._llm_calls += 1
+                        else:
+                            task._llm_calls += 1
 
                     # Check if there are any ready tasks left
                     if not any(t.is_ready() for t in assigned_tasks):
