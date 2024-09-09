@@ -56,10 +56,9 @@
                 "patterns/task-results",
                 "patterns/tools",
                 "patterns/interactivity",
-                "patterns/instructions",
-                "patterns/planning",
                 "patterns/dependencies",
-                "patterns/subtasks"
+                "patterns/instructions",
+                "patterns/planning"
             ]
         },
         {
