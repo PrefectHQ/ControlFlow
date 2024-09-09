@@ -1,4 +1,4 @@
-from typing import Annotated, Any
+from typing import Annotated, Any, Dict, List
 
 import pytest
 from pydantic import BaseModel
@@ -287,6 +287,21 @@ class TestResultType:
         task = Task("choose 5", result_type=(4, 5, 6))
         with pytest.raises(ValueError):
             task.mark_successful(result=7)
+
+    def test_typed_dict_result(self):
+        task = Task("", result_type=dict[str, int])
+        task.mark_successful(result={"a": 5, "b": "6"})
+        assert task.result == {"a": 5, "b": 6}
+
+    def test_special_list_type_result(self):
+        task = Task("", result_type=List[int])
+        task.mark_successful(result=[5, 6])
+        assert task.result == [5, 6]
+
+    def test_special_dict_type_result(self):
+        task = Task("", result_type=Dict[str, int])
+        task.mark_successful(result={"a": 5, "b": "6"})
+        assert task.result == {"a": 5, "b": 6}
 
     def test_pydantic_result(self):
         class Name(BaseModel):
