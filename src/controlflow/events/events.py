@@ -101,6 +101,7 @@ class AgentMessageDelta(UnpersistedEvent):
     def _finalize(self):
         self.delta["name"] = self.agent.name
         self.snapshot["name"] = self.agent.name
+        return self
 
     @property
     def delta_message(self) -> AIMessageChunk:
