@@ -310,10 +310,14 @@ orchestrator.run()
 
 The `max_agent_turns` argument limits the number of agentic turns that can be taken in a single orchestration session. This limit is enforced by the orchestrator, which will end the turn early if the limit is reached.
 
+A global default can be set with ControlFlow's `orchestrator_max_agent_turns` setting.
+
 
 #### Limiting LLM calls
 
 The `max_llm_calls` argument limits the number of LLM calls that can be made during a single orchestration session. This limit is enforced by the orchestrator, which will end the turn early if the limit is reached. Note that this is enforced independently of the `max_agent_turns` limit. 
+
+A global default can be set with ControlFlow's `orchestrator_max_llm_calls` setting.
 
 
 #### Limiting LLM calls over the lifetime of a task
@@ -343,6 +347,9 @@ task.run()
 ```text Error
 Task 5ba273e6 ("Roll 3 dice and report the results") failed: Max LLM calls reached for this task.
 ```
+
+A global default can be set with ControlFlow's `task_max_llm_calls` setting.
+
 </CodeGroup>
 
 <Tip>

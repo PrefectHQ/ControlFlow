@@ -114,9 +114,10 @@ class Task(ControlFlowModel):
     )
     interactive: bool = False
     max_llm_calls: Optional[int] = Field(
+        default_factory=lambda: controlflow.settings.task_max_llm_calls,
         description="Maximum number of LLM calls to make before the task should be marked as failed. "
         "The total calls are measured over the life of the task, and include any LLM call for "
-        "which this task is considered `assigned`."
+        "which this task is considered `assigned`.",
     )
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     _subtasks: set["Task"] = set()

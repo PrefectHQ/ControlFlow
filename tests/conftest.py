@@ -12,8 +12,8 @@ def temp_controlflow_settings():
         pretty_print_agent_events=False,
         log_all_messages=True,
         log_level="DEBUG",
-        orchestrator_max_turns=10,
-        orchestrator_max_calls=10,
+        orchestrator_max_agent_turns=10,
+        orchestrator_max_llm_calls=10,
     ):
         yield
 

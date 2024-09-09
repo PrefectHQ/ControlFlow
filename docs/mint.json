@@ -65,6 +65,7 @@
         {
             "group": "Configuration",
             "pages": [
+                "guides/settings",
                 "guides/llms",
                 "guides/default-agent"
             ]

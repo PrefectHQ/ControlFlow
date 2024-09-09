@@ -146,9 +146,10 @@ class Orchestrator(ControlFlowModel):
                 None, self.get_available_agents()
             )
 
-        # Use default max_agent_turns if not provided
         if max_agent_turns is None:
-            max_agent_turns = controlflow.settings.orchestrator_max_turns
+            max_agent_turns = controlflow.settings.orchestrator_max_agent_turns
+        if max_llm_calls is None:
+            max_llm_calls = controlflow.settings.orchestrator_max_llm_calls
 
         # Signal the start of orchestration
         self.handle_event(
@@ -159,7 +160,10 @@ class Orchestrator(ControlFlowModel):
             while any(t.is_incomplete() for t in self.tasks):
                 # Check if we've reached the turn or call limit
                 if max_agent_turns is not None and turn_count >= max_agent_turns:
+                    logger.debug(f"Max agent turns reached: {max_agent_turns}")
                     break
+
+                # this check seems redundant to the check below, but this one exits the outer loop
                 if max_llm_calls is not None and call_count >= max_llm_calls:
                     break
 
@@ -190,6 +194,7 @@ class Orchestrator(ControlFlowModel):
 
                     # Check if there are any ready tasks left
                     if not any(t.is_ready() for t in assigned_tasks):
+                        logger.debug("No `ready` tasks to run")
                         break
 
                     call_count += 1
@@ -201,6 +206,7 @@ class Orchestrator(ControlFlowModel):
 
                     # Check if we've reached the call limit within a turn
                     if max_llm_calls is not None and call_count >= max_llm_calls:
+                        logger.debug(f"Max LLM calls reached: {max_llm_calls}")
                         break
 
                 # Select the next agent for the following turn
@@ -247,9 +253,10 @@ class Orchestrator(ControlFlowModel):
                 None, self.get_available_agents()
             )
 
-        # Use default max_agent_turns if not provided
         if max_agent_turns is None:
-            max_agent_turns = controlflow.settings.orchestrator_max_turns
+            max_agent_turns = controlflow.settings.orchestrator_max_agent_turns
+        if max_llm_calls is None:
+            max_llm_calls = controlflow.settings.orchestrator_max_llm_calls
 
         # Signal the start of orchestration
         self.handle_event(
@@ -260,7 +267,10 @@ class Orchestrator(ControlFlowModel):
             while any(t.is_incomplete() for t in self.tasks):
                 # Check if we've reached the turn or call limit
                 if max_agent_turns is not None and turn_count >= max_agent_turns:
+                    logger.debug(f"Max agent turns reached: {max_agent_turns}")
                     break
+
+                # this check seems redundant to the check below, but this one exits the outer loop
                 if max_llm_calls is not None and call_count >= max_llm_calls:
                     break
 
@@ -291,6 +301,7 @@ class Orchestrator(ControlFlowModel):
 
                     # Check if there are any ready tasks left
                     if not any(t.is_ready() for t in assigned_tasks):
+                        logger.debug("No `ready` tasks to run")
                         break
 
                     call_count += 1
@@ -304,6 +315,7 @@ class Orchestrator(ControlFlowModel):
 
                     # Check if we've reached the call limit within a turn
                     if max_llm_calls is not None and call_count >= max_llm_calls:
+                        logger.debug(f"Max LLM calls reached: {max_llm_calls}")
                         break
 
                 # Select the next agent for the following turn
