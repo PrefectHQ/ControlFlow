@@ -14,7 +14,6 @@ from typing import (
     _LiteralGenericAlias,
 )
 
-from prefect.context import TaskRunContext
 from pydantic import (
     Field,
     PydanticSchemaGenerationError,
@@ -36,10 +35,6 @@ from controlflow.utilities.general import (
 )
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import prefect_task as prefect_task
-from controlflow.utilities.tasks import (
-    collect_tasks,
-    visit_task_collection,
-)
 
 if TYPE_CHECKING:
     from controlflow.flows import Flow
@@ -47,11 +42,6 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 logger = get_logger(__name__)
-
-
-def get_task_run_name() -> str:
-    context = TaskRunContext.get()
-    return f'Run {context.parameters["self"].friendly_name()}'
 
 
 class TaskStatus(Enum):
@@ -123,10 +113,17 @@ class Task(ControlFlowModel):
         description="Agents that are allowed to mark this task as complete. If None, all agents are allowed.",
     )
     interactive: bool = False
+    max_llm_calls: Optional[int] = Field(
+        default_factory=lambda: controlflow.settings.task_max_llm_calls,
+        description="Maximum number of LLM calls to make before the task should be marked as failed. "
+        "The total calls are measured over the life of the task, and include any LLM call for "
+        "which this task is considered `assigned`.",
+    )
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     _subtasks: set["Task"] = set()
     _downstreams: set["Task"] = set()
     _cm_stack: list[contextmanager] = []
+    _llm_calls: int = 0
 
     model_config = dict(extra="forbid", arbitrary_types_allowed=True)
 
@@ -172,12 +169,6 @@ class Task(ControlFlowModel):
         # create dependencies to tasks passed as subtasks
         if self.parent is not None:
             self.parent.add_subtask(self)
-
-        # create dependencies to tasks passed in as context
-        context_tasks = collect_tasks(self.context)
-
-        for task in context_tasks:
-            self.add_dependency(task)
 
         if self.id is None:
             self.id = self._generate_id()
@@ -248,13 +239,6 @@ class Task(ControlFlowModel):
     def _serialize_depends_on(self, depends_on: set["Task"]):
         return [t.id for t in depends_on]
 
-    @field_serializer("context")
-    def _serialize_context(self, context: dict):
-        def visitor(task):
-            return f"<Result from task {task.id}>"
-
-        return visit_task_collection(context, visitor)
-
     @field_serializer("result_type")
     def _serialize_result_type(self, result_type: list["Task"]):
         if result_type is None:
@@ -323,30 +307,26 @@ class Task(ControlFlowModel):
         self.depends_on.add(task)
         task._downstreams.add(self)
 
-    @prefect_task(task_run_name=get_task_run_name)
     def run(
         self,
         agent: Optional[Agent] = None,
         flow: "Flow" = None,
         turn_strategy: "TurnStrategy" = None,
-        max_calls_per_turn: int = None,
-        max_turns: int = None,
+        max_llm_calls: int = None,
+        max_agent_turns: int = None,
     ) -> T:
         """
         Run the task
         """
 
-        flow = flow or controlflow.flows.get_flow() or controlflow.flows.Flow()
-
-        orchestrator = controlflow.orchestration.Orchestrator(
+        controlflow.run_tasks(
             tasks=[self],
             flow=flow,
-            agent=agent or self.get_agents()[0],
+            agent=agent,
             turn_strategy=turn_strategy,
-        )
-        orchestrator.run(
-            max_calls_per_turn=max_calls_per_turn,
-            max_turns=max_turns,
+            max_llm_calls=max_llm_calls,
+            max_agent_turns=max_agent_turns,
+            raise_on_error=False,
         )
 
         if self.is_successful():
@@ -354,30 +334,26 @@ class Task(ControlFlowModel):
         elif self.is_failed():
             raise ValueError(f"{self.friendly_name()} failed: {self.result}")
 
-    @prefect_task(task_run_name=get_task_run_name)
     async def run_async(
         self,
         agent: Optional[Agent] = None,
         flow: "Flow" = None,
         turn_strategy: "TurnStrategy" = None,
-        max_calls_per_turn: int = None,
-        max_turns: int = None,
+        max_llm_calls: int = None,
+        max_agent_turns: int = None,
     ) -> T:
         """
         Run the task
         """
 
-        flow = flow or controlflow.flows.get_flow() or controlflow.flows.Flow()
-
-        orchestrator = controlflow.orchestration.Orchestrator(
+        await controlflow.run_tasks_async(
             tasks=[self],
             flow=flow,
-            agent=agent or self.get_agents()[0],
+            agent=agent,
             turn_strategy=turn_strategy,
-        )
-        await orchestrator.run_async(
-            max_calls_per_turn=max_calls_per_turn,
-            max_turns=max_turns,
+            max_llm_calls=max_llm_calls,
+            max_agent_turns=max_agent_turns,
+            raise_on_error=False,
         )
 
         if self.is_successful():

@@ -75,23 +75,6 @@ def test_task_dependencies():
     assert task2 in task1._downstreams
 
 
-def test_task_context_dependencies():
-    task1 = SimpleTask()
-    task2 = SimpleTask(context=dict(a=task1))
-    assert task1 in task2.depends_on
-    assert task2 in task1._downstreams
-
-
-def test_task_context_complex_dependencies():
-    task1 = SimpleTask()
-    task2 = SimpleTask()
-    task3 = SimpleTask(context=dict(a=[task1], b=dict(c=[task2])))
-    assert task1 in task3.depends_on
-    assert task2 in task3.depends_on
-    assert task3 in task1._downstreams
-    assert task3 in task2._downstreams
-
-
 def test_task_subtasks():
     task1 = SimpleTask()
     task2 = SimpleTask(parent=task1)

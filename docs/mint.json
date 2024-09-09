@@ -59,19 +59,15 @@
                 "patterns/instructions",
                 "patterns/planning",
                 "patterns/dependencies",
-                "patterns/subtasks",
-                "patterns/collaborating-agents",
-                "patterns/stopping-tasks-early"
+                "patterns/subtasks"
             ]
         },
         {
-            "group": "Guides",
+            "group": "Configuration",
             "pages": [
-                "guides/tasks-and-agents",
+                "guides/settings",
                 "guides/llms",
-                "guides/default-agent",
-                "guides/agentic-loop",
-                "guides/orchestration"
+                "guides/default-agent"
             ]
         },
         {

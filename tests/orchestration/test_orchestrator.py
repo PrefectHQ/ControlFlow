@@ -1,99 +1,113 @@
 import pytest
 
-import controlflow
 from controlflow.agents import Agent
 from controlflow.flows import Flow
 from controlflow.orchestration.orchestrator import Orchestrator
-from controlflow.orchestration.turn_strategies import Popcorn  # Add this import
+from controlflow.orchestration.turn_strategies import (  # Add this import
+    Popcorn,
+    TurnStrategy,
+)
 from controlflow.tasks.task import Task
 
 
-@pytest.fixture
-def mocked_orchestrator(monkeypatch):
-    agent = Agent()
-    task = Task("Test task", agents=[agent])
-    flow = Flow()
-    orchestrator = Orchestrator(tasks=[task], flow=flow, agent=agent)
-
+class TestOrchestratorLimits:
     call_count = 0
     turn_count = 0
-    original_run_model = Agent._run_model
-    original_run_turn = Orchestrator._run_turn
 
-    def mock_run_model(*args, **kwargs):
-        nonlocal call_count
-        call_count += 1
-        return original_run_model(*args, **kwargs)
+    @pytest.fixture
+    def mocked_orchestrator(self, default_fake_llm):
+        # Reset counts at the start of each test
+        self.call_count = 0
+        self.turn_count = 0
 
-    def mock_run_turn(*args, **kwargs):
-        nonlocal turn_count
-        turn_count += 1
-        return original_run_turn(*args, **kwargs)
+        class TwoCallTurnStrategy(TurnStrategy):
+            calls: int = 0
 
-    monkeypatch.setattr(Agent, "_run_model", mock_run_model)
-    monkeypatch.setattr(Orchestrator, "_run_turn", mock_run_turn)
+            def get_tools(self, *args, **kwargs):
+                return []
 
-    return orchestrator, lambda: call_count, lambda: turn_count
+            def get_next_agent(self, current_agent, available_agents):
+                return current_agent
 
+            def begin_turn(ts_instance):
+                self.turn_count += 1
+                super().begin_turn()
 
-class TestOrchestratorLimits:
-    def test_default_limits(self, mocked_orchestrator, default_fake_llm, monkeypatch):
-        monkeypatch.setattr(controlflow.defaults, "model", default_fake_llm)
-        orchestrator, get_call_count, get_turn_count = mocked_orchestrator
+            def should_end_turn(ts_instance):
+                ts_instance.calls += 1
+                # if this would be the third call, end the turn
+                if ts_instance.calls >= 3:
+                    ts_instance.calls = 0
+                    return True
+                # record a new call for the unit test
+                self.call_count += 1
+                return False
 
-        orchestrator.run()
-
-        assert get_turn_count() == controlflow.settings.orchestrator_max_turns
-        assert (
-            get_call_count()
-            == controlflow.settings.orchestrator_max_turns
-            * controlflow.settings.orchestrator_max_calls_per_turn
+        agent = Agent()
+        task = Task("Test task", agents=[agent])
+        flow = Flow()
+        orchestrator = Orchestrator(
+            tasks=[task], flow=flow, agent=agent, turn_strategy=TwoCallTurnStrategy()
         )
 
+        return orchestrator
+
+    def test_default_limits(self, mocked_orchestrator):
+        mocked_orchestrator.run()
+
+        assert self.turn_count == 5
+        assert self.call_count == 10
+
     @pytest.mark.parametrize(
-        "max_turns, max_calls_per_turn, expected_calls",
+        "max_agent_turns, max_llm_calls, expected_turns, expected_calls",
         [
-            (1, 1, 1),
-            (1, 2, 2),
-            (2, 1, 2),
-            (3, 2, 6),
+            (1, 1, 1, 1),
+            (1, 2, 1, 2),
+            (5, 3, 2, 3),
+            (3, 12, 3, 6),
         ],
     )
     def test_custom_limits(
         self,
         mocked_orchestrator,
-        default_fake_llm,
-        monkeypatch,
-        max_turns,
-        max_calls_per_turn,
+        max_agent_turns,
+        max_llm_calls,
+        expected_turns,
         expected_calls,
     ):
-        monkeypatch.setattr(controlflow.defaults, "model", default_fake_llm)
-        orchestrator, get_call_count, _ = mocked_orchestrator
+        mocked_orchestrator.run(
+            max_agent_turns=max_agent_turns, max_llm_calls=max_llm_calls
+        )
 
-        orchestrator.run(max_turns=max_turns, max_calls_per_turn=max_calls_per_turn)
+        assert self.turn_count == expected_turns
+        assert self.call_count == expected_calls
 
-        assert get_call_count() == expected_calls
+    def test_task_limit(self, mocked_orchestrator):
+        task = Task("Test task", max_llm_calls=5, agents=[mocked_orchestrator.agent])
+        mocked_orchestrator.tasks = [task]
+        mocked_orchestrator.run()
+        assert task.is_failed()
+        assert self.turn_count == 3
+        # Note: the call count will be 6 because the orchestrator call count is
+        # incremented in "should_end_turn" which is called before the task's
+        # call count is evaluated
+        assert self.call_count == 6
 
-    def test_max_turns_reached(
-        self, mocked_orchestrator, default_fake_llm, monkeypatch
-    ):
-        monkeypatch.setattr(controlflow.defaults, "model", default_fake_llm)
-        orchestrator, _, get_turn_count = mocked_orchestrator
+    def test_task_lifetime_limit(self, mocked_orchestrator):
+        task = Task("Test task", max_llm_calls=5, agents=[mocked_orchestrator.agent])
+        mocked_orchestrator.tasks = [task]
+        mocked_orchestrator.run(max_agent_turns=1)
+        assert task.is_incomplete()
+        mocked_orchestrator.run(max_agent_turns=1)
+        assert task.is_incomplete()
+        mocked_orchestrator.run(max_agent_turns=1)
+        assert task.is_failed()
 
-        orchestrator.run(max_turns=5)
-
-        assert get_turn_count() == 5
-
-    def test_max_calls_per_turn_reached(
-        self, mocked_orchestrator, default_fake_llm, monkeypatch
-    ):
-        monkeypatch.setattr(controlflow.defaults, "model", default_fake_llm)
-        orchestrator, get_call_count, _ = mocked_orchestrator
-
-        orchestrator.run(max_calls_per_turn=3)
-
-        assert get_call_count() == 3 * controlflow.settings.orchestrator_max_turns
+        assert self.turn_count == 3
+        # Note: the call count will be 6 because the orchestrator call count is
+        # incremented in "should_end_turn" which is called before the task's
+        # call count is evaluated
+        assert self.call_count == 6
 
 
 class TestOrchestratorCreation:
@@ -128,7 +142,7 @@ class TestOrchestratorCreation:
 
         assert orchestrator.agent is None
 
-        orchestrator.run(max_turns=0)
+        orchestrator.run(max_agent_turns=0)
 
         assert orchestrator.agent is not None
         assert orchestrator.agent in [agent1, agent2]
@@ -145,47 +159,6 @@ class TestOrchestratorCreation:
 
         assert orchestrator.agent == agent1
 
-        orchestrator.run(max_turns=0)
+        orchestrator.run(max_agent_turns=0)
 
         assert orchestrator.agent == agent1
-
-
-def test_run():
-    result = controlflow.run("what's 2 + 2", result_type=int)
-    assert result == 4
-
-
-async def test_run_async():
-    result = await controlflow.run_async("what's 2 + 2", result_type=int)
-    assert result == 4
-
-
-@pytest.mark.parametrize(
-    "max_turns, max_calls_per_turn, expected_calls",
-    [
-        (1, 1, 1),
-        (1, 2, 2),
-        (2, 1, 2),
-        (3, 2, 6),
-    ],
-)
-def test_run_with_limits(
-    monkeypatch, default_fake_llm, max_turns, max_calls_per_turn, expected_calls
-):
-    call_count = 0
-    original_run_model = Agent._run_model
-
-    def mock_run_model(self, *args, **kwargs):
-        nonlocal call_count
-        call_count += 1
-        return original_run_model(self, *args, **kwargs)
-
-    monkeypatch.setattr(Agent, "_run_model", mock_run_model)
-
-    controlflow.run(
-        "send messages",
-        max_calls_per_turn=max_calls_per_turn,
-        max_turns=max_turns,
-    )
-
-    assert call_count == expected_calls

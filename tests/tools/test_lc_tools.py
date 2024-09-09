@@ -43,7 +43,7 @@ def test_lc_base_tool(default_fake_llm, monkeypatch):
         tools=[tool],
         result_type=str,
     )
-    task.run(max_turns=1)
+    task.run(max_agent_turns=1)
     mock_run.assert_called()
 
 
@@ -69,5 +69,5 @@ def test_ddg_tool(default_fake_llm, monkeypatch):
         tools=[tool],
         result_type=list[str],
     )
-    task.run(max_turns=1)
+    task.run(max_agent_turns=1)
     mock_run.assert_called()

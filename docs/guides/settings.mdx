@@ -1,0 +1,92 @@
+---
+title: Settings
+icon: gear
+---
+
+ControlFlow provides a variety of settings to configure its behavior. These can be configured via environment variables or programmatically.
+
+
+## Environment variables
+All settings can be set via environment variables using the format `CONTROLFLOW_<setting name>`.
+
+For example, to set the default LLM model to `gpt-4o-mini` and the log level to `DEBUG`, you could set the following environment variables:
+```shell
+export CONTROLFLOW_LLM_MODEL=openai/gpt-4o-mini
+export CONTROLFLOW_LOG_LEVEL=DEBUG
+```
+
+You can also set these values in a `.env` file. By default, ControlFlow will look for a `.env` file at `~/.controlflow/.env`, but you can change this behavior by setting the `CONTROLFLOW_ENV_FILE` environment variable.
+
+```shell
+export CONTROLFLOW_ENV_FILE="~/path/to/.env"
+```
+
+## Runtime settings
+You can examine and modify ControlFlow's settings at runtime by inspecting or updating the `controlflow.settings` object. Most -- though not all -- changes to settings will take effect immediately. Here is the above example, but set programmatically:
+
+```python
+import controlflow as cf
+
+cf.settings.llm_model = 'openai/gpt-4o-mini'
+cf.settings.log_level = 'DEBUG'
+```
+
+## Available settings
+
+### Home settings
+
+- `home_path`: The path to the ControlFlow home directory. Default: `~/.controlflow`
+
+### Display and logging settings
+
+- `log_level`: The log level for ControlFlow. Options: `DEBUG`, `INFO`, `WARNING`, 
+`ERROR`, `CRITICAL`. Default: `INFO`
+- `log_prints`: Whether to log workflow prints to the Prefect logger by default. 
+Default: `False`
+- `log_all_messages`: If True, all LLM messages will be logged at the debug level. 
+Default: `False`
+- `pretty_print_agent_events`: If True, a PrintHandler will be enabled and 
+automatically pretty-print agent events. Note that this may interfere with logging. 
+Default: `True`
+
+### Orchestration settings
+
+- `orchestrator_max_agent_turns`: The default maximum number of agent turns per 
+orchestration session. If None, orchestration may run indefinitely. This setting can 
+be overridden on a per-call basis. Default: `100`
+- `orchestrator_max_llm_calls`: The default maximum number of LLM calls per 
+orchestrating session. If None, orchestration may run indefinitely. This setting can 
+be overridden on a per-call basis. Default: `1000`
+- `task_max_llm_calls`: The default maximum number of LLM calls over a task's 
+lifetime. If None, the task may run indefinitely. This setting can be overridden on 
+a per-task basis. Default: `None`
+
+### LLM settings
+
+- `llm_model`: The default LLM model for agents. Default: `openai/gpt-4o`
+- `llm_temperature`: The temperature for LLM sampling. Default: `0.7`
+- `max_input_tokens`: The maximum number of tokens to send to an LLM. Default: 
+`100000`
+
+### Debug settings
+
+- `debug_messages`: If True, all messages will be logged at the debug level. Default: 
+`False`
+- `tools_raise_on_error`: If True, an error in a tool call will raise an exception. 
+Default: `False`
+- `tools_verbose`: If True, tools will log additional information. Default: `True`
+
+### Experimental settings
+
+- `enable_experimental_tui`: If True, the experimental TUI will be enabled. If False, 
+the TUI will be disabled. Default: `False`
+- `run_tui_headless`: If True, the experimental TUI will run in headless mode, which 
+is useful for debugging. Default: `False`
+
+### Prefect settings
+
+These are default settings for Prefect when used with ControlFlow. They can be 
+overridden by setting standard Prefect environment variables.
+
+- `prefect_log_level`: The log level for Prefect. Options: `DEBUG`, `INFO`, 
+`WARNING`, `ERROR`, `CRITICAL`. Default: `WARNING`

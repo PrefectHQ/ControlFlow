@@ -9,14 +9,14 @@ import prefect.settings
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+CONTROLFLOW_ENV_FILE = os.getenv("CONTROLFLOW_ENV_FILE", "~/.controlflow/.env")
+
 
 class ControlFlowSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="CONTROLFLOW_",
         env_file=(
-            ""
-            if os.getenv("CONTROLFLOW_TEST_MODE")
-            else ("~/.controlflow/.env", ".env")
+            "" if os.getenv("CONTROLFLOW_TEST_MODE") else (".env", CONTROLFLOW_ENV_FILE)
         ),
         extra="ignore",
         arbitrary_types_allowed=True,
@@ -54,15 +54,20 @@ class Settings(ControlFlowSettings):
     )
 
     # ------------ orchestration settings ------------
-    orchestrator_max_turns: Optional[int] = Field(
+    orchestrator_max_agent_turns: Optional[int] = Field(
         default=100,
-        description="The maximum number of agent turns allowed when orchestrating tasks. "
-        "Turns are counted within a single orchestrator session. If None, orchestration may run indefinitely.",
+        description="The default maximum number of agent turns per orchestration session."
+        "If None, orchestration may run indefinitely. This setting can be overriden on a per-call basis.",
     )
-    orchestrator_max_calls_per_turn: Optional[int] = Field(
-        default=100,
-        description="The maximum number of LLM calls allowed per agent turn when orchestrating tasks. "
-        "If None, orchestration may run indefinitely.",
+    orchestrator_max_llm_calls: Optional[int] = Field(
+        default=1000,
+        description="The default maximum number of LLM calls per orchestrating session. "
+        "If None, orchestration may run indefinitely. This setting can be overriden on a per-call basis.",
+    )
+    task_max_llm_calls: Optional[int] = Field(
+        default=None,
+        description="The default maximum number of LLM calls over a task's lifetime. "
+        "If None, the task may run indefinitely. This setting can be overriden on a per-task basis.",
     )
 
     # ------------ LLM settings ------------

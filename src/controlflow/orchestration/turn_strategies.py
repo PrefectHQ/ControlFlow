@@ -68,7 +68,7 @@ def create_delegate_tool(
     return delegate_to_agent
 
 
-class Single(TurnStrategy):
+class SingleAgent(TurnStrategy):
     agent: Agent
 
     def get_tools(
@@ -80,7 +80,9 @@ class Single(TurnStrategy):
         self, current_agent: Optional[Agent], available_agents: Dict[Agent, List[Task]]
     ) -> Agent:
         if self.agent not in available_agents:
-            raise ValueError(f"The specified agent {self.agent.id} is not available.")
+            raise ValueError(
+                "The agent specified by the turn strategy is not available."
+            )
         return self.agent
 
 
