@@ -6,10 +6,11 @@ icon: square-check
 
 ControlFlow tasks are designed to translate between the unstructured, conversational world of your AI agents and the structured, programmatic world of your application. The primary mechanism for this translation is the task's result, which should be a well-defined, validated output that can be used by other tasks or components in your workflow.
 
+## Structured results
 
 ControlFlow allows you to specify the expected structure of a task's result using the `result_type` parameter. This ensures that the result conforms to a specific data schema, making it easier to work with and reducing the risk of errors in downstream tasks.
 
-## String results
+### Strings
 
 By default, the `result_type` of a task is a string, which essentially means the agent can return any value that satisfies the task's objective. 
 
@@ -41,11 +42,8 @@ In three languages, "Hello" can be expressed as follows:
 
 Sometimes this flexibility is useful, especially if your task's result will only be consumed as the input to another ControlFlow task. However, it can also lead to ambiguity and errors if the agent produces unexpected output, and is difficult to work with in an automated or programmatic way.
 
-## Builtin types
 
-You can cast task results to any of Python's built-in types.
-
-### Basic types
+### Numbers
 
 If your result is a number, you can specify the `result_type` as `int` or `float`:
 
@@ -63,6 +61,7 @@ assert isinstance(result, int)
 ```
 </CodeGroup>
 
+### Booleans
 You can use `bool` for tasks whose result is a simple true/false value:
 
 <CodeGroup>
@@ -80,7 +79,8 @@ False
 </CodeGroup>
 
 
-### Compound types
+### Collections
+
 You can also use typed collections like lists and dicts to specify the structure of your task's result.
 
 Let's revisit the example of asking an agent to say hello in three languages, but this time specifying that the result should be a list of strings, or `list[str]`. This forces the agent to produce the result you probably expected (three separate strings, each representing a greeting in a different language):
@@ -128,7 +128,7 @@ print(result)
 Note that annotated types are not validated; the annotation is provided as part of the agent's natural language instructions. You could additionaly provide a custom [result validator](#result-validators) to enforce the constraint.
 </Tip>
 
-## Classification
+### Specific values
 
 You can limit the result to one of a specific set of values, in order to label or classify a response. To do this, specify a list or tuple of allowed values for the result type. Here, we classify the media type of "Star Wars: Return of the Jedi":
 
@@ -154,7 +154,7 @@ movie
 For classification tasks, ControlFlow asks agents to choose a value by index rather than writing out the entire response. This optimization significantly improves latency while also conserving output tokens.
 </Tip>
 
-## Structured results
+### Pydantic models
 
 For complex, structured results, you can use a Pydantic model as the `result_type`. Pydantic models provide a powerful way to define data schemas and validate input data.
 
@@ -199,12 +199,36 @@ ResearchReport(
 ```
 </CodeGroup>
 
-### Advanced validation
+### No result
 
-Because Pydantic models are fully hydrated by ControlFlow, you can use any of Pydantic's built-in or custom validators to further constrain or modify the result after it has been produced.
+Sometimes, you may want to ask an agent to perform an action without expecting or requiring a result. In this case, you can specify `result_type=None`. For example, you might want to ask an agent to use a tool or post a message to the workflow thread, without requiring any task output.
+
+```python
+import controlflow as cf
+
+def status_tool(status: str) -> None:
+    """Submit a status update to the workflow thread."""
+    print(f"Submitting status update: {status}")
+
+cf.run(
+    "Use your tool to submit a status update",
+    result_type=None,
+    tools=[status_tool],
+)
+```
+
+Note that it is generally recommended to ask agents to produce a result, even if its just a quick status update. This is because other agents in the workflow can usually see the result of a task, but they may not be able to see any tool calls, messages, or side effects that the agent used to produce the result. Therefore, results can be helpful even if the assigned agent doesn't need them.
+
+
+## Validation
+
+### Pydantic
+
+When using a Pydantic model as the `result_type`, you can use any of Pydantic's built-in or custom validators to further constrain or modify the result after it has been produced.
 
 <CodeGroup>
-```python
+```python Code
+import controlflow as cf
 from pydantic import BaseModel, field_validator
 
 class SentimentAnalysis(BaseModel):
@@ -231,60 +255,55 @@ SentimentAnalysis(text='I love ControlFlow!', sentiment=0.9)
 ```
 </CodeGroup>
 
-## No result
+### Validation functions
 
-Sometimes, you may want to ask an agent to perform an action without expecting or requiring a result. In this case, you can specify `result_type=None`. For example, you might want to ask an agent to use a tool or post a message to the workflow thread, without requiring any task output.
+If you supply a function as your task's `result_validator`, it can be used to further validate or even modify the result after it has been produced by an agent.
+
+The result validator will be called with the LLM result **after** it has been coerced into the `result_type`, and must either return a validated result or raise an exception. ControlFlow supplies a few common validators to get you started:
+
+- `between(min_value, max_value)`: Validates that the result is a float between `min_value` and `max_value`.
+- `has_len(min_length, max_length)`: Validates that the result is a string, list, or tuple with a length between `min_length` and `max_length`.
+- `has_keys(required_keys)`: Validates that the result is a dictionary with all of the specified keys.  
+- `is_url()`: Validates that the result is a string that is a URL.
+- `is_email()`: Validates that the result is a string that is an email address.
+
+These are available in the `controlflow.tasks.validators` module, along with a convenient `chain` function that allows you to combine multiple validators into a single function.
+
+
+<Tip>
+Remember that result validators must either **return** the result or **raise** an exception. They are not true/false checks!
+</Tip>
+
+```python
+import controlflow as cf
+from controlflow.tasks.validators import chain, between
+
+def is_even(value: int) -> int:
+    if value % 2 != 0:
+        raise ValueError("Value must be even")
+    return value
+
+cf.run(
+    "Generate an even number between 1 and 100",
+    result_type=int,
+    result_validator=chain(between(1, 100), is_even),
+)
+```
+
+### Modifying the result
+
+You can also use a result validator to modify the result after it has been produced by an agent. For example, you might want to round a floating point number or convert a string to a specific format.
 
 ```python
 import controlflow as cf
 
-def status_tool(status: str) -> None:
-    """Submit a status update to the workflow thread."""
-    print(f"Submitting status update: {status}")
-
-cf.run(
-    "Use your tool to submit a status update",
-    result_type=None,
-    tools=[status_tool],
-)
-```
-
-Note that it is generally recommended to ask agents to produce a result, even if its just a quick status update. This is because other agents in the workflow can usually see the result of a task, but they may not be able to see any tool calls, messages, or side effects that the agent used to produce the result. Therefore, results can be helpful even if the assigned agent doesn't need them.
-
-
-## Custom result validation
-
-In addition to using Pydantic validation, you can also supply a custom validation function as the task's `result_validator`.
-
-After the raw LLM result has been coerced into the `result_type`, it will be passed to your custom validator, which must either return the result or raise an exception. This gives you the opportunity to perform additional validation or modification of the result.
-
-
-<CodeGroup>
-
-```python Code
-import controlflow as cf
-
-def constrain_sentiment(value: float) -> float:
-    if not 0 <= value <= 1:
-        raise ValueError("Sentiment must be between 0 and 1")
-    return value
+def round_to_one_decimal_place(value: float) -> float:
+    return round(value, 1)
 
 sentiment = cf.run(
     "Analyze sentiment of given text",
     result_type=float,
     context=dict(text="I love ControlFlow!"),
-    result_validator=constrain_sentiment,
+    result_validator=round_to_one_decimal_place,
 )
-
-print(sentiment)
 ```
-
-```text Result
-0.9
-``` 
-</CodeGroup>
-Because the output of the result validator is used as the result, you can use it to modify the result after it has been produced by an agent. For example, you might want to round a floating point number or convert a string to a specific format. Note, however, that result validation takes place *after* the raw LLM result has been coerced to the provided `result_type`.
-
-<Tip>
-Remember that result validators must either **return** the result or **raise** an exception. They are not true/false checks!
-</Tip>
