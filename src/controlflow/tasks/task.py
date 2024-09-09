@@ -11,12 +11,15 @@ from typing import (
     TypeVar,
     Union,
     _AnnotatedAlias,
+    _GenericAlias,
     _LiteralGenericAlias,
+    _SpecialGenericAlias,
 )
 
 from pydantic import (
     Field,
     PydanticSchemaGenerationError,
+    RootModel,
     TypeAdapter,
     field_serializer,
     field_validator,
@@ -42,6 +45,19 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 logger = get_logger(__name__)
+
+
+class Labels(RootModel):
+    root: tuple[Any, ...]
+
+    def __iter__(self):
+        return iter(self.root)
+
+    def __getitem__(self, item):
+        return self.root[item]
+
+    def __repr__(self) -> str:
+        return f'Labels: {", ".join(self.root)}'
 
 
 class TaskStatus(Enum):
@@ -89,7 +105,15 @@ class Task(ControlFlowModel):
     )
     status: TaskStatus = TaskStatus.PENDING
     result: Optional[Union[T, str]] = None
-    result_type: Union[type[T], GenericAlias, _AnnotatedAlias, tuple, None] = Field(
+    result_type: Union[
+        type[T],
+        GenericAlias,
+        _GenericAlias,
+        _SpecialGenericAlias,
+        _AnnotatedAlias,
+        Labels,
+        None,
+    ] = Field(
         NOTSET,
         description="The expected type of the result. This should be a type"
         ", generic alias, BaseModel subclass, or list of choices. "
@@ -228,7 +252,7 @@ class Task(ControlFlowModel):
         if isinstance(v, _LiteralGenericAlias):
             v = v.__args__
         if isinstance(v, (list, tuple, set)):
-            v = tuple(v)
+            v = Labels(v)
         return v
 
     @field_serializer("parent")
@@ -489,7 +513,7 @@ class Task(ControlFlowModel):
         # a single integer index instead of writing out the entire option. Therefore
         # we create a tool that describes a series of options and accepts the index
         # as a result.
-        if isinstance(self.result_type, tuple):
+        if isinstance(self.result_type, Labels):
             result_schema = int
             options = {}
             serialized_options = {}
@@ -511,6 +535,7 @@ class Task(ControlFlowModel):
         # otherwise try to load the schema for the result type
         elif self.result_type is not None:
             try:
+                # see if the result type is a valid pydantic type
                 TypeAdapter(self.result_type)
                 result_schema = self.result_type
             except PydanticSchemaGenerationError:
@@ -562,7 +587,7 @@ class Task(ControlFlowModel):
     def validate_result(self, raw_result: Any) -> T:
         if self.result_type is None and raw_result is not None:
             raise ValueError("Task has result_type=None, but a result was provided.")
-        elif isinstance(self.result_type, tuple):
+        elif isinstance(self.result_type, Labels):
             if raw_result not in self.result_type:
                 raise ValueError(
                     f"Result {raw_result} is not in the list of valid result types: {self.result_type}"
