@@ -10,7 +10,11 @@ from typer import Context, Exit
 from controlflow import __version__
 from controlflow.utilities.rich import console
 
+from .dev import dev_app
+
 app = typer.Typer(no_args_is_help=True)
+
+app.add_typer(dev_app, name="dev")
 
 
 @app.command()
