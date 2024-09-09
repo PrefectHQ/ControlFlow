@@ -38,7 +38,7 @@ class TestLimits:
         monkeypatch.setattr(Agent, "_run_model_async", mock_run_model_async)
 
     @pytest.mark.parametrize(
-        "max_turns, max_calls_per_turn, expected_calls",
+        "max_agent_turns, max_llm_calls, expected_calls",
         [
             (1, 1, 1),
             (1, 2, 2),
@@ -48,20 +48,20 @@ class TestLimits:
     )
     def test_run_with_limits(
         self,
-        max_turns,
-        max_calls_per_turn,
+        max_agent_turns,
+        max_llm_calls,
         expected_calls,
     ):
         run(
             "send messages",
-            max_calls_per_turn=max_calls_per_turn,
-            max_turns=max_turns,
+            max_llm_calls=max_llm_calls,
+            max_agent_turns=max_agent_turns,
         )
 
         assert self.call_count == expected_calls
 
     @pytest.mark.parametrize(
-        "max_turns, max_calls_per_turn, expected_calls",
+        "max_agent_turns, max_llm_calls, expected_calls",
         [
             (1, 1, 1),
             (1, 2, 2),
@@ -71,20 +71,20 @@ class TestLimits:
     )
     async def test_run_async_with_limits(
         self,
-        max_turns,
-        max_calls_per_turn,
+        max_agent_turns,
+        max_llm_calls,
         expected_calls,
     ):
         await run_async(
             "send messages",
-            max_calls_per_turn=max_calls_per_turn,
-            max_turns=max_turns,
+            max_llm_calls=max_llm_calls,
+            max_agent_turns=max_agent_turns,
         )
 
         assert self.call_count == expected_calls
 
     @pytest.mark.parametrize(
-        "max_turns, max_calls_per_turn, expected_calls",
+        "max_agent_turns, max_llm_calls, expected_calls",
         [
             (1, 1, 1),
             (1, 2, 2),
@@ -94,8 +94,8 @@ class TestLimits:
     )
     def test_run_task_with_limits(
         self,
-        max_turns,
-        max_calls_per_turn,
+        max_agent_turns,
+        max_llm_calls,
         expected_calls,
     ):
         run_tasks(
@@ -103,14 +103,14 @@ class TestLimits:
                 controlflow.Task("send messages"),
                 controlflow.Task("send messages"),
             ],
-            max_calls_per_turn=max_calls_per_turn,
-            max_turns=max_turns,
+            max_llm_calls=max_llm_calls,
+            max_agent_turns=max_agent_turns,
         )
 
         assert self.call_count == expected_calls
 
     @pytest.mark.parametrize(
-        "max_turns, max_calls_per_turn, expected_calls",
+        "max_agent_turns, max_llm_calls, expected_calls",
         [
             (1, 1, 1),
             (1, 2, 2),
@@ -120,8 +120,8 @@ class TestLimits:
     )
     async def test_run_task_async_with_limits(
         self,
-        max_turns,
-        max_calls_per_turn,
+        max_agent_turns,
+        max_llm_calls,
         expected_calls,
     ):
         await run_tasks_async(
@@ -129,8 +129,8 @@ class TestLimits:
                 controlflow.Task("send messages"),
                 controlflow.Task("send messages"),
             ],
-            max_calls_per_turn=max_calls_per_turn,
-            max_turns=max_turns,
+            max_llm_calls=max_llm_calls,
+            max_agent_turns=max_agent_turns,
         )
 
         assert self.call_count == expected_calls

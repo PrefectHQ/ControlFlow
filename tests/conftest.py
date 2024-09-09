@@ -13,7 +13,7 @@ def temp_controlflow_settings():
         log_all_messages=True,
         log_level="DEBUG",
         orchestrator_max_turns=10,
-        orchestrator_max_calls_per_turn=10,
+        orchestrator_max_calls=10,
     ):
         yield
 

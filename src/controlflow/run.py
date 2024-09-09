@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any
 
 from prefect.context import TaskRunContext
 
@@ -23,8 +23,8 @@ def run_tasks(
     agent: Agent = None,
     turn_strategy: TurnStrategy = None,
     raise_on_error: bool = True,
-    max_calls_per_turn: int = None,
-    max_turns: int = None,
+    max_llm_calls: int = None,
+    max_agent_turns: int = None,
 ) -> list[Any]:
     """
     Run a list of tasks.
@@ -40,8 +40,8 @@ def run_tasks(
         turn_strategy=turn_strategy,
     )
     orchestrator.run(
-        max_calls_per_turn=max_calls_per_turn,
-        max_turns=max_turns,
+        max_llm_calls=max_llm_calls,
+        max_agent_turns=max_agent_turns,
     )
 
     if raise_on_error and any(t.is_failed() for t in tasks):
@@ -52,6 +52,8 @@ def run_tasks(
                 + "\n".join(errors)
             )
 
+    return [t.result for t in tasks]
+
 
 @prefect_task(task_run_name=get_task_run_name)
 async def run_tasks_async(
@@ -60,8 +62,8 @@ async def run_tasks_async(
     agent: Agent = None,
     turn_strategy: TurnStrategy = None,
     raise_on_error: bool = True,
-    max_calls_per_turn: int = None,
-    max_turns: int = None,
+    max_llm_calls: int = None,
+    max_agent_turns: int = None,
 ):
     """
     Run a list of tasks.
@@ -74,8 +76,8 @@ async def run_tasks_async(
         turn_strategy=turn_strategy,
     )
     await orchestrator.run_async(
-        max_calls_per_turn=max_calls_per_turn,
-        max_turns=max_turns,
+        max_llm_calls=max_llm_calls,
+        max_agent_turns=max_agent_turns,
     )
 
     if raise_on_error and any(t.is_failed() for t in tasks):
@@ -86,77 +88,48 @@ async def run_tasks_async(
                 + "\n".join(errors)
             )
 
-
-def _prep_tasks(
-    objective_or_tasks: str | list[Task],
-    **task_kwargs,
-) -> tuple[list[Task], bool]:
-    single_task = False
-
-    if isinstance(objective_or_tasks, str):
-        tasks = [Task(objective=objective_or_tasks, **task_kwargs)]
-        single_task = True
-    elif isinstance(objective_or_tasks, list):
-        if task_kwargs:
-            raise ValueError(
-                "When providing a list of Tasks, do not pass any additional keyword arguments."
-            )
-        tasks = objective_or_tasks
-    else:
-        raise ValueError(
-            f"Unrecognized type for `objective_or_tasks`: {type(objective_or_tasks)}. Expected a str, Task, or list[Task]."
-        )
-
-    return tasks, single_task
+    return [t.result for t in tasks]
 
 
 def run(
-    objective: str | list[Task],
+    objective: str,
     *,
     turn_strategy: TurnStrategy = None,
-    max_calls_per_turn: int = None,
-    max_turns: int = None,
+    max_llm_calls: int = None,
+    max_agent_turns: int = None,
     raise_on_error: bool = True,
     **task_kwargs,
-) -> Union[Any, list[Any]]:
-    tasks, single_task = _prep_tasks(objective, **task_kwargs)
-
-    run_tasks(
-        tasks=tasks,
+) -> Any:
+    task = Task(objective=objective, **task_kwargs)
+    results = run_tasks(
+        tasks=[task],
         raise_on_error=raise_on_error,
         turn_strategy=turn_strategy,
-        max_calls_per_turn=max_calls_per_turn,
-        max_turns=max_turns,
+        max_llm_calls=max_llm_calls,
+        max_agent_turns=max_agent_turns,
     )
-    if single_task:
-        return tasks[0].result
-    else:
-        return [t.result for t in tasks]
+    return results[0]
 
 
 async def run_async(
-    objective: str | list[Task],
+    objective: str,
     *,
     flow: Flow = None,
     agent: Agent = None,
     turn_strategy: TurnStrategy = None,
-    max_calls_per_turn: int = None,
-    max_turns: int = None,
+    max_llm_calls: int = None,
+    max_agent_turns: int = None,
     raise_on_error: bool = True,
     **task_kwargs,
-) -> Union[Any, list[Any]]:
-    tasks, single_task = _prep_tasks(objective, **task_kwargs)
-
-    await run_tasks_async(
-        tasks=tasks,
+) -> Any:
+    task = Task(objective=objective, **task_kwargs)
+    results = await run_tasks_async(
+        tasks=[task],
         flow=flow,
         agent=agent,
         turn_strategy=turn_strategy,
-        max_calls_per_turn=max_calls_per_turn,
-        max_turns=max_turns,
+        max_llm_calls=max_llm_calls,
+        max_agent_turns=max_agent_turns,
         raise_on_error=raise_on_error,
     )
-    if single_task:
-        return tasks[0].result
-    else:
-        return [t.result for t in tasks]
+    return results[0]

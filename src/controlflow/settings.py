@@ -59,7 +59,7 @@ class Settings(ControlFlowSettings):
         description="The maximum number of agent turns allowed when orchestrating tasks. "
         "Turns are counted within a single orchestrator session. If None, orchestration may run indefinitely.",
     )
-    orchestrator_max_calls_per_turn: Optional[int] = Field(
+    orchestrator_max_calls: Optional[int] = Field(
         default=100,
         description="The maximum number of LLM calls allowed per agent turn when orchestrating tasks. "
         "If None, orchestration may run indefinitely.",

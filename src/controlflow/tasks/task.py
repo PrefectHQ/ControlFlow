@@ -113,10 +113,16 @@ class Task(ControlFlowModel):
         description="Agents that are allowed to mark this task as complete. If None, all agents are allowed.",
     )
     interactive: bool = False
+    max_llm_calls: Optional[int] = Field(
+        description="Maximum number of LLM calls to make before the task should be marked as failed. "
+        "The total calls are measured over the life of the task, and include any LLM call for "
+        "which this task is considered `assigned`."
+    )
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     _subtasks: set["Task"] = set()
     _downstreams: set["Task"] = set()
     _cm_stack: list[contextmanager] = []
+    _llm_calls: int = 0
 
     model_config = dict(extra="forbid", arbitrary_types_allowed=True)
 
@@ -305,20 +311,20 @@ class Task(ControlFlowModel):
         agent: Optional[Agent] = None,
         flow: "Flow" = None,
         turn_strategy: "TurnStrategy" = None,
-        max_calls_per_turn: int = None,
-        max_turns: int = None,
+        max_llm_calls: int = None,
+        max_agent_turns: int = None,
     ) -> T:
         """
         Run the task
         """
 
-        controlflow.run.run_tasks(
+        controlflow.run_tasks(
             tasks=[self],
             flow=flow,
             agent=agent,
             turn_strategy=turn_strategy,
-            max_calls_per_turn=max_calls_per_turn,
-            max_turns=max_turns,
+            max_llm_calls=max_llm_calls,
+            max_agent_turns=max_agent_turns,
             raise_on_error=False,
         )
 
@@ -332,20 +338,20 @@ class Task(ControlFlowModel):
         agent: Optional[Agent] = None,
         flow: "Flow" = None,
         turn_strategy: "TurnStrategy" = None,
-        max_calls_per_turn: int = None,
-        max_turns: int = None,
+        max_llm_calls: int = None,
+        max_agent_turns: int = None,
     ) -> T:
         """
         Run the task
         """
 
-        await controlflow.run.run_tasks_async(
+        await controlflow.run_tasks_async(
             tasks=[self],
             flow=flow,
             agent=agent,
             turn_strategy=turn_strategy,
-            max_calls_per_turn=max_calls_per_turn,
-            max_turns=max_turns,
+            max_llm_calls=max_llm_calls,
+            max_agent_turns=max_agent_turns,
             raise_on_error=False,
         )
 

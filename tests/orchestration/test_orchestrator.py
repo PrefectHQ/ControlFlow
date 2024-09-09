@@ -47,11 +47,11 @@ class TestOrchestratorLimits:
         assert (
             get_call_count()
             == controlflow.settings.orchestrator_max_turns
-            * controlflow.settings.orchestrator_max_calls_per_turn
+            * controlflow.settings.orchestrator_max_calls
         )
 
     @pytest.mark.parametrize(
-        "max_turns, max_calls_per_turn, expected_calls",
+        "max_agent_turns, max_llm_calls, expected_calls",
         [
             (1, 1, 1),
             (1, 2, 2),
@@ -64,14 +64,14 @@ class TestOrchestratorLimits:
         mocked_orchestrator,
         default_fake_llm,
         monkeypatch,
-        max_turns,
-        max_calls_per_turn,
+        max_agent_turns,
+        max_llm_calls,
         expected_calls,
     ):
         monkeypatch.setattr(controlflow.defaults, "model", default_fake_llm)
         orchestrator, get_call_count, _ = mocked_orchestrator
 
-        orchestrator.run(max_turns=max_turns, max_calls_per_turn=max_calls_per_turn)
+        orchestrator.run(max_agent_turns=max_agent_turns, max_llm_calls=max_llm_calls)
 
         assert get_call_count() == expected_calls
 
@@ -81,17 +81,17 @@ class TestOrchestratorLimits:
         monkeypatch.setattr(controlflow.defaults, "model", default_fake_llm)
         orchestrator, _, get_turn_count = mocked_orchestrator
 
-        orchestrator.run(max_turns=5)
+        orchestrator.run(max_agent_turns=5)
 
         assert get_turn_count() == 5
 
-    def test_max_calls_per_turn_reached(
+    def test_max_calls_reached(
         self, mocked_orchestrator, default_fake_llm, monkeypatch
     ):
         monkeypatch.setattr(controlflow.defaults, "model", default_fake_llm)
         orchestrator, get_call_count, _ = mocked_orchestrator
 
-        orchestrator.run(max_calls_per_turn=3)
+        orchestrator.run(max_llm_calls=3)
 
         assert get_call_count() == 3 * controlflow.settings.orchestrator_max_turns
 
@@ -128,7 +128,7 @@ class TestOrchestratorCreation:
 
         assert orchestrator.agent is None
 
-        orchestrator.run(max_turns=0)
+        orchestrator.run(max_agent_turns=0)
 
         assert orchestrator.agent is not None
         assert orchestrator.agent in [agent1, agent2]
@@ -145,7 +145,7 @@ class TestOrchestratorCreation:
 
         assert orchestrator.agent == agent1
 
-        orchestrator.run(max_turns=0)
+        orchestrator.run(max_agent_turns=0)
 
         assert orchestrator.agent == agent1
 
@@ -161,7 +161,7 @@ async def test_run_async():
 
 
 @pytest.mark.parametrize(
-    "max_turns, max_calls_per_turn, expected_calls",
+    "max_agent_turns, max_llm_calls, expected_calls",
     [
         (1, 1, 1),
         (1, 2, 2),
@@ -170,7 +170,7 @@ async def test_run_async():
     ],
 )
 def test_run_with_limits(
-    monkeypatch, default_fake_llm, max_turns, max_calls_per_turn, expected_calls
+    monkeypatch, default_fake_llm, max_agent_turns, max_llm_calls, expected_calls
 ):
     call_count = 0
     original_run_model = Agent._run_model
@@ -184,8 +184,8 @@ def test_run_with_limits(
 
     controlflow.run(
         "send messages",
-        max_calls_per_turn=max_calls_per_turn,
-        max_turns=max_turns,
+        max_llm_calls=max_llm_calls,
+        max_agent_turns=max_agent_turns,
     )
 
     assert call_count == expected_calls

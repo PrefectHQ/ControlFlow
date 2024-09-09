@@ -4,7 +4,7 @@ description: Use AI to generate new tasks.
 icon: compass
 ---
 
-The `plan()` function in ControlFlow extends the capabilities of AI workflows by allowing dynamic generation of tasks. This feature allows you to leverage AI for creating structured, goal-oriented task sequences programmatically.
+The `plan` function in ControlFlow extends the capabilities of AI workflows by allowing dynamic generation of tasks. This feature allows you to leverage AI for creating structured, goal-oriented task sequences programmatically.
 
 ## Purpose of AI planning
 
@@ -15,9 +15,9 @@ While ControlFlow allows manual creation of tasks for AI workflows, there are sc
 3. **Adaptive Workflows**: In processes that need to adjust based on changing conditions or new information.
 
 
-## The `plan()` function
+## The `plan` function
 
-The `plan()` function takes a high-level objective and generates a structured sequence of tasks to achieve that goal. Here's a basic example:
+The `plan` function takes a high-level objective and generates a structured sequence of tasks to achieve that goal. Here's a basic example:
 
 ```python
 import controlflow as cf
@@ -31,11 +31,8 @@ tasks = cf.plan(
 cf.run_tasks(tasks)
 ```
 
-In this example, `plan()` will generate a list of 3 tasks that, when completed, should result in an analysis of customer feedback data. These tasks might include steps like "Load data", "Preprocess text", "Perform sentiment analysis", etc.
+In this example, `plan` will generate a list of 3 tasks that, when completed, should result in an analysis of customer feedback data. These tasks might include steps like "Load data", "Preprocess text", "Perform sentiment analysis", etc.
 
-## Advanced usage
-
-The `plan` function can do more than just generate tasks that achieve an objective. 
 
 ### Dependencies
 
