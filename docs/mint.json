@@ -59,6 +59,8 @@
                 "patterns/dependencies",
                 "patterns/instructions",
                 "patterns/planning"
+                "patterns/planning",
+                "patterns/history"
             ]
         },
         {
