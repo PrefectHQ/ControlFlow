@@ -92,7 +92,7 @@
             ]
         },
         {
-            "group": "Agentic",
+            "group": "Agentic Flows",
             "pages": [
                 "examples/language-tutor",
                 "examples/rock-paper-scissors",
