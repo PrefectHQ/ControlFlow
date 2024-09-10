@@ -29,6 +29,7 @@ from controlflow.tools.tools import (
 )
 from controlflow.utilities.context import ctx
 from controlflow.utilities.general import ControlFlowModel, hash_objects
+from controlflow.utilities.prefect import create_markdown_artifact, prefect_task
 
 from .memory import Memory
 
@@ -247,6 +248,7 @@ class Agent(ControlFlowModel, abc.ABC):
             context=context,
         )
 
+    @prefect_task(task_run_name="Call LLM")
     def _run_model(
         self,
         messages: list[BaseMessage],
@@ -280,6 +282,19 @@ class Agent(ControlFlowModel, abc.ABC):
 
         yield AgentMessage(agent=self, message=response)
 
+        create_markdown_artifact(
+            markdown=f"""
+{response.content or '(No content)'}
+
+#### Payload
+```json
+{response.json(indent=2)}
+```
+""",
+            description=f"LLM Response for Agent {self.name}",
+            key="agent-message",
+        )
+
         if controlflow.settings.log_all_messages:
             logger.debug(f"Response: {response}")
 
@@ -288,6 +303,7 @@ class Agent(ControlFlowModel, abc.ABC):
             result = handle_tool_call(tool_call, tools=tools)
             yield ToolResultEvent(agent=self, tool_call=tool_call, tool_result=result)
 
+    @prefect_task(task_run_name="Call LLM")
     async def _run_model_async(
         self,
         messages: list[BaseMessage],
@@ -320,6 +336,19 @@ class Agent(ControlFlowModel, abc.ABC):
             response: AIMessage = await model.ainvoke(messages)
 
         yield AgentMessage(agent=self, message=response)
+
+        create_markdown_artifact(
+            markdown=f"""
+{response.content or '(No content)'}
+
+#### Payload
+```json
+{response.json(indent=2)}
+```
+""",
+            description=f"LLM Response for Agent {self.name}",
+            key="agent-message",
+        )
 
         if controlflow.settings.log_all_messages:
             logger.debug(f"Response: {response}")

@@ -16,6 +16,7 @@ from typing import (
     _SpecialGenericAlias,
 )
 
+from prefect.context import TaskRunContext
 from pydantic import (
     Field,
     PydanticSchemaGenerationError,
@@ -45,6 +46,12 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 logger = get_logger(__name__)
+
+
+def get_task_run_name():
+    context = TaskRunContext.get()
+    task = context.parameters["self"]
+    return f"Task.run() ({task.friendly_name()})"
 
 
 class Labels(RootModel):
@@ -296,7 +303,7 @@ class Task(ControlFlowModel):
             name = f'"{self.objective[:50]}..."'
         else:
             name = f'"{self.objective}"'
-        return f"Task {self.id} ({name})"
+        return f"Task #{self.id} ({name})"
 
     def serialize_for_prompt(self) -> dict:
         """
@@ -331,6 +338,7 @@ class Task(ControlFlowModel):
         self.depends_on.add(task)
         task._downstreams.add(self)
 
+    @prefect_task(task_run_name=get_task_run_name)
     def run(
         self,
         agent: Optional[Agent] = None,
@@ -358,6 +366,7 @@ class Task(ControlFlowModel):
         elif self.is_failed():
             raise ValueError(f"{self.friendly_name()} failed: {self.result}")
 
+    @prefect_task(task_run_name=get_task_run_name)
     async def run_async(
         self,
         agent: Optional[Agent] = None,
