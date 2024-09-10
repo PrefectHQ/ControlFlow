@@ -31,7 +31,7 @@ class Flow(ControlFlowModel):
         default_factory=list,
         description="Tools that will be available to every agent in the flow",
     )
-    agent: Optional[Agent] = Field(
+    default_agent: Optional[Agent] = Field(
         None,
         description="The default agent for the flow. This agent will be used "
         "for any task that does not specify an agent.",

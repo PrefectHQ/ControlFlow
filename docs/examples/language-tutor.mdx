@@ -35,7 +35,7 @@ def language_learning_session(language: str) -> None:
         """
     )
 
-    @cf.flow(agent=tutor)
+    @cf.flow(default_agent=tutor)
     def learning_flow():
         cf.run(
             f"Greet the user, learn their name,and introduce the {language} learning session",
@@ -99,7 +99,7 @@ This implementation showcases several important ControlFlow features and concept
 2. **Flow-level Agent Assignment**: We assign the tutor agent to the entire flow, eliminating the need to specify it for each task.
 
    ```python
-   @cf.flow(agent=tutor)
+   @cf.flow(default_agent=tutor)
    def learning_flow():
        ...
    ```

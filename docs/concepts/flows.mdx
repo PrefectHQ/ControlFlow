@@ -86,9 +86,14 @@ There are two ways to create and use a flow in ControlFlow: using the `Flow` obj
 
 In both cases, the goal is to instantiate a flow that provides a shared context for all tasks and agents within the flow. The @flow decorator is the most portable and flexible way to create a flow, as it encapsulates the entire flow within a function that gains additional capabilities as a result, because it becomes a Prefect flow as well. However, the `Flow` context manager can be used to quickly create flows for ad-hoc purposes.
 
+<Tip>
+#### Decorator or context manager?
+
+In general, you should use the `@flow` decorator for most flows, as it is more capable, flexible, and portable. You should use the `Flow` context manager primarily for nested or ad-hoc flows, when your primary goal is to create a shared thread for a few tasks. 
+</Tip>
 ### The `@flow` decorator
 
-To create a flow using the `@flow` decorator, apply `@cf.flow` to any function. Any tasks run inside the decorated function will execute within the context of the same flow. Flow functions can 
+To create a flow using a decorator, apply `@cf.flow` to any function. Any tasks run inside the decorated function will execute within the context of the same flow. 
 
 <CodeGroup>
 ```python Code
@@ -117,6 +122,16 @@ The following flow properties are inferred from the decorated function:
 | `context` | The function's arguments (keyed by argument name) |
 
 Additional properties can be set by passing keyword arguments directly to the `@flow` decorator or to the `flow_kwargs` parameter when calling the decorated function.
+
+<Tip>
+You may not want the arguments to your flow function to be used as context. In that case, you can set `args_as_context=False` when decorating or calling the function:
+
+```python
+@cf.flow(args_as_context=False)
+def my_flow(secret_var: str):
+    ...
+```
+</Tip>
 
 ### The `Flow` object and context manager
 
@@ -158,6 +173,7 @@ The flow's description is shown to all participating agents to help them underst
 If you provide a list of tools to the flow, they will be available to all agents on all tasks within the flow. This is useful if you have a tool that you want to be universally available.
 
 ### Agent
+
 You can provide a default agent that will be used in place of ControlFlow's global default agent for any tasks that don't explicitly specify their own agents.
 
 ### Context

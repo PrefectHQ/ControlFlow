@@ -120,7 +120,7 @@ def test_task_loads_agent_from_parent():
 def test_task_loads_agent_from_flow():
     def_agent = controlflow.defaults.agent
     agent = Agent()
-    with Flow(agent=agent):
+    with Flow(default_agent=agent):
         task = SimpleTask()
 
         assert task.agents is None
@@ -141,7 +141,7 @@ def test_task_loads_agent_from_default_if_none_otherwise():
 def test_task_loads_agent_from_parent_before_flow():
     agent1 = Agent()
     agent2 = Agent()
-    with Flow(agent=agent1):
+    with Flow(default_agent=agent1):
         with SimpleTask(agents=[agent2]):
             child = SimpleTask()
 

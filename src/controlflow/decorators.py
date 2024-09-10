@@ -20,7 +20,7 @@ def flow(
     thread: Optional[str] = None,
     instructions: Optional[str] = None,
     tools: Optional[list[Callable[..., Any]]] = None,
-    agents: Optional[list[Agent]] = None,
+    default_agent: Optional[Agent] = None,  # Changed from 'agents'
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[float, int]] = None,
     timeout_seconds: Optional[Union[float, int]] = None,
@@ -44,7 +44,7 @@ def flow(
         thread (str, optional): The thread to execute the flow on. Defaults to None.
         instructions (str, optional): Instructions for the flow. Defaults to None.
         tools (list[Callable], optional): List of tools to be used in the flow. Defaults to None.
-        agents (list[Agent], optional): List of agents to be used in the flow. Defaults to None.
+        default_agent (Agent, optional): The default agent to be used in the flow. Defaults to None.
         args_as_context (bool, optional): Whether to pass the arguments as context to the flow. Defaults to True.
     Returns:
         callable: The wrapped function or a new flow decorator if `fn` is not provided.
@@ -57,7 +57,7 @@ def flow(
             thread=thread,
             instructions=instructions,
             tools=tools,
-            agents=agents,
+            default_agent=default_agent,  # Changed from 'agents'
             retries=retries,
             retry_delay_seconds=retry_delay_seconds,
             timeout_seconds=timeout_seconds,
@@ -90,8 +90,10 @@ def flow(
             flow_kwargs.setdefault("thread_id", thread)
         if tools is not None:
             flow_kwargs.setdefault("tools", tools)
-        if agents is not None:
-            flow_kwargs.setdefault("agents", agents)
+        if default_agent is not None:  # Changed from 'agents'
+            flow_kwargs.setdefault(
+                "default_agent", default_agent
+            )  # Changed from 'agents'
 
         context = bound.arguments if args_as_context else {}
 
