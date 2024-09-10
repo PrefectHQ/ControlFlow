@@ -1,0 +1,148 @@
+---
+title: Interactive Language Tutor
+description: Create an engaging AI tutor for language learning using ControlFlow
+icon: graduation-cap
+---
+
+This example demonstrates how to use ControlFlow to create a simple yet interactive language learning assistant. It showcases the use of a custom agent, user interaction, and a flexible learning flow.
+
+## Code
+
+The following code creates a basic language learning session with an AI tutor:
+
+```python
+import controlflow as cf
+from pydantic import BaseModel
+
+class Lesson(BaseModel):
+    topic: str
+    content: str
+    exercises: list[str]
+
+def language_learning_session(language: str) -> None:
+    tutor = cf.Agent(
+        name="Tutor",
+        instructions="""
+        You are a friendly and encouraging language tutor. Your goal is to create an 
+        engaging and supportive learning environment. Always maintain a warm tone, 
+        offer praise for efforts, and provide gentle corrections. Adapt your teaching 
+        style to the user's needs and pace. Use casual language to keep the 
+        conversation light and fun. When working through exercises:
+        - Present one exercise at a time.
+        - Provide hints if the user is struggling.
+        - Offer the correct answer if the user can't solve it after a few attempts.
+        - Use encouraging language throughout the process.
+        """
+    )
+
+    @cf.flow(agent=tutor)
+    def learning_flow():
+        cf.run(
+            f"Greet the user, learn their name,and introduce the {language} learning session",
+            interactive=True
+        )
+
+        while True:
+            lesson = cf.run(
+                "Create a fun and engaging language lesson",
+                result_type=Lesson
+            )
+
+            cf.run(
+                "Present the lesson content to the user in an interactive and engaging way",
+                interactive=True,
+                context={"lesson": lesson}
+            )
+
+            for exercise in lesson.exercises:
+                cf.run(
+                    "Work through the exercise with the user",
+                    interactive=True,
+                    context={"exercise": exercise}
+                )
+
+            continue_learning = cf.run(
+                "Check if the user wants to continue learning",
+                result_type=bool,
+                interactive=True
+            )
+
+            if not continue_learning:
+                break
+
+        cf.run(
+            "Summarize the learning session and provide encouragement",
+            interactive=True
+        )
+
+    learning_flow()
+
+# Example usage
+language_learning_session("French")
+```
+
+## Key Concepts
+
+This implementation showcases several important ControlFlow features and concepts:
+
+1. **Custom Agent**: We define a tutor agent with specific instructions on how to interact with the user. This allows for a consistent and engaging teaching style throughout the session.
+
+   ```python
+   tutor = cf.Agent(
+       name="Tutor",
+       instructions="""
+       You are a friendly and encouraging language tutor...
+       """
+   )
+   ```
+
+2. **Flow-level Agent Assignment**: We assign the tutor agent to the entire flow, eliminating the need to specify it for each task.
+
+   ```python
+   @cf.flow(agent=tutor)
+   def learning_flow():
+       ...
+   ```
+
+3. **Interactive Tasks**: We use the `interactive=True` parameter for tasks that require user interaction. This allows the AI tutor to engage directly with the user.
+
+   ```python
+   cf.run(
+       "Work through the exercise with the user",
+       interactive=True,
+       context={"exercise": exercise}
+   )
+   ```
+
+4. **Flexible Flow Control**: The learning session uses a while loop with a condition checked after each lesson. This allows the session to continue as long as the user wants to keep learning.
+
+   ```python
+   while True:
+       # ... lesson content ...
+       continue_learning = cf.run(
+           "Check if the user wants to continue learning",
+           result_type=bool,
+           interactive=True
+       )
+       if not continue_learning:
+           break
+   ```
+
+5. **Context Passing**: We pass the `lesson` and `exercise` objects as context to relevant tasks. This allows the AI tutor to have access to the current lesson content.
+
+   ```python
+   context={"lesson": lesson}
+   ```
+
+6. **Structured Data Models**: We use a Pydantic model (`Lesson`) to define the structure of our lesson data. This ensures that the data passed between tasks is well-structured and type-safe.
+
+   ```python
+   class Lesson(BaseModel):
+       topic: str
+       content: str
+       exercises: list[str]
+   ```
+
+By leveraging these ControlFlow features, we create a simple yet engaging language learning assistant. This example demonstrates how to build interactive AI workflows that can respond to user input and adapt their behavior based on the user's choices.
+
+The simplicity of this implementation allows for easy expansion. Users could extend this example by adding more complex lesson structures, implementing progress tracking, or incorporating additional language learning features like vocabulary reviews or grammar explanations.

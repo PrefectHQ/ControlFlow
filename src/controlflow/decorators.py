@@ -25,6 +25,7 @@ def flow(
     retry_delay_seconds: Optional[Union[float, int]] = None,
     timeout_seconds: Optional[Union[float, int]] = None,
     prefect_kwargs: Optional[dict[str, Any]] = None,
+    args_as_context: Optional[bool] = True,
     **kwargs: Optional[dict[str, Any]],
 ):
     """
@@ -44,7 +45,7 @@ def flow(
         instructions (str, optional): Instructions for the flow. Defaults to None.
         tools (list[Callable], optional): List of tools to be used in the flow. Defaults to None.
         agents (list[Agent], optional): List of agents to be used in the flow. Defaults to None.
-
+        args_as_context (bool, optional): Whether to pass the arguments as context to the flow. Defaults to True.
     Returns:
         callable: The wrapped function or a new flow decorator if `fn` is not provided.
     """
@@ -60,6 +61,7 @@ def flow(
             retries=retries,
             retry_delay_seconds=retry_delay_seconds,
             timeout_seconds=timeout_seconds,
+            args_as_context=args_as_context,
             **kwargs,
         )
 
@@ -91,11 +93,13 @@ def flow(
         if agents is not None:
             flow_kwargs.setdefault("agents", agents)
 
+        context = bound.arguments if args_as_context else {}
+
         with (
             Flow(
                 name=fn.__name__,
                 description=fn.__doc__,
-                context=bound.arguments,
+                context=context,
                 **flow_kwargs,
             ),
             controlflow.instructions(instructions),

@@ -85,8 +85,16 @@
             ]
         },
         {
+            "group": "ControlFlow Features",
+            "pages": [
+                "examples/features/dependent-tasks",
+                "examples/features/private-flows"
+            ]
+        },
+        {
             "group": "Agentic",
             "pages": [
+                "examples/language-tutor",
                 "examples/rock-paper-scissors",
                 "examples/agent-engineer",
                 "examples/call-routing"
