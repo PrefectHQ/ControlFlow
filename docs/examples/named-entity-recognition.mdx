@@ -1,0 +1,120 @@
+---
+title: Named Entity Recognition
+description: Extract named entities from text using ControlFlow.
+icon: landmark-dome
+---
+
+Named Entity Recognition (NER) is a crucial task in natural language processing, used to identify named entities (such as persons, organizations, locations) in text. This example demonstrates how to implement a simple NER system using ControlFlow and a GPT-4o mini model, showcasing two different approaches: extracting a simple list of entities and categorizing entities by type.
+
+## Code
+
+First, let's implement a function that extracts a simple list of entities:
+
+```python
+import controlflow as cf
+from langchain_openai import ChatOpenAI
+from typing import List
+
+extractor = cf.Agent(
+    name="Named Entity Recognizer",
+    model=ChatOpenAI(model="gpt-4o-mini"),
+)
+
+def extract_entities(text: str) -> List[str]:
+    return cf.run(
+        "Extract all named entities from the text",
+        agents=[extractor],
+        result_type=List[str],
+        context={"text": text},
+    )
+```
+
+We can call this function on any text to extract all named entities:
+
+```python Simple extraction
+text = "Apple Inc. is planning to open a new store in New York City next month."
+entities = extract_entities(text)
+
+print(entities)
+# Result: 
+# ['Apple Inc.', 'New York City']
+```
+
+Now, let's modify our function to categorize the entities it extracts. We do this by changing the result type to a dictionary and providing detailed instructions about the types of entities we want to extract:
+
+```python
+def extract_categorized_entities(text: str) -> Dict[str, List[str]]:
+    return cf.run(
+        "Extract named entities from the text and categorize them",
+        instructions="""
+        Return a dictionary with the following keys:
+        - 'persons': List of person names
+        - 'organizations': List of organization names
+        - 'locations': List of location names
+        - 'dates': List of date references
+        - 'events': List of event names
+        Only include keys if entities of that type are found in the text.
+        """,
+        agents=[extractor],
+        result_type=Dict[str, List[str]],
+        context={"text": text},
+    )
+```
+
+Here's how we can use this function to perform NER on some example texts:
+
+```python Categorized extraction
+text = "In 1969, Neil Armstrong became the first person to walk on the Moon during the Apollo 11 mission."
+entities = extract_categorized_entities(text)
+
+print(entities)
+# Result:
+# {
+#     'persons': ['Neil Armstrong'],
+#     'locations': ['Moon'],
+#     'dates': ['1969'],
+#     'events': ['Apollo 11 mission']
+# }
+```
+
+## Key concepts
+
+This implementation showcases several important ControlFlow features that enable quick development of NLP tools:
+
+1. **[Agents](/concepts/agents)**: We create an agent with a specific LLM model (GPT-4o mini) to perform the named entity recognition.
+
+   ```python
+   extractor = cf.Agent(
+       name="Named Entity Recognizer",
+       model=ChatOpenAI(model="gpt-4o-mini"),
+   )
+   ```
+
+2. **[Flexible result types](/concepts/tasks/task-results)**: We demonstrate two different result types: a simple list of strings and a dictionary of categorized entities. This flexibility allows us to adapt the output structure to our specific needs.
+
+   ```python
+   result_type=List[str]
+   # or
+   result_type=Dict[str, List[str]]
+   ```
+
+3. **[Detailed instructions](/concepts/tasks#instructions)**: In the categorized version, we provide detailed instructions to guide the model in structuring its output. This allows us to define a specific schema for the results without changing the underlying model.
+
+   ```python
+   instructions="""
+   Return a dictionary with the following keys:
+   - 'persons': List of person names
+   - 'organizations': List of organization names
+   ...
+   """
+   ```
+
+4. **[Context passing](/concepts/tasks#context)**: The `context` parameter is used to pass the input text to the task.
+
+   ```python
+   context={"text": text}
+   ```
+
+By leveraging these ControlFlow features, we can create powerful NER tools with minimal code. This example demonstrates how ControlFlow simplifies the process of building and deploying NLP tools, making it easier for developers to incorporate advanced language processing capabilities into their applications.
+
+The ability to easily switch between different output structures (list vs. categorized dictionary) showcases the flexibility of ControlFlow in adapting to various NLP task requirements.

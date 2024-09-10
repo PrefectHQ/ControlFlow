@@ -1,0 +1,77 @@
+---
+title: Headline Categorization
+description: Classify news headlines into predefined categories.
+icon: list-check
+---
+
+Categorizing news headlines is a common task in content management and recommendation systems. This example demonstrates how to use ControlFlow to quickly build a headline classifier that categorizes news into predefined categories, showcasing the framework's ability to handle classification tasks with minimal code.
+
+## Code
+
+The following code creates a function that classifies a given news headline into one of five predefined categories. It uses ControlFlow's task running feature and leverages the power of language models to perform the classification.
+
+```python
+import controlflow as cf
+from langchain_openai import ChatOpenAI
+
+classifier = cf.Agent(model=ChatOpenAI(model="gpt-4o-mini"))
+
+def classify_news(headline: str) -> str:
+    return cf.run(
+        "Classify the news headline into the most appropriate category",
+        agents=[classifier],
+        result_type=["Politics", "Technology", "Sports", "Entertainment", "Science"],
+        context={"headline": headline},
+    )
+```
+
+Now we can use this function to classify news headlines:
+
+<CodeGroup>
+```python Example 1
+headline = "New AI Model Breaks Records in Language Understanding"
+category = classify_news(headline)
+print(f"Headline: {headline}")
+print(f"Category: {category}")
+
+# Result:
+# Headline: New AI Model Breaks Records in Language Understanding
+# Category: Technology
+```
+```python Example 2
+headline = "Scientists Discover Potentially Habitable Exoplanet"
+category = classify_news(headline)
+print(f"Headline: {headline}")
+print(f"Category: {category}")
+
+# Result:
+# Headline: Scientists Discover Potentially Habitable Exoplanet
+# Category: Science
+```
+</CodeGroup>
+
+## Key concepts
+
+This implementation showcases several important ControlFlow features that enable quick development of classification tools:
+
+1. **[Agents](/concepts/agents)**: We create an agent with a specific LLM model (GPT-4o mini) to perform the headline classification.
+
+   ```python
+   classifier = cf.Agent(model=ChatOpenAI(model="gpt-4o-mini"))
+   ```
+
+2. **[Result types](/concepts/tasks/task-results)**: We use a list of strings as the `result_type` to constrain the output to one of the predefined categories. This ensures that the classification result is always one of the specified options.
+
+   ```python
+   result_type=["Politics", "Technology", "Sports", "Entertainment", "Science"]
+   ```
+
+3. **[Context passing](/concepts/tasks#context)**: The `context` parameter is used to pass the input headline to the task.
+
+   ```python
+   context={"headline": headline}
+   ```
+
+By leveraging these ControlFlow features, we can create a powerful headline classifier with just a few lines of code. This example demonstrates how ControlFlow simplifies the process of building and deploying classification tools, making it easier for developers to incorporate advanced language processing capabilities into their applications.
+
+The use of predefined categories in the `result_type` is particularly noteworthy, as it allows us to constrain the model's output to a specific set of options. This is useful in many real-world scenarios where we need to map inputs to a fixed set of categories.

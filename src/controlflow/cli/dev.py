@@ -8,7 +8,7 @@ dev_app = typer.Typer(no_args_is_help=True)
 
 
 @dev_app.command()
-def generate_ai_files(
+def ai_files(
     output_path: str = typer.Option(
         ".",
         "--output",
@@ -27,11 +27,6 @@ def generate_ai_files(
         docs_path = repo_root / "docs"
         output_dir = Path(output_path).resolve()
 
-        typer.echo(f"Repo root: {repo_root}")
-        typer.echo(f"src_path: {src_path}")
-        typer.echo(f"docs_path: {docs_path}")
-        typer.echo(f"output_dir: {output_dir}")
-
         def generate_file_content(file_paths, output_file):
             with open(output_dir / output_file, "w") as f:
                 for file_path in file_paths:
@@ -40,7 +35,11 @@ def generate_ai_files(
                     f.write("\n\n")
 
         code_files = list(src_path.rglob("*.py")) + list(src_path.rglob("*.jinja"))
-        doc_files = list(docs_path.rglob("*.mdx")) + list(docs_path.glob("mint.json"))
+        doc_files = (
+            list(docs_path.rglob("*.mdx"))
+            + list(docs_path.glob("*.md"))
+            + list(docs_path.glob("mint.json"))
+        )
 
         generate_file_content(code_files, "all_code.md")
         generate_file_content(doc_files, "all_docs.md")
