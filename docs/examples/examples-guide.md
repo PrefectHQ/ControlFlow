@@ -71,7 +71,11 @@ ALTERNATIVELY, use a CodeGroup for multiple examples with commented results
 - Present the main implementation code in a clear, well-commented Python code block.
 - If there are multiple variations or approaches, present them sequentially, explaining the differences between each approach.
 - Use type hints and follow PEP 8 style guidelines in the code.
-- Import `controlflow as cf` at the beginning of each code block.
+- Import `controlflow as cf` at the beginning of each code block so it can be copied directly.
+- Do not create agents unless you are demonstrating a specific feature (e.g. LLM selection, instructions, reusable tools, etc.)
+- Try to write code that is as short as possible while still being clear and demonstrating the feature.
+- Only use a flow if your tasks need to share history, otherwise just use a single task
+- Do not import Dict or List from typing; use builtin dict or list instead
 
 ## 5. Usage Examples
 
@@ -82,12 +86,13 @@ ALTERNATIVELY, use a CodeGroup for multiple examples with commented results
 
 ## 6. Key Concepts
 
-- Identify 3-5 key ControlFlow features or concepts demonstrated in the example.
+- Identify 3-5 key ControlFlow features or concepts demonstrated in the example (if possible)
 - For each concept:
   1. Provide a brief explanation of what the feature does and why it's important.
   2. Include a code snippet that illustrates the feature in use.
   3. Link to the relevant ControlFlow documentation for that feature.
 - Arrange the concepts in order of importance or complexity.
+- Do not consider controlflow basics like creating or running a task to be key concepts (or even "simple task creation")
 
 ## 7. Conclusion
 

@@ -1,0 +1,99 @@
+---
+title: Code Explanation
+description: Use ControlFlow to generate natural language explanations of code snippets.
+icon: code
+---
+
+This example demonstrates how to use ControlFlow to create a task that explains code snippets in natural language. It showcases the use of custom types and context passing for code documentation tasks.
+
+## Code
+
+The following code creates a function that takes a code snippet and its programming language, then returns an explanation of the code:
+
+```python
+import controlflow as cf
+from pydantic import BaseModel
+
+class CodeExplanation(BaseModel):
+    code: str
+    explanation: str
+    language: str
+
+def explain_code(code: str, language: str=None) -> CodeExplanation:
+    return cf.run(
+        f"Explain the following code snippet",
+        result_type=CodeExplanation,
+        context={"code": code, "language": language or 'auto-detect'}
+    )
+```
+
+Now we can use this function to explain a code snippet:
+
+<CodeGroup>
+```python Example
+code_snippet = """
+def fibonacci(n):
+    if n <= 1:
+        return n
+    else:
+        return fibonacci(n-1) + fibonacci(n-2)
+"""
+
+result = explain_code(code_snippet, "Python")
+print(f"Code:\n{result.code}\n")
+print(f"Explanation:\n{result.explanation}")
+```
+
+```text Output
+Code:
+def fibonacci(n):
+    if n <= 1:
+        return n
+    else:
+        return fibonacci(n-1) + fibonacci(n-2)
+
+Explanation:
+This Python code defines a function called `fibonacci` that calculates 
+the nth number in the Fibonacci sequence using recursion. Here's a 
+breakdown of how it works:
+
+1. The function takes a single parameter `n`, which represents the 
+position in the Fibonacci sequence we want to calculate.
+
+2. There's a base case: if `n` is less than or equal to 1, the function 
+simply returns `n`. This handles the first two numbers in the Fibonacci 
+sequence (F(0) = 0 and F(1) = 1).
+
+3. For any other value of `n`, the function recursively calls itself twice:
+   - Once with `n-1` as the argument
+   - Once with `n-2` as the argument
+
+4. The results of these two recursive calls are added together and returned.
+
+This implementation follows the mathematical definition of the Fibonacci 
+sequence, where each number is the sum of the two preceding ones. However, 
+it's worth noting that this recursive approach can be inefficient for 
+large values of `n` due to repeated calculations.
+```
+</CodeGroup>
+
+## Key concepts
+
+This implementation showcases several important ControlFlow features:
+
+1. **[Pydantic models](/concepts/tasks/task-results#pydantic-models)**: We use a Pydantic model (`CodeExplanation`) to define the structure of our explanation result. This ensures that the task returns well-structured, consistent results including the original code, its explanation, and the programming language.
+
+   ```python
+   class CodeExplanation(BaseModel):
+       code: str
+       explanation: str
+       language: str
+   ```
+
+2. **[Context passing](/concepts/tasks#context)**: We pass both the code snippet and the programming language as context to the task, providing all necessary information for the explanation process.
+
+   ```python
+   context={"code": code, "language": language}
+   ```
+
+By leveraging these ControlFlow features, we create an efficient and flexible code explanation tool. This example demonstrates how ControlFlow can be used to build AI-powered documentation workflows that can help developers understand and explain code snippets in natural language.

@@ -1,0 +1,108 @@
+---
+title: Standardize Place Names
+description: Use ControlFlow to efficiently standardize multiple place names into consistent postal addresses.
+icon: map-pin
+---
+
+This example demonstrates how to use ControlFlow to create a task that standardizes multiple place names into consistent postal addresses in a single operation. It showcases the use of custom types and efficient batch processing.
+
+## Code
+
+The following code creates a function that takes a list of place names and returns a list of standardized addresses:
+
+```python
+import controlflow as cf
+from pydantic import BaseModel
+from typing import List
+
+class StandardAddress(BaseModel):
+    city: str
+    state: str
+    country: str = "USA"
+
+def standardize_addresses(place_names: List[str]) -> List[StandardAddress]:
+    return cf.run(
+        "Standardize the given place names into consistent postal addresses",
+        result_type=List[StandardAddress],
+        context={"place_names": place_names}
+    )
+```
+
+You can use this function to standardize a list of place names:
+
+<CodeGroup>
+```python Example
+place_names = [
+    "NYC", "New York, NY", "Big Apple",
+    "Los Angeles, California", "LA",
+    "San Fran", "The Windy City"
+]
+
+standardized_addresses = standardize_addresses(place_names)
+
+for original, standard in zip(place_names, standardized_addresses):
+    print(f"Original: {original}")
+    print(f"Standardized: {standard}")
+    print()
+```
+
+```text Output
+Original: NYC
+Standardized: StandardAddress(city='New York City', state='NY', country='USA')
+
+Original: New York, NY
+Standardized: StandardAddress(city='New York City', state='NY', country='USA')
+
+Original: Big Apple
+Standardized: StandardAddress(city='New York City', state='NY', country='USA')
+
+Original: Los Angeles, California
+Standardized: StandardAddress(city='Los Angeles', state='CA', country='USA')
+
+Original: LA
+Standardized: StandardAddress(city='Los Angeles', state='CA', country='USA')
+
+Original: San Fran
+Standardized: StandardAddress(city='San Francisco', state='CA', country='USA')
+
+Original: The Windy City
+Standardized: StandardAddress(city='Chicago', state='IL', country='USA')
+```
+</CodeGroup>
+
+## Key concepts
+
+This implementation showcases several important ControlFlow features:
+
+1. **[Pydantic models](/concepts/tasks/task-results#pydantic-models)**: We use a Pydantic model (`StandardAddress`) to define the structure of our standardized addresses. This ensures that the standardization task returns well-structured, consistent results.
+
+   ```python
+   class StandardAddress(BaseModel):
+       city: str
+       state: str
+       country: str = "USA"
+   ```
+
+2. **[Batch processing](/concepts/tasks/task-results#collections)**: We process a list of place names in a single task, which is more efficient than processing them individually. This is achieved by specifying `List[StandardAddress]` as the `result_type`.
+
+   ```python
+   result_type=List[StandardAddress]
+   ```
+
+3. **[Context passing](/concepts/tasks#context)**: We pass the entire list of place names as context to the task, allowing the LLM to process all inputs at once.
+
+   ```python
+   context={"place_names": place_names}
+   ```
+
+4. **[Simple task creation](/concepts/tasks/creating-tasks)**: We use `cf.run()` to create and execute a task in a single step, simplifying our code.
+
+   ```python
+   return cf.run(
+       "Standardize the given place names into consistent postal addresses",
+       result_type=List[StandardAddress],
+       context={"place_names": place_names}
+   )
+   ```
+
+By leveraging these ControlFlow features, we create an efficient and straightforward address standardization tool. This example demonstrates how ControlFlow can be used to build AI-powered data processing workflows that handle multiple inputs in a single operation, improving performance and reducing costs.

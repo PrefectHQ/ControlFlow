@@ -1,0 +1,66 @@
+---
+title: Text Translation
+description: Use ControlFlow to translate text from one language to another.
+icon: language
+---
+
+This example demonstrates how to use ControlFlow to create a task that translates text from one language to another. It showcases the use of custom types and context passing for language translation tasks.
+
+## Code
+
+The following code creates a function that takes a text string and a target language, then returns a translation result:
+
+```python
+import controlflow as cf
+from pydantic import BaseModel
+
+class TranslationResult(BaseModel):
+    translated: str
+    target_language: str
+
+def translate_text(text: str, target_language: str) -> TranslationResult:
+    return cf.run(
+        f"Translate the given text to {target_language}",
+        result_type=TranslationResult,
+        context={"text": text, "target_language": target_language}
+    )
+```
+
+Now we can use this function to translate text:
+
+<CodeGroup>
+```python Example
+original_text = "Hello, how are you?"
+target_language = "French"
+
+result = translate_text(original_text, target_language)
+print(f"Original: {original_text}")
+print(f"Translated ({result.target_language}): {result.translated}")
+```
+
+```text Output
+Original: Hello, how are you?
+Translated (French): Bonjour, comment allez-vous ?
+```
+</CodeGroup>
+
+## Key concepts
+
+This implementation showcases several important ControlFlow features:
+
+1. **[Pydantic models](/concepts/tasks/task-results#pydantic-models)**: We use a Pydantic model (`TranslationResult`) to define the structure of our translation result. This ensures that the translation task returns well-structured, consistent results.
+
+   ```python
+   class TranslationResult(BaseModel):
+       original: str
+       translated: str
+       target_language: str
+   ```
+
+2. **[Context passing](/concepts/tasks#context)**: We pass both the original text and the target language as context to the task, providing all necessary information for the translation.
+
+   ```python
+   context={"text": text, "target_language": target_language}
+   ```
+
+By leveraging these ControlFlow features, we create an efficient and flexible text translation tool. This example demonstrates how ControlFlow can be used to build AI-powered language processing workflows that can handle translation tasks with ease.

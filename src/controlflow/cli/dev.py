@@ -35,7 +35,11 @@ def ai_files(
                     f.write("\n\n")
 
         code_files = list(src_path.rglob("*.py")) + list(src_path.rglob("*.jinja"))
-        doc_files = list(docs_path.rglob("*.mdx")) + list(docs_path.glob("mint.json"))
+        doc_files = (
+            list(docs_path.rglob("*.mdx"))
+            + list(docs_path.glob("*.md"))
+            + list(docs_path.glob("mint.json"))
+        )
 
         generate_file_content(code_files, "all_code.md")
         generate_file_content(doc_files, "all_docs.md")

@@ -70,12 +70,22 @@
             ]
         },
         {
-            "group": "Examples",
+            "group": "Core LLM Operations",
             "pages": [
                 "examples/sentiment-classifier",
                 "examples/headline-categorization",
                 "examples/named-entity-recognition",
                 "examples/summarization",
+                "examples/standardize-addresses",
+                "examples/generate-people",
+                "examples/translation",
+                "examples/anonymization",
+                "examples/code-explanation"
+            ]
+        },
+        {
+            "group": "Agentic",
+            "pages": [
                 "examples/rock-paper-scissors",
                 "examples/agent-engineer",
                 "examples/call-routing"

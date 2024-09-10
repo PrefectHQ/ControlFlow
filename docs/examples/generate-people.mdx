@@ -1,0 +1,106 @@
+---
+title: Generate User Profiles
+description: Use ControlFlow to generate test data based on a template.
+icon: users
+---
+
+This example demonstrates how to use ControlFlow to create a task that generates test data based on a given template. It showcases the use of custom types and efficient batch processing.
+
+## Code
+
+The following code creates a function that takes a count then returns a list of generated user profiles that match a provide `result_type` template:
+
+```python
+import controlflow as cf
+from pydantic import BaseModel, Field
+
+
+class UserProfile(BaseModel):
+    name: str = Field(description='The full name of the user')
+    age: int = Field(description='The age of the user, 20-60')
+    occupation: str = Field(description='The occupation of the user')
+    hobby: str 
+
+
+def generate_profiles(count: int) -> list[UserProfile]:
+    return cf.run(
+        f"Generate {count} user profiles",
+        result_type=list[UserProfile],
+        context={"count": count}
+    )
+```
+
+Now we can generate some test data:
+
+<CodeGroup>
+```python Example
+test_data = generate_profiles(count=5)
+
+from rich import print
+print(test_data)
+```
+
+```python Output
+[
+    UserProfile(
+        name='Emily Johnson',
+        age=27,
+        occupation='Software Engineer',
+        hobby='Painting'
+    ),
+    UserProfile(
+        name='Michael Smith',
+        age=34,
+        occupation='Marketing Manager',
+        hobby='Cycling'
+    ),
+    UserProfile(
+        name='Sarah Brown',
+        age=42,
+        occupation='Teacher',
+        hobby='Gardening'
+    ),
+    UserProfile(
+        name='David Wilson',
+        age=29,
+        occupation='Graphic Designer',
+        hobby='Photography'
+    ),
+    UserProfile(
+        name='Laura Davis',
+        age=50,
+        occupation='Chef',
+        hobby='Reading'
+    )
+]
+```
+</CodeGroup>
+
+## Key concepts
+
+This implementation showcases several important ControlFlow features:
+
+1. **[Pydantic models](/concepts/tasks/task-results#pydantic-models)**: We use a Pydantic model (`UserProfile`) to define the structure of our generated data. This ensures that the generation task returns well-structured, consistent results.
+
+   ```python
+   class UserProfile(BaseModel):
+       name: str
+       age: int
+       occupation: str
+       hobby: str
+   ```
+
+2. **[Batch processing](/concepts/tasks/task-results#collections)**: We generate multiple user profiles in a single task, which is more efficient than generating them individually. This is achieved by specifying `List[UserProfile]` as the `result_type`.
+
+   ```python
+   result_type=List[UserProfile]
+   ```
+
+3. **[Context passing](/concepts/tasks#context)**: We pass the desired count as context to the task, allowing the LLM to generate multiple data points based on the given parameters.
+
+   ```python
+   context={"count": count}
+   ```
+
+
+By leveraging these ControlFlow features, we create an efficient and flexible test data generation tool. This example demonstrates how ControlFlow can be used to build AI-powered data generation workflows that can produce multiple data points in a single operation, based on customizable templates. This approach is particularly useful for creating diverse and realistic test datasets for various applications.

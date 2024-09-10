@@ -1,0 +1,75 @@
+---
+title: Data Anonymization
+description: Use ControlFlow to anonymize sensitive information in text.
+icon: user-secret
+---
+
+This example demonstrates how to use ControlFlow to create a task that anonymizes sensitive information in text. It showcases the use of custom types and context passing for data privacy tasks.
+
+## Code
+
+The following code creates a function that takes a text string containing sensitive information and returns an anonymized version along with the replacements made:
+
+```python
+import controlflow as cf
+from pydantic import BaseModel
+
+class AnonymizationResult(BaseModel):
+    original: str
+    anonymized: str
+    replacements: dict[str, str]
+
+def anonymize_text(text: str) -> AnonymizationResult:
+    return cf.run(
+        "Anonymize the given text by replacing personal information with generic placeholders",
+        result_type=AnonymizationResult,
+        context={"text": text}
+    )
+```
+
+Now we can use this function to anonymize text containing sensitive information:
+
+<CodeGroup>
+```python Example
+original_text = "John Doe, born on 05/15/1980, lives at 123 Main St, New York. His email is john.doe@example.com."
+
+result = anonymize_text(original_text)
+print(f"Original: {result.original}")
+print(f"Anonymized: {result.anonymized}")
+print("Replacements:")
+for original, placeholder in result.replacements.items():
+    print(f"  {original} -> {placeholder}")
+```
+
+```text Output
+Original: John Doe, born on 05/15/1980, lives at 123 Main St, New York. His email is john.doe@example.com.
+Anonymized: [NAME], born on [DATE], lives at [ADDRESS], [CITY]. His email is [EMAIL].
+Replacements:
+  John Doe -> [NAME]
+  05/15/1980 -> [DATE]
+  123 Main St -> [ADDRESS]
+  New York -> [CITY]
+  john.doe@example.com -> [EMAIL]
+```
+</CodeGroup>
+
+## Key concepts
+
+This implementation showcases several important ControlFlow features:
+
+1. **[Pydantic models](/concepts/tasks/task-results#pydantic-models)**: We use a Pydantic model (`AnonymizationResult`) to define the structure of our anonymization result. This ensures that the task returns well-structured, consistent results including the original text, anonymized text, and replacements made.
+
+   ```python
+   class AnonymizationResult(BaseModel):
+       original: str
+       anonymized: str
+       replacements: dict[str, str]
+   ```
+
+2. **[Context passing](/concepts/tasks#context)**: We pass the original text as context to the task, providing all necessary information for the anonymization process.
+
+   ```python
+   context={"text": text}
+   ```
+
+By leveraging these ControlFlow features, we create an efficient and flexible data anonymization tool. This example demonstrates how ControlFlow can be used to build AI-powered privacy-enhancing workflows that can handle sensitive information with care.
