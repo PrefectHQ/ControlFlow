@@ -26,11 +26,9 @@ task = cf.Task('What is 2 + 2?')
 task.run()  # Result: 42
 ```
 
-## Changing a Flow's Default Agents
+## Changing a Flow's Default Agent
 
-You can also set a default agent (or agents) for a specific flow. This allows you to use different default agents for different parts of your application without changing the global default.
-
-To set a default agent for a flow, use the `agents` parameter when decorating your flow function:
+You can also set a default agent for a specific flow. by using its `default_agent` parameter when decorating your flow function or creating the flow object.
 
 ```python
 import controlflow as cf
@@ -38,10 +36,10 @@ import controlflow as cf
 researcher = cf.Agent('Researcher', instructions='Conduct thorough research')
 writer = cf.Agent('Writer', instructions='Write clear, concise content')
 
-@cf.flow(agents=[researcher, writer])
+@cf.flow(default_agent=writer)
 def research_flow():
-    research_task = cf.Task("Research the topic")
-    writing_task = cf.Task("Write a report")
+    research_task = cf.Task("Research the topic", agents=[researcher])
+    writing_task = cf.Task("Write a report") # will use the writer agent by default
     return writing_task
 
 result = research_flow()
@@ -54,7 +52,7 @@ In this example, both the `research_task` and `writing_task` will use the `resea
 When ControlFlow needs to assign an agent to a task, it follows this precedence:
 
 1. Agents specified directly on the task (`task.agents`)
-2. Agents specified for the flow (`@flow(agents=[...])`)
+2. The agent specified by the flow (`@flow(default_agent=...)`)
 3. The global default agent (`controlflow.defaults.agent`)
 
 This means you can always override the default agent by specifying agents directly on a task, regardless of what default agents are set at the flow or global level.
@@ -64,16 +62,16 @@ import controlflow as cf
 
 global_agent = cf.Agent('Global', instructions='I am the global default')
 cf.defaults.agent = global_agent
-
 flow_agent = cf.Agent('Flow', instructions='I am the flow default')
-
 task_agent = cf.Agent('Task', instructions='I am specified for this task')
 
-@cf.flow(agents=[flow_agent])
+@cf.flow(default_agent=flow_agent)
 def example_flow():
-    task1 = cf.Task("Task with flow default")
-    task2 = cf.Task("Task with specific agent", agents=[task_agent])
-    return task1, task2
+    task1 = cf.run("Task with flow default")
+    task2 = cf.run("Task with specific agent", agents=[task_agent])
+    
+task3 = cf.run("Task with global default")
+
 
 results = example_flow()
 ```
@@ -81,6 +79,6 @@ results = example_flow()
 In this example:
 - `task1` will use the `flow_agent`
 - `task2` will use the `task_agent`
-- If we created a task outside of `example_flow`, it would use the `global_agent`
+- `task3` will use the `global_agent`
 
 By understanding and utilizing these different levels of agent configuration, you can create more flexible and customized workflows in ControlFlow.

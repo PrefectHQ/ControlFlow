@@ -10,7 +10,7 @@ class TestFlowInitialization:
         flow = Flow()
         assert flow.thread_id is not None
         assert len(flow.tools) == 0
-        assert flow.agent is None
+        assert flow.default_agent is None
         assert flow.context == {}
 
     def test_flow_with_custom_tools(self):
@@ -179,8 +179,8 @@ class TestFlowHistory:
 class TestFlowCreatesDefaults:
     def test_flow_with_custom_agents(self):
         agent1 = Agent()
-        flow = Flow(agent=agent1)
-        assert flow.agent == agent1
+        flow = Flow(default_agent=agent1)  # Changed from 'agent'
+        assert flow.default_agent == agent1  # Changed from 'agent'
 
     def test_flow_agent_becomes_task_default(self):
         agent = Agent()
@@ -188,7 +188,7 @@ class TestFlowCreatesDefaults:
         assert agent not in t1.get_agents()
         assert len(t1.get_agents()) == 1
 
-        with Flow(agent=agent):
+        with Flow(default_agent=agent):  # Changed from 'agent'
             t2 = Task("t2")
             assert agent in t2.get_agents()
             assert len(t2.get_agents()) == 1

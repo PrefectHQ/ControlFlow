@@ -439,8 +439,8 @@ class Task(ControlFlowModel):
                 flow = get_flow()
             except ValueError:
                 flow = None
-            if flow and flow.agent:
-                return [flow.agent]
+            if flow and flow.default_agent:
+                return [flow.default_agent]
             else:
                 return [controlflow.defaults.agent]
 
