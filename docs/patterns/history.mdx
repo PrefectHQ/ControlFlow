@@ -1,0 +1,109 @@
+---
+title: Managing History 
+description: Manage conversation history and threads
+icon: clock-rotate-left
+---
+
+ControlFlow provides powerful mechanisms for managing conversation history and creating private threads within your AI workflows. This guide will help you understand how to leverage these features to create more sophisticated and context-aware applications.
+
+## Understanding Flow History
+
+In ControlFlow, each `Flow` maintains its own conversation history. This history includes all the interactions, decisions, and outputs generated during the execution of tasks within that flow. By default, this history is used to provide context for subsequent tasks, allowing for coherent and context-aware conversations.
+
+## Creating and Managing Threads
+
+### Creating a New Thread
+
+When you create a new `Flow`, it automatically generates a new thread with a unique ID. This thread isolates the conversation history for that particular flow.
+
+```python
+import controlflow as cf
+
+flow = cf.Flow()
+# A new thread is automatically created for all tasks in this flow
+```
+
+### Specifying a Thread ID
+
+You can also create a flow with a specific thread ID, which is useful for resuming conversations or creating deterministic threads:
+
+```python
+with cf.Flow(thread_id="user_123_spanish_lesson") as flow:
+    ...
+    # All tasks in this flow will contribute to the 
+    # thread "user_123_spanish_lesson"
+```
+
+### Resuming a Conversation
+
+To resume a previous conversation, you can create a new flow with the same thread ID:
+
+```python
+# Later in your application or in a different session
+with cf.Flow(thread_id="user_123_spanish_lesson") as flow:
+    # All tasks in this flow will have access to the history from
+    # the previous session with the same thread_id
+    ...
+```
+
+## Creating Private Sub-Threads
+
+Sometimes you may want to create a private conversation that doesn't affect the main thread. You can do this by creating a new flow within your current flow. The events in the private flow won't be visible to the parent flow.
+
+```python
+@cf.flow
+def main_conversation():
+    # Main conversation tasks here
+
+    with cf.Flow() as private_flow:
+        # This creates a new, isolated thread
+        cf.run("Have a private conversation", interactive=True)
+
+    # Continue with main conversation
+    # The private conversation won't be visible here
+```
+
+One reason to create private threads is to perform activities that would otherwise pollute the context for all agents, like loading and summarizing data in a file. By creating a private thread, you can have an agent load a file into its context and produce a summary, then use only the summary in the parent flow. None of the other agents will have to endure the token or time cost of loading the file.
+
+```python
+@cf.flow
+def process_files(files: list[Path]):
+
+    summaries = {}
+
+    # summarize each file in its own private thread 
+    for file in files:
+        with cf.Flow():
+            with open(file, "r") as f:
+                content = f.read()
+            summaries[file] = cf.run("Summarize the file", context={"content": content})
+    
+    # process all summaries in the main thread
+    process_summaries(summaries)
+
+```
+
+## Managing History Across Flows
+
+### Inheriting Parent Flow History
+
+By default, when you create a new flow within another flow, it inherits the history of its parent:
+
+```python
+@cf.flow
+def parent_flow():
+    cf.run("Task in parent flow", interactive=True)
+
+    with cf.Flow() as child_flow:
+        # This flow starts with the history from parent_flow
+        cf.run("Task in child flow", interactive=True)
+```
+
+If you want to completely isolate a sub-flow's history from its parent, you can set `load_parent_events=False`:
+
+```python
+with cf.Flow(load_parent_events=False) as isolated_flow:
+    # This flow starts with a clean history
+    cf.run("Task in isolated flow", interactive=True)
+```
+
