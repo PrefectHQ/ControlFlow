@@ -1,0 +1,68 @@
+---
+title: Private flows
+description: Create isolated execution environments within your workflows.
+icon: lock
+---
+
+Nested flows in ControlFlow allow you to create isolated threads within a larger workflow. This feature is particularly useful when you need to perform operations that shouldn't affect or be visible to the main flow, or when you want to encapsulate a set of tasks for modularity or security reasons.
+
+In this example, we'll demonstrate how to use private flows to process sensitive information without exposing it to the main workflow. In a real-world version of this, you might use a locally-hosted LLM or private API for the sensitive data processing.
+
+## Code
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+@cf.flow(args_as_context=False)
+def process_user_data(user_name: str, sensitive_info: str):
+    # Main flow context
+    print(f"Processing data for user: {user_name}")
+
+    # Create a private flow to handle sensitive information
+    with cf.Flow() as private_flow:
+        # This task runs in an isolated context
+        masked_info = cf.run(
+            "Mask the sensitive information",
+            context={"sensitive_info": sensitive_info},
+            result_type=str
+        )
+    
+    # Task in the main flow can be provided the masked_info as context
+    summary = cf.run(
+        "Summarize the data processing result",
+        context={"user_name": user_name, "masked_info": masked_info},
+        result_type=str
+    )
+
+    return summary
+
+# Execute the flow
+result = process_user_data("Alice", "SSN: 123-45-6789")
+print(result)
+```
+```text Result
+The data processing for user Alice has been successfully completed. The sensitive information has been masked appropriately. Here are the details:
+
+- User Name: Alice
+- Masked Information: SSN: XXX-XX-6789
+```
+</CodeGroup>
+
+## Key points
+
+1. **Isolation**: Private flows create an isolated execution environment. Tasks within a private flow cannot access or modify the context of the parent flow directly.
+
+2. **Data encapsulation**: Sensitive information (`sensitive_info`) is only available within the private flow, protecting it from accidental exposure in the main workflow.
+
+3. **Context control**: By setting `args_as_context=False`, we can pass the sensitive information to the flow function without adding it to context automatically. 
+
+4. **Result passing**: Results from the private flow (like `masked_info`) can be explicitly passed back to the main flow for further processing.
+
+5. **Nested structure**: Private flows can be nested within larger workflows, allowing for modular and secure task organization.
+
+## Further reading
+
+- To learn more about flows in ControlFlow, see the [flows documentation](/concepts/flows).
+
+By using private flows, you can create more secure and modular workflows, especially when dealing with sensitive information or when you need to isolate certain operations from the main workflow context.

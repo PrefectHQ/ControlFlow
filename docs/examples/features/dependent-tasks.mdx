@@ -1,0 +1,106 @@
+---
+title: Dependent Tasks
+description: Build complex workflows by indicating relationships between tasks.
+icon: link
+---
+In this example, we'll explore how ControlFlow enables the creation of complex, hierarchical workflows using dependent tasks. We've chosen a text analysis scenario to demonstrate several powerful features of ControlFlow:
+
+- Organizing tasks in a logical, nested structure
+- Simplifying data flow through automatic context sharing
+- Ensuring correct task execution order with dependencies
+- Maintaining a shared context across all tasks in a workflow
+
+As you examine the code, pay attention to how these concepts are implemented and how they contribute to creating a clear, efficient workflow structure.
+
+## Code
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+@cf.flow
+def analyze_text(text: str):
+
+    # Create a parent task to represent the entire analysis
+    with cf.Task(
+        "Analyze the given text", 
+        instructions="Include each subtask result in your result",
+        result_type=dict, 
+        context={"text": text}
+    ) as parent_task:
+        
+        # Child task 1: Identify key terms
+        key_terms = cf.Task(
+            "Identify up to 10 key terms in the text",
+            result_type=list[str]
+        )
+
+        # Child task 2: Summarize (depends on key_terms)
+        summary = cf.Task(
+            "Summarize the text in one sentence",
+            result_type=str,
+            depends_on=[key_terms]
+        )
+
+    # Run the parent task, which will automatically run all child tasks
+    result = parent_task.run()
+    return result
+
+# Execute the flow
+text = """
+    Agentic workflow orchestration refers to the coordination of autonomous
+    agents within a structured workflow, allowing them to operate independently
+    while achieving a common objective. Unlike traditional workflows that rigidly
+    define tasks and dependencies, agentic workflows empower agents—typically
+    AI-driven—to make decisions, prioritize tasks, and collaborate dynamically.
+    Each agent in this system operates with a degree of autonomy, enabling it to
+    adapt to changing conditions, handle uncertainties, and optimize its own
+    actions within the broader workflow. This approach enhances flexibility and
+    scalability, making it particularly effective for complex, multi-step
+    processes where real-time adjustments and intelligent decision-making are
+    crucial. By leveraging agents with defined roles and responsibilities, agentic
+    workflows maintain structure while enabling innovation and responsiveness in
+    task execution.
+    """
+    
+result = analyze_text(text)
+print(result)
+```
+```python Result
+{
+    'key_terms': [
+        'Agentic workflow orchestration',
+        'autonomous agents',
+        'structured workflow',
+        'independently',
+        'common objective',
+        'traditional workflows',
+        'tasks and dependencies',
+        'AI-driven',
+        'decisions',
+        'prioritize tasks'
+    ],
+    'summary': """
+        Agentic workflow orchestration involves coordinating 
+        autonomous agents within a structured workflow to operate independently 
+        and dynamically collaborate, enhancing flexibility and scalability for 
+        complex, multi-step processes.
+        """
+}
+```
+</CodeGroup>
+
+## Key points
+1. Task hierarchy: The parent task encompasses the entire analysis process, with child tasks handling specific aspects. This structure allows for logical organization of complex workflows.
+2. Automatic context sharing: Child tasks have access to their parent's context without explicit passing, streamlining data flow within the workflow.
+3. Dependencies: The depends_on parameter ensures tasks are executed in the correct order, as demonstrated by the summary task depending on the key terms task.
+4. Flow context: By wrapping tasks in a flow, ControlFlow maintains a shared context across all tasks, including visibility into prior executions and conversation history.
+5. Unified execution: Running the parent task automatically executes all child tasks in the correct order, simplifying workflow management.
+
+## Further reading
+
+- For more details on creating tasks and context sharing, see the [task documentation](/concepts/tasks).
+- To learn more about defining dependencies between tasks, check out the [dependencies guide](/patterns/dependencies).
+- For information on how ControlFlow manages task execution and context, refer to the [running tasks guide](/patterns/running-tasks).
+
+By leveraging these features, you can create complex workflows that maintain a clear structure and ensure efficient information flow between tasks. This approach helps in building more maintainable and scalable AI-powered applications with minimal boilerplate code.
