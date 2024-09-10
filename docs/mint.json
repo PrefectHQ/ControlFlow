@@ -70,14 +70,12 @@
             ]
         },
         {
-            "group": "Library",
-            "pages": [
-                "examples/library"
-            ]
-        },
-        {
             "group": "Examples",
             "pages": [
+                "examples/sentiment-classifier",
+                "examples/headline-categorization",
+                "examples/named-entity-recognition",
+                "examples/summarization",
                 "examples/rock-paper-scissors",
                 "examples/agent-engineer",
                 "examples/call-routing"

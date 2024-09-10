@@ -8,7 +8,7 @@ dev_app = typer.Typer(no_args_is_help=True)
 
 
 @dev_app.command()
-def generate_ai_files(
+def ai_files(
     output_path: str = typer.Option(
         ".",
         "--output",
@@ -26,11 +26,6 @@ def generate_ai_files(
         src_path = repo_root / "src"
         docs_path = repo_root / "docs"
         output_dir = Path(output_path).resolve()
-
-        typer.echo(f"Repo root: {repo_root}")
-        typer.echo(f"src_path: {src_path}")
-        typer.echo(f"docs_path: {docs_path}")
-        typer.echo(f"output_dir: {output_dir}")
 
         def generate_file_content(file_paths, output_file):
             with open(output_dir / output_file, "w") as f:

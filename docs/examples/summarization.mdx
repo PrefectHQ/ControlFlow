@@ -1,0 +1,100 @@
+---
+title: Text Summarization
+description: Generate concise summaries of longer texts.
+icon: file-lines
+---
+
+Text summarization is a valuable tool for quickly extracting key information from longer documents. This example demonstrates how to use ControlFlow to create a text summarization function that not only produces a concise summary but also extracts key points, all in a single pass.
+
+## Code
+
+The following code creates a function that summarizes a given text and extracts key points. It uses ControlFlow's task running feature and leverages Pydantic for structured output.
+
+```python
+import controlflow as cf
+from pydantic import BaseModel
+
+class Summary(BaseModel):
+    summary: str
+    key_points: list[str]
+
+def summarize_text(text: str, max_words: int = 100) -> Summary:
+    return cf.run(
+        f"Summarize the given text in no more than {max_words} words and list key points",
+        result_type=Summary,
+        context={"text": text},
+    )
+```
+
+Let's use this function to summarize a longer text:
+
+<CodeGroup>
+```python Example
+long_text = """
+    The Internet of Things (IoT) is transforming the way we interact with our
+    environment. It refers to the vast network of connected devices that collect
+    and share data in real-time. These devices range from simple sensors to
+    sophisticated wearables and smart home systems. The IoT has applications in
+    various fields, including healthcare, agriculture, and urban planning. In
+    healthcare, IoT devices can monitor patients remotely, improving care and
+    reducing hospital visits. In agriculture, sensors can track soil moisture and
+    crop health, enabling more efficient farming practices. Smart cities use IoT to
+    manage traffic, reduce energy consumption, and enhance public safety. However,
+    the IoT also raises concerns about data privacy and security, as these
+    interconnected devices can be vulnerable to cyber attacks. As the technology
+    continues to evolve, addressing these challenges will be crucial for the
+    widespread adoption and success of IoT.
+    """
+
+result = summarize_text(long_text)
+print(result.summary)
+print("\nKey Points:")
+for point in result.key_points:
+    print(f"- {point}")
+```
+
+```text Result
+The Internet of Things (IoT) is a network of connected devices that collect and 
+share data in real-time, transforming various fields such as healthcare, 
+agriculture, and urban planning. While IoT offers numerous benefits, including 
+remote patient monitoring, efficient farming, and smart city management, it 
+also raises concerns about data privacy and security.
+
+Key Points:
+- IoT is a network of connected devices sharing real-time data
+- Applications include healthcare, agriculture, and urban planning
+- Benefits include remote patient monitoring and efficient resource management
+- Raises concerns about data privacy and security
+- Addressing challenges is crucial for widespread adoption
+```
+</CodeGroup>
+
+## Key concepts
+
+This implementation showcases several important ControlFlow features that enable quick development of advanced text processing tools:
+
+1. **[Structured outputs](/concepts/tasks/task-results)**: We use a Pydantic model (`Summary`) as the `result_type` to define the structure of our output. This ensures that the summarization task returns both a summary and a list of key points in a well-defined format.
+
+   ```python
+   class Summary(BaseModel):
+       summary: str
+       key_points: list[str]
+
+   result_type=Summary
+   ```
+
+2. **[Context passing](/concepts/tasks#context)**: The `context` parameter is used to pass the input text and maximum word count to the task.
+
+   ```python
+   context={"text": text}
+   ```
+
+3. **[Dynamic instructions](/concepts/tasks#instructions)**: We include the `max_words` parameter in the task instruction, allowing for flexible control over the summary length.
+
+   ```python
+   f"Summarize the given text in no more than {max_words} words and list key points"
+   ```
+
+By leveraging these ControlFlow features, we can create a powerful text summarization tool with just a few lines of code. This example demonstrates how ControlFlow simplifies the process of building and deploying advanced NLP tools, making it easier for developers to incorporate complex language processing capabilities into their applications.
+
+The use of a Pydantic model for the output is particularly noteworthy, as it allows us to define a clear structure for our summarization results. This structured output makes it easy to work with the summary and key points separately in downstream tasks or when presenting the information to users.

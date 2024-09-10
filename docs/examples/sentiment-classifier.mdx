@@ -1,0 +1,78 @@
+---
+title: Sentiment Classifier
+description: Use GPT-4o mini to quickly build a sentiment classifier.
+icon: face-laugh-beam
+---
+
+Sentiment analysis is a common natural language processing task that involves determining the emotional tone of a piece of text. This example demonstrates how to use ControlFlow to quickly build a sentiment classifier using GPT-4o mini, showcasing the framework's ability to create powerful NLP tools with minimal code.
+
+## Code
+
+The following code creates a function that classifies the sentiment of a given text on a scale from 0 (very negative) to 1 (very positive). It uses a GPT-4o mini model for classification and leverages ControlFlow's task running and result validation features.
+
+```python
+import controlflow as cf
+from controlflow.tasks.validators import between
+from langchain_openai import ChatOpenAI
+
+optimist = cf.Agent(model=ChatOpenAI(model="gpt-4o-mini"))
+
+def sentiment(text: str) -> float:
+    return cf.run(
+        "Classify the sentiment of the text as a value between 0 and 1",
+        agents=[optimist],
+        result_type=float,
+        result_validator=between(0, 1),
+        context={"text": text},
+    )
+```
+
+Now we can run this function on any text:
+
+<CodeGroup>
+```python Example 1
+sentiment("I love ControlFlow!") 
+
+# Result: 1.0
+```
+```python Example 2
+sentiment(
+    """
+    Far out in the uncharted backwaters of the unfashionable end of 
+    the western spiral arm of the Galaxy lies a small unregarded yellow sun. 
+    Orbiting this at a distance of roughly ninety-two million miles is an utterly 
+    insignificant little blue-green planet whose ape-descended life forms are so 
+    amazingly primitive that they still think digital watches are a pretty neat 
+    idea. This planet has – or rather had – a problem, which was this: most of 
+    the people living on it were unhappy for pretty much of the time.
+    """
+) 
+# Result: 0.2
+```
+</CodeGroup>
+
+## Key concepts
+
+This implementation showcases several important ControlFlow features that enable quick development of NLP tools:
+
+1. **[Agents](/concepts/agents)**: We create an agent with a specific LLM model (GPT-4o mini) to perform the sentiment analysis.
+
+   ```python
+   optimist = cf.Agent(model=ChatOpenAI(model="gpt-4o-mini"))
+   ```
+
+3. **[Result types](/concepts/tasks/task-results)**: We specify `result_type=float` to ensure the sentiment score is returned as a float value.
+
+4. **[Result validation](/concepts/tasks/task-results#result-validators)**: The `result_validator` parameter is used with the `between()` function to ensure the result falls within the expected range.
+
+   ```python
+   result_validator=between(0, 1)
+   ```
+
+5. **[Context passing](/concepts/tasks#context)**: The `context` parameter is used to pass the input text to the task.
+
+   ```python
+   context={"text": text}
+   ```
+
+By leveraging these ControlFlow features, we can create a powerful sentiment classifier with just a few lines of code. This example demonstrates how ControlFlow can simplify the process of building and deploying NLP tools, making it easier for developers to incorporate advanced language processing capabilities into their applications.

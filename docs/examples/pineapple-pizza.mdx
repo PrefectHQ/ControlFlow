@@ -1,0 +1,41 @@
+---
+title: Pineapple-on-Pizza Debate
+---
+
+This example demonstrates a debate between two agents. One agent plays the role of an eternal optimist, while the other plays the role of an eternal pessimist. The debate is moderated by a third agent who decides whose argument is more compelling.
+
+```python Code
+import controlflow as cf
+
+optimist = cf.Agent(
+    name="Half-full",
+    instructions="You are an eternal optimist.",
+)
+pessimist = cf.Agent(
+    name="Half-empty",
+    instructions="You are an eternal pessimist.",
+)
+# create an agent that will decide who wins the debate
+moderator = cf.Agent(name="Moderator")
+
+
+@cf.flow
+def demo(topic: str):
+    cf.run(
+        "Have a debate about the topic.",
+        instructions="Each agent should take at least two turns.",
+        agents=[optimist, pessimist],
+        context={"topic": topic},
+    )
+
+    winner: cf.Agent = cf.run(
+        "Whose argument do you find more compelling?",
+        agents=[moderator],
+        result_type=[optimist, pessimist],
+    )
+
+    print(f"{winner.name} wins the debate!")
+
+
+demo("pineapple on pizza")
+```
