@@ -14,16 +14,18 @@ The following tasks are active:
 
 {% for task in tasks %}
 <Task ID {{ task.id }}>
-Assigned agents: {{ task._serialize_agents(task.get_agents()) }}
-{% if task.completion_agents -%}
-Completion agents: {{ task._serialize_agents(task.completion_agents) }}
-{% endif %}
+    Assigned agents: {{ task._serialize_agents(task.get_agents()) }}
+    {% if task.completion_agents -%}
+    Completion agents: {{ task._serialize_agents(task.completion_agents) }}
+    {% endif %}
 
-{{ task.get_prompt() }}
+    {{ task.get_prompt() }}
 </Task>
 {% endfor %}
 
-Only agents assigned to a task are able to mark the task as complete. Delegate work appropriately to your collaborators.
+Only agents assigned to a task are able to mark the task as complete. You must use a tool to end your turn to let other
+agents participate. If you are asked to talk to other agents, post messages. Do not impersonate another agent! Do not
+impersonate the orchestrator!
 
 Only mark a task failed if there is a technical error or issue preventing completion.
 

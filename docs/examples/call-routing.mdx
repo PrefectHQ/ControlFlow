@@ -1,73 +1,114 @@
 ---
 title: Customer Call Routing
+description: Train an agent to route customer calls to the correct department.
+icon: headset
 ---
 
-In this example, two agents interact in a call routing scenario. One agent plays the role of a customer calling into a call center, while the other agent is a trainee customer service representative. The trainee must listen to the customer's story and route them to the correct department based on the information provided.
+In this example, you'll witness a roleplay between two AI agents:
 
+1. A "customer" agent, who has been assigned a random department they need to reach but is instructed not to directly state it.
+2. A "trainee" customer service representative, who must figure out the correct department based on the customer's story.
+
+The conversation will continue back and forth until the trainee feels confident enough to route the call. This example showcases how ControlFlow can be used to create dynamic, multi-turn interactions between agents, with one agent (the trainee) ultimately making a decision that determines the outcome of the task.
+
+As you run this example, you'll see the conversation unfold in real-time, culminating in the trainee's decision to route the call. The success of the interaction depends on whether the trainee correctly identifies the department the customer needs.
+
+## Code
 
 ```python
 import random
 from enum import Enum
 import controlflow as cf
 
-
-class Department(Enum):
-    SALES = "sales"
-    SUPPORT = "support"
-    BILLING = "billing"
-    TECHNICAL = "technical"
-    RETURNS = "returns"
-    
-
+DEPARTMENTS = [
+    "Sales",
+    "Support",
+    "Billing",
+    "Returns",
+]
 
 @cf.flow
 def routing_flow():
-    department = random.choice(list(Department))
+    target_department = random.choice(DEPARTMENTS)
 
-    # create an agent to be our "customer"
+    print(f"\n---\nThe target department is: {target_department}\n---\n")
+
     customer = cf.Agent(
-        "Customer",
+        name="Customer",
         instructions=f"""
             You are training customer reps by pretending to be a customer
             calling into a call center. You need to be routed to the
-            {department} department. Come up with a good backstory.""",
+            {target_department} department. Come up with a good backstory.
+            """,
     )
 
     trainee = cf.Agent(
-        "Trainee",
-        instructions="""
+        name="Trainee",
+        instructions=""",
             You are a trainee customer service representative. You need to
             listen to the customer's story and route them to the correct
-            department. Note that the customer is another agent training you.""",
+            department. Note that the customer is another agent training you.
+            """,
     )
 
-    task = cf.Task(
-        """
-        In this task, the customer agent and the trainee agent will speak to
-        each other. The customer is trying to be routed to the correct
-        department. The trainee will listen and ask questions to determine the
-        correct department. 
-        """,
-        instructions="""
-        Only the trainee can mark the task successful by routing the customer to
-        the correct department. The trainee must begin the conversation by
-        greeting the customer. Agents speak to each other by posting messages
-        directly to the thread. Do not use the `end_turn` tool or try to talk 
-        to a user.
-        """,
-        agents=[trainee, customer],
-        result_type=Department,
-    )
+    with cf.Task(
+        "Route the customer to the correct department.",
+        agents=[trainee],
+        result_type=DEPARTMENTS,
+    ) as main_task:
+        
+        while main_task.is_incomplete():
+            
+            cf.run(
+                "Talk to the trainee.",
+                instructions=(
+                    "Post a message to talk. In order to help the trainee "
+                    "learn, don't be direct about the department you want. "
+                    "Instead, share a story that will let them practice. "
+                    "After you speak, mark this task as complete."
+                ),
+                agents=[customer],
+                result_type=None
+            )
 
-    routed_dapartment = task.run()
-    if routed_dapartment == department:
+            cf.run(
+                "Talk to the customer.",
+                instructions=(
+                    "Post a message to talk. Ask questions to learn more "
+                    "about the customer. After you speak, mark this task as "
+                    "complete. When you have enough information, use the main "
+                    "task tool to route the customer to the correct department."
+                ),
+                agents=[trainee],
+                result_type=None,
+                tools=[main_task.create_success_tool()]
+            )
+    
+    if main_task.result == target_department:
         print("Success! The customer was routed to the correct department.")
     else:
-        print(
-            "Failed. The customer was routed to the wrong department. "
-            f"The correct department was {department}."
-        )
+        print(f"Failed. The customer was routed to the wrong department. "
+              f"The correct department was {target_department}.")
 
 if __name__ == "__main__":
     routing_flow()
-````
+```
+
+## Key points
+
+1. **Multi-agent interaction**: This example showcases how to orchestrate a conversation between two AI agents, each with distinct roles and objectives.
+
+2. **Parent task as control flow**: The `main_task` serves dual purposes - it represents the overall objective and acts as a control mechanism for the conversation loop. The `while main_task.is_incomplete()` construct creates a flexible, AI-driven loop that continues until the trainee decides to route the call.
+
+3. **Explicit turn-taking**: Instead of using ControlFlow's built-in turn strategies, this example manually alternates between the customer and trainee agents. This provides fine-grained control over the conversation flow and allows for specific instructions to be given to each agent on each turn.
+
+4. **Task-specific tools**: The trainee is given access to the `main_task`'s success tool, allowing them to mark the overall task as complete when they're ready to route the call, even though that task isn't currently active. This demonstrates how tools can be used to give agents control over task state.
+
+
+## Further reading
+
+- For more details on creating and managing tasks, see the [Tasks documentation](/concepts/tasks).
+- To learn more about agents and their capabilities, check out the [Agents guide](/concepts/agents).
+- For information on how ControlFlow manages conversations and context, refer to the [Message History guide](/patterns/history).
+
+This example effectively demonstrates how to create a complex, interactive scenario in ControlFlow, with fine-grained control over agent interactions and task flow. It showcases the flexibility of the framework in handling multi-turn conversations and decision-making processes, making it an excellent template for building sophisticated AI-powered applications.

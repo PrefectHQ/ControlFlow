@@ -31,6 +31,7 @@ from controlflow.agents import Agent
 from controlflow.instructions import get_instructions
 from controlflow.tools import Tool, tool
 from controlflow.tools.input import cli_input
+from controlflow.tools.tools import as_tools
 from controlflow.utilities.context import ctx
 from controlflow.utilities.general import (
     NOTSET,
@@ -135,7 +136,7 @@ class Task(ControlFlowModel):
         "result validator function is called *after* the `result_type` is "
         "processed.",
     )
-    tools: list[Callable] = Field(
+    tools: list[Tool] = Field(
         default_factory=list,
         description="Tools available to every agent working on this task.",
     )
@@ -261,6 +262,10 @@ class Task(ControlFlowModel):
         if isinstance(v, (list, tuple, set)):
             v = Labels(v)
         return v
+
+    @field_validator("tools", mode="before")
+    def _validate_tools(cls, v):
+        return as_tools(v or [])
 
     @field_serializer("parent")
     def _serialize_parent(self, parent: Optional["Task"]):
@@ -485,21 +490,7 @@ class Task(ControlFlowModel):
     def mark_running(self):
         self.set_status(TaskStatus.RUNNING)
 
-    def mark_successful(self, result: T = None, validate_upstreams: bool = True):
-        if validate_upstreams:
-            if any(t.is_incomplete() for t in self.depends_on):
-                raise ValueError(
-                    f"Task {self.objective} cannot be marked successful until all of its "
-                    "upstream dependencies are completed. Incomplete dependencies "
-                    f"are: {', '.join(t.friendly_name() for t in self.depends_on if t.is_incomplete())}"
-                )
-            elif any(t.is_incomplete() for t in self._subtasks):
-                raise ValueError(
-                    f"Task {self.objective} cannot be marked successful until all of its "
-                    "subtasks are completed. Incomplete subtasks "
-                    f"are: {', '.join(t.friendly_name() for t in self._subtasks if t.is_incomplete())}"
-                )
-
+    def mark_successful(self, result: T = None):
         self.result = self.validate_result(result)
         self.set_status(TaskStatus.SUCCESSFUL)
 

@@ -248,7 +248,7 @@ def as_tools(
             pass
         elif isinstance(t, langchain_core.tools.BaseTool):
             t = Tool.from_lc_tool(t)
-        elif inspect.isfunction(t):
+        elif inspect.isfunction(t) or inspect.ismethod(t):
             t = Tool.from_function(t)
         elif isinstance(t, dict):
             t = Tool(**t)
@@ -271,7 +271,7 @@ def as_lc_tools(
             pass
         elif isinstance(t, Tool):
             t = t.to_lc_tool()
-        elif inspect.isfunction(t):
+        elif inspect.isfunction(t) or inspect.ismethod(t):
             t = langchain_core.tools.StructuredTool.from_function(t)
         else:
             raise ValueError(f"Invalid tool: {t}")

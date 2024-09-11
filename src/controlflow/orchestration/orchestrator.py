@@ -117,10 +117,10 @@ class Orchestrator(ControlFlowModel):
                 tools.append(task.create_success_tool())
                 tools.append(task.create_fail_tool())
 
-        # add turn strategy tools
-        tools.extend(
-            self.turn_strategy.get_tools(self.agent, self.get_available_agents())
-        )
+        # add turn strategy tools only if there are multiple available agents
+        available_agents = self.get_available_agents()
+        if len(available_agents) > 1:
+            tools.extend(self.turn_strategy.get_tools(self.agent, available_agents))
 
         tools = as_tools(tools)
         return tools
