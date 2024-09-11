@@ -1,0 +1,126 @@
+---
+title: Multi-LLM Workflows
+description: Leverage different LLM models for specific tasks within a workflow.
+icon: network-wired
+---
+
+This example demonstrates how to use multiple LLM models within a single ControlFlow workflow. We'll use GPT-4o-mini models for efficient classification tasks and GPT-4o for more complex synthesis. This approach allows us to optimize for both speed and quality in our AI-powered workflows.
+
+In this scenario, we'll create a workflow that analyzes customer feedback for a product. The workflow will:
+
+1. Classify the sentiment of each piece of feedback (using GPT-4o-mini)
+2. Categorize the topic of each piece of feedback (using GPT-4o-mini)
+3. Generate a comprehensive summary of the feedback (using GPT-4o)
+
+## Code
+
+```python
+import controlflow as cf
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel
+from typing import Literal
+
+# Define our models
+gpt4_mini = ChatOpenAI(model="gpt-4o-mini")
+gpt4 = ChatOpenAI(model="gpt-4o")
+
+# Create specialized agents
+classifier = cf.Agent(name="Classifier", model=gpt4_mini)
+summarizer = cf.Agent(name="Summarizer", model=gpt4)
+
+# Define our data models
+class Feedback(BaseModel):
+    text: str
+    sentiment: Literal["positive", "neutral", "negative"]
+    topic: Literal["user interface", "performance", "features", "other"]
+
+class FeedbackSummary(BaseModel):
+    overall_sentiment: str
+    key_points: list[str]
+    recommendations: list[str]
+
+@cf.flow
+def analyze_customer_feedback(feedback_list: list[str]) -> FeedbackSummary:
+    analyzed_feedback = []
+
+    for feedback in feedback_list:
+
+        # Classify sentiment
+        sentiment = cf.run(
+            "Classify the sentiment of this feedback",
+            agents=[classifier],
+            result_type=["positive", "neutral", "negative"],
+            context={"feedback": feedback}
+        )
+
+        # Classify topic
+        topic = cf.run(
+            "Categorize this feedback into one of the predefined topics",
+            agents=[classifier],
+            result_type=["user interface", "performance", "features", "other"],
+            context={"feedback": feedback}
+        )
+
+        analyzed_feedback.append(
+            Feedback(text=feedback, sentiment=sentiment, topic=topic)
+        )
+
+    # Generate summary
+    summary = cf.run(
+        "Generate a comprehensive summary of the analyzed feedback",
+        agents=[summarizer],
+        result_type=FeedbackSummary,
+        context={"feedback": analyzed_feedback}
+    )
+
+    return summary
+```
+
+
+### Example usage
+
+<CodeGroup>
+
+```python Code
+feedback_list = [
+    "The new user interface is intuitive and easy to use. Great job!",
+    "The app crashes frequently when I try to save my work. This is frustrating.",
+    "I love the new feature that allows collaboration in real-time.",
+    "The performance has improved, but there's still room for optimization."
+]
+
+result = analyze_customer_feedback(feedback_list)
+print(result)
+```
+```python Result
+FeedbackSummary(
+    overall_sentiment='mixed',
+    key_points=[
+        'The new user interface is intuitive and easy to use.',
+        'The app crashes frequently when trying to save work, causing frustration.',
+        'The new feature allows collaboration in real-time and is well-received.',
+        'Performance has improved but still needs further optimization.'
+    ],
+    recommendations=[
+        'Investigate and fix the app crashing issue.',
+        'Continue improving performance.',
+        'Maintain the intuitive design of the user interface.',
+        'Expand on real-time collaboration features.'
+    ]
+)
+```
+</CodeGroup>
+
+## Key points
+
+1. **Multiple LLM Models**: We use GPT-4o-mini for quick classification tasks (sentiment and topic) and GPT-4o for the more complex task of summarization.
+
+2. **Specialized Agents**: We create separate agents for different tasks, each with its own LLM model. This allows us to optimize for both speed and quality.
+
+3. **Structured Data**: We use Pydantic models (`Feedback` and `FeedbackSummary`) to ensure type safety and consistent data structures throughout the workflow.
+
+4. **Task-Specific Result Types**: Each task has a specific `result_type` that matches the expected output, ensuring that the agents provide the correct type of information.
+
+5. **Workflow Composition**: The `analyze_customer_feedback` flow composes multiple tasks into a cohesive workflow, demonstrating how ControlFlow can manage complex, multi-step processes that include loops and conditional logic.
+
+This example showcases how ControlFlow allows you to leverage the strengths of different LLM models within a single workflow. By using more efficient models for simpler tasks and more powerful models for complex analysis, you can create workflows that are both fast and capable of high-quality output.
