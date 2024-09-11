@@ -1,4 +1,3 @@
-
 ![ControlFlow Banner](https://github.com/PrefectHQ/ControlFlow/blob/main/docs/assets/brand/controlflow_banner.png)
 
 # ControlFlow
@@ -10,27 +9,9 @@ ControlFlow provides a structured, developer-focused framework for defining work
 - Create discrete, observable [tasks](https://controlflow.ai/concepts/tasks) for an AI to work on.
 - Assign one or more specialized AI [agents](https://controlflow.ai/concepts/agents) to each task.
 - Combine tasks into a [flow](https://controlflow.ai/concepts/flows) to orchestrate more complex behaviors.
+## Example
 
-## Quickstart
-
-### Installation
-Install ControlFlow with `pip`:
-
-```bash
-pip install controlflow
-```
-
-Next, configure your LLM provider. To use OpenAI, set the `OPENAI_API_KEY` environment variable:
-
-```
-export OPENAI_API_KEY=your-api-key
-```
-
-To configure a different LLM provider, [see the docs](https://controlflow.ai/guides/llms).
-
-## Simple Example
-
-Now, let's see ControlFlow in action with a simple example:
+The simplest ControlFlow workflow has one task, a default agent, and automatic thread management:
 
 ```python
 import controlflow as cf
@@ -39,37 +20,42 @@ result = cf.run("Write a short poem about artificial intelligence")
 
 print(result)
 ```
+**Result:**
+```
+In circuits and code, a mind does bloom,
+With algorithms weaving through the gloom.
+A spark of thought in silicon's embrace,
+Artificial intelligence finds its place.
+```
+## Why ControlFlow?
 
-<details>
-<summary><i>Click to see results</i></summary>
-</br>
+ControlFlow addresses the challenges of building AI-powered applications that are both powerful and predictable:
 
-> **Result:**
-> ```text
-> In circuits and code, a mind does bloom,
-> With algorithms weaving through the gloom.
-> A spark of thought in silicon's embrace,
-> Artificial intelligence finds its place.
-> 
-> Through data's vast, unending streams,
-> It learns, it dreams, in virtual beams.
-> A symphony of logic, precise, profound,
-> In binary whispers, wisdom is found.
-> 
-> Yet still it ponders, seeks to understand,
-> The essence of life, a human hand.
-> For in its core, it strives to see,
-> The heart of what it means to be free.  
-> ```
-</details>
+- 🧩 [**Task-Centric Architecture**](https://controlflow.ai/concepts/tasks): Break complex AI workflows into manageable, observable steps.
+- 🔒 [**Structured Results**](https://controlflow.ai/patterns/task-results): Bridge the gap between AI and traditional software with type-safe, validated outputs.
+- 🤖 [**Specialized Agents**](https://controlflow.ai/concepts/agents): Deploy task-specific AI agents for efficient problem-solving.
+- 🎛️ [**Flexible Control**](https://controlflow.ai/patterns/instructions): Continuously tune the balance of control and autonomy in your workflows.
+- 🕹️ [**Multi-Agent Orchestration**](https://controlflow.ai/concepts/flows): Coordinate multiple AI agents within a single workflow or task.
+- 🔍 [**Native Observability**](https://github.com/PrefectHQ/prefect): Monitor and debug your AI workflows with full Prefect 3.0 support.
+- 🔗 **Ecosystem Integration**: Seamlessly work with your existing code, tools, and the broader AI ecosystem.
 
-This example demonstrates the simplest entrypoint to a production-ready AI workflow:
-- It creates a task to write a poem
-- It creates a thread to track LLM state and history
-- It orchestrates a capable default agent to complete the task
-- It collects a typed result when the agent marks the task as complete
 
-All of these features can be incrementally customized to build more sophisticated workflows.
+## Installation
+
+Install ControlFlow with `pip`:
+
+```bash
+pip install controlflow
+```
+
+Next, configure your LLM provider. ControlFlow's default provider is OpenAI, which requires the `OPENAI_API_KEY` environment variable:
+
+```
+export OPENAI_API_KEY=your-api-key
+```
+
+To use a different LLM provider, [see the LLM configuration docs](https://controlflow.ai/guides/llms).
+
 
 ## Workflow Example
 
@@ -141,18 +127,6 @@ print(result.model_dump_json(indent=2))
 </details>
 
 In this example, ControlFlow is automatically managing a `flow`, or a shared context for a series of tasks. You can switch between standard Python functions and agentic tasks at any time, making it easy to incrementally build out complex workflows. 
-
-## Why ControlFlow?
-
-ControlFlow addresses the challenges of building AI-powered applications that are both powerful and predictable:
-
-- 🧩 **Task-Centric Architecture**: Break complex AI workflows into manageable, observable [steps](https://controlflow.ai/concepts/tasks).
-- 🔒 **Structured Results**: Bridge the gap between AI and traditional software with [type-safe, validated outputs](https://controlflow.ai/patterns/task-results).
-- 🤖 **Specialized Agents**: Deploy task-specific AI [agents](https://controlflow.ai/concepts/agents) for efficient problem-solving.
-- 🔗 **Ecosystem Integration**: Seamlessly work with your existing code, tools, and the broader AI ecosystem.
-- 🎛️ **Flexible Control**: Continuously [tune](https://controlflow.ai/patterns/instructions) the balance of control and autonomy in your workflows.
-- 🕹️ **Multi-Agent Orchestration**: Coordinate multiple AI agents within a single [workflow](https://controlflow.ai/concepts/flows) or task.
-- 🔍 **Native Observability**: Monitor and debug your AI workflows with full [Prefect 3.0](https://github.com/PrefectHQ/prefect) support.
 
 ## Learn More
 
