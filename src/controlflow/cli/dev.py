@@ -38,7 +38,7 @@ def ai_files(
         doc_files = (
             list(docs_path.rglob("*.mdx"))
             + list(docs_path.glob("*.md"))
-            + list(docs_path.glob("mint.json"))
+            + [docs_path / "mint.json", repo_root / "README.md"]
         )
 
         generate_file_content(code_files, "all_code.md")
