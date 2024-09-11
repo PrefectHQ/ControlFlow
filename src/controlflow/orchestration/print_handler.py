@@ -35,20 +35,6 @@ class PrintHandler(Handler):
         self.paused_id: str = None
         super().__init__()
 
-    def on_orchestrator_start(self, event: OrchestratorStart):
-        self.live: Live = Live(auto_refresh=False, console=cf_console)
-        self.events.clear()
-        try:
-            self.live.start()
-        except rich.errors.LiveError:
-            pass
-
-    def on_orchestrator_end(self, event: OrchestratorEnd):
-        self.live.stop()
-
-    def on_orchestrator_error(self, event: OrchestratorError):
-        self.live.stop()
-
     def update_live(self, latest: BaseMessage = None):
         events = sorted(self.events.items(), key=lambda e: (e[1].timestamp, e[0]))
         content = []
@@ -71,6 +57,20 @@ class PrintHandler(Handler):
             self.live.update(Group(*content), refresh=True)
         elif latest:
             cf_console.print(format_event(latest))
+
+    def on_orchestrator_start(self, event: OrchestratorStart):
+        self.live: Live = Live(auto_refresh=False, console=cf_console)
+        self.events.clear()
+        try:
+            self.live.start()
+        except rich.errors.LiveError:
+            pass
+
+    def on_orchestrator_end(self, event: OrchestratorEnd):
+        self.live.stop()
+
+    def on_orchestrator_error(self, event: OrchestratorError):
+        self.live.stop()
 
     def on_agent_message_delta(self, event: AgentMessageDelta):
         self.events[event.snapshot_message.id] = event

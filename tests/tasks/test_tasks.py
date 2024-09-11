@@ -5,8 +5,11 @@ from pydantic import BaseModel
 
 import controlflow
 from controlflow.agents import Agent
+from controlflow.events.base import Event
+from controlflow.events.events import AgentMessage
 from controlflow.flows import Flow
 from controlflow.instructions import instructions
+from controlflow.orchestration.handler import Handler
 from controlflow.tasks.task import (
     COMPLETE_STATUSES,
     INCOMPLETE_STATUSES,
@@ -423,3 +426,33 @@ class TestSuccessTool:
         tool.run(input=dict(result=1))
         assert task.result == Person(name="Bob", age=35)
         assert isinstance(task.result, Person)
+
+
+class TestHandlers:
+    class TestHandler(Handler):
+        def __init__(self):
+            self.events = []
+            self.agent_messages = []
+
+        def on_event(self, event: Event):
+            self.events.append(event)
+
+        def on_agent_message(self, event: AgentMessage):
+            self.agent_messages.append(event)
+
+    def test_task_run_with_handlers(self, default_fake_llm):
+        handler = self.TestHandler()
+        task = Task(objective="Calculate 2 + 2", result_type=int)
+        task.run(handlers=[handler], max_llm_calls=1)
+
+        assert len(handler.events) > 0
+        assert len(handler.agent_messages) == 1
+
+    @pytest.mark.asyncio
+    async def test_task_run_async_with_handlers(self, default_fake_llm):
+        handler = self.TestHandler()
+        task = Task(objective="Calculate 2 + 2", result_type=int)
+        await task.run_async(handlers=[handler], max_llm_calls=1)
+
+        assert len(handler.events) > 0
+        assert len(handler.agent_messages) == 1

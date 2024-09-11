@@ -43,6 +43,7 @@ from controlflow.utilities.prefect import prefect_task as prefect_task
 
 if TYPE_CHECKING:
     from controlflow.flows import Flow
+    from controlflow.orchestration.handler import Handler
     from controlflow.orchestration.turn_strategies import TurnStrategy
 
 T = TypeVar("T")
@@ -351,6 +352,7 @@ class Task(ControlFlowModel):
         turn_strategy: "TurnStrategy" = None,
         max_llm_calls: int = None,
         max_agent_turns: int = None,
+        handlers: list["Handler"] = None,
     ) -> T:
         """
         Run the task
@@ -364,6 +366,7 @@ class Task(ControlFlowModel):
             max_llm_calls=max_llm_calls,
             max_agent_turns=max_agent_turns,
             raise_on_error=False,
+            handlers=handlers,
         )
 
         if self.is_successful():
@@ -379,6 +382,7 @@ class Task(ControlFlowModel):
         turn_strategy: "TurnStrategy" = None,
         max_llm_calls: int = None,
         max_agent_turns: int = None,
+        handlers: list["Handler"] = None,
     ) -> T:
         """
         Run the task
@@ -392,6 +396,7 @@ class Task(ControlFlowModel):
             max_llm_calls=max_llm_calls,
             max_agent_turns=max_agent_turns,
             raise_on_error=False,
+            handlers=handlers,
         )
 
         if self.is_successful():
