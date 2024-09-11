@@ -45,6 +45,6 @@ def test_record_task_events(default_fake_llm):
     }
     assert events[3].tool_result.model_dump() == dict(
         tool_call_id="call_ZEPdV8mCgeBe5UHjKzm6e3pe",
-        str_result='Task 12345 ("say hello") marked successful.',
+        str_result='Task #12345 ("say hello") marked successful.',
         is_error=False,
     )
