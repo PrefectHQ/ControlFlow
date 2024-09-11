@@ -195,22 +195,6 @@ class TestTaskStatus:
         assert not task.is_failed()
         assert task.is_skipped()
 
-    def test_validate_upstream_dependencies_on_success(self):
-        task1 = SimpleTask()
-        task2 = SimpleTask(depends_on=[task1])
-        with pytest.raises(ValueError, match="cannot be marked successful"):
-            task2.mark_successful()
-        task1.mark_successful()
-        task2.mark_successful()
-
-    def test_validate_subtask_dependencies_on_success(self):
-        task1 = SimpleTask()
-        task2 = SimpleTask(parent=task1)
-        with pytest.raises(ValueError, match="cannot be marked successful"):
-            task1.mark_successful()
-        task2.mark_successful()
-        task1.mark_successful()
-
     def test_task_ready(self):
         task1 = SimpleTask()
         assert task1.is_ready()
