@@ -16,6 +16,7 @@ from controlflow.orchestration.turn_strategies import Popcorn, TurnStrategy
 from controlflow.tasks.task import Task
 from controlflow.tools.tools import Tool, as_tools
 from controlflow.utilities.general import ControlFlowModel
+from controlflow.utilities.prefect import prefect_task
 
 logger = logging.getLogger(__name__)
 
@@ -124,17 +125,10 @@ class Orchestrator(ControlFlowModel):
         tools = as_tools(tools)
         return tools
 
+    @prefect_task(task_run_name="Orchestrator.run()")
     def run(
         self, max_llm_calls: Optional[int] = None, max_agent_turns: Optional[int] = None
     ):
-        """
-        Run the orchestration process until completion or limits are reached.
-
-        Args:
-            max_llm_calls (int, optional): Maximum number of LLM calls to make.
-            max_agent_turns (int, optional): Maximum number of agent turns to run
-                (each turn can consist of multiple LLM calls)
-        """
         import controlflow.events.orchestrator_events
 
         call_count = 0
@@ -163,7 +157,6 @@ class Orchestrator(ControlFlowModel):
                     logger.debug(f"Max agent turns reached: {max_agent_turns}")
                     break
 
-                # this check seems redundant to the check below, but this one exits the outer loop
                 if max_llm_calls is not None and call_count >= max_llm_calls:
                     break
 
@@ -171,43 +164,20 @@ class Orchestrator(ControlFlowModel):
                 self.turn_strategy.begin_turn()
 
                 # Mark assigned tasks as running
-                for task in (assigned_tasks := self.get_tasks("assigned")):
+                for task in self.get_tasks("assigned"):
                     if not task.is_running():
                         task.mark_running()
                         self.flow.add_events(
                             [
                                 OrchestratorMessage(
-                                    content=f"Starting task {task.name} (ID {task.id}) with objective: {task.objective}"
+                                    content=f"Starting task {task.name} (ID {task.id}) "
+                                    f"with objective: {task.objective}"
                                 )
                             ]
                         )
 
-                # Execute LLM calls until the turn should end
-                while not self.turn_strategy.should_end_turn():
-                    for task in assigned_tasks:
-                        if task.max_llm_calls and task._llm_calls >= task.max_llm_calls:
-                            task.mark_failed(
-                                reason="Max LLM calls reached for this task."
-                            )
-                        else:
-                            task._llm_calls += 1
-
-                    # Check if there are any ready tasks left
-                    if not any(t.is_ready() for t in assigned_tasks):
-                        logger.debug("No `ready` tasks to run")
-                        break
-
-                    call_count += 1
-                    messages = self.compile_messages()
-                    tools = self.get_tools()
-
-                    for event in self.agent._run_model(messages=messages, tools=tools):
-                        self.handle_event(event)
-
-                    # Check if we've reached the call limit within a turn
-                    if max_llm_calls is not None and call_count >= max_llm_calls:
-                        logger.debug(f"Max LLM calls reached: {max_llm_calls}")
-                        break
+                # Run the agent's turn
+                call_count += self.run_agent_turn(max_llm_calls - call_count)
 
                 # Select the next agent for the following turn
                 if available_agents := self.get_available_agents():
@@ -231,6 +201,7 @@ class Orchestrator(ControlFlowModel):
                 )
             )
 
+    @prefect_task
     async def run_async(
         self, max_llm_calls: Optional[int] = None, max_agent_turns: Optional[int] = None
     ):
@@ -270,7 +241,6 @@ class Orchestrator(ControlFlowModel):
                     logger.debug(f"Max agent turns reached: {max_agent_turns}")
                     break
 
-                # this check seems redundant to the check below, but this one exits the outer loop
                 if max_llm_calls is not None and call_count >= max_llm_calls:
                     break
 
@@ -278,7 +248,7 @@ class Orchestrator(ControlFlowModel):
                 self.turn_strategy.begin_turn()
 
                 # Mark assigned tasks as running
-                for task in (assigned_tasks := self.get_tasks("assigned")):
+                for task in self.get_tasks("assigned"):
                     if not task.is_running():
                         task.mark_running()
                         self.flow.add_events(
@@ -289,34 +259,10 @@ class Orchestrator(ControlFlowModel):
                             ]
                         )
 
-                # Execute LLM calls until the turn should end
-                while not self.turn_strategy.should_end_turn():
-                    for task in assigned_tasks:
-                        if task.max_llm_calls and task._llm_calls >= task.max_llm_calls:
-                            task.mark_failed(
-                                reason="Max LLM calls reached for this task."
-                            )
-                        else:
-                            task._llm_calls += 1
-
-                    # Check if there are any ready tasks left
-                    if not any(t.is_ready() for t in assigned_tasks):
-                        logger.debug("No `ready` tasks to run")
-                        break
-
-                    call_count += 1
-                    messages = self.compile_messages()
-                    tools = self.get_tools()
-
-                    async for event in self.agent._run_model_async(
-                        messages=messages, tools=tools
-                    ):
-                        self.handle_event(event)
-
-                    # Check if we've reached the call limit within a turn
-                    if max_llm_calls is not None and call_count >= max_llm_calls:
-                        logger.debug(f"Max LLM calls reached: {max_llm_calls}")
-                        break
+                # Run the agent's turn
+                call_count += await self.run_agent_turn_async(
+                    max_llm_calls - call_count
+                )
 
                 # Select the next agent for the following turn
                 if available_agents := self.get_available_agents():
@@ -339,6 +285,88 @@ class Orchestrator(ControlFlowModel):
                     orchestrator=self
                 )
             )
+
+    @prefect_task(task_run_name="Agent turn: {self.agent.name}")
+    def run_agent_turn(self, max_llm_calls: Optional[int]) -> int:
+        """
+        Run a single agent turn, which may consist of multiple LLM calls.
+
+        Args:
+            max_llm_calls (Optional[int]): The number of LLM calls allowed.
+
+        Returns:
+            int: The number of LLM calls made during this turn.
+        """
+        call_count = 0
+        assigned_tasks = self.get_tasks("assigned")
+
+        while not self.turn_strategy.should_end_turn():
+            for task in assigned_tasks:
+                if task.max_llm_calls and task._llm_calls >= task.max_llm_calls:
+                    task.mark_failed(reason="Max LLM calls reached for this task.")
+                else:
+                    task._llm_calls += 1
+
+            # Check if there are any ready tasks left
+            if not any(t.is_ready() for t in assigned_tasks):
+                logger.debug("No `ready` tasks to run")
+                break
+
+            call_count += 1
+            messages = self.compile_messages()
+            tools = self.get_tools()
+
+            for event in self.agent._run_model(messages=messages, tools=tools):
+                self.handle_event(event)
+
+            # Check if we've reached the call limit within a turn
+            if max_llm_calls is not None and call_count >= max_llm_calls:
+                logger.debug(f"Max LLM calls reached: {max_llm_calls}")
+                break
+
+        return call_count
+
+    @prefect_task
+    async def run_agent_turn_async(self, max_llm_calls: Optional[int]) -> int:
+        """
+        Run a single agent turn asynchronously, which may consist of multiple LLM calls.
+
+        Args:
+            max_llm_calls (Optional[int]): The number of LLM calls allowed.
+
+        Returns:
+            int: The number of LLM calls made during this turn.
+        """
+        call_count = 0
+        assigned_tasks = self.get_tasks("assigned")
+
+        while not self.turn_strategy.should_end_turn():
+            for task in assigned_tasks:
+                if task.max_llm_calls and task._llm_calls >= task.max_llm_calls:
+                    task.mark_failed(reason="Max LLM calls reached for this task.")
+                else:
+                    task._llm_calls += 1
+
+            # Check if there are any ready tasks left
+            if not any(t.is_ready() for t in assigned_tasks):
+                logger.debug("No `ready` tasks to run")
+                break
+
+            call_count += 1
+            messages = self.compile_messages()
+            tools = self.get_tools()
+
+            async for event in self.agent._run_model_async(
+                messages=messages, tools=tools
+            ):
+                self.handle_event(event)
+
+            # Check if we've reached the call limit within a turn
+            if max_llm_calls is not None and call_count >= max_llm_calls:
+                logger.debug(f"Max LLM calls reached: {max_llm_calls}")
+                break
+
+        return call_count
 
     def compile_prompt(self) -> str:
         """
