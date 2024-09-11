@@ -7,13 +7,12 @@ from typing import (
     TYPE_CHECKING,
     Any,
     AsyncGenerator,
-    Callable,
     Generator,
     Optional,
 )
 
 from langchain_core.language_models import BaseChatModel
-from pydantic import Field, field_serializer
+from pydantic import Field, field_serializer, field_validator
 
 import controlflow
 from controlflow.agents.names import AGENT_NAMES
@@ -22,6 +21,7 @@ from controlflow.instructions import get_instructions
 from controlflow.llm.messages import AIMessage, BaseMessage
 from controlflow.llm.rules import LLMRules
 from controlflow.tools.tools import (
+    Tool,
     as_lc_tools,
     as_tools,
     handle_tool_call,
@@ -63,9 +63,7 @@ class Agent(ControlFlowModel, abc.ABC):
         None,
         description="A system template for the agent. The template should be formatted as a jinja2 template.",
     )
-    tools: list[Callable] = Field(
-        [], description="List of tools available to the agent."
-    )
+    tools: list[Tool] = Field([], description="List of tools available to the agent.")
     interactive: bool = Field(
         False,
         description="If True, the agent is given tools for interacting with a human user.",
@@ -127,8 +125,12 @@ class Agent(ControlFlowModel, abc.ABC):
             )
         )
 
+    @field_validator("tools", mode="before")
+    def _validate_tools(cls, tools: list[Tool]):
+        return as_tools(tools or [])
+
     @field_serializer("tools")
-    def _serialize_tools(self, tools: list[Callable]):
+    def _serialize_tools(self, tools: list[Tool]):
         tools = controlflow.tools.as_tools(tools)
         # tools are Pydantic 1 objects
         return [t.dict(include={"name", "description"}) for t in tools]
@@ -262,8 +264,10 @@ class Agent(ControlFlowModel, abc.ABC):
             ToolResultEvent,
         )
 
+        tools = as_tools(self.get_tools() + tools)
         model = self.get_model(tools=tools)
 
+        logger.debug(f"Running model {model} for agent {self.name} with tools {tools}")
         if controlflow.settings.log_all_messages:
             logger.debug(f"Input messages: {messages}")
 
@@ -317,8 +321,10 @@ class Agent(ControlFlowModel, abc.ABC):
             ToolResultEvent,
         )
 
+        tools = as_tools(self.get_tools() + tools)
         model = self.get_model(tools=tools)
 
+        logger.debug(f"Running model {model} for agent {self.name} with tools {tools}")
         if controlflow.settings.log_all_messages:
             logger.debug(f"Input messages: {messages}")
 

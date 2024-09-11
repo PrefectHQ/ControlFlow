@@ -4,6 +4,7 @@ from typing import Annotated
 import pytest
 from pydantic import Field
 
+import controlflow
 from controlflow.agents.agent import Agent
 from controlflow.llm.messages import ToolMessage
 from controlflow.tools.tools import (
@@ -302,3 +303,52 @@ class TestHandleTools:
         message = handle_tool_call(tool_call, tools=[foo], agent=agent)
         assert message.agent.name == "test-agent"
         assert message.agent.id == agent.id
+
+
+class TestToolAvailability:
+    x = None
+
+    def signal(self, x):
+        """You must use this tool to complete the task"""
+        self.x = x
+
+    @pytest.fixture(autouse=True)
+    def reset_signal(self):
+        self.x = None
+        yield
+        self.x = None
+
+    def test_agent_tool(self):
+        """
+        Tests that an agent can use a tool assigned to it
+        """
+        agent = Agent(tools=[self.signal])
+        controlflow.run(
+            "Use the signal tool with x=10", agents=[agent], max_llm_calls=1
+        )
+        assert self.x == 10
+
+    def test_task_tool(self):
+        """
+        Tests that an agent can use a tool assigned to a task
+        """
+        agent = Agent(name="test-agent")
+        controlflow.run(
+            "Use the signal tool with x=10",
+            agents=[agent],
+            max_llm_calls=1,
+            tools=[self.signal],
+        )
+        assert self.x == 10
+
+    def test_flow_tool(self):
+        """
+        Tests that an agent can use a tool assigned to a flow
+        """
+        agent = Agent(name="test-agent")
+
+        with controlflow.Flow(tools=[self.signal]):
+            controlflow.run(
+                "Use the signal tool with x=10", agents=[agent], max_llm_calls=1
+            )
+        assert self.x == 10

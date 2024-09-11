@@ -14,8 +14,8 @@ class TurnStrategy(ControlFlowModel, ABC):
 
     @abstractmethod
     def get_tools(
-        self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
-    ) -> List[Tool]:
+        self, current_agent: Agent, available_agents: dict[Agent, list[Task]]
+    ) -> list[Tool]:
         pass
 
     @abstractmethod
@@ -41,15 +41,18 @@ class TurnStrategy(ControlFlowModel, ABC):
 def create_end_turn_tool(strategy: TurnStrategy) -> Tool:
     @tool
     def end_turn() -> str:
-        """End your turn. Only use this tool if you have no other options."""
+        """
+        End your turn. Only use this tool if you have no other options and
+        want a different agent to take over. This tool does not mark tasks as complete.
+        """
         strategy.end_turn = True
-        return "Turn ended. Another agent will be selected."
+        return "Turn ended."
 
     return end_turn
 
 
 def create_delegate_tool(
-    strategy: TurnStrategy, available_agents: Dict[Agent, List[Task]]
+    strategy: TurnStrategy, available_agents: dict[Agent, list[Task]]
 ) -> Tool:
     @tool
     def delegate_to_agent(agent_id: str, message: str = None) -> str:
@@ -72,8 +75,8 @@ class SingleAgent(TurnStrategy):
     agent: Agent
 
     def get_tools(
-        self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
-    ) -> List[Tool]:
+        self, current_agent: Agent, available_agents: dict[Agent, list[Task]]
+    ) -> list[Tool]:
         return [create_end_turn_tool(self)]
 
     def get_next_agent(
@@ -88,12 +91,9 @@ class SingleAgent(TurnStrategy):
 
 class Popcorn(TurnStrategy):
     def get_tools(
-        self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
-    ) -> List[Tool]:
-        if len(available_agents) > 1:
-            return [create_delegate_tool(self, available_agents)]
-        else:
-            return [create_end_turn_tool(self)]
+        self, current_agent: Agent, available_agents: dict[Agent, list[Task]]
+    ) -> list[Tool]:
+        return [create_delegate_tool(self, available_agents)]
 
     def get_next_agent(
         self, current_agent: Optional[Agent], available_agents: Dict[Agent, List[Task]]
@@ -105,8 +105,8 @@ class Popcorn(TurnStrategy):
 
 class Random(TurnStrategy):
     def get_tools(
-        self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
-    ) -> List[Tool]:
+        self, current_agent: Agent, available_agents: dict[Agent, list[Task]]
+    ) -> list[Tool]:
         return [create_end_turn_tool(self)]
 
     def get_next_agent(
@@ -117,8 +117,8 @@ class Random(TurnStrategy):
 
 class RoundRobin(TurnStrategy):
     def get_tools(
-        self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
-    ) -> List[Tool]:
+        self, current_agent: Agent, available_agents: dict[Agent, list[Task]]
+    ) -> list[Tool]:
         return [create_end_turn_tool(self)]
 
     def get_next_agent(
@@ -134,8 +134,8 @@ class RoundRobin(TurnStrategy):
 
 class MostBusy(TurnStrategy):
     def get_tools(
-        self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
-    ) -> List[Tool]:
+        self, current_agent: Agent, available_agents: dict[Agent, list[Task]]
+    ) -> list[Tool]:
         return [create_end_turn_tool(self)]
 
     def get_next_agent(
@@ -149,8 +149,8 @@ class Moderated(TurnStrategy):
     moderator: Agent
 
     def get_tools(
-        self, current_agent: Agent, available_agents: Dict[Agent, List[Task]]
-    ) -> List[Tool]:
+        self, current_agent: Agent, available_agents: dict[Agent, list[Task]]
+    ) -> list[Tool]:
         if current_agent == self.moderator:
             return [create_delegate_tool(self, available_agents)]
         else:

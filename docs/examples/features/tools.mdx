@@ -1,0 +1,139 @@
+---
+title: Custom tools
+description: Provide tools to expand agent capabilities.
+icon: wrench
+---
+
+In ControlFlow, tools can be assigned at different levels of your workflow: to the flow itself, to specific agents, or to individual tasks. This flexibility allows you to expand agent capabilities and create more powerful workflows. 
+
+This example demonstrates how to assign and use tools at each level for a file search and information retrieval scenario, using a temporary directory with test files.
+
+<Warning>
+The agent in this example can read files on your local file system. While simple precautions are taken to restrict the agent to demo data created specifically for this example, you may consider this a potential security risk.
+</Warning>
+
+## Code
+
+In this example, we create an agentic workflow that searches through files looking for important information. To avoid interfering with your local file system, we'll create a context manager that sets up a temporary directory with demo files that the agent can search.
+
+<Info>
+This example's code is split into multiple blocks for legibility. Please run each code block in sequence to run the full example.
+</Info>
+### Set up example data
+
+First, let's create a context manager that sets up a temporary directory with test files:
+
+```python Files
+import contextlib
+import tempfile
+import os
+
+@contextlib.contextmanager
+def setup_test_environment():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Create test files
+        files = {
+            "report.txt": "This report contains important findings from our recent project...",
+            "meeting_notes.txt": "In today's important meeting, we discussed the new product launch...",
+            "todo.txt": "Important tasks for this week: 1. Client meeting, 2. Finish report...",
+        }
+        for filename, content in files.items():
+            with open(os.path.join(temp_dir, filename), 'w') as f:
+                f.write(content)
+        
+        yield temp_dir
+
+```
+
+### Set up tools
+
+Next, let's create some tools for our agent to use. We have one tool for listing the files in a directory, one for reading the contents of a file, and one for printing a message to the user.
+
+Note that tools can be any Python function, and work best when they have clear type annotations and docstrings.
+
+```python Tools
+def list_files(directory: str) -> list[str]:
+    """List files in the given directory."""
+    return os.listdir(directory)
+
+def read_file(filepath: str) -> str:
+    """Read the contents of a file from an absolute filepath."""
+    with open(filepath, 'r') as file:
+        return file.read()
+
+def update_user(message: str) -> None:
+    """Print a status message for the user to read."""
+    print(f"[User Notification]: {message}")
+    return 'User updated.'
+```
+
+### Build a flow
+Finally, let's build a workflow. In this example, we want to illustrate the different ways that tools can be provided, so:
+
+- The flow is given the `update_user` tool, so any agent can post a message to the user at any time
+- The agent is given the `list_files` tool, so this agent can list files at any time
+- The task is given the `read_file` tool, so that capability is only available while that task is running
+
+Now, let's build a flow that explores those files. Note that the context manager from the previous code block is used in this example to set up the example data:
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+agent = cf.Agent(name="FileSearcher", tools=[list_files])
+
+
+@cf.flow(tools=[update_user], default_agent=agent)  
+def file_search_flow(query: str, directory: str):
+
+    # Task 1: Find files containing the search term
+    found_files = cf.Task(
+        f"Identify files in the directory '{directory}' that might "
+        f"relate to'{query}' and return a list of paths.",
+        result_type=list[str]
+    )
+
+    # Task 2: Analyze file contents and report findings
+    cf.run(
+        f"Analyze the contents of the files for information related "
+        "to the search term.",
+        instructions='You must update the user on all your findings to complete the task.',
+        tools=[read_file],
+        depends_on=[found_files],
+        result_type=None  # We don't need a return value as we're printing directly to the user
+    )
+
+# Run the flow within our test environment
+with setup_test_environment() as temp_dir:
+    file_search_flow(query="launch meeting", directory=temp_dir)
+```
+```text Result
+[User Notification]: Listing the files in the directory to 
+    identify the relevant contents.
+
+[User Notification]: Content analysis completed. The relevant 
+    information related to 'launch meeting' is found in 
+    'meeting_notes.txt'. The exact content is: 'In today's 
+    important meeting, we discussed the new product launch...'.
+```
+</CodeGroup>
+
+## Key points
+
+1. **Tool assignment**: Tools can be assigned to flows, agents, and tasks, which lets you control which agents or tasks have access to which tools.
+
+2. **Instructions**: Agents will follow instructions, including how to use tools.
+
+3. **Dependent tasks**: The second task in this flow depends on the first task, which means 1) it automatically has visibility into its result and 2) ControlFlow automatically ran the first task when the second task was run.
+
+4. **Flow context**: The `query` parameter was part of the flow context, which means all tasks could see it even it if wasn't explicitly provided to them. 
+
+
+
+## Further reading
+
+- For more details on creating and using tools, see the [Tools documentation](/patterns/tools).
+- To learn more about agents and their capabilities, check out the [Agents guide](/concepts/agents).
+- For information on how ControlFlow manages task execution and context, refer to the [Running tasks guide](/patterns/running-tasks).
+
+By strategically assigning tools at different levels in your ControlFlow workflows, you can significantly expand the capabilities of your AI agents, enabling them to interact with external systems and perform complex operations.
