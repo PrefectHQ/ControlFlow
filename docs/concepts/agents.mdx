@@ -31,7 +31,6 @@ A more complex agent can be created by providing additional configuration. This 
 
 ```python
 import controlflow as cf
-from langchain_openai import ChatOpenAI
 
 agent = cf.Agent(
     name="Data Analyst",
@@ -41,7 +40,7 @@ agent = cf.Agent(
         "Browse the web for data and use Python to analyze it."
     ),
     tools=[cf.tools.web.get_url, cf.tools.code.python],
-    model=ChatpOpenAI('gpt-4o-mini'),
+    model="openai/gpt-4o",
     interactive=True,
 )
 ```

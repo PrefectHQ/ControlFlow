@@ -12,9 +12,8 @@ The following code creates a function that classifies a given news headline into
 
 ```python
 import controlflow as cf
-from langchain_openai import ChatOpenAI
 
-classifier = cf.Agent(model=ChatOpenAI(model="gpt-4o-mini"))
+classifier = cf.Agent(model="openai/gpt-4o-mini")
 
 def classify_news(headline: str) -> str:
     return cf.run(
@@ -57,7 +56,7 @@ This implementation showcases several important ControlFlow features that enable
 1. **[Agents](/concepts/agents)**: We create an agent with a specific LLM model (GPT-4o mini) to perform the headline classification.
 
    ```python
-   classifier = cf.Agent(model=ChatOpenAI(model="gpt-4o-mini"))
+   classifier = cf.Agent(model="openai/gpt-4o-mini")
    ```
 
 2. **[Result types](/concepts/tasks/task-results)**: We use a list of strings as the `result_type` to constrain the output to one of the predefined categories. This ensures that the classification result is always one of the specified options.

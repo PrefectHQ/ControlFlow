@@ -1,4 +1,5 @@
 import pytest
+from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI
 
 import controlflow
@@ -30,6 +31,19 @@ class TestAgentInitialization:
         # None indicates it will be loaded from the default model
         assert agent.model is model
         assert agent.get_model() is model
+
+    def test_agent_model_from_string(self):
+        agent1 = Agent(model="openai/gpt-4o-mini")
+        assert isinstance(agent1.model, ChatOpenAI)
+        assert agent1.model.model_name == "gpt-4o-mini"
+
+        agent2 = Agent(model="anthropic/claude-3-haiku-20240307")
+        assert isinstance(agent2.model, ChatAnthropic)
+        assert agent2.model.model == "claude-3-haiku-20240307"
+
+    def test_agent_model_from_unsupported_provider(self):
+        with pytest.raises(ValueError, match="Unsupported model provider: abc"):
+            Agent(model="abc/def")
 
     def test_agent_loads_instructions_at_creation(self):
         with instructions("test instruction"):
@@ -73,7 +87,7 @@ class TestDefaultAgent:
         assert Task("task").get_agents()[0].name == "New Agent"
 
     def test_updating_the_default_model_updates_the_default_agent_model(self):
-        new_model = ChatOpenAI(model="gpt-3.5-turbo")
+        new_model = ChatOpenAI(model="gpt-4o-mini")
         controlflow.defaults.model = new_model
 
         new_agent = controlflow.defaults.agent

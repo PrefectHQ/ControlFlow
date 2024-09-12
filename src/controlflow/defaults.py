@@ -10,7 +10,7 @@ from controlflow.utilities.general import ControlFlowModel
 
 from .agents import Agent
 from .events.history import History, InMemoryHistory
-from .llm.models import _get_initial_default_model, model_from_string
+from .llm.models import _get_initial_default_model, get_model
 
 __all__ = ["defaults"]
 
@@ -43,7 +43,7 @@ class Defaults(ControlFlowModel):
     @field_validator("model")
     def _model(cls, v):
         if isinstance(v, str):
-            v = model_from_string(v)
+            v = get_model(v)
         elif v is not None and not isinstance(v, BaseChatModel):
             raise ValueError("Input must be an instance of BaseChatModel")
         return v

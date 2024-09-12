@@ -13,9 +13,8 @@ The following code creates a function that classifies the sentiment of a given t
 ```python
 import controlflow as cf
 from controlflow.tasks.validators import between
-from langchain_openai import ChatOpenAI
 
-optimist = cf.Agent(model=ChatOpenAI(model="gpt-4o-mini"))
+optimist = cf.Agent(model="openai/gpt-4o-mini")
 
 def sentiment(text: str) -> float:
     return cf.run(
@@ -58,7 +57,7 @@ This implementation showcases several important ControlFlow features that enable
 1. **[Agents](/concepts/agents)**: We create an agent with a specific LLM model (GPT-4o mini) to perform the sentiment analysis.
 
    ```python
-   optimist = cf.Agent(model=ChatOpenAI(model="gpt-4o-mini"))
+   optimist = cf.Agent(model="openai/gpt-4o-mini")
    ```
 
 3. **[Result types](/concepts/tasks/task-results)**: We specify `result_type=float` to ensure the sentiment score is returned as a float value.
