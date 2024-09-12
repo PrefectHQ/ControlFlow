@@ -160,24 +160,18 @@ class Orchestrator(ControlFlowModel):
                 if max_llm_calls is not None and call_count >= max_llm_calls:
                     break
 
+                self.handle_event(
+                    controlflow.events.orchestrator_events.AgentTurnStart(
+                        orchestrator=self, agent=self.agent
+                    )
+                )
                 turn_count += 1
-                self.turn_strategy.begin_turn()
-
-                # Mark assigned tasks as running
-                for task in self.get_tasks("assigned"):
-                    if not task.is_running():
-                        task.mark_running()
-                        self.flow.add_events(
-                            [
-                                OrchestratorMessage(
-                                    content=f"Starting task {task.name} (ID {task.id}) "
-                                    f"with objective: {task.objective}"
-                                )
-                            ]
-                        )
-
-                # Run the agent's turn
                 call_count += self.run_agent_turn(max_llm_calls - call_count)
+                self.handle_event(
+                    controlflow.events.orchestrator_events.AgentTurnEnd(
+                        orchestrator=self, agent=self.agent
+                    )
+                )
 
                 # Select the next agent for the following turn
                 if available_agents := self.get_available_agents():
@@ -244,24 +238,19 @@ class Orchestrator(ControlFlowModel):
                 if max_llm_calls is not None and call_count >= max_llm_calls:
                     break
 
+                self.handle_event(
+                    controlflow.events.orchestrator_events.AgentTurnStart(
+                        orchestrator=self, agent=self.agent
+                    )
+                )
                 turn_count += 1
-                self.turn_strategy.begin_turn()
-
-                # Mark assigned tasks as running
-                for task in self.get_tasks("assigned"):
-                    if not task.is_running():
-                        task.mark_running()
-                        self.flow.add_events(
-                            [
-                                OrchestratorMessage(
-                                    content=f"Starting task {task.name} (ID {task.id}) with objective: {task.objective}"
-                                )
-                            ]
-                        )
-
-                # Run the agent's turn
                 call_count += await self.run_agent_turn_async(
                     max_llm_calls - call_count
+                )
+                self.handle_event(
+                    controlflow.events.orchestrator_events.AgentTurnEnd(
+                        orchestrator=self, agent=self.agent
+                    )
                 )
 
                 # Select the next agent for the following turn
@@ -299,6 +288,19 @@ class Orchestrator(ControlFlowModel):
         """
         call_count = 0
         assigned_tasks = self.get_tasks("assigned")
+
+        self.turn_strategy.begin_turn()
+
+        # Mark assigned tasks as running
+        for task in assigned_tasks:
+            if not task.is_running():
+                task.mark_running()
+                self.handle_event(
+                    OrchestratorMessage(
+                        content=f"Starting task {task.name} (ID {task.id}) "
+                        f"with objective: {task.objective}"
+                    )
+                )
 
         while not self.turn_strategy.should_end_turn():
             for task in assigned_tasks:
@@ -339,6 +341,19 @@ class Orchestrator(ControlFlowModel):
         """
         call_count = 0
         assigned_tasks = self.get_tasks("assigned")
+
+        self.turn_strategy.begin_turn()
+
+        # Mark assigned tasks as running
+        for task in assigned_tasks:
+            if not task.is_running():
+                task.mark_running()
+                self.handle_event(
+                    OrchestratorMessage(
+                        content=f"Starting task {task.name} (ID {task.id}) "
+                        f"with objective: {task.objective}"
+                    )
+                )
 
         while not self.turn_strategy.should_end_turn():
             for task in assigned_tasks:

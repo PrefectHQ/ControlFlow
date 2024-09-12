@@ -1,5 +1,6 @@
 from typing import Literal
 
+from controlflow.agents.agent import Agent
 from controlflow.events.base import UnpersistedEvent
 from controlflow.orchestration.orchestrator import Orchestrator
 
@@ -21,3 +22,17 @@ class OrchestratorError(UnpersistedEvent):
     persist: bool = False
     orchestrator: Orchestrator
     error: Exception
+
+
+class AgentTurnStart(UnpersistedEvent):
+    event: Literal["agent-turn-start"] = "agent-turn-start"
+    persist: bool = False
+    orchestrator: Orchestrator
+    agent: Agent
+
+
+class AgentTurnEnd(UnpersistedEvent):
+    event: Literal["agent-turn-end"] = "agent-turn-end"
+    persist: bool = False
+    orchestrator: Orchestrator
+    agent: Agent

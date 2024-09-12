@@ -4,6 +4,7 @@ from prefect.context import TaskRunContext
 
 from controlflow.agents.agent import Agent
 from controlflow.flows import Flow, get_flow
+from controlflow.orchestration.handler import Handler
 from controlflow.orchestration.orchestrator import Orchestrator, TurnStrategy
 from controlflow.tasks.task import Task
 from controlflow.utilities.prefect import prefect_task
@@ -25,6 +26,7 @@ def run_tasks(
     raise_on_error: bool = True,
     max_llm_calls: int = None,
     max_agent_turns: int = None,
+    handlers: list[Handler] = None,
 ) -> list[Any]:
     """
     Run a list of tasks.
@@ -38,6 +40,7 @@ def run_tasks(
         flow=flow,
         agent=agent,
         turn_strategy=turn_strategy,
+        handlers=handlers,
     )
     orchestrator.run(
         max_llm_calls=max_llm_calls,
@@ -64,6 +67,7 @@ async def run_tasks_async(
     raise_on_error: bool = True,
     max_llm_calls: int = None,
     max_agent_turns: int = None,
+    handlers: list[Handler] = None,
 ):
     """
     Run a list of tasks.
@@ -74,6 +78,7 @@ async def run_tasks_async(
         flow=flow,
         agent=agent,
         turn_strategy=turn_strategy,
+        handlers=handlers,
     )
     await orchestrator.run_async(
         max_llm_calls=max_llm_calls,
@@ -98,6 +103,7 @@ def run(
     max_llm_calls: int = None,
     max_agent_turns: int = None,
     raise_on_error: bool = True,
+    handlers: list[Handler] = None,
     **task_kwargs,
 ) -> Any:
     task = Task(objective=objective, **task_kwargs)
@@ -107,6 +113,7 @@ def run(
         turn_strategy=turn_strategy,
         max_llm_calls=max_llm_calls,
         max_agent_turns=max_agent_turns,
+        handlers=handlers,
     )
     return results[0]
 
@@ -120,6 +127,7 @@ async def run_async(
     max_llm_calls: int = None,
     max_agent_turns: int = None,
     raise_on_error: bool = True,
+    handlers: list[Handler] = None,
     **task_kwargs,
 ) -> Any:
     task = Task(objective=objective, **task_kwargs)
@@ -131,5 +139,6 @@ async def run_async(
         max_llm_calls=max_llm_calls,
         max_agent_turns=max_agent_turns,
         raise_on_error=raise_on_error,
+        handlers=handlers,
     )
     return results[0]

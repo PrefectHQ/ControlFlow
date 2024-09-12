@@ -1,9 +1,13 @@
+import pytest
 from langchain_openai import ChatOpenAI
 
 import controlflow
 from controlflow.agents import Agent
+from controlflow.events.base import Event
+from controlflow.events.events import AgentMessage
 from controlflow.instructions import instructions
 from controlflow.llm.rules import LLMRules
+from controlflow.orchestration.handler import Handler
 from controlflow.tasks.task import Task
 
 
@@ -138,3 +142,37 @@ class TestAgentContext:
             from controlflow.utilities.context import ctx
 
             assert ctx.get("agent") is agent
+
+
+class TestHandlers:
+    class TestHandler(Handler):
+        def __init__(self):
+            self.events = []
+            self.agent_messages = []
+
+        def on_event(self, event: Event):
+            self.events.append(event)
+
+        def on_agent_message(self, event: AgentMessage):
+            self.agent_messages.append(event)
+
+    def test_agent_run_with_handlers(self, default_fake_llm):
+        handler = self.TestHandler()
+        agent = Agent()
+        agent.run(
+            "Calculate 2 + 2", result_type=int, handlers=[handler], max_llm_calls=1
+        )
+
+        assert len(handler.events) > 0
+        assert len(handler.agent_messages) == 1
+
+    @pytest.mark.asyncio
+    async def test_agent_run_async_with_handlers(self, default_fake_llm):
+        handler = self.TestHandler()
+        agent = Agent()
+        await agent.run_async(
+            "Calculate 2 + 2", result_type=int, handlers=[handler], max_llm_calls=1
+        )
+
+        assert len(handler.events) > 0
+        assert len(handler.agent_messages) == 1

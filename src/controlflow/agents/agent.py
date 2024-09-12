@@ -34,6 +34,7 @@ from controlflow.utilities.prefect import create_markdown_artifact, prefect_task
 from .memory import Memory
 
 if TYPE_CHECKING:
+    from controlflow.orchestration.handler import Handler
     from controlflow.orchestration.turn_strategies import TurnStrategy
     from controlflow.tasks import Task
     from controlflow.tools.tools import Tool
@@ -196,12 +197,14 @@ class Agent(ControlFlowModel, abc.ABC):
         objective: str,
         *,
         turn_strategy: "TurnStrategy" = None,
+        handlers: list["Handler"] = None,
         **task_kwargs,
     ):
         return controlflow.run(
             objective=objective,
             agents=[self],
             turn_strategy=turn_strategy,
+            handlers=handlers,
             **task_kwargs,
         )
 
@@ -210,12 +213,14 @@ class Agent(ControlFlowModel, abc.ABC):
         objective: str,
         *,
         turn_strategy: "TurnStrategy" = None,
+        handlers: list["Handler"] = None,
         **task_kwargs,
     ):
         return await controlflow.run_async(
             objective=objective,
             agents=[self],
             turn_strategy=turn_strategy,
+            handlers=handlers,
             **task_kwargs,
         )
 
