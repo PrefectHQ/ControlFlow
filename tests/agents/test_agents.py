@@ -41,8 +41,14 @@ class TestAgentInitialization:
         assert isinstance(agent2.model, ChatAnthropic)
         assert agent2.model.model == "claude-3-haiku-20240307"
 
+    def test_agent_model_with_invalid_format(self):
+        with pytest.raises(ValueError, match="The model `gpt-4o` is not valid."):
+            Agent(model="gpt-4o")
+
     def test_agent_model_from_unsupported_provider(self):
-        with pytest.raises(ValueError, match="Unsupported model provider: abc"):
+        with pytest.raises(
+            ValueError, match="Could not load provider `abc` automatically"
+        ):
             Agent(model="abc/def")
 
     def test_agent_loads_instructions_at_creation(self):

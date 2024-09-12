@@ -37,9 +37,9 @@ def test_get_groq_model():
     assert model.model_name == "mixtral-8x7b-32768"
 
 
-def test_get_model_with_bad_format():
-    with pytest.raises(ValueError, match="The model `xyz` is not valid."):
-        get_model("xyz")
+def test_get_model_with_invalid_format():
+    with pytest.raises(ValueError, match="The model `gpt-4o` is not valid."):
+        get_model("gpt-4o")
 
 
 def test_get_model_with_unsupported_provider():
