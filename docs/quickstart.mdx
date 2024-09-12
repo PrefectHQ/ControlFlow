@@ -114,15 +114,13 @@ This example uses an OpenAI model, but you can use any LangChain-compatible LLM 
 </Warning>
 
 <CodeGroup>
-```python Code
-from langchain_openai import ChatOpenAI
-from enum import Enum
+```python Codem
 
 
 # Create a specialized agent 
 classifier = cf.Agent(
     name="Email Classifier",
-    model=ChatOpenAI(model="gpt-4o-mini"),
+    model="openai/gpt-4o-mini",
     instructions="You are an expert at quickly classifying emails.",
 )
 
@@ -166,21 +164,19 @@ A flow provides a shared context and history for all agents, even across multipl
 <CodeGroup>
 ```python Code
 import controlflow as cf
-from langchain_openai import ChatOpenAI
-from enum import Enum
 
 
 # Create agents
 classifier = cf.Agent(
     name="Email Classifier",
-    model=ChatOpenAI(model="gpt-4o-mini"),
+    model="openai/gpt-4o-mini",
     instructions="You are an expert at quickly classifying emails. Always "
                  "respond with exactly one word: either 'important' or 'spam'."
 )
 
 responder = cf.Agent(
     name="Email Responder",
-    model=ChatOpenAI(model="gpt-4o"),
+    model="openai/gpt-4o",
     instructions="You are an expert at crafting professional email responses. "
                  "Your replies should be concise but friendly."
 )

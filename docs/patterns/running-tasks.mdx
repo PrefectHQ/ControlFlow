@@ -207,10 +207,9 @@ We can also use the `Moderated` strategy to have a more powerful model orchestra
 
 ```python Moderated
 import controlflow as cf
-from langchain_openai import ChatOpenAI
 
-optimist = cf.Agent(name="Optimist", model=ChatOpenAI(model="gpt-4o-mini"))
-pessimist = cf.Agent(name="Pessimist", model=ChatOpenAI(model="gpt-4o-mini"))
+optimist = cf.Agent(name="Optimist", model="gpt-4o-mini")
+pessimist = cf.Agent(name="Pessimist", model="gpt-4o-mini")
 moderator = cf.Agent(name="Moderator")
 
 cf.run(

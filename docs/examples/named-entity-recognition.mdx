@@ -12,12 +12,11 @@ First, let's implement a function that extracts a simple list of entities:
 
 ```python
 import controlflow as cf
-from langchain_openai import ChatOpenAI
 from typing import List
 
 extractor = cf.Agent(
     name="Named Entity Recognizer",
-    model=ChatOpenAI(model="gpt-4o-mini"),
+    model="openai/gpt-4o-mini",
 )
 
 def extract_entities(text: str) -> List[str]:
@@ -86,7 +85,7 @@ This implementation showcases several important ControlFlow features that enable
    ```python
    extractor = cf.Agent(
        name="Named Entity Recognizer",
-       model=ChatOpenAI(model="gpt-4o-mini"),
+       model="openai/gpt-4o-mini",
    )
    ```
 

@@ -9,6 +9,7 @@ from typing import (
     AsyncGenerator,
     Generator,
     Optional,
+    Union,
 )
 
 from langchain_core.language_models import BaseChatModel
@@ -19,6 +20,7 @@ from controlflow.agents.names import AGENT_NAMES
 from controlflow.events.base import Event
 from controlflow.instructions import get_instructions
 from controlflow.llm.messages import AIMessage, BaseMessage
+from controlflow.llm.models import get_model as get_model_from_string
 from controlflow.llm.rules import LLMRules
 from controlflow.tools.tools import (
     Tool,
@@ -78,9 +80,9 @@ class Agent(ControlFlowModel, abc.ABC):
 
     # note: `model` should be typed as Optional[BaseChatModel] but V2 models can't have
     # V1 attributes without erroring, so we have to use Any.
-    model: Optional[Any] = Field(
+    model: Optional[Union[str, Any]] = Field(
         None,
-        description="The LangChain BaseChatModel used by the agent. If not provided, the default model will be used.",
+        description="The LangChain BaseChatModel used by the agent. If not provided, the default model will be used. A compatible string can be passed to automatically retrieve the model.",
         exclude=True,
     )
 
@@ -129,6 +131,12 @@ class Agent(ControlFlowModel, abc.ABC):
     @field_validator("tools", mode="before")
     def _validate_tools(cls, tools: list[Tool]):
         return as_tools(tools or [])
+
+    @field_validator("model", mode="before")
+    def _validate_model(cls, model: Optional[Union[str, Any]]):
+        if isinstance(model, str):
+            return get_model_from_string(model)
+        return model
 
     @field_serializer("tools")
     def _serialize_tools(self, tools: list[Tool]):

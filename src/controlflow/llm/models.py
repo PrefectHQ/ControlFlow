@@ -12,16 +12,20 @@ logger = get_logger(__name__)
 
 def get_default_model() -> BaseChatModel:
     if getattr(controlflow.defaults, "model", None) is None:
-        return model_from_string(controlflow.settings.llm_model)
+        return get_model(controlflow.settings.llm_model)
     else:
         return controlflow.defaults.model
 
 
-def model_from_string(
+def get_model(
     model: str, temperature: Optional[float] = None, **kwargs: Any
 ) -> BaseChatModel:
+    """Get a model from a string."""
     if "/" not in model:
-        provider, model = "openai", model
+        raise ValueError(
+            f"The model `{model}` is not valid. Please specify the provider "
+            "and model name, e.g. 'openai/gpt-4o-mini' or 'anthropic/claude-3-haiku-20240307'."
+        )
     provider, model = model.split("/")
 
     if temperature is None:
@@ -44,7 +48,7 @@ def model_from_string(
             from langchain_google_genai import ChatGoogleGenerativeAI
         except ImportError:
             raise ImportError(
-                "To use Google models, please install the `langchain_google_genai` package."
+                "To use Google as an LLM provider, please install the `langchain_google_genai` package."
             )
         cls = ChatGoogleGenerativeAI
     elif provider == "groq":
@@ -52,12 +56,12 @@ def model_from_string(
             from langchain_groq import ChatGroq
         except ImportError:
             raise ImportError(
-                "To use Groq models, please install the `langchain_groq` package."
+                "To use Groq as an LLM provider, please install the `langchain_groq` package."
             )
         cls = ChatGroq
     else:
         raise ValueError(
-            f"Could not load provider automatically: {provider}. Please create your model manually."
+            f"Could not load provider `{provider}` automatically. Please provide the LLM class manually."
         )
 
     return cls(model=model, temperature=temperature, **kwargs)
@@ -66,7 +70,7 @@ def model_from_string(
 def _get_initial_default_model() -> BaseChatModel:
     # special error messages for the initial attempt to create a model
     try:
-        return model_from_string(controlflow.settings.llm_model)
+        return get_model(controlflow.settings.llm_model)
     except Exception as exc:
         if isinstance(exc, ValidationError) and "Did not find openai_api_key" in str(
             exc

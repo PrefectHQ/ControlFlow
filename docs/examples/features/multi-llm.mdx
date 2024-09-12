@@ -16,17 +16,12 @@ In this scenario, we'll create a workflow that analyzes customer feedback for a 
 
 ```python
 import controlflow as cf
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 from typing import Literal
 
-# Define our models
-gpt4_mini = ChatOpenAI(model="gpt-4o-mini")
-gpt4 = ChatOpenAI(model="gpt-4o")
-
 # Create specialized agents
-classifier = cf.Agent(name="Classifier", model=gpt4_mini)
-summarizer = cf.Agent(name="Summarizer", model=gpt4)
+classifier = cf.Agent(name="Classifier", model="openai/gpt-4o-mini")
+summarizer = cf.Agent(name="Summarizer", model="openai/gpt-4o")
 
 # Define our data models
 class Feedback(BaseModel):
