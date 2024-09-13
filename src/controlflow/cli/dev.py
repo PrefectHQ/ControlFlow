@@ -17,14 +17,15 @@ def ai_files(
     ),
 ):
     """
-    Generates two markdown files that contain all of ControlFlow's source code and documentation,
-    which can be used to provide context to an AI.
+    Generates three markdown files that contain all of ControlFlow's source code, documentation,
+    and LLM guides, which can be used to provide context to an AI.
     """
     try:
         # Get the absolute path of the ControlFlow main repo
         repo_root = Path(__file__).resolve().parents[3]
         src_path = repo_root / "src"
         docs_path = repo_root / "docs"
+        llm_guides_path = docs_path / "llm-guides"
         output_dir = Path(output_path).resolve()
 
         def generate_file_content(file_paths, output_file):
@@ -40,11 +41,17 @@ def ai_files(
             + list(docs_path.glob("*.md"))
             + [docs_path / "mint.json", repo_root / "README.md"]
         )
+        llm_guide_files = list(llm_guides_path.glob("*.md")) + list(
+            llm_guides_path.glob("*.mdx")
+        )
 
         generate_file_content(code_files, "all_code.md")
         generate_file_content(doc_files, "all_docs.md")
+        generate_file_content(llm_guide_files, "llm_guides.md")
 
-        typer.echo(f"Generated all_code.md and all_docs.md in {output_dir}")
+        typer.echo(
+            f"Generated all_code.md, all_docs.md, and llm-guides.md in {output_dir}"
+        )
     except Exception as e:
         typer.echo(f"An error occurred: {str(e)}", err=True)
         raise typer.Exit(code=1)
