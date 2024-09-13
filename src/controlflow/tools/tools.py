@@ -51,10 +51,11 @@ class Tool(ControlFlowModel):
     metadata: dict = {}
 
     fn: Callable = Field(None, exclude=True)
+    _lc_tool: Optional[langchain_core.tools.BaseTool] = None
 
     def to_lc_tool(self) -> dict:
         payload = self.model_dump(include={"name", "description", "parameters"})
-        return dict(type="function", function=payload)
+        return payload
 
     @prefect_task(task_run_name="Tool call: {self.name}")
     def run(self, input: dict):
