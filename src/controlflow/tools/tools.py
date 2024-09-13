@@ -54,14 +54,8 @@ class Tool(ControlFlowModel):
     _lc_tool: Optional[langchain_core.tools.BaseTool] = None
 
     def to_lc_tool(self) -> dict:
-        if self._lc_tool is None:
-            self._lc_tool = langchain_core.tools.StructuredTool.from_function(
-                self.fn,
-                name=self.name,
-                description=self.description,
-            )
-
-        return self._lc_tool
+        payload = self.model_dump(include={"name", "description", "parameters"})
+        return payload
 
     @prefect_task(task_run_name="Tool call: {self.name}")
     def run(self, input: dict):
