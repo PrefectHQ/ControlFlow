@@ -165,7 +165,7 @@ class TestAgentContext:
 
 
 class TestHandlers:
-    class TestHandler(Handler):
+    class ExampleHandler(Handler):
         def __init__(self):
             self.events = []
             self.agent_messages = []
@@ -176,8 +176,9 @@ class TestHandlers:
         def on_agent_message(self, event: AgentMessage):
             self.agent_messages.append(event)
 
-    def test_agent_run_with_handlers(self, default_fake_llm):
-        handler = self.TestHandler()
+    @pytest.mark.usefixtures("default_fake_llm")
+    def test_agent_run_with_handlers(self):
+        handler = self.ExampleHandler()
         agent = Agent()
         agent.run(
             "Calculate 2 + 2", result_type=int, handlers=[handler], max_llm_calls=1
@@ -187,8 +188,9 @@ class TestHandlers:
         assert len(handler.agent_messages) == 1
 
     @pytest.mark.asyncio
-    async def test_agent_run_async_with_handlers(self, default_fake_llm):
-        handler = self.TestHandler()
+    @pytest.mark.usefixtures("default_fake_llm")
+    async def test_agent_run_async_with_handlers(self):
+        handler = self.ExampleHandler()
         agent = Agent()
         await agent.run_async(
             "Calculate 2 + 2", result_type=int, handlers=[handler], max_llm_calls=1

@@ -429,7 +429,7 @@ class TestSuccessTool:
 
 
 class TestHandlers:
-    class TestHandler(Handler):
+    class ExampleHandler(Handler):
         def __init__(self):
             self.events = []
             self.agent_messages = []
@@ -441,16 +441,15 @@ class TestHandlers:
             self.agent_messages.append(event)
 
     def test_task_run_with_handlers(self, default_fake_llm):
-        handler = self.TestHandler()
+        handler = self.ExampleHandler()
         task = Task(objective="Calculate 2 + 2", result_type=int)
         task.run(handlers=[handler], max_llm_calls=1)
 
         assert len(handler.events) > 0
         assert len(handler.agent_messages) == 1
 
-    @pytest.mark.asyncio
     async def test_task_run_async_with_handlers(self, default_fake_llm):
-        handler = self.TestHandler()
+        handler = self.ExampleHandler()
         task = Task(objective="Calculate 2 + 2", result_type=int)
         await task.run_async(handlers=[handler], max_llm_calls=1)
 
