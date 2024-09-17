@@ -15,7 +15,7 @@ dependencies = [
     "pydantic-settings>=2.2.1",
     "textual>=0.61.1",
     "tiktoken>=0.7.0",
-    "typer[all]>=0.10",
+    "typer>=0.10",
 ]
 readme = "README.md"
 requires-python = ">= 3.9"

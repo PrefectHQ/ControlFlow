@@ -305,7 +305,7 @@ class Agent(ControlFlowModel, abc.ABC):
 
 #### Payload
 ```json
-{response.json(indent=2)}
+{response.model_dump_json(indent=2)}
 ```
 """,
             description=f"LLM Response for Agent {self.name}",
@@ -362,7 +362,7 @@ class Agent(ControlFlowModel, abc.ABC):
 
 #### Payload
 ```json
-{response.json(indent=2)}
+{response.model_dump_json(indent=2)}
 ```
 """,
             description=f"LLM Response for Agent {self.name}",
