@@ -13,8 +13,8 @@ class LCBaseToolInput(BaseModel):
 
 
 class LCBaseTool(BaseTool):
-    name = "TestTool"
-    description = "A test tool"
+    name: str = "TestTool"
+    description: str = "A test tool"
     args_schema: type[BaseModel] = LCBaseToolInput
 
     def _run(self, x: int) -> str:

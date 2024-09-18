@@ -57,7 +57,7 @@ class AgentMessage(Event):
     @field_validator("message", mode="before")
     def _message(cls, v):
         if isinstance(v, BaseMessage):
-            v = v.dict()
+            v = v.model_dump()
         v["type"] = "ai"
         return v
 
@@ -93,7 +93,7 @@ class AgentMessageDelta(UnpersistedEvent):
     @field_validator("delta", "snapshot", mode="before")
     def _message(cls, v):
         if isinstance(v, BaseMessage):
-            v = v.dict()
+            v = v.model_dump()
         v["type"] = "AIMessageChunk"
         return v
 

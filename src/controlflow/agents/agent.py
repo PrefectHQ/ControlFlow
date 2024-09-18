@@ -142,7 +142,7 @@ class Agent(ControlFlowModel, abc.ABC):
     def _serialize_tools(self, tools: list[Tool]):
         tools = controlflow.tools.as_tools(tools)
         # tools are Pydantic 1 objects
-        return [t.dict(include={"name", "description"}) for t in tools]
+        return [t.model_dump(include={"name", "description"}) for t in tools]
 
     def serialize_for_prompt(self) -> dict:
         dct = self.model_dump(
@@ -304,7 +304,7 @@ class Agent(ControlFlowModel, abc.ABC):
 
 #### Payload
 ```json
-{response.json(indent=2)}
+{response.model_dump_json(indent=2)}
 ```
 """,
             description=f"LLM Response for Agent {self.name}",
@@ -361,7 +361,7 @@ class Agent(ControlFlowModel, abc.ABC):
 
 #### Payload
 ```json
-{response.json(indent=2)}
+{response.model_dump_json(indent=2)}
 ```
 """,
             description=f"LLM Response for Agent {self.name}",

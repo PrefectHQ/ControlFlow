@@ -146,7 +146,9 @@ def format_message_name(
 
 def count_tokens(message: BaseMessage) -> int:
     # always use gpt-3.5 token counter with the entire message object; we only need to be approximate here
-    return len(tiktoken.encoding_for_model("gpt-3.5-turbo").encode(message.json()))
+    return len(
+        tiktoken.encoding_for_model("gpt-3.5-turbo").encode(message.model_dump_json())
+    )
 
 
 def trim_messages(
