@@ -298,7 +298,6 @@ class Agent(ControlFlowModel, abc.ABC):
             response: AIMessage = model.invoke(messages)
 
         yield AgentMessage(agent=self, message=response)
-
         create_markdown_artifact(
             markdown=f"""
 {response.content or '(No content)'}
