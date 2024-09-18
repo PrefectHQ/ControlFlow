@@ -395,7 +395,7 @@ class TestResultTypeConstrainedChoice:
 
     def test_map_labels_to_values(self):
         task = Task(
-            "Choose the right label",
+            "Choose the right label, in order provided in context",
             context=dict(goals=["the second letter", "the first letter"]),
             result_type=list[Literal["a", "b", "c"]],
         )
