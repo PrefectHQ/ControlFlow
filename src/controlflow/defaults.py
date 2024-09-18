@@ -31,7 +31,7 @@ class Defaults(ControlFlowModel):
     is imported, and then used as a singleton.
     """
 
-    model: Optional[BaseChatModel]
+    model: Optional[Any]
     history: History
     agent: Agent
 
@@ -44,6 +44,9 @@ class Defaults(ControlFlowModel):
     def _model(cls, v):
         if isinstance(v, str):
             v = get_model(v)
+        # the model validator in langchain forcibly expects a dictionary
+        elif v is not None and not isinstance(v, (dict, BaseChatModel)):
+            raise ValueError("Input must be an instance of dict or BaseChatModel")
         return v
 
 

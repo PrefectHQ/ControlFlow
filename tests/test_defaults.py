@@ -9,7 +9,8 @@ import controlflow.llm
 
 def test_default_model_failed_validation():
     with pytest.raises(
-        pydantic.ValidationError, match="Input must be an instance of BaseChatModel"
+        pydantic.ValidationError,
+        match="Input must be an instance of dict or BaseChatModel",
     ):
         controlflow.defaults.model = 5
 
