@@ -1,4 +1,5 @@
-from typing import Annotated, Any, Dict, List
+from enum import Enum
+from typing import Annotated, Any, Dict, List, Literal
 
 import pytest
 from pydantic import BaseModel
@@ -265,27 +266,19 @@ class TestResultType:
         task.mark_successful(result="5")
         assert task.result == "5"
 
-    def test_tuple_of_ints_result(self):
-        task = Task("choose 5", result_type=(4, 5, 6))
-        task.mark_successful(result=5)
-        assert task.result == 5
-
-    def test_tuple_of_ints_validates(self):
-        task = Task("choose 5", result_type=(4, 5, 6))
-        with pytest.raises(ValueError):
-            task.mark_successful(result=7)
-
     def test_typed_dict_result(self):
         task = Task("", result_type=dict[str, int])
         task.mark_successful(result={"a": 5, "b": "6"})
         assert task.result == {"a": 5, "b": 6}
 
     def test_special_list_type_result(self):
+        # test capitalized List type
         task = Task("", result_type=List[int])
         task.mark_successful(result=[5, 6])
         assert task.result == [5, 6]
 
     def test_special_dict_type_result(self):
+        # test capitalized Dict type
         task = Task("", result_type=Dict[str, int])
         task.mark_successful(result={"a": 5, "b": "6"})
         assert task.result == {"a": 5, "b": 6}
@@ -307,6 +300,107 @@ class TestResultType:
         task.run()
         assert len(task.result) == 5
         assert int(task.result)
+
+
+class TestResultTypeConstrainedChoice:
+    class Letter(BaseModel):
+        letter: str
+
+        def __hash__(self):
+            return id(self)
+
+    A = Letter(letter="a")
+    B = Letter(letter="b")
+    C = Letter(letter="c")
+
+    def test_tuple_of_ints_result(self):
+        task = Task("choose 5", result_type=(4, 5, 6))
+        task.mark_successful(result=5)
+        assert task.result == 5
+
+    def test_tuple_of_ints_validates(self):
+        task = Task("choose 5", result_type=(4, 5, 6))
+        with pytest.raises(ValueError):
+            task.mark_successful(result=7)
+
+    def test_list_of_strings_result(self):
+        # test list of strings result
+        task = Task(
+            "Choose the second letter of the alphabet", result_type=["b", "c", "a"]
+        )
+        task.run()
+        assert task.result == "b"
+
+    def test_list_of_objects_result(self):
+        # test list of strings result
+        task = Task(
+            "Choose the second letter of the alphabet",
+            result_type=[self.A, self.C, self.B],
+        )
+        task.run()
+        assert task.result is self.B
+
+    def test_tuple_of_objects_result(self):
+        # test list of strings result
+        task = Task(
+            "Choose the second letter of the alphabet",
+            result_type=(self.A, self.C, self.B),
+        )
+        task.run()
+        assert task.result is self.B
+
+    def test_set_of_objects_result(self):
+        # test list of strings result
+        task = Task(
+            "Choose the second letter of the alphabet",
+            result_type={self.A, self.C, self.B},
+        )
+        task.run()
+        assert task.result is self.B
+
+    def test_literal_string_result(self):
+        task = Task(
+            "Choose the second letter of the alphabet",
+            result_type=Literal["a", "c", "b"],
+        )
+        task.run()
+        assert task.result == "b"
+
+    def test_enum_result(self):
+        class Letters(Enum):
+            A = "a"
+            B = "b"
+            C = "c"
+
+        task = Task("Choose the second letter of the alphabet", result_type=Letters)
+        task.run()
+        assert task.result is Letters.B
+
+    def test_literal_object_result(self):
+        # this is bad syntax, but works
+        task = Task(
+            "Choose the second letter of the alphabet",
+            result_type=Literal[self.A, self.B, self.C],  # noqa
+        )
+        task.run()
+        assert task.result is self.B
+
+    def test_list_of_literals_result(self):
+        task = Task(
+            "Choose the second and third letters of the alphabet",
+            result_type=list[Literal["a", "b", "c"]],
+        )
+        task.run()
+        assert task.result == ["b", "c"]
+
+    def test_map_labels_to_values(self):
+        task = Task(
+            "Choose the right label",
+            context=dict(goals=["the second letter", "the first letter"]),
+            result_type=list[Literal["a", "b", "c"]],
+        )
+        task.run()
+        assert task.result == ["b", "a"]
 
 
 class TestResultValidator:
