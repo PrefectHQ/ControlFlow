@@ -31,7 +31,7 @@ class Defaults(ControlFlowModel):
     is imported, and then used as a singleton.
     """
 
-    model: Optional[Any]
+    model: Optional[BaseChatModel]
     history: History
     agent: Agent
 
@@ -40,12 +40,10 @@ class Defaults(ControlFlowModel):
         fields = ", ".join(self.model_fields.keys())
         return f"<ControlFlow Defaults: {fields}>"
 
-    @field_validator("model")
+    @field_validator("model", mode="before")
     def _model(cls, v):
         if isinstance(v, str):
             v = get_model(v)
-        elif v is not None and not isinstance(v, BaseChatModel):
-            raise ValueError("Input must be an instance of BaseChatModel")
         return v
 
 
