@@ -78,9 +78,7 @@ class Agent(ControlFlowModel, abc.ABC):
         exclude=True,
     )
 
-    # note: `model` should be typed as Optional[BaseChatModel] but V2 models can't have
-    # V1 attributes without erroring, so we have to use Any.
-    model: Optional[Union[str, Any]] = Field(
+    model: Optional[Union[str, BaseChatModel]] = Field(
         None,
         description="The LangChain BaseChatModel used by the agent. If not provided, the default model will be used. A compatible string can be passed to automatically retrieve the model.",
         exclude=True,
@@ -133,7 +131,7 @@ class Agent(ControlFlowModel, abc.ABC):
         return as_tools(tools or [])
 
     @field_validator("model", mode="before")
-    def _validate_model(cls, model: Optional[Union[str, Any]]):
+    def _validate_model(cls, model: Optional[Union[str, BaseChatModel]]):
         if isinstance(model, str):
             return get_model_from_string(model)
         return model
@@ -141,7 +139,6 @@ class Agent(ControlFlowModel, abc.ABC):
     @field_serializer("tools")
     def _serialize_tools(self, tools: list[Tool]):
         tools = controlflow.tools.as_tools(tools)
-        # tools are Pydantic 1 objects
         return [t.model_dump(include={"name", "description"}) for t in tools]
 
     def serialize_for_prompt(self) -> dict:

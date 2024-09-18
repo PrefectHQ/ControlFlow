@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.tools import BaseTool
-from pydantic.v1 import BaseModel
+from pydantic import BaseModel
 
 import controlflow
 from controlflow.events.events import AIMessage, ToolCall

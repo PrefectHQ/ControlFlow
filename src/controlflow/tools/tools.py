@@ -6,7 +6,6 @@ from typing import Annotated, Any, Callable, Optional, Union
 
 import langchain_core.tools
 import pydantic
-import pydantic.v1
 from langchain_core.messages import InvalidToolCall, ToolCall
 from prefect.utilities.asyncutils import run_coro_as_sync
 from pydantic import Field, PydanticSchemaGenerationError, TypeAdapter

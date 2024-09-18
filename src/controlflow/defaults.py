@@ -40,12 +40,13 @@ class Defaults(ControlFlowModel):
         fields = ", ".join(self.model_fields.keys())
         return f"<ControlFlow Defaults: {fields}>"
 
-    @field_validator("model")
+    @field_validator("model", mode="before")
     def _model(cls, v):
         if isinstance(v, str):
             v = get_model(v)
-        elif v is not None and not isinstance(v, BaseChatModel):
-            raise ValueError("Input must be an instance of BaseChatModel")
+        # the model validator in langchain forcibly expects a dictionary
+        elif v is not None and not isinstance(v, (dict, BaseChatModel)):
+            raise ValueError("Input must be an instance of dict or BaseChatModel")
         return v
 
 
