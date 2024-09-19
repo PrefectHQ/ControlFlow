@@ -1,4 +1,5 @@
 import datetime
+import textwrap
 import warnings
 from contextlib import ExitStack, contextmanager
 from enum import Enum
@@ -511,7 +512,10 @@ class Task(ControlFlowModel):
         Create an agent-compatible tool for marking this task as successful.
         """
         options = {}
-        instructions = None
+        instructions = textwrap.dedent("""
+            Use this tool to mark the task as successful and provide a result. 
+            This tool can only be used one time per task.
+        """)
         result_schema = None
 
         # if the result_type is a tuple of options, then we want the LLM to provide
@@ -532,10 +536,12 @@ class Task(ControlFlowModel):
             options_str = "\n\n".join(
                 f"Option {i}: {option}" for i, option in serialized_options.items()
             )
-            instructions = f"""
+            instructions += "\n\n" + textwrap.dedent("""
                 Provide a single integer as the result, corresponding to the index
-                of your chosen option. Your options are: {options_str}
-                """
+                of your chosen option. Your options are: 
+                
+                {options_str}
+                """).format(options_str=options_str)
 
         # otherwise try to load the schema for the result type
         elif self.result_type is not None:

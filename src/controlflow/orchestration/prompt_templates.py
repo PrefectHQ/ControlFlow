@@ -78,6 +78,14 @@ class InstructionsTemplate(Template):
         return bool(self.instructions)
 
 
+class LLMInstructionsTemplate(Template):
+    template_path: str = "llm_instructions.jinja"
+    instructions: list[str] = []
+
+    def should_render(self) -> bool:
+        return bool(self.instructions)
+
+
 class ToolTemplate(Template):
     template_path: str = "tools.jinja"
     tools: list[Tool]

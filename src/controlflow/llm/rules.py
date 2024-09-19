@@ -1,3 +1,4 @@
+import textwrap
 from typing import Optional
 
 from langchain_anthropic import ChatAnthropic
@@ -15,6 +16,8 @@ class LLMRules(ControlFlowModel):
     Rules can be added here (to the base class) and overridden in subclasses, if
     necessary.
     """
+
+    model: Optional[BaseChatModel]
 
     # require at least one non-system message
     require_at_least_one_message: bool = False
@@ -41,9 +44,29 @@ class LLMRules(ControlFlowModel):
     # the name associated with a message must conform to a specific format
     require_message_name_format: Optional[str] = None
 
+    def model_instructions(self) -> Optional[list[str]]:
+        pass
+
 
 class OpenAIRules(LLMRules):
     require_message_name_format: str = r"[^a-zA-Z0-9_-]"
+
+    model: ChatOpenAI
+
+    def model_instructions(self) -> list[str]:
+        instructions = []
+        if self.model.model_name.endswith("gpt-4o-mini"):
+            instructions.append(
+                textwrap.dedent(
+                    """
+                    You can only provide a single result for each task, and a
+                    task can only be marked successful one time. Do not make
+                    multiple tool calls in parallel to supply multiple results
+                    to the same task.                    
+                    """
+                )
+            )
+        return instructions
 
 
 class AnthropicRules(LLMRules):
@@ -56,8 +79,8 @@ class AnthropicRules(LLMRules):
 
 def rules_for_model(model: BaseChatModel) -> LLMRules:
     if isinstance(model, (ChatOpenAI, AzureChatOpenAI)):
-        return OpenAIRules()
+        return OpenAIRules(model=model)
     elif isinstance(model, ChatAnthropic):
-        return AnthropicRules()
+        return AnthropicRules(model=model)
     else:
-        return LLMRules()
+        return LLMRules(model=model)
