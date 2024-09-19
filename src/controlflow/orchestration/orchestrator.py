@@ -392,11 +392,13 @@ class Orchestrator(ControlFlowModel):
         """
         from controlflow.orchestration.prompt_templates import (
             InstructionsTemplate,
+            LLMInstructionsTemplate,
             TasksTemplate,
             ToolTemplate,
         )
 
         tools = self.get_tools()
+        llm_rules = self.agent.get_llm_rules()
 
         prompts = [
             self.agent.get_prompt(),
@@ -404,7 +406,11 @@ class Orchestrator(ControlFlowModel):
             TasksTemplate(tasks=self.get_tasks("ready")).render(),
             ToolTemplate(tools=tools).render(),
             InstructionsTemplate(instructions=get_instructions()).render(),
+            LLMInstructionsTemplate(
+                instructions=llm_rules.model_instructions()
+            ).render(),
         ]
+
         prompt = "\n\n".join([p for p in prompts if p])
         return prompt
 
