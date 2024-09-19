@@ -80,7 +80,7 @@ class InstructionsTemplate(Template):
 
 class LLMInstructionsTemplate(Template):
     template_path: str = "llm_instructions.jinja"
-    instructions: list[str] = []
+    instructions: Optional[list[str]] = None
 
     def should_render(self) -> bool:
         return bool(self.instructions)
