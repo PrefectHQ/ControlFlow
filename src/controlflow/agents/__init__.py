@@ -1,2 +1,2 @@
-from . import memory
 from .agent import Agent
+from .memory import Memory

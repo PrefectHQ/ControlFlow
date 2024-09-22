@@ -5,11 +5,13 @@ from pydantic import field_validator
 import controlflow
 import controlflow.utilities
 import controlflow.utilities.logging
+from controlflow.agents.memory import MemoryProvider
+from controlflow.agents.memory_providers.chroma import ChromaMemoryProvider
 from controlflow.llm.models import BaseChatModel
 from controlflow.utilities.general import ControlFlowModel
 
 from .agents import Agent
-from .events.history import History, InMemoryHistory
+from .events.history import FileHistory, History, InMemoryHistory
 from .llm.models import _get_initial_default_model, get_model
 
 __all__ = ["defaults"]
@@ -19,6 +21,7 @@ logger = controlflow.utilities.logging.get_logger(__name__)
 _default_model = _get_initial_default_model()
 _default_history = InMemoryHistory()
 _default_agent = Agent(name="Marvin")
+_default_memory_provider = ChromaMemoryProvider()
 
 
 class Defaults(ControlFlowModel):
@@ -34,6 +37,7 @@ class Defaults(ControlFlowModel):
     model: Optional[Any]
     history: History
     agent: Agent
+    memory_provider: MemoryProvider
 
     # add more defaults here
     def __repr__(self) -> str:
@@ -54,4 +58,5 @@ defaults = Defaults(
     model=_default_model,
     history=_default_history,
     agent=_default_agent,
+    memory_provider=_default_memory_provider,
 )

@@ -71,11 +71,9 @@ class Agent(ControlFlowModel, abc.ABC):
         False,
         description="If True, the agent is given tools for interacting with a human user.",
     )
-    memory: Optional[Memory] = Field(
-        default=None,
-        # default_factory=ThreadMemory,
-        description="The memory object used by the agent. If not specified, an in-memory memory object will be used. Pass None to disable memory.",
-        exclude=True,
+    memories: list[Memory] = Field(
+        default=[],
+        description="A list of memory modules for the agent to use.",
     )
 
     model: Optional[Union[str, BaseChatModel]] = Field(
@@ -174,8 +172,8 @@ class Agent(ControlFlowModel, abc.ABC):
         tools = self.tools.copy()
         if self.interactive:
             tools.append(cli_input)
-        if self.memory is not None:
-            tools.extend(self.memory.get_tools())
+        for memory in self.memories:
+            tools.extend(memory.get_tools())
 
         return as_tools(tools)
 

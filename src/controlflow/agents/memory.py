@@ -1,99 +1,88 @@
 import abc
-import uuid
-from typing import TYPE_CHECKING, ClassVar, Optional, cast
+import re
+from typing import Dict, List, Self
 
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 
-from controlflow.utilities.context import ctx
+import controlflow
+from controlflow.tools.tools import Tool
 from controlflow.utilities.general import ControlFlowModel
 
-if TYPE_CHECKING:
-    from controlflow.tools import Tool
+
+def sanitize_memory_key(key: str) -> str:
+    # Remove any characters that are not alphanumeric or underscore
+    return re.sub(r"[^a-zA-Z0-9_]", "", key)
 
 
-class Memory(ControlFlowModel, abc.ABC):
-    id: str = Field(default_factory=lambda: uuid.uuid4().hex)
+class MemoryProvider(ControlFlowModel, abc.ABC):
+    def configure(self, memory_key: str) -> None:
+        """Configure the provider for a specific memory."""
+        pass
 
-    def load(self) -> dict[int, str]:
-        """
-        Load all memories as a dictionary of index to value.
-        """
-        raise NotImplementedError()
+    @abc.abstractmethod
+    def add(self, memory_key: str, content: str) -> str:
+        """Create a new memory and return its ID."""
+        pass
 
-    def update(self, value: str, index: int = None):
-        """
-        Store a value, optionally overwriting an existing value at the given index.
-        """
-        raise NotImplementedError()
+    @abc.abstractmethod
+    def delete(self, memory_key: str, memory_id: str) -> None:
+        """Delete a memory by its ID."""
+        pass
 
-    def delete(self, index: int):
-        raise NotImplementedError()
-
-    def get_tools(self) -> list["Tool"]:
-        from controlflow.tools import Tool
-
-        update_tool = Tool.from_function(
-            self.update,
-            name="update_memory",
-            description="Privately remember an idea or fact, optionally updating the existing memory at `index`",
-        )
-        delete_tool = Tool.from_function(
-            self.delete,
-            name="delete_memory",
-            description="Forget the private memory at `index`",
-        )
-
-        tools = [update_tool, delete_tool]
-
-        return tools
+    @abc.abstractmethod
+    def search(self, memory_key: str, query: str, n: int = 20) -> Dict[str, str]:
+        """Search for n memories using a string query."""
+        pass
 
 
-class AgentMemory(Memory):
-    """
-    In-memory store for an agent. Memories are scoped to the agent.
+class Memory(ControlFlowModel):
+    key: str
+    instructions: str = Field(
+        default="Use this memory to store and retrieve important information."
+    )
+    provider: MemoryProvider = Field(
+        default_factory=lambda: controlflow.defaults.memory_provider
+    )
 
-    Note memories may persist across flows.
-    """
+    @field_validator("key")
+    @classmethod
+    def validate_key(cls, v: str) -> str:
+        sanitized = sanitize_memory_key(v)
+        if sanitized != v:
+            raise ValueError(
+                "Memory key must contain only alphanumeric characters and underscores"
+            )
+        return sanitized
 
-    _memory: list[str] = []
+    @model_validator(mode="after")
+    def _configure_provider(self) -> Self:
+        self.provider.configure(self.key)
+        return self
 
-    def update(self, value: str, index: int = None):
-        if index is not None:
-            self._memory[index] = value
-        else:
-            self._memory.append(value)
+    def add(self, content: str) -> str:
+        return self.provider.add(self.key, content)
 
-    def load(self, thread_id: str) -> dict[int, str]:
-        return dict(enumerate(self._memory))
+    def delete(self, memory_id: str) -> None:
+        self.provider.delete(self.key, memory_id)
 
-    def delete(self, index: int):
-        del self._memory[index]
+    def search(self, query: str, n: int = 20) -> Dict[str, str]:
+        return self.provider.search(self.key, query, n)
 
-
-class ThreadMemory(Memory):
-    """
-    In-memory store for an agent. Memories are scoped to each thread.
-    """
-
-    _memory: ClassVar[dict[str, list[str]]] = {}
-
-    def _get_thread_id(self) -> Optional[str]:
-        from controlflow.flows import Flow
-
-        if flow := ctx.get("flow", None):  # type: Flow
-            flow = cast(Flow, flow)
-            return flow.thread_id
-
-    def update(self, value: str, index: int = None):
-        thread_id = self._get_thread_id()
-        if index is not None:
-            self._memory[thread_id][index] = value
-        else:
-            self._memory[thread_id].append(value)
-
-    def load(self, thread_id: str) -> dict[int, str]:
-        return dict(enumerate(self._memory.get(thread_id, [])))
-
-    def delete(self, index: int):
-        thread_id = self._get_thread_id()
-        del self._memory[thread_id][index]
+    def get_tools(self) -> List[Tool]:
+        return [
+            Tool.from_function(
+                self.add,
+                name=f"add_memory_{self.key}",
+                description=f'Create a new memory in Memory: "{self.key}".',
+            ),
+            Tool.from_function(
+                self.delete,
+                name=f"delete_memory_{self.key}",
+                description=f'Delete a memory by its ID from Memory: "{self.key}".',
+            ),
+            Tool.from_function(
+                self.search,
+                name=f"search_memories_{self.key}",
+                description=f'Search for memories relevant to a string query in Memory: "{self.key}". Returns a dictionary of memory IDs and their contents.',
+            ),
+        ]

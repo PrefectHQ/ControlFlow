@@ -393,6 +393,7 @@ class Orchestrator(ControlFlowModel):
         from controlflow.orchestration.prompt_templates import (
             InstructionsTemplate,
             LLMInstructionsTemplate,
+            MemoryTemplate,
             TasksTemplate,
             ToolTemplate,
         )
@@ -405,6 +406,7 @@ class Orchestrator(ControlFlowModel):
             self.flow.get_prompt(),
             TasksTemplate(tasks=self.get_tasks("ready")).render(),
             ToolTemplate(tools=tools).render(),
+            MemoryTemplate(memories=self.agent.memories).render(),
             InstructionsTemplate(instructions=get_instructions()).render(),
             LLMInstructionsTemplate(
                 instructions=llm_rules.model_instructions()
