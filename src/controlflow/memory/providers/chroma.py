@@ -13,7 +13,8 @@ def get_client(**kwargs) -> chromadb.Client:
 
 
 class ChromaMemory(MemoryProvider):
-    client: chromadb.Client = Field(
+    model_config = dict(arbitrary_types_allowed=True)
+    client: chromadb.ClientAPI = Field(
         default_factory=lambda: chromadb.PersistentClient(
             path=str(controlflow.settings.home_path / "memory/chroma")
         )
@@ -58,6 +59,7 @@ def EphemeralChromaMemory() -> ChromaMemory:
 def PersistentChromaMemory(path: str = None, **kwargs) -> ChromaMemory:
     return ChromaMemory(
         client=chromadb.PersistentClient(
-            path=path or str(controlflow.settings.home_path / "memory/chroma")
+            path=path or str(controlflow.settings.home_path / "memory/chroma"),
+            **kwargs,
         )
     )

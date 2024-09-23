@@ -84,7 +84,7 @@ class Settings(ControlFlowSettings):
     # ------------ Memory settings ------------
 
     memory_provider: Optional[str] = Field(
-        default=None,
+        default="chroma-db",
         description="The default memory provider for agents.",
     )
 

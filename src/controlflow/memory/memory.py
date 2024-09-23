@@ -1,7 +1,6 @@
 import abc
 import re
-import textwrap
-from typing import Dict, List, Optional, Self
+from typing import Dict, List, Optional, Union
 
 from pydantic import Field, field_validator, model_validator
 
@@ -56,7 +55,9 @@ class Memory(ControlFlowModel):
 
     @field_validator("provider", mode="before")
     @classmethod
-    def validate_provider(cls, v: Optional[MemoryProvider]) -> MemoryProvider:
+    def validate_provider(
+        cls, v: Optional[Union[MemoryProvider, str]]
+    ) -> MemoryProvider:
         if isinstance(v, str):
             return get_memory_provider(v)
         if v is None:
@@ -93,7 +94,7 @@ class Memory(ControlFlowModel):
         return sanitized
 
     @model_validator(mode="after")
-    def _configure_provider(self) -> Self:
+    def _configure_provider(self):
         self.provider.configure(self.key)
         return self
 
@@ -130,11 +131,16 @@ def get_memory_provider(provider: str) -> MemoryProvider:
     # --- CHROMA ---
 
     if provider.startswith("chroma"):
-        import chromadb
+        try:
+            import chromadb
+        except ImportError:
+            raise ImportError(
+                "To use Chroma as a memory provider, please install the `chromadb` package."
+            )
 
         import controlflow.memory.providers.chroma as chroma_providers
 
-        if provider == "chroma":
+        if provider == "chroma-ephemeral":
             return chroma_providers.EphemeralChromaMemory()
         elif provider == "chroma-db":
             return chroma_providers.PersistentChromaMemory()
