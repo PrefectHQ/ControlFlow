@@ -1,0 +1,47 @@
+import chromadb
+import pytest
+
+import controlflow
+from controlflow.memory.providers.chroma import ChromaMemory
+
+
+class TestMemory:
+    def test_store_and_retrieve(self):
+        m = controlflow.Memory(key="test", instructions="test")
+        m.add("The number is 42")
+        result = m.search("numbers")
+        assert len(result) == 1
+        assert "The number is 42" in result.values()
+
+    def test_delete(self):
+        m = controlflow.Memory(key="test", instructions="test")
+        m_id = m.add("The number is 42")
+        m.delete(m_id)
+        result = m.search("numbers")
+        assert len(result) == 0
+
+    def test_search(self):
+        m = controlflow.Memory(key="test", instructions="test")
+        m.add("The number is 42")
+        m.add("The number is 43")
+        result = m.search("numbers")
+        assert len(result) == 2
+        assert "The number is 42" in result.values()
+        assert "The number is 43" in result.values()
+
+
+class TestMemoryProvider:
+    def test_load_from_string_invalid(self):
+        with pytest.raises(ValueError):
+            controlflow.Memory(key="test", instructions="test", provider="invalid")
+
+    def test_load_from_string_chroma_db(self):
+        m = controlflow.Memory(key="test", instructions="test", provider="chroma-db")
+        assert isinstance(m.provider, ChromaMemory)
+        assert m.provider.client.path == str(
+            controlflow.settings.home_path / "memory/chroma"
+        )
+
+    def test_load_from_instance(self):
+        mp = ChromaMemory(client=chromadb.PersistentClient(path="test_path"))
+        m = controlflow.Memory(key="test", instructions="test", provider=mp)

@@ -44,6 +44,11 @@ Code = "https://github.com/PrefectHQ/ControlFlow"
 
 [project.optional-dependencies]
 tests = [
+    "chromadb",
+    "duckduckgo-search",
+    "langchain_community",
+    "langchain_google_genai",
+    "langchain_groq",
     "pytest-asyncio>=0.18.2,!=0.22.0,<0.23.0",
     "pytest-env>=0.8,<2.0",
     "pytest-rerunfailures>=10,<14",
@@ -51,10 +56,6 @@ tests = [
     "pytest>=7.0",
     "pytest-timeout",
     "pytest-xdist",
-    "langchain_community",
-    "langchain_google_genai",
-    "langchain_groq",
-    "duckduckgo-search",
 ]
 dev = [
     "controlflow[tests]",

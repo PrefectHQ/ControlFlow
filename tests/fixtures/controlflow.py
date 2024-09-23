@@ -1,10 +1,16 @@
+import chromadb
 import pytest
 
 import controlflow
 from controlflow.events.history import InMemoryHistory
 from controlflow.llm.messages import BaseMessage
+from controlflow.memory.providers.chroma import ChromaMemory, EphemeralChromaMemory
 from controlflow.settings import temporary_settings
 from controlflow.utilities.testing import FakeLLM
+
+EPHEMERAL_CHROMA_CLIENT = chromadb.EphemeralClient(
+    settings=chromadb.Settings(allow_reset=True)
+)
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -25,6 +31,7 @@ def reset_settings_after_each_test():
         yield
 
 
+@pytest.fixture(autouse=True)
 def temp_controlflow_defaults(monkeypatch):
     # use in-memory history
     monkeypatch.setattr(
@@ -32,6 +39,16 @@ def temp_controlflow_defaults(monkeypatch):
         "history",
         InMemoryHistory(),
     )
+
+    monkeypatch.setattr(
+        controlflow.defaults,
+        "memory_provider",
+        ChromaMemory(client=EPHEMERAL_CHROMA_CLIENT),
+    )
+
+    yield
+
+    EPHEMERAL_CHROMA_CLIENT.reset()
 
 
 @pytest.fixture(autouse=True)

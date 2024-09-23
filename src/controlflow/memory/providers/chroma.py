@@ -52,8 +52,8 @@ class ChromaMemory(MemoryProvider):
         return dict(zip(results["ids"][0], results["documents"][0]))
 
 
-def EphemeralChromaMemory() -> ChromaMemory:
-    return ChromaMemory(client=chromadb.EphemeralClient())
+def EphemeralChromaMemory(**kwargs) -> ChromaMemory:
+    return ChromaMemory(client=chromadb.EphemeralClient(**kwargs))
 
 
 def PersistentChromaMemory(path: str = None, **kwargs) -> ChromaMemory:
