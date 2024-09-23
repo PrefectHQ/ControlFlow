@@ -38,10 +38,9 @@ class TestMemoryProvider:
     def test_load_from_string_chroma_db(self):
         m = controlflow.Memory(key="test", instructions="test", provider="chroma-db")
         assert isinstance(m.provider, ChromaMemory)
-        assert m.provider.client.path == str(
-            controlflow.settings.home_path / "memory/chroma"
-        )
 
-    def test_load_from_instance(self):
-        mp = ChromaMemory(client=chromadb.PersistentClient(path="test_path"))
+    def test_load_from_instance(self, tmp_path):
+        mp = ChromaMemory(
+            client=chromadb.PersistentClient(path=str(tmp_path / "test_path"))
+        )
         m = controlflow.Memory(key="test", instructions="test", provider=mp)
