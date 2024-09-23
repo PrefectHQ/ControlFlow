@@ -29,7 +29,7 @@ To create a memory object, you need to provide a `key` and `instructions`. The `
 <Warning>
 ControlFlow does not include any vector database dependencies by default to keep the library lightweight, so you must [install and configure](#provider) a provider before creating a memory object.
 
-The examples in this document will work if you install `chromadb`, as Chroma is the default provider. You can also configure a different default provider, as described in the [default provider guide](/guides/default-memory).
+To run the examples with minimal configuration, run `pip install chromadb` to install the dependency for the default Chroma provider. To change the default, see the [default provider guide](/guides/default-memory).
 
 </Warning>
 
@@ -113,12 +113,14 @@ project_memory = cf.Memory(
 
 The `provider` is the underlying storage mechanism for the memory. It is responsible for storing and retrieving the memory objects. 
 
+<Tip>
+The default provider is "chroma-db", which uses a local persistent [Chroma](https://trychroma.com/) database. Run `pip install chromadb` to install its dependencies, after which you can start using memories with no additional configuration.
+</Tip>
 
 #### Installing provider dependencies
 To configure a provider, you need to install its package and either configure the provider with a string value or create an instance of the provider and pass it to the memory module.
 <Warning>
 ControlFlow does not include any vector database dependencies by default, in order to keep the library lightweight. 
-
 </Warning>
 
 This table shows the supported providers and their respective dependencies:
@@ -146,9 +148,6 @@ import controlflow as cf
 cf.Memory(..., provider="chroma-ephemeral")
 ```
 
-<Tip>
-Though ControlFlow does not include any vector database dependencies by default, the default provider is `"chroma-db"`.
-</Tip>
 #### Configuring a Provider instance
 
 For more complex configurations, you can instantiate a provider directly and pass it to the memory module. 
