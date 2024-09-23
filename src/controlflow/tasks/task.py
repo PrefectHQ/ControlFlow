@@ -30,6 +30,7 @@ from pydantic import (
 import controlflow
 from controlflow.agents import Agent
 from controlflow.instructions import get_instructions
+from controlflow.memory.memory import Memory
 from controlflow.tools import Tool, tool
 from controlflow.tools.input import cli_input
 from controlflow.tools.tools import as_tools
@@ -38,6 +39,7 @@ from controlflow.utilities.general import (
     NOTSET,
     ControlFlowModel,
     hash_objects,
+    unwrap,
 )
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import prefect_task as prefect_task
@@ -147,6 +149,10 @@ class Task(ControlFlowModel):
         description="Agents that are allowed to mark this task as complete. If None, all agents are allowed.",
     )
     interactive: bool = False
+    memories: list[Memory] = Field(
+        default=[],
+        description="A list of memory modules for the task to use.",
+    )
     max_llm_calls: Optional[int] = Field(
         default_factory=lambda: controlflow.settings.task_max_llm_calls,
         description="Maximum number of LLM calls to make before the task should be marked as failed. "
@@ -468,6 +474,8 @@ class Task(ControlFlowModel):
         tools = self.tools.copy()
         if self.interactive:
             tools.append(cli_input)
+        for memory in self.memories:
+            tools.extend(memory.get_tools())
         return tools
 
     def get_completion_tools(self) -> list[Tool]:
@@ -512,7 +520,7 @@ class Task(ControlFlowModel):
         Create an agent-compatible tool for marking this task as successful.
         """
         options = {}
-        instructions = textwrap.dedent("""
+        instructions = unwrap("""
             Use this tool to mark the task as successful and provide a result. 
             This tool can only be used one time per task.
         """)
@@ -536,7 +544,7 @@ class Task(ControlFlowModel):
             options_str = "\n\n".join(
                 f"Option {i}: {option}" for i, option in serialized_options.items()
             )
-            instructions += "\n\n" + textwrap.dedent("""
+            instructions += "\n\n" + unwrap("""
                 Provide a single integer as the result, corresponding to the index
                 of your chosen option. Your options are: 
                 

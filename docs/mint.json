@@ -57,6 +57,7 @@
                 "patterns/tools",
                 "patterns/interactivity",
                 "patterns/dependencies",
+                "patterns/memory",
                 "patterns/instructions",
                 "patterns/planning",
                 "patterns/history"
@@ -66,8 +67,9 @@
             "group": "Configuration",
             "pages": [
                 "guides/settings",
-                "guides/llms",
-                "guides/default-agent"
+                "guides/configure-llms",
+                "guides/default-agent",
+                "guides/default-memory"
             ]
         },
         {

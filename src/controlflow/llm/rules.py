@@ -5,7 +5,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
 
 from controlflow.llm.models import BaseChatModel
-from controlflow.utilities.general import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel, unwrap
 
 
 class LLMRules(ControlFlowModel):
@@ -57,7 +57,7 @@ class OpenAIRules(LLMRules):
         instructions = []
         if self.model.model_name.endswith("gpt-4o-mini"):
             instructions.append(
-                textwrap.dedent(
+                unwrap(
                     """
                     You can only provide a single result for each task, and a
                     task can only be marked successful one time. Do not make

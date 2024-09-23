@@ -22,6 +22,7 @@ from controlflow.instructions import get_instructions
 from controlflow.llm.messages import AIMessage, BaseMessage
 from controlflow.llm.models import get_model as get_model_from_string
 from controlflow.llm.rules import LLMRules
+from controlflow.memory import Memory
 from controlflow.tools.tools import (
     Tool,
     as_lc_tools,
@@ -32,8 +33,6 @@ from controlflow.tools.tools import (
 from controlflow.utilities.context import ctx
 from controlflow.utilities.general import ControlFlowModel, hash_objects
 from controlflow.utilities.prefect import create_markdown_artifact, prefect_task
-
-from .memory import Memory
 
 if TYPE_CHECKING:
     from controlflow.orchestration.handler import Handler
@@ -71,11 +70,9 @@ class Agent(ControlFlowModel, abc.ABC):
         False,
         description="If True, the agent is given tools for interacting with a human user.",
     )
-    memory: Optional[Memory] = Field(
-        default=None,
-        # default_factory=ThreadMemory,
-        description="The memory object used by the agent. If not specified, an in-memory memory object will be used. Pass None to disable memory.",
-        exclude=True,
+    memories: list[Memory] = Field(
+        default=[],
+        description="A list of memory modules for the agent to use.",
     )
 
     model: Optional[Union[str, BaseChatModel]] = Field(
@@ -174,8 +171,8 @@ class Agent(ControlFlowModel, abc.ABC):
         tools = self.tools.copy()
         if self.interactive:
             tools.append(cli_input)
-        if self.memory is not None:
-            tools.extend(self.memory.get_tools())
+        for memory in self.memories:
+            tools.extend(memory.get_tools())
 
         return as_tools(tools)
 

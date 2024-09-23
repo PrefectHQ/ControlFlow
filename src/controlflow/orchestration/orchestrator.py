@@ -11,6 +11,7 @@ from controlflow.events.message_compiler import MessageCompiler
 from controlflow.flows import Flow
 from controlflow.instructions import get_instructions
 from controlflow.llm.messages import BaseMessage
+from controlflow.memory import Memory
 from controlflow.orchestration.handler import Handler
 from controlflow.orchestration.turn_strategies import Popcorn, TurnStrategy
 from controlflow.tasks.task import Task
@@ -124,6 +125,16 @@ class Orchestrator(ControlFlowModel):
 
         tools = as_tools(tools)
         return tools
+
+    def get_memories(self) -> list[Memory]:
+        memories = set()
+
+        memories.update(self.agent.memories)
+
+        for task in self.get_tasks("assigned"):
+            memories.update(task.memories)
+
+        return memories
 
     @prefect_task(task_run_name="Orchestrator.run()")
     def run(
@@ -393,18 +404,19 @@ class Orchestrator(ControlFlowModel):
         from controlflow.orchestration.prompt_templates import (
             InstructionsTemplate,
             LLMInstructionsTemplate,
+            MemoryTemplate,
             TasksTemplate,
             ToolTemplate,
         )
 
-        tools = self.get_tools()
         llm_rules = self.agent.get_llm_rules()
 
         prompts = [
             self.agent.get_prompt(),
             self.flow.get_prompt(),
             TasksTemplate(tasks=self.get_tasks("ready")).render(),
-            ToolTemplate(tools=tools).render(),
+            ToolTemplate(tools=self.get_tools()).render(),
+            MemoryTemplate(memories=self.get_memories()).render(),
             InstructionsTemplate(instructions=get_instructions()).render(),
             LLMInstructionsTemplate(
                 instructions=llm_rules.model_instructions()

@@ -54,7 +54,7 @@ Next, configure your LLM provider. ControlFlow's default provider is OpenAI, whi
 export OPENAI_API_KEY=your-api-key
 ```
 
-To use a different LLM provider, [see the LLM configuration docs](https://controlflow.ai/guides/llms).
+To use a different LLM provider, [see the LLM configuration docs](https://controlflow.ai/guides/configure-llms).
 
 
 ## Workflow Example
