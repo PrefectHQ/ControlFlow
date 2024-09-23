@@ -5,6 +5,7 @@ from langchain_core.language_models import BaseChatModel
 from pydantic import ValidationError
 
 import controlflow
+from controlflow.utilities.general import unwrap
 from controlflow.utilities.logging import get_logger
 
 logger = get_logger(__name__)
@@ -75,21 +76,21 @@ def _get_initial_default_model() -> BaseChatModel:
         if isinstance(exc, ValidationError) and "Did not find openai_api_key" in str(
             exc
         ):
-            msg = inspect.cleandoc("""
+            msg = unwrap("""
                 The default LLM model could not be created because the OpenAI
                 API key was not found. ControlFlow will continue to work, but
                 you must manually provide an LLM model for each agent. Please
                 set the OPENAI_API_KEY environment variable or choose a
                 different default LLM model. For more information, please see
-                https://controlflow.ai/guides/llms.
+                https://controlflow.ai/guides/configure-llms.
                 """).replace("\n", " ")
         else:
             msg = (
-                inspect.cleandoc("""
+                unwrap("""
                 The default LLM model could not be created. ControlFlow will
                 continue to work, but you must manually provide an LLM model for
                 each agent. For more information, please see
-                https://controlflow.ai/guides/llms. The error was:
+                https://controlflow.ai/guides/configure-llms. The error was:
                 """).replace("\n", " ")
                 + f"\n{exc}"
             )

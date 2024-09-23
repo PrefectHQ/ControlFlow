@@ -1,14 +1,14 @@
 ---
 title: Memory
-description: Enhance agent capabilities with persistent memory
-icon: brain
+description: Enhance your agents with persistent memories.
+icon: bookmark
 ---
 
-ControlFlow's Memory feature allows agents to store and retrieve information across multiple interactions, enhancing their ability to maintain context and make informed decisions. This document explains why and how to use Memory objects to create more capable and context-aware agents.
 
-## Why Use Memory?
 
-The primary motivation for using memory in ControlFlow is to allow agents to retain and access information beyond their current conversation or task. While agents can always see the current thread's history (or at least the most recent messages for long histories), there are many cases where we want them to have longer-term memories:
+Within an agentic workflow, information is naturally added to the [thread history](/patterns/history) over time, making available to all agents who participate in the workflow. However, that information is not accessible from other threads, even if they relate to the same objective or resources. 
+
+ControlFlow has a memory feature that allows agents to selectively store and recall information across multiple interactions. This feature is useful for creating more capable and context-aware agents. For example:
 
 - Remembering a user's name or other personal details across conversations
 - Retaining facts from one session for use in another
@@ -16,63 +16,76 @@ The primary motivation for using memory in ControlFlow is to allow agents to ret
 - Maintaining project-specific information across multiple interactions
 - Enabling "soft" collaboration between agents through a shared knowledge base
 
-Memory objects provide this functionality, allowing agents to build up and access a persistent knowledge base over time.
+Memory modules provide this functionality, allowing agents to build up and access a persistent knowledge base over time.
 
 ## How Memory Works
 
-Each Memory object in ControlFlow is identified by a `key`. All memories associated with that key are available to any agent that has access to it. For example:
+ControlFlow memories are implemented as context-specific vector stores that permit agents to add and query information using natural language. Each memory object has a "key" that uniquely identifies it and partitions its contents from other vector stores for easy retrieval. For example, you might have a different memory store for each user, agent, project, or even task, used to persist information across multiple interactions with that object. Agents can be provided with multiple memory modules, allowing them to access different sets of memories simultaneously.
 
-- Create a memory with `key="user_john_doe"`
-- Any agent given access to this memory key can read from and write to John Doe's personal memory
-- In a customer service flow, you might look up your user, instantiate a memory for them, and then create your agent with that memory
-- Now that agent will have access to previous recollections related to that user
+## Creating Memory Modules
 
-Agents can be given multiple Memory objects, allowing them to access different sets of memories simultaneously. For instance, an agent could have separate memories for:
+To create a memory object, you need to provide a `key` and `instructions`. The `key` uniquely identifies the memory module so it can be accessed later. The `instructions` explain what kind of information should be stored, and how it should be used.
 
-- Individual users
-- Specific projects
-- Monthly records
-- The agent's own personal knowledge base
-- A shared team knowledge base
+<Warning>
+ControlFlow does not include any vector database dependencies by default to keep the library lightweight, so you must [install and configure](#provider) a provider before creating a memory object.
 
-By default, ControlFlow uses ChromaDB as the memory provider, which persists data to `~/.controlflow`. This means that memories are maintained across different runs of your ControlFlow application.
-
-## Using Memory in ControlFlow
-
-Here's how to create and use Memory objects in your ControlFlow applications:
+The examples below assume you have [configured a default provider](/guides/default-memory), so they do not specify a provider explicitly.
+</Warning>
 
 ```python
 import controlflow as cf
 
-# Create a Memory object
-user_memory = cf.Memory(
-    key="user_john_doe",
-    instructions="Store and retrieve important information about John Doe."
+# Create a Memory module for storing weather information
+memory = cf.Memory(
+    key="weather",
+    instructions="Stores information about the weather."
 )
-
-# Create an agent with access to the memory
-agent = cf.Agent(
-    name="Customer Service Rep",
-    memories=[user_memory]
-)
-
-@cf.flow
-def customer_service_flow():
-    # The agent can now use the memory in its tasks
-    cf.run(
-        "Assist the user, using their memory to personalize the interaction",
-        agents=[agent],
-        interactive=True
-    )
 ```
 
-## Key Concepts
+### Assigning Memories
 
-### Memory Key
+Like tools, memory modules can be provided to either agents or tasks. When provided to an agent, it will be able to access the memories when executing any task. When provided to a task, the memories will be available to any assigned agents. The choice of where to assign a memory module depends entirely on your preference and the design of your application; when the workflow is compiled the behavior is identical.
+
+
+#### Assigning to an Agent
+
+```python
+agent = cf.Agent(
+    name="Weather Agent",
+    memories=[memory]
+)
+```
+
+#### Assigning to a Task 
+
+```python
+task = cf.Task(
+    name="Weather Task",
+    memories=[memory]
+)
+```
+
+### Assigning Multiple Memories
+
+You can assign multiple memories to an agent or task. When this happens, the agent or task will have access to all of the modules and be able to store and retrieve information from each of them separately. 
+
+
+### Sharing Memories
+
+Remember that you can provide the same memory module to multiple agents or tasks. When this happens, the memories are shared across all of the agents and tasks. 
+
+<Tip>
+Memories are partitioned by `key`, so you can provide different instructions to different agents for the same module. For example, you might have one agent that you encourage to record information to a memory module, and another that you encourage to read memories from the same module. 
+</Tip>
+
+
+## Configuration
+
+### Key
 
 The `key` is crucial for accessing the correct set of memories. It must be provided exactly the same way each time to access an existing memory. Keys should be descriptive and unique for each distinct memory set you want to maintain.
 
-### Memory Instructions
+### Instructions
 
 The `instructions` field is important because it tells the agent when and how to access or add to the memory. Unlike the `key`, instructions can be different for the same memory key across different Memory objects. This allows for flexibility in how agents interact with the same set of memories.
 
@@ -95,28 +108,157 @@ project_memory = cf.Memory(
 )
 ```
 
-## Collaborative Use Cases
+### Provider
 
-Memory objects can be used to facilitate "soft" collaboration between agents by creating a shared knowledge base. For example:
+The `provider` is the underlying storage mechanism for the memory. It is responsible for storing and retrieving the memory objects. 
+
+#### Installing provider dependencies
+To configure a provider, you need to install its package and either configure the provider with a string value or create an instance of the provider and pass it to the memory module. ControlFlow does not include any vector database dependencies by default, in order to keep the library lightweight. 
+
+This table shows the supported providers and their respective dependencies:
+
+| Provider | Required dependencies |
+| -------- | ----------------- |
+| [Chroma](https://trychroma.com/)   | `chromadb` |
+
+You can install the dependencies for a provider with pip, for example `pip install chromadb` to use the Chroma provider.
+
+#### Configuring a provider with a string
+
+For straightforward provider configurations, you can pass a string value to the `provider` parameter that will instantiate a provider with default settings. The following strings are recognized:
+
+|Provider | Provider string | Description |
+| -------- | -------- | ----------------- |
+| Chroma | `chroma` | An ephemeral (in-memory) database. |
+| Chroma | `chroma-db` | A persistent, local-file-based database, with a default path of `~/.controlflow/memory/chroma`. |
+
+
+For example, if `chromadb` is installed, the following code will create a memory module that uses a persistent Chroma database in the default location:
 
 ```python
-shared_memory = cf.Memory(
-    key="team_knowledge_base",
-    instructions="""
-    This is a shared knowledge base for our team.
-    - Read from this memory to access collective knowledge.
-    - Write to this memory when you discover information that could be useful to other team members.
-    - Always verify and update existing information if you find contradictions.
-    """
-)
+import controlflow as cf
 
-agent1 = cf.Agent(name="Researcher", memories=[shared_memory])
-agent2 = cf.Agent(name="Analyst", memories=[shared_memory])
-
-# Now both agents can contribute to and benefit from the shared knowledge base
+cf.Memory(..., provider="chroma-db")
 ```
 
-This approach allows multiple agents to contribute to and benefit from a collective pool of knowledge, enhancing overall performance and consistency across different tasks or conversations.
+#### Configuring a Provider instance
+
+For more complex configurations, you can instantiate a provider directly and pass it to the memory module. 
+
+For example, the Chroma provider accepts a `client` parameter that allows you to customize how the Chroma client connects, as well as a `collection_name` parameter to specify the name of the collection to use.
+
+```python
+import controlflow as cf
+from controlflow.memory.providers.chroma import ChromaMemory
+import chromadb
+
+provider = ChromaMemory(
+    client=chromadb.PersistentClient(path="/path/to/save/to"),
+    collection_name="custom-{key}",
+)
+
+memory = cf.Memory(..., provider=provider)
+```
+
+#### Configuring a default provider
+
+You can configure a default provider to avoid having to specify a provider each time you create a memory module. Please see the guide on [default providers](/guides/default-memory) for more information.
+
+
+
+## Example: Storing Weather Information
+
+In this example, we'll create a memory module for weather information and use it to retrieve that information in a different conversation. Begin by creating a memory module, assigning it to a task, and informing the task that it is 70 degrees today:
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+# Create a Memory module
+weather_memory = cf.Memory(
+    key="weather",
+    instructions="Store and retrieve information about the weather."
+)
+
+cf.run("It is 70 degrees today.", memories=[weather_memory])
+```
+
+```text Result
+"The weather information has been stored: It is 70 degrees today."
+```
+</CodeGroup>
+
+Now, in a different conversation, we can retrieve that information. Note that the setup is almost identical, except that the task asks the agent to answer a question about the weather.
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+
+# Create a Memory module
+weather_memory = cf.Memory(
+    key="weather",
+    instructions="Store and retrieve information about the weather."
+)
+
+cf.run("What is the weather today?", memories=[weather_memory])
+```
+
+```text Result
+"It is 70 degrees today."
+```
+</CodeGroup>
+
+
+### Example: Slack Customer Service
+
+Suppose we have an agent that answers questions in Slack. We are going to equip the agent with the following memory modules:
+- One for each user in the thread
+- One for common problems that users encounter
+
+Since we always invoke the agent with these memories, it will be able to access persistent information about any user its assisting, as well as issues they frequently encounter, even if that information wasn't shared in the current thread.
+
+Here is example code for how this might work:
+
+```python
+import controlflow as cf
+
+
+@cf.flow
+def customer_service_flow(slack_thread_id: str):
+
+    # create a memory module for each user
+    user_memories = [
+        cf.Memory(
+            key=user_id,
+            instructions=f"Store and retrieve any information about user {user_id}.",
+        )
+        for user_id in get_user_ids(slack_thread_id)
+    ]
+
+    # create a memory module for problems
+    problems_memory = cf.Memory(
+        key="problems",
+        instructions="Store and retrieve important information about common user problems.",
+    )
+
+    # create an agent with access to the memory modules
+    agent = cf.Agent(
+        name="Customer Service Agent",
+        instructions="""
+            Help users by answering their questions. Use available 
+            memories to personalize your response.
+            """,
+        memories=user_memories + [problems_memory]
+    )
+
+    # use the agent to respond
+    cf.run(
+        "Respond to the users' latest message",
+        agents=[agent],
+        context=dict(messages=get_messages(slack_thread_id)),
+    )
+```
+
 
 ## Best Practices
 

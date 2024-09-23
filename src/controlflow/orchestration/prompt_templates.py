@@ -3,8 +3,8 @@ from typing import Any, Dict, List, Optional
 from pydantic import model_validator
 
 from controlflow.agents.agent import Agent
-from controlflow.agents.memory import Memory
 from controlflow.flows import Flow
+from controlflow.memory.memory import Memory
 from controlflow.tasks.task import Task
 from controlflow.tools.tools import Tool
 from controlflow.utilities.general import ControlFlowModel

@@ -1,12 +1,13 @@
 import abc
 import re
-from typing import Dict, List, Self
+import textwrap
+from typing import Dict, List, Optional, Self
 
 from pydantic import Field, field_validator, model_validator
 
 import controlflow
 from controlflow.tools.tools import Tool
-from controlflow.utilities.general import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel, unwrap
 
 
 def sanitize_memory_key(key: str) -> str:
@@ -36,13 +37,50 @@ class MemoryProvider(ControlFlowModel, abc.ABC):
 
 
 class Memory(ControlFlowModel):
+    """
+    A memory module is a partitioned collection of memories that are stored in a
+    vector database, configured by a MemoryProvider.
+    """
+
     key: str
     instructions: str = Field(
-        default="Use this memory to store and retrieve important information."
+        description="Explain what this memory is for and how it should be used."
     )
     provider: MemoryProvider = Field(
-        default_factory=lambda: controlflow.defaults.memory_provider
+        default_factory=lambda: controlflow.defaults.memory_provider,
+        validate_default=True,
     )
+
+    def __hash__(self) -> int:
+        return id(self)
+
+    @field_validator("provider", mode="before")
+    @classmethod
+    def validate_provider(cls, v: Optional[MemoryProvider]) -> MemoryProvider:
+        if isinstance(v, str):
+            return get_memory_provider(v)
+        if v is None:
+            raise ValueError(
+                unwrap(
+                    """
+                    Memory modules require a MemoryProvider to configure the
+                    underlying vector database. No provider was passed as an
+                    argument, and no default value has been configured. 
+                    
+                    For more information on configuring a memory provider, see
+                    the [Memory
+                    documentation](https://controlflow.ai/patterns/memory), and
+                    please review the [default provider
+                    guide](https://controlflow.ai/guides/default-memory) for
+                    information on configuring a default provider.
+                    
+                    Please note that if you are using ControlFlow for the first
+                    time, this error is expected because ControlFlow does not include
+                    vector dependencies by default.
+                    """
+                )
+            )
+        return v
 
     @field_validator("key")
     @classmethod
@@ -72,7 +110,7 @@ class Memory(ControlFlowModel):
         return [
             Tool.from_function(
                 self.add,
-                name=f"add_memory_{self.key}",
+                name=f"store_memory_{self.key}",
                 description=f'Create a new memory in Memory: "{self.key}".',
             ),
             Tool.from_function(
@@ -86,3 +124,19 @@ class Memory(ControlFlowModel):
                 description=f'Search for memories relevant to a string query in Memory: "{self.key}". Returns a dictionary of memory IDs and their contents.',
             ),
         ]
+
+
+def get_memory_provider(provider: str) -> MemoryProvider:
+    # --- CHROMA ---
+
+    if provider.startswith("chroma"):
+        import chromadb
+
+        import controlflow.memory.providers.chroma as chroma_providers
+
+        if provider == "chroma":
+            return chroma_providers.EphemeralChromaMemory()
+        elif provider == "chroma-db":
+            return chroma_providers.PersistentChromaMemory()
+
+    raise ValueError(f'Memory provider "{provider}" could not be loaded from a string.')

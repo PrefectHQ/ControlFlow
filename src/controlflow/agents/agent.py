@@ -22,6 +22,7 @@ from controlflow.instructions import get_instructions
 from controlflow.llm.messages import AIMessage, BaseMessage
 from controlflow.llm.models import get_model as get_model_from_string
 from controlflow.llm.rules import LLMRules
+from controlflow.memory import Memory
 from controlflow.tools.tools import (
     Tool,
     as_lc_tools,
@@ -32,8 +33,6 @@ from controlflow.tools.tools import (
 from controlflow.utilities.context import ctx
 from controlflow.utilities.general import ControlFlowModel, hash_objects
 from controlflow.utilities.prefect import create_markdown_artifact, prefect_task
-
-from .memory import Memory
 
 if TYPE_CHECKING:
     from controlflow.orchestration.handler import Handler

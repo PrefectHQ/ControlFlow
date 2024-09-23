@@ -81,6 +81,13 @@ class Settings(ControlFlowSettings):
         100_000, description="The maximum number of tokens to send to an LLM."
     )
 
+    # ------------ Memory settings ------------
+
+    memory_provider: Optional[str] = Field(
+        default=None,
+        description="The default memory provider for agents.",
+    )
+
     # ------------ Debug settings ------------
 
     debug_messages: bool = Field(

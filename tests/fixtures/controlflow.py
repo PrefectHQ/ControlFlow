@@ -1,8 +1,6 @@
-import chromadb
 import pytest
 
 import controlflow
-from controlflow.agents.memory_providers.chroma import ChromaMemoryProvider
 from controlflow.events.history import InMemoryHistory
 from controlflow.llm.messages import BaseMessage
 from controlflow.settings import temporary_settings
@@ -28,12 +26,6 @@ def reset_settings_after_each_test():
 
 
 def temp_controlflow_defaults(monkeypatch):
-    # use ephemeral Chroma client
-    monkeypatch.setattr(
-        controlflow.defaults,
-        "memory_provider",
-        ChromaMemoryProvider(client=chromadb.EphemeralClient()),
-    )
     # use in-memory history
     monkeypatch.setattr(
         controlflow.defaults,

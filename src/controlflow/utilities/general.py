@@ -1,5 +1,7 @@
 import hashlib
 import json
+import re
+import textwrap
 from typing import Optional, Union
 
 import prefect
@@ -30,6 +32,22 @@ def hash_objects(input_data: tuple, len: int = 8) -> str:
 
     # Return the hexadecimal digest of the hash
     return hasher.hexdigest()[:len]
+
+
+def unwrap(text: str) -> str:
+    """
+    Given a multi-line string, dedent, remove newlines within paragraphs, but keep paragraph breaks.
+    """
+    # Dedent the text
+    dedented_text = textwrap.dedent(text)
+
+    # Remove newlines within paragraphs, but keep paragraph breaks
+    cleaned_text = re.sub(r"(?<!\n)\n(?!\n)", " ", dedented_text)
+
+    # Remove leading and trailing whitespace
+    cleaned_text = cleaned_text.strip()
+
+    return cleaned_text
 
 
 class ControlFlowModel(BaseModel):

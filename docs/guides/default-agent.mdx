@@ -1,5 +1,6 @@
 ---
-title: Configuring the Default Agent
+title: Configuring a Default Agent
+sidebarTitle: Default Agent
 description: Set global and flow-specific defaults.
 icon: robot
 ---
@@ -8,7 +9,7 @@ ControlFlow uses a default agent when no specific agents are assigned to a task.
 
 ## Changing the Global Default Agent
 
-The global default agent (whose name, of course, is Marvin) uses whatever [default model](/guides/llms#changing-the-default-model) you've configured. It has a basic set of general-purpose instructions and is not equipped with any tools.
+The global default agent (whose name, of course, is Marvin) uses whatever [default model](/guides/configure-llms#changing-the-default-model) you've configured. It has a basic set of general-purpose instructions and is not equipped with any tools.
 
 To change the global default agent, assign a new agent to `controlflow.defaults.agent`:
 

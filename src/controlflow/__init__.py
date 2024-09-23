@@ -11,7 +11,8 @@ from .agents import Agent
 from .tasks import Task
 from .flows import Flow
 
-# functions and decorators
+# functions, utilites, and decorators
+from .memory import Memory
 from .instructions import instructions
 from .decorators import flow, task
 from .tools import tool
