@@ -1,0 +1,130 @@
+---
+title: Memory
+description: Enhance agent capabilities with persistent memory
+icon: brain
+---
+
+ControlFlow's Memory feature allows agents to store and retrieve information across multiple interactions, enhancing their ability to maintain context and make informed decisions. This document explains why and how to use Memory objects to create more capable and context-aware agents.
+
+## Why Use Memory?
+
+The primary motivation for using memory in ControlFlow is to allow agents to retain and access information beyond their current conversation or task. While agents can always see the current thread's history (or at least the most recent messages for long histories), there are many cases where we want them to have longer-term memories:
+
+- Remembering a user's name or other personal details across conversations
+- Retaining facts from one session for use in another
+- Keeping details about a repository's style guide for later reference
+- Maintaining project-specific information across multiple interactions
+- Enabling "soft" collaboration between agents through a shared knowledge base
+
+Memory objects provide this functionality, allowing agents to build up and access a persistent knowledge base over time.
+
+## How Memory Works
+
+Each Memory object in ControlFlow is identified by a `key`. All memories associated with that key are available to any agent that has access to it. For example:
+
+- Create a memory with `key="user_john_doe"`
+- Any agent given access to this memory key can read from and write to John Doe's personal memory
+- In a customer service flow, you might look up your user, instantiate a memory for them, and then create your agent with that memory
+- Now that agent will have access to previous recollections related to that user
+
+Agents can be given multiple Memory objects, allowing them to access different sets of memories simultaneously. For instance, an agent could have separate memories for:
+
+- Individual users
+- Specific projects
+- Monthly records
+- The agent's own personal knowledge base
+- A shared team knowledge base
+
+By default, ControlFlow uses ChromaDB as the memory provider, which persists data to `~/.controlflow`. This means that memories are maintained across different runs of your ControlFlow application.
+
+## Using Memory in ControlFlow
+
+Here's how to create and use Memory objects in your ControlFlow applications:
+
+```python
+import controlflow as cf
+
+# Create a Memory object
+user_memory = cf.Memory(
+    key="user_john_doe",
+    instructions="Store and retrieve important information about John Doe."
+)
+
+# Create an agent with access to the memory
+agent = cf.Agent(
+    name="Customer Service Rep",
+    memories=[user_memory]
+)
+
+@cf.flow
+def customer_service_flow():
+    # The agent can now use the memory in its tasks
+    cf.run(
+        "Assist the user, using their memory to personalize the interaction",
+        agents=[agent],
+        interactive=True
+    )
+```
+
+## Key Concepts
+
+### Memory Key
+
+The `key` is crucial for accessing the correct set of memories. It must be provided exactly the same way each time to access an existing memory. Keys should be descriptive and unique for each distinct memory set you want to maintain.
+
+### Memory Instructions
+
+The `instructions` field is important because it tells the agent when and how to access or add to the memory. Unlike the `key`, instructions can be different for the same memory key across different Memory objects. This allows for flexibility in how agents interact with the same set of memories.
+
+Good instructions should explain:
+- What kind of information the memory is used to store
+- When the agent should read from or write to the memory
+- Any specific guidelines for formatting or categorizing the stored information
+
+For example:
+
+```python
+project_memory = cf.Memory(
+    key="project_alpha",
+    instructions="""
+    This memory stores important details about Project Alpha.
+    - Read from this memory when you need information about project goals, timelines, or team members.
+    - Write to this memory when you learn new, important facts about the project.
+    - Always include dates when adding new information.
+    """
+)
+```
+
+## Collaborative Use Cases
+
+Memory objects can be used to facilitate "soft" collaboration between agents by creating a shared knowledge base. For example:
+
+```python
+shared_memory = cf.Memory(
+    key="team_knowledge_base",
+    instructions="""
+    This is a shared knowledge base for our team.
+    - Read from this memory to access collective knowledge.
+    - Write to this memory when you discover information that could be useful to other team members.
+    - Always verify and update existing information if you find contradictions.
+    """
+)
+
+agent1 = cf.Agent(name="Researcher", memories=[shared_memory])
+agent2 = cf.Agent(name="Analyst", memories=[shared_memory])
+
+# Now both agents can contribute to and benefit from the shared knowledge base
+```
+
+This approach allows multiple agents to contribute to and benefit from a collective pool of knowledge, enhancing overall performance and consistency across different tasks or conversations.
+
+## Best Practices
+
+1. Use descriptive, unique keys for different memory sets
+2. Provide clear, specific instructions to guide agents in using the memory effectively
+3. Consider the lifespan of memories - some may be relevant only for a single session, while others may persist across multiple runs
+4. Use multiple memory objects when an agent needs to access different sets of information
+5. Leverage shared memories for collaborative scenarios where multiple agents need access to the same knowledge base
+6. Regularly review and update memory instructions to ensure they remain relevant and useful
+
+By leveraging ControlFlow's Memory feature effectively, you can create more sophisticated agents that maintain context, learn from past interactions, and make more informed decisions based on accumulated knowledge across multiple conversations or sessions.

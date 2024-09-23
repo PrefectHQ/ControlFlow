@@ -57,6 +57,7 @@
                 "patterns/tools",
                 "patterns/interactivity",
                 "patterns/dependencies",
+                "patterns/memory",
                 "patterns/instructions",
                 "patterns/planning",
                 "patterns/history"
