@@ -78,7 +78,8 @@
                 "examples/features/dependent-tasks",
                 "examples/features/tools",
                 "examples/features/multi-llm",
-                "examples/features/private-flows"
+                "examples/features/private-flows",
+                "examples/features/memory"
             ]
         },
         {
