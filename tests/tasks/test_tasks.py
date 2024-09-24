@@ -483,27 +483,27 @@ class TestResultValidator:
 class TestSuccessTool:
     def test_success_tool(self):
         task = Task("choose 5", result_type=int)
-        tool = task.create_success_tool()
+        tool = task.get_success_tool()
         tool.run(input=dict(result=5))
         assert task.is_successful()
         assert task.result == 5
 
     def test_success_tool_with_list_of_options(self):
         task = Task('choose "good"', result_type=["bad", "good", "medium"])
-        tool = task.create_success_tool()
+        tool = task.get_success_tool()
         tool.run(input=dict(result=1))
         assert task.is_successful()
         assert task.result == "good"
 
     def test_success_tool_with_list_of_options_requires_int(self):
         task = Task('choose "good"', result_type=["bad", "good", "medium"])
-        tool = task.create_success_tool()
+        tool = task.get_success_tool()
         with pytest.raises(ValueError):
             tool.run(input=dict(result="good"))
 
     def test_tuple_of_ints_result(self):
         task = Task("choose 5", result_type=(4, 5, 6))
-        tool = task.create_success_tool()
+        tool = task.get_success_tool()
         tool.run(input=dict(result=1))
         assert task.result == 5
 
@@ -516,7 +516,7 @@ class TestSuccessTool:
             "Who is the oldest?",
             result_type=(Person(name="Alice", age=30), Person(name="Bob", age=35)),
         )
-        tool = task.create_success_tool()
+        tool = task.get_success_tool()
         tool.run(input=dict(result=1))
         assert task.result == Person(name="Bob", age=35)
         assert isinstance(task.result, Person)
@@ -549,3 +549,71 @@ class TestHandlers:
 
         assert len(handler.events) > 0
         assert len(handler.agent_messages) == 1
+
+
+class TestCompletionTools:
+    def test_default_completion_tools(self):
+        task = Task(objective="Test task")
+        assert task.completion_tools is None
+        tools = task.get_completion_tools()
+        assert len(tools) == 2
+        assert any(t.name == f"mark_task_{task.id}_successful" for t in tools)
+        assert any(t.name == f"mark_task_{task.id}_failed" for t in tools)
+
+    def test_only_succeed_tool(self):
+        task = Task(objective="Test task", completion_tools=["SUCCEED"])
+        tools = task.get_completion_tools()
+        assert len(tools) == 1
+        assert tools[0].name == f"mark_task_{task.id}_successful"
+
+    def test_only_fail_tool(self):
+        task = Task(objective="Test task", completion_tools=["FAIL"])
+        tools = task.get_completion_tools()
+        assert len(tools) == 1
+        assert tools[0].name == f"mark_task_{task.id}_failed"
+
+    def test_no_completion_tools(self):
+        task = Task(objective="Test task", completion_tools=[])
+        tools = task.get_completion_tools()
+        assert len(tools) == 0
+
+    def test_invalid_completion_tool(self):
+        with pytest.raises(ValueError):
+            Task(objective="Test task", completion_tools=["INVALID"])
+
+    def test_manual_success_tool(self):
+        task = Task(objective="Test task", completion_tools=[], result_type=int)
+        success_tool = task.get_success_tool()
+        success_tool.run(input=dict(result=5))
+        assert task.is_successful()
+        assert task.result == 5
+
+    def test_manual_fail_tool(self):
+        task = Task(objective="Test task", completion_tools=[])
+        fail_tool = task.get_fail_tool()
+        assert fail_tool.name == f"mark_task_{task.id}_failed"
+        fail_tool.run(input=dict(reason="test error"))
+        assert task.is_failed()
+        assert task.result == "test error"
+
+    def test_completion_tools_with_run(self):
+        task = Task("Calculate 2 + 2", result_type=int, completion_tools=["SUCCEED"])
+        result = task.run(max_llm_calls=1)
+        assert result == 4
+        assert task.is_successful()
+
+    def test_no_completion_tools_with_run(self):
+        task = Task("Calculate 2 + 2", result_type=int, completion_tools=[])
+        task.run(max_llm_calls=1)
+        assert task.is_incomplete()
+
+    async def test_completion_tools_with_run_async(self):
+        task = Task("Calculate 2 + 2", result_type=int, completion_tools=["SUCCEED"])
+        result = await task.run_async(max_llm_calls=1)
+        assert result == 4
+        assert task.is_successful()
+
+    async def test_no_completion_tools_with_run_async(self):
+        task = Task("Calculate 2 + 2", result_type=int, completion_tools=[])
+        await task.run_async(max_llm_calls=1)
+        assert task.is_incomplete()

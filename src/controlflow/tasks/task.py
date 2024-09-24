@@ -8,6 +8,7 @@ from typing import (
     Any,
     Callable,
     GenericAlias,
+    Literal,
     Optional,
     TypeVar,
     Union,
@@ -51,6 +52,9 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 logger = get_logger(__name__)
+
+
+COMPLETION_TOOLS = Literal["SUCCEED", "FAIL"]
 
 
 def get_task_run_name():
@@ -143,6 +147,14 @@ class Task(ControlFlowModel):
     tools: list[Tool] = Field(
         default_factory=list,
         description="Tools available to every agent working on this task.",
+    )
+    completion_tools: Optional[list[COMPLETION_TOOLS]] = Field(
+        default=None,
+        description="""
+            Completion tools that will be generated for this task. If None, all 
+            tools will be generated; if a list of strings, only the corresponding 
+            tools will be generated automatically.
+            """,
     )
     completion_agents: Optional[list[Agent]] = Field(
         default=None,
@@ -472,19 +484,32 @@ class Task(ControlFlowModel):
             else:
                 return [controlflow.defaults.agent]
 
-    def get_tools(self) -> list[Union[Tool, Callable]]:
+    def get_tools(self) -> list[Tool]:
+        """
+        Return a list of all tools available for the task.
+
+        Note this does not include completion tools, which are handled separately.
+        """
         tools = self.tools.copy()
         if self.interactive:
             tools.append(cli_input)
         for memory in self.memories:
             tools.extend(memory.get_tools())
-        return tools
+        return as_tools(tools)
 
     def get_completion_tools(self) -> list[Tool]:
-        tools = [
-            self.create_success_tool(),
-            self.create_fail_tool(),
-        ]
+        """
+        Return a list of all completion tools available for the task.
+        """
+        tools = []
+        completion_tools = self.completion_tools
+        if completion_tools is None:
+            completion_tools = ["SUCCEED", "FAIL"]
+
+        if "SUCCEED" in completion_tools:
+            tools.append(self.get_success_tool())
+        if "FAIL" in completion_tools:
+            tools.append(self.get_fail_tool())
         return tools
 
     def get_prompt(self) -> str:
@@ -517,7 +542,7 @@ class Task(ControlFlowModel):
     def mark_skipped(self):
         self.set_status(TaskStatus.SKIPPED)
 
-    def create_success_tool(self) -> Tool:
+    def get_success_tool(self) -> Tool:
         """
         Create an agent-compatible tool for marking this task as successful.
         """
@@ -587,7 +612,7 @@ class Task(ControlFlowModel):
 
         return succeed
 
-    def create_fail_tool(self) -> Tool:
+    def get_fail_tool(self) -> Tool:
         """
         Create an agent-compatible tool for failing this task.
         """
