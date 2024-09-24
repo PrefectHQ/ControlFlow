@@ -137,10 +137,11 @@ You can install the dependencies for a provider with pip, for example `pip insta
 
 For straightforward provider configurations, you can pass a string value to the `provider` parameter that will instantiate a provider with default settings. The following strings are recognized:
 
-|Provider | Provider string | Description |
+|Provider | Provider string | Description | 
 | -------- | -------- | ----------------- |
 | Chroma | `chroma-ephemeral` | An ephemeral (in-memory) database. |
-| Chroma | `chroma-db` | A persistent, local-file-based database, with a default path of `~/.controlflow/memory/chroma`. |
+| Chroma | `chroma-db` | Uses a persistent, local-file-based database, with a default path of `~/.controlflow/memory/chroma`. |
+| Chroma | `chroma-cloud` | Uses the Chroma Cloud service. The `CONTROLFLOW_CHROMA_CLOUD_API_KEY`, `CONTROLFLOW_CHROMA_CLOUD_TENANT`, and `CONTROLFLOW_CHROMA_CLOUD_DATABASE` settings are required. |
 
 For example, if `chromadb` is installed, the following code will create a memory module that uses an ephemeral Chroma database:
 
