@@ -115,8 +115,7 @@ class Orchestrator(ControlFlowModel):
 
             # add completion tools
             if task.completion_agents is None or self.agent in task.completion_agents:
-                tools.append(task.create_success_tool())
-                tools.append(task.create_fail_tool())
+                tools.extend(task.get_completion_tools())
 
         # add turn strategy tools only if there are multiple available agents
         available_agents = self.get_available_agents()

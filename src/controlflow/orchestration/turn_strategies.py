@@ -38,7 +38,7 @@ class TurnStrategy(ControlFlowModel, ABC):
         return self.end_turn
 
 
-def create_end_turn_tool(strategy: TurnStrategy) -> Tool:
+def get_end_turn_tool(strategy: TurnStrategy) -> Tool:
     @tool
     def end_turn() -> str:
         """
@@ -51,7 +51,7 @@ def create_end_turn_tool(strategy: TurnStrategy) -> Tool:
     return end_turn
 
 
-def create_delegate_tool(
+def get_delegate_tool(
     strategy: TurnStrategy, available_agents: dict[Agent, list[Task]]
 ) -> Tool:
     @tool
@@ -77,7 +77,7 @@ class SingleAgent(TurnStrategy):
     def get_tools(
         self, current_agent: Agent, available_agents: dict[Agent, list[Task]]
     ) -> list[Tool]:
-        return [create_end_turn_tool(self)]
+        return [get_end_turn_tool(self)]
 
     def get_next_agent(
         self, current_agent: Optional[Agent], available_agents: Dict[Agent, List[Task]]
@@ -93,7 +93,7 @@ class Popcorn(TurnStrategy):
     def get_tools(
         self, current_agent: Agent, available_agents: dict[Agent, list[Task]]
     ) -> list[Tool]:
-        return [create_delegate_tool(self, available_agents)]
+        return [get_delegate_tool(self, available_agents)]
 
     def get_next_agent(
         self, current_agent: Optional[Agent], available_agents: Dict[Agent, List[Task]]
@@ -107,7 +107,7 @@ class Random(TurnStrategy):
     def get_tools(
         self, current_agent: Agent, available_agents: dict[Agent, list[Task]]
     ) -> list[Tool]:
-        return [create_end_turn_tool(self)]
+        return [get_end_turn_tool(self)]
 
     def get_next_agent(
         self, current_agent: Optional[Agent], available_agents: Dict[Agent, List[Task]]
@@ -119,7 +119,7 @@ class RoundRobin(TurnStrategy):
     def get_tools(
         self, current_agent: Agent, available_agents: dict[Agent, list[Task]]
     ) -> list[Tool]:
-        return [create_end_turn_tool(self)]
+        return [get_end_turn_tool(self)]
 
     def get_next_agent(
         self, current_agent: Optional[Agent], available_agents: Dict[Agent, List[Task]]
@@ -136,7 +136,7 @@ class MostBusy(TurnStrategy):
     def get_tools(
         self, current_agent: Agent, available_agents: dict[Agent, list[Task]]
     ) -> list[Tool]:
-        return [create_end_turn_tool(self)]
+        return [get_end_turn_tool(self)]
 
     def get_next_agent(
         self, current_agent: Optional[Agent], available_agents: Dict[Agent, List[Task]]
@@ -152,9 +152,9 @@ class Moderated(TurnStrategy):
         self, current_agent: Agent, available_agents: dict[Agent, list[Task]]
     ) -> list[Tool]:
         if current_agent == self.moderator:
-            return [create_delegate_tool(self, available_agents)]
+            return [get_delegate_tool(self, available_agents)]
         else:
-            return [create_end_turn_tool(self)]
+            return [get_end_turn_tool(self)]
 
     def get_next_agent(
         self, current_agent: Optional[Agent], available_agents: Dict[Agent, List[Task]]
