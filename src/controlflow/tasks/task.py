@@ -360,6 +360,7 @@ class Task(ControlFlowModel):
         max_llm_calls: int = None,
         max_agent_turns: int = None,
         handlers: list["Handler"] = None,
+        raise_on_failure: bool = True,
     ) -> T:
         """
         Run the task
@@ -372,13 +373,13 @@ class Task(ControlFlowModel):
             turn_strategy=turn_strategy,
             max_llm_calls=max_llm_calls,
             max_agent_turns=max_agent_turns,
-            raise_on_error=False,
+            raise_on_failure=False,
             handlers=handlers,
         )
 
         if self.is_successful():
             return self.result
-        elif self.is_failed():
+        elif raise_on_failure and self.is_failed():
             raise ValueError(f"{self.friendly_name()} failed: {self.result}")
 
     @prefect_task(task_run_name=get_task_run_name)
@@ -390,6 +391,7 @@ class Task(ControlFlowModel):
         max_llm_calls: int = None,
         max_agent_turns: int = None,
         handlers: list["Handler"] = None,
+        raise_on_failure: bool = True,
     ) -> T:
         """
         Run the task
@@ -402,13 +404,13 @@ class Task(ControlFlowModel):
             turn_strategy=turn_strategy,
             max_llm_calls=max_llm_calls,
             max_agent_turns=max_agent_turns,
-            raise_on_error=False,
+            raise_on_failure=False,
             handlers=handlers,
         )
 
         if self.is_successful():
             return self.result
-        elif self.is_failed():
+        elif raise_on_failure and self.is_failed():
             raise ValueError(f"{self.friendly_name()} failed: {self.result}")
 
     @contextmanager

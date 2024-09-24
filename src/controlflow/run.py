@@ -23,7 +23,7 @@ def run_tasks(
     flow: Flow = None,
     agent: Agent = None,
     turn_strategy: TurnStrategy = None,
-    raise_on_error: bool = True,
+    raise_on_failure: bool = True,
     max_llm_calls: int = None,
     max_agent_turns: int = None,
     handlers: list[Handler] = None,
@@ -47,7 +47,7 @@ def run_tasks(
         max_agent_turns=max_agent_turns,
     )
 
-    if raise_on_error and any(t.is_failed() for t in tasks):
+    if raise_on_failure and any(t.is_failed() for t in tasks):
         errors = [f"- {t.friendly_name()}: {t.result}" for t in tasks if t.is_failed()]
         if errors:
             raise ValueError(
@@ -64,7 +64,7 @@ async def run_tasks_async(
     flow: Flow = None,
     agent: Agent = None,
     turn_strategy: TurnStrategy = None,
-    raise_on_error: bool = True,
+    raise_on_failure: bool = True,
     max_llm_calls: int = None,
     max_agent_turns: int = None,
     handlers: list[Handler] = None,
@@ -85,7 +85,7 @@ async def run_tasks_async(
         max_agent_turns=max_agent_turns,
     )
 
-    if raise_on_error and any(t.is_failed() for t in tasks):
+    if raise_on_failure and any(t.is_failed() for t in tasks):
         errors = [f"- {t.friendly_name()}: {t.result}" for t in tasks if t.is_failed()]
         if errors:
             raise ValueError(
@@ -102,14 +102,14 @@ def run(
     turn_strategy: TurnStrategy = None,
     max_llm_calls: int = None,
     max_agent_turns: int = None,
-    raise_on_error: bool = True,
+    raise_on_failure: bool = True,
     handlers: list[Handler] = None,
     **task_kwargs,
 ) -> Any:
     task = Task(objective=objective, **task_kwargs)
     results = run_tasks(
         tasks=[task],
-        raise_on_error=raise_on_error,
+        raise_on_failure=raise_on_failure,
         turn_strategy=turn_strategy,
         max_llm_calls=max_llm_calls,
         max_agent_turns=max_agent_turns,
@@ -126,7 +126,7 @@ async def run_async(
     turn_strategy: TurnStrategy = None,
     max_llm_calls: int = None,
     max_agent_turns: int = None,
-    raise_on_error: bool = True,
+    raise_on_failure: bool = True,
     handlers: list[Handler] = None,
     **task_kwargs,
 ) -> Any:
@@ -138,7 +138,7 @@ async def run_async(
         turn_strategy=turn_strategy,
         max_llm_calls=max_llm_calls,
         max_agent_turns=max_agent_turns,
-        raise_on_error=raise_on_error,
+        raise_on_failure=raise_on_failure,
         handlers=handlers,
     )
     return results[0]
