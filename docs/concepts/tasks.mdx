@@ -284,7 +284,7 @@ If `completion_tools` is not specified, both `"SUCCEED"` and `"FAIL"` tools will
 You can manually create completion tools and provide them to your agents by calling `task.get_success_tool()` and `task.get_fail_tool()`.
 
 <Warning>
-If you set `completion_tools` to an empty list or exclude either the success or failure tools, agents may be unable to complete the task or become stuck in a failure state. Without caps on LLM turns or calls, this could lead to runaway LLM usage. Make sure to manually manage how agents complete tasks if you are using a custom set of completion tools.
+If you exclude `completion_tools`, agents may be unable to complete the task or become stuck in a failure state. Without caps on LLM turns or calls, this could lead to runaway LLM usage. Make sure to manually manage how agents complete tasks if you are using a custom set of completion tools.
 </Warning>
 
 Here are some examples:
