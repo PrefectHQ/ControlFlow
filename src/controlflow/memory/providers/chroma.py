@@ -52,14 +52,30 @@ class ChromaMemory(MemoryProvider):
         return dict(zip(results["ids"][0], results["documents"][0]))
 
 
-def EphemeralChromaMemory(**kwargs) -> ChromaMemory:
+def ChromaEphemeralMemory(**kwargs) -> ChromaMemory:
     return ChromaMemory(client=chromadb.EphemeralClient(**kwargs))
 
 
-def PersistentChromaMemory(path: str = None, **kwargs) -> ChromaMemory:
+def ChromaPersistentMemory(path: str = None, **kwargs) -> ChromaMemory:
     return ChromaMemory(
         client=chromadb.PersistentClient(
             path=path or str(controlflow.settings.home_path / "memory/chroma"),
+            **kwargs,
+        )
+    )
+
+
+def ChromaCloudMemory(
+    tenant: Optional[str] = None,
+    database: Optional[str] = None,
+    api_key: Optional[str] = None,
+    **kwargs,
+) -> ChromaMemory:
+    return ChromaMemory(
+        client=chromadb.CloudClient(
+            api_key=api_key or controlflow.settings.chroma_cloud_api_key,
+            tenant=tenant or controlflow.settings.chroma_cloud_tenant,
+            database=database or controlflow.settings.chroma_cloud_database,
             **kwargs,
         )
     )
