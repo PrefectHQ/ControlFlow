@@ -141,8 +141,10 @@ def get_memory_provider(provider: str) -> MemoryProvider:
         import controlflow.memory.providers.chroma as chroma_providers
 
         if provider == "chroma-ephemeral":
-            return chroma_providers.EphemeralChromaMemory()
+            return chroma_providers.ChromaEphemeralMemory()
         elif provider == "chroma-db":
-            return chroma_providers.PersistentChromaMemory()
+            return chroma_providers.ChromaPersistentMemory()
+        elif provider == "chroma-cloud":
+            return chroma_providers.ChromaCloudMemory()
 
     raise ValueError(f'Memory provider "{provider}" could not be loaded from a string.')
