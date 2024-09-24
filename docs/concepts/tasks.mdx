@@ -268,6 +268,10 @@ Note that this setting reflects the configuration of the `completion_tools` para
 
 ### Completion tools
 
+import { VersionBadge } from '/snippets/version-badge.mdx'
+
+<VersionBadge version="0.10.0" />
+
 In addition to specifying which agents are automatically given completion tools, you can control which completion tools are generated for a task using the `completion_tools` parameter. This allows you to specify whether you want to provide success and/or failure tools, or even provide custom completion tools.
 
 The `completion_tools` parameter accepts a list of strings, where each string represents a tool to be generated. The available options are:

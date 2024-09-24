@@ -93,7 +93,7 @@ class Popcorn(TurnStrategy):
     def get_tools(
         self, current_agent: Agent, available_agents: dict[Agent, list[Task]]
     ) -> list[Tool]:
-        return [get_dele(self, available_agents)]
+        return [get_delegate_tool(self, available_agents)]
 
     def get_next_agent(
         self, current_agent: Optional[Agent], available_agents: Dict[Agent, List[Task]]
@@ -152,7 +152,7 @@ class Moderated(TurnStrategy):
         self, current_agent: Agent, available_agents: dict[Agent, list[Task]]
     ) -> list[Tool]:
         if current_agent == self.moderator:
-            return [get_dele(self, available_agents)]
+            return [get_delegate_tool(self, available_agents)]
         else:
             return [get_end_turn_tool(self)]
 
