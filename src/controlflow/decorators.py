@@ -201,18 +201,24 @@ def task(
             **task_kwargs,
         )
 
-    @functools.wraps(fn)
-    @prefect_task(
+    if asyncio.iscoroutinefunction(fn):
+
+        @functools.wraps(fn)
+        async def wrapper(*args, **kwargs):
+            task = _get_task(*args, **kwargs)
+            return await task.run_async()
+    else:
+
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            task = _get_task(*args, **kwargs)
+            return task.run()
+
+    wrapper = prefect_task(
         timeout_seconds=timeout_seconds,
         retries=retries,
         retry_delay_seconds=retry_delay_seconds,
-    )
-    def wrapper(
-        *args,
-        **kwargs,
-    ):
-        task = _get_task(*args, **kwargs)
-        return task.run()
+    )(wrapper)
 
     # store the `as_task` method for loading the task object
     wrapper.as_task = _get_task
