@@ -8,10 +8,6 @@ import controlflow
 from controlflow.memory.memory import MemoryProvider
 
 
-def get_client(**kwargs) -> chromadb.Client:
-    return chromadb.Client(**kwargs)
-
-
 class ChromaMemory(MemoryProvider):
     model_config = dict(arbitrary_types_allowed=True)
     client: chromadb.ClientAPI = Field(
@@ -59,7 +55,7 @@ def ChromaEphemeralMemory(**kwargs) -> ChromaMemory:
 def ChromaPersistentMemory(path: str = None, **kwargs) -> ChromaMemory:
     return ChromaMemory(
         client=chromadb.PersistentClient(
-            path=path or str(controlflow.settings.home_path / "memory/chroma"),
+            path=path or str(controlflow.settings.home_path / "memory" / "chroma"),
             **kwargs,
         )
     )

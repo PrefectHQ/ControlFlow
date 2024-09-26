@@ -130,6 +130,7 @@ This table shows the supported providers and their respective dependencies:
 | Provider | Required dependencies |
 | -------- | ----------------- |
 | [Chroma](https://trychroma.com/)   | `chromadb` |
+| [LanceDB](https://lancedb.com/) | `lancedb` |
 
 You can install the dependencies for a provider with pip, for example `pip install chromadb` to use the Chroma provider.
 
@@ -142,7 +143,7 @@ For straightforward provider configurations, you can pass a string value to the 
 | Chroma | `chroma-ephemeral` | An ephemeral (in-memory) database. |
 | Chroma | `chroma-db` | Uses a persistent, local-file-based database, with a default path of `~/.controlflow/memory/chroma`. |
 | Chroma | `chroma-cloud` | Uses the Chroma Cloud service. The `CONTROLFLOW_CHROMA_CLOUD_API_KEY`, `CONTROLFLOW_CHROMA_CLOUD_TENANT`, and `CONTROLFLOW_CHROMA_CLOUD_DATABASE` settings are required. |
-
+| LanceDB | `lancedb` | Uses a persistent, local-file-based database, with a default path of `~/.controlflow/memory/lancedb`. |
 For example, if `chromadb` is installed, the following code will create a memory module that uses an ephemeral Chroma database:
 
 ```python

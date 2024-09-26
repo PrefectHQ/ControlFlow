@@ -89,6 +89,7 @@ class Settings(ControlFlowSettings):
     )
 
     # ------------ Memory settings: ChromaDB ------------
+
     chroma_cloud_tenant: Optional[str] = Field(
         None,
         description="The tenant for Chroma Cloud.",
