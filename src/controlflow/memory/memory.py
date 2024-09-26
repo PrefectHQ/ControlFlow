@@ -147,4 +147,18 @@ def get_memory_provider(provider: str) -> MemoryProvider:
         elif provider == "chroma-cloud":
             return chroma_providers.ChromaCloudMemory()
 
+    # --- LanceDB ---
+
+    elif provider.startswith("lancedb"):
+        try:
+            import lancedb
+        except ImportError:
+            raise ImportError(
+                "To use LanceDB as a memory provider, please install the `lancedb` package."
+            )
+
+        import controlflow.memory.providers.lance as lance_providers
+
+        return lance_providers.LanceMemory()
+
     raise ValueError(f'Memory provider "{provider}" could not be loaded from a string.')
