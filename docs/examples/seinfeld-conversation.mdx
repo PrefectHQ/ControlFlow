@@ -1,3 +1,17 @@
+---
+title: Seinfeld Conversation
+description: Simulate a conversation between Seinfeld characters using multiple AI agents.
+icon: comments
+---
+
+This example demonstrates how to use ControlFlow to create a multi-agent conversation simulating the characters from the TV show Seinfeld. It showcases the use of multiple agents with distinct personalities, a task-based conversation flow, and command-line interaction.
+
+## Code
+
+The following code creates a conversation between Jerry, George, Elaine, Kramer, and Newman, discussing a given topic:
+
+```python
+import sys
 from controlflow import Agent, Task, flow
 
 jerry = Agent(
@@ -60,18 +74,54 @@ newman = Agent(
     """,
 )
 
-
 @flow
 def demo(topic: str):
     task = Task(
         "Discuss a topic",
         agents=[jerry, george, elaine, kramer, newman],
+        completion_agents=[jerry],
         result_type=None,
         context=dict(topic=topic),
-        instructions="every agent should speak at least once. only one agent per turn. Keep responses 1-2 paragraphs max.",
+        instructions="Every agent should speak at least once. only one agent per turn. Keep responses 1-2 paragraphs max.",
     )
     task.run()
 
-
 if __name__ == "__main__":
-    demo(topic="sandwiches")
+    if len(sys.argv) > 1:
+        topic = sys.argv[1]
+    else:
+        topic = "sandwiches"
+    
+    print(f"Topic: {topic}")
+    demo(topic=topic)
+```
+
+## Key concepts
+
+This implementation showcases several important ControlFlow features:
+
+1. **Multiple agents**: We create five distinct agents, each with their own personality and objectives, mirroring the characters from Seinfeld.
+
+2. **Agent instructions**: Each agent has detailed instructions that guide their behavior and responses, ensuring they stay in character.
+
+3. **Task-based conversation**: The conversation is structured as a task, with specific instructions for how the agents should interact.
+
+4. **Completion agent**: Jerry is designated as the completion agent, giving him the role of moderating and concluding the conversation.
+
+5. **Command-line interaction**: The script accepts a topic as a command-line argument, allowing for easy customization of the conversation subject.
+
+## Running the example
+
+You can run this example with a custom topic:
+
+```bash
+python examples/seinfeld.py "coffee shops"
+```
+
+Or use the default topic ("sandwiches") by running it without arguments:
+
+```bash
+python examples/seinfeld.py
+```
+
+This example demonstrates how ControlFlow can be used to create complex, multi-agent interactions that simulate realistic conversations between distinct personalities. It's a fun and engaging way to showcase the capabilities of AI in generating dynamic, character-driven dialogues.
