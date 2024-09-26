@@ -102,3 +102,39 @@ class TestFlowDecorator:
 
         result = partial_flow()
         assert result == 10
+
+
+class TestTaskDecorator:
+    def test_task_decorator_sync_as_task(self):
+        @controlflow.task
+        def write_poem(topic: str) -> str:
+            """write a two-line poem about `topic`"""
+
+        task = write_poem.as_task("AI")
+        assert task.name == "write_poem"
+        assert task.objective == "write a two-line poem about `topic`"
+        assert task.result_type is str
+
+    def test_task_decorator_async_as_task(self):
+        @controlflow.task
+        async def write_poem(topic: str) -> str:
+            """write a two-line poem about `topic`"""
+
+        task = write_poem.as_task("AI")
+        assert task.name == "write_poem"
+        assert task.objective == "write a two-line poem about `topic`"
+        assert task.result_type is str
+
+    def test_task_decorator_sync(self):
+        @controlflow.task
+        def write_poem(topic: str) -> str:
+            """write a two-line poem about `topic`"""
+
+        assert write_poem("AI")
+
+    async def test_task_decorator_async(self):
+        @controlflow.task
+        async def write_poem(topic: str) -> str:
+            """write a two-line poem about `topic`"""
+
+        assert await write_poem("AI")
