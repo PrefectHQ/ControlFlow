@@ -14,6 +14,7 @@ from typing import (
 
 from langchain_core.language_models import BaseChatModel
 from pydantic import Field, field_serializer, field_validator
+from typing_extensions import Self
 
 import controlflow
 from controlflow.agents.names import AGENT_NAMES
@@ -183,11 +184,11 @@ class Agent(ControlFlowModel, abc.ABC):
         return template.render()
 
     @contextmanager
-    def create_context(self):
+    def create_context(self) -> Generator[Self, None, None]:
         with ctx(agent=self):
             yield self
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         self._cm_stack.append(self.create_context())
         return self._cm_stack[-1].__enter__()
 

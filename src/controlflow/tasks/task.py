@@ -7,6 +7,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Generator,
     GenericAlias,
     Literal,
     Optional,
@@ -27,6 +28,7 @@ from pydantic import (
     field_serializer,
     field_validator,
 )
+from typing_extensions import Self
 
 import controlflow
 from controlflow.agents import Agent
@@ -426,12 +428,12 @@ class Task(ControlFlowModel):
             raise ValueError(f"{self.friendly_name()} failed: {self.result}")
 
     @contextmanager
-    def create_context(self):
+    def create_context(self) -> Generator[Self, None, None]:
         stack = ctx.get("tasks") or []
         with ctx(tasks=stack + [self]):
             yield self
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         # use stack so we can enter the context multiple times
         self._cm_stack.append(ExitStack())
         return self._cm_stack[-1].enter_context(self.create_context())
