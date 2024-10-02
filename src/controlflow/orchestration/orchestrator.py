@@ -474,6 +474,10 @@ class Orchestrator(ControlFlowModel):
             for dependency in task.depends_on:
                 collect_tasks(dependency)
 
+            # Collect parent
+            if task.parent and not task.parent.wait_for_subtasks:
+                collect_tasks(task.parent)
+
             # Check if the task is ready
             if task.is_ready():
                 ready_tasks.append(task)
