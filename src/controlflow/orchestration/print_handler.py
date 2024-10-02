@@ -59,7 +59,9 @@ class PrintHandler(Handler):
             cf_console.print(format_event(latest))
 
     def on_orchestrator_start(self, event: OrchestratorStart):
-        self.live: Live = Live(auto_refresh=False, console=cf_console)
+        self.live: Live = Live(
+            auto_refresh=False, console=cf_console, vertical_overflow="visible"
+        )
         self.events.clear()
         try:
             self.live.start()
