@@ -1,9 +1,10 @@
 import uuid
 from contextlib import contextmanager, nullcontext
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Generator, Optional, Union
 
 from prefect.context import FlowRunContext
 from pydantic import Field
+from typing_extensions import Self
 
 import controlflow
 from controlflow.agents import Agent
@@ -54,7 +55,7 @@ class Flow(ControlFlowModel):
     context: dict[str, Any] = {}
     _cm_stack: list[contextmanager] = []
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         # use stack so we can enter the context multiple times
         cm = self.create_context()
         self._cm_stack.append(cm)
@@ -111,7 +112,7 @@ class Flow(ControlFlowModel):
         self.history.add_events(thread_id=self.thread_id, events=events)
 
     @contextmanager
-    def create_context(self, **prefect_kwargs):
+    def create_context(self, **prefect_kwargs) -> Generator[Self, None, None]:
         # create a new Prefect flow if we're not already in a flow run
         if FlowRunContext.get() is None:
             prefect_context = prefect_flow_context(**prefect_kwargs)
