@@ -172,6 +172,10 @@ class Task(ControlFlowModel):
         "which this task is considered `assigned`.",
     )
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    wait_for_subtasks: bool = Field(
+        default=True,
+        description="If True, the task will not be considered ready until all subtasks are complete.",
+    )
     _subtasks: set["Task"] = set()
     _downstreams: set["Task"] = set()
     _cm_stack: list[contextmanager] = []
@@ -465,7 +469,11 @@ class Task(ControlFlowModel):
         Returns True if all dependencies are complete and this task is
         incomplete, meaning it is ready to be worked on.
         """
-        return self.is_incomplete() and all(t.is_complete() for t in self.depends_on)
+        depends_on = self.depends_on
+        if not self.wait_for_subtasks:
+            depends_on = depends_on.difference(self._subtasks)
+
+        return self.is_incomplete() and all(t.is_complete() for t in depends_on)
 
     def get_agents(self) -> list[Agent]:
         if self.agents is not None:
