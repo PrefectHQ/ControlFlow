@@ -137,7 +137,10 @@ class Orchestrator(ControlFlowModel):
 
     @prefect_task(task_run_name="Orchestrator.run()")
     def run(
-        self, max_llm_calls: Optional[int] = None, max_agent_turns: Optional[int] = None
+        self,
+        max_llm_calls: Optional[int] = None,
+        max_agent_turns: Optional[int] = None,
+        model_kwargs: Optional[dict] = None,
     ):
         import controlflow.events.orchestrator_events
 
@@ -176,7 +179,10 @@ class Orchestrator(ControlFlowModel):
                     )
                 )
                 turn_count += 1
-                call_count += self.run_agent_turn(max_llm_calls - call_count)
+                call_count += self.run_agent_turn(
+                    max_llm_calls - call_count,
+                    model_kwargs=model_kwargs,
+                )
                 self.handle_event(
                     controlflow.events.orchestrator_events.AgentTurnEnd(
                         orchestrator=self, agent=self.agent
@@ -207,7 +213,10 @@ class Orchestrator(ControlFlowModel):
 
     @prefect_task
     async def run_async(
-        self, max_llm_calls: Optional[int] = None, max_agent_turns: Optional[int] = None
+        self,
+        max_llm_calls: Optional[int] = None,
+        max_agent_turns: Optional[int] = None,
+        model_kwargs: Optional[dict] = None,
     ):
         """
         Run the orchestration process asynchronously until completion or limits are reached.
@@ -255,7 +264,8 @@ class Orchestrator(ControlFlowModel):
                 )
                 turn_count += 1
                 call_count += await self.run_agent_turn_async(
-                    max_llm_calls - call_count
+                    max_llm_calls - call_count,
+                    model_kwargs=model_kwargs,
                 )
                 self.handle_event(
                     controlflow.events.orchestrator_events.AgentTurnEnd(
@@ -286,7 +296,11 @@ class Orchestrator(ControlFlowModel):
             )
 
     @prefect_task(task_run_name="Agent turn: {self.agent.name}")
-    def run_agent_turn(self, max_llm_calls: Optional[int]) -> int:
+    def run_agent_turn(
+        self,
+        max_llm_calls: Optional[int],
+        model_kwargs: Optional[dict] = None,
+    ) -> int:
         """
         Run a single agent turn, which may consist of multiple LLM calls.
 
@@ -324,11 +338,19 @@ class Orchestrator(ControlFlowModel):
                 logger.debug("No `ready` tasks to run")
                 break
 
+            if not any(t.is_incomplete() for t in self.tasks):
+                logger.debug("No incomplete tasks left")
+                break
+
             call_count += 1
             messages = self.compile_messages()
             tools = self.get_tools()
 
-            for event in self.agent._run_model(messages=messages, tools=tools):
+            for event in self.agent._run_model(
+                messages=messages,
+                tools=tools,
+                model_kwargs=model_kwargs,
+            ):
                 self.handle_event(event)
 
             # Check if we've reached the call limit within a turn
@@ -339,7 +361,11 @@ class Orchestrator(ControlFlowModel):
         return call_count
 
     @prefect_task
-    async def run_agent_turn_async(self, max_llm_calls: Optional[int]) -> int:
+    async def run_agent_turn_async(
+        self,
+        max_llm_calls: Optional[int],
+        model_kwargs: Optional[dict] = None,
+    ) -> int:
         """
         Run a single agent turn asynchronously, which may consist of multiple LLM calls.
 
@@ -377,12 +403,18 @@ class Orchestrator(ControlFlowModel):
                 logger.debug("No `ready` tasks to run")
                 break
 
+            if not any(t.is_incomplete() for t in self.tasks):
+                logger.debug("No incomplete tasks left")
+                break
+
             call_count += 1
             messages = self.compile_messages()
             tools = self.get_tools()
 
             async for event in self.agent._run_model_async(
-                messages=messages, tools=tools
+                messages=messages,
+                tools=tools,
+                model_kwargs=model_kwargs,
             ):
                 self.handle_event(event)
 

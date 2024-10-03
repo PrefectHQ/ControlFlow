@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 from prefect.context import TaskRunContext
 
@@ -27,6 +27,7 @@ def run_tasks(
     max_llm_calls: int = None,
     max_agent_turns: int = None,
     handlers: list[Handler] = None,
+    model_kwargs: Optional[dict] = None,
 ) -> list[Any]:
     """
     Run a list of tasks.
@@ -45,6 +46,7 @@ def run_tasks(
     orchestrator.run(
         max_llm_calls=max_llm_calls,
         max_agent_turns=max_agent_turns,
+        model_kwargs=model_kwargs,
     )
 
     if raise_on_failure and any(t.is_failed() for t in tasks):
@@ -68,6 +70,7 @@ async def run_tasks_async(
     max_llm_calls: int = None,
     max_agent_turns: int = None,
     handlers: list[Handler] = None,
+    model_kwargs: Optional[dict] = None,
 ):
     """
     Run a list of tasks.
@@ -83,6 +86,7 @@ async def run_tasks_async(
     await orchestrator.run_async(
         max_llm_calls=max_llm_calls,
         max_agent_turns=max_agent_turns,
+        model_kwargs=model_kwargs,
     )
 
     if raise_on_failure and any(t.is_failed() for t in tasks):
@@ -104,6 +108,7 @@ def run(
     max_agent_turns: int = None,
     raise_on_failure: bool = True,
     handlers: list[Handler] = None,
+    model_kwargs: Optional[dict] = None,
     **task_kwargs,
 ) -> Any:
     task = Task(objective=objective, **task_kwargs)
@@ -114,6 +119,7 @@ def run(
         max_llm_calls=max_llm_calls,
         max_agent_turns=max_agent_turns,
         handlers=handlers,
+        model_kwargs=model_kwargs,
     )
     return results[0]
 
@@ -128,6 +134,7 @@ async def run_async(
     max_agent_turns: int = None,
     raise_on_failure: bool = True,
     handlers: list[Handler] = None,
+    model_kwargs: Optional[dict] = None,
     **task_kwargs,
 ) -> Any:
     task = Task(objective=objective, **task_kwargs)
@@ -140,5 +147,6 @@ async def run_async(
         max_agent_turns=max_agent_turns,
         raise_on_failure=raise_on_failure,
         handlers=handlers,
+        model_kwargs=model_kwargs,
     )
     return results[0]
