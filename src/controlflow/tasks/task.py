@@ -379,6 +379,7 @@ class Task(ControlFlowModel):
         max_agent_turns: int = None,
         handlers: list["Handler"] = None,
         raise_on_failure: bool = True,
+        model_kwargs: Optional[dict] = None,
     ) -> T:
         """
         Run the task
@@ -393,6 +394,7 @@ class Task(ControlFlowModel):
             max_agent_turns=max_agent_turns,
             raise_on_failure=False,
             handlers=handlers,
+            model_kwargs=model_kwargs,
         )
 
         if self.is_successful():

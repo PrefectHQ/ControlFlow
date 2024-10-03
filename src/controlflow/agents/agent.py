@@ -264,6 +264,7 @@ class Agent(ControlFlowModel, abc.ABC):
         messages: list[BaseMessage],
         tools: list["Tool"],
         stream: bool = True,
+        model_kwargs: Optional[dict] = None,
     ) -> Generator[Event, None, None]:
         from controlflow.events.events import (
             AgentMessage,
@@ -281,7 +282,7 @@ class Agent(ControlFlowModel, abc.ABC):
 
         if stream:
             response = None
-            for delta in model.stream(messages):
+            for delta in model.stream(messages, **(model_kwargs or {})):
                 if response is None:
                     response = delta
                 else:
@@ -320,6 +321,7 @@ class Agent(ControlFlowModel, abc.ABC):
         messages: list[BaseMessage],
         tools: list["Tool"],
         stream: bool = True,
+        model_kwargs: Optional[dict] = None,
     ) -> AsyncGenerator[Event, None]:
         from controlflow.events.events import (
             AgentMessage,
@@ -337,7 +339,7 @@ class Agent(ControlFlowModel, abc.ABC):
 
         if stream:
             response = None
-            async for delta in model.astream(messages):
+            async for delta in model.astream(messages, **(model_kwargs or {})):
                 if response is None:
                     response = delta
                 else:
