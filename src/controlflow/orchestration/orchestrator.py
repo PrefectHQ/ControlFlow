@@ -161,13 +161,15 @@ class Orchestrator(ControlFlowModel):
         elif not isinstance(run_until, RunEndCondition):
             run_until = FnCondition(run_until)
 
-        # Add max_llm_calls condition if provided
-        if max_llm_calls is not None:
-            run_until = run_until | MaxLLMCalls(max_llm_calls)
+        # Add max_llm_calls condition
+        if max_llm_calls is None:
+            max_llm_calls = controlflow.settings.orchestrator_max_llm_calls
+        run_until = run_until | MaxLLMCalls(max_llm_calls)
 
-        # Add max_agent_turns condition if provided
-        if max_agent_turns is not None:
-            run_until = run_until | MaxAgentTurns(max_agent_turns)
+        # Add max_agent_turns condition
+        if max_agent_turns is None:
+            max_agent_turns = controlflow.settings.orchestrator_max_agent_turns
+        run_until = run_until | MaxAgentTurns(max_agent_turns)
 
         run_context = RunContext(orchestrator=self, run_end_condition=run_until)
 
@@ -243,13 +245,15 @@ class Orchestrator(ControlFlowModel):
         elif not isinstance(run_until, RunEndCondition):
             run_until = FnCondition(run_until)
 
-        # Add max_llm_calls condition if provided
-        if max_llm_calls is not None:
-            run_until = run_until | MaxLLMCalls(max_llm_calls)
+        # Add max_llm_calls condition
+        if max_llm_calls is None:
+            max_llm_calls = controlflow.settings.orchestrator_max_llm_calls
+        run_until = run_until | MaxLLMCalls(max_llm_calls)
 
-        # Add max_agent_turns condition if provided
-        if max_agent_turns is not None:
-            run_until = run_until | MaxAgentTurns(max_agent_turns)
+        # Add max_agent_turns condition
+        if max_agent_turns is None:
+            max_agent_turns = controlflow.settings.orchestrator_max_agent_turns
+        run_until = run_until | MaxAgentTurns(max_agent_turns)
 
         run_context = RunContext(orchestrator=self, run_end_condition=run_until)
 
@@ -317,7 +321,6 @@ class Orchestrator(ControlFlowModel):
         """
         Run a single agent turn, which may consist of multiple LLM calls.
         """
-        call_count = 0
         assigned_tasks = self.get_tasks("assigned")
 
         self.turn_strategy.begin_turn()
@@ -378,7 +381,6 @@ class Orchestrator(ControlFlowModel):
         Returns:
             int: The number of LLM calls made during this turn.
         """
-        call_count = 0
         assigned_tasks = self.get_tasks("assigned")
 
         self.turn_strategy.begin_turn()

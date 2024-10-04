@@ -27,6 +27,36 @@ class ReasoningStep(BaseModel):
     found_validated_solution: bool
 
 
+REASONING_INSTRUCTIONS = """
+    You are working on solving a difficult problem (the `goal`). Based
+    on your previous thoughts and the overall goal, please perform **one
+    reasoning step** that advances you closer to a solution. Document
+    your thought process and any intermediate steps you take.
+    
+    After marking this task complete for a single step, you will be
+    given a new reasoning task to continue working on the problem. The
+    loop will continue until you have a valid solution.
+    
+    Complete the task as soon as you have a valid solution.
+    
+    **Guidelines**
+    
+    - You will not be able to brute force a solution exhaustively. You
+        must use your reasoning ability to make a plan that lets you make
+        progress.
+    - Each step should be focused on a specific aspect of the problem,
+        either advancing your understanding of the problem or validating a
+        solution.
+    - You should build on previous steps without repeating them.
+    - Since you will iterate your reasoning, you can explore multiple
+        approaches in different steps.
+    - Use logical and analytical thinking to reason through the problem.
+    - Ensure that your solution is valid and meets all requirements.
+    - If you find yourself spinning your wheels, take a step back and
+        re-evaluate your approach.
+"""
+
+
 @cf.flow
 def solve_with_reasoning(goal: str, agent: cf.Agent) -> str:
     while True:
@@ -36,35 +66,7 @@ def solve_with_reasoning(goal: str, agent: cf.Agent) -> str:
             
             Produce a single step of reasoning that advances you closer to a solution.
             """,
-            instructions="""
-            You are working on solving a difficult problem (the `goal`). Based
-            on your previous thoughts and the overall goal, please perform **one
-            reasoning step** that advances you closer to a solution. Document
-            your thought process and any intermediate steps you take.
-            
-            After marking this task complete for a single step, you will be
-            given a new reasoning task to continue working on the problem. The
-            loop will continue until you have a valid solution.
-            
-            Complete the task as soon as you have a valid solution.
-            
-            **Guidelines**
-            
-            - You will not be able to brute force a solution exhaustively. You
-              must use your reasoning ability to make a plan that lets you make
-              progress.
-            - Each step should be focused on a specific aspect of the problem,
-              either advancing your understanding of the problem or validating a
-              solution.
-            - You should build on previous steps without repeating them.
-            - Since you will iterate your reasoning, you can explore multiple
-              approaches in different steps.
-            - Use logical and analytical thinking to reason through the problem.
-            - Ensure that your solution is valid and meets all requirements.
-            - If you find yourself spinning your wheels, take a step back and
-              re-evaluate your approach.
-
-            """,
+            instructions=REASONING_INSTRUCTIONS,
             result_type=ReasoningStep,
             agents=[agent],
             context=dict(goal=goal),
@@ -74,9 +76,7 @@ def solve_with_reasoning(goal: str, agent: cf.Agent) -> str:
         if response.found_validated_solution:
             if cf.run(
                 """
-                Check your solution to be absolutely sure that it is correct and meets
-                all requirements of the goal. If you return True, the loop will end. If you
-                return False, you will be able to continue reasoning.
+                Check your solution to be absolutely sure that it is correct and meets all requirements of the goal. Return True if it does.
                 """,
                 result_type=bool,
                 context=dict(goal=goal),

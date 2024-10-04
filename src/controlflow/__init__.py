@@ -18,7 +18,7 @@ from .decorators import flow, task
 from .tools import tool
 from .run import run, run_async, run_tasks, run_tasks_async
 from .plan import plan
-import controlflow.orchestration.conditions
+import controlflow.orchestration
 
 
 # --- Version ---

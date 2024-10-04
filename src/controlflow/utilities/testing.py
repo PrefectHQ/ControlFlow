@@ -1,3 +1,5 @@
+import json
+import uuid
 from contextlib import contextmanager
 from typing import Union
 
@@ -5,7 +7,7 @@ from langchain_core.language_models.fake_chat_models import FakeMessagesListChat
 
 import controlflow
 from controlflow.events.history import InMemoryHistory
-from controlflow.llm.messages import AIMessage, BaseMessage
+from controlflow.llm.messages import AIMessage, BaseMessage, ToolCall
 from controlflow.tasks.task import Task
 
 COUNTER = 0
@@ -28,16 +30,30 @@ class FakeLLM(FakeMessagesListChatModel):
         self.set_responses(responses or ["Hello! This is a response from the FakeLLM."])
 
     def set_responses(self, responses: list[Union[str, BaseMessage]]):
-        if any(not isinstance(m, (str, BaseMessage)) for m in responses):
+        messages = []
+
+        for r in responses:
+            if isinstance(r, str):
+                messages.append(AIMessage(content=r))
+            elif isinstance(r, dict):
+                messages.append(
+                    AIMessage(
+                        content="",
+                        tool_calls=[
+                            ToolCall(name=r["name"], args=r.get("args", {}), id="")
+                        ],
+                    )
+                )
+            else:
+                messages.append(r)
+
+        if any(not isinstance(m, BaseMessage) for m in messages):
             raise ValueError(
-                "Responses must be provided as either a list of strings or AIMessages. "
+                "Responses must be provided as either a list of strings, tool call dicts, or AIMessages. "
                 "Each item in the list will be emitted in a cycle when the LLM is called."
             )
 
-        responses = [
-            AIMessage(content=m) if isinstance(m, str) else m for m in responses
-        ]
-        self.responses = responses
+        self.responses = messages
 
     def bind_tools(self, *args, **kwargs):
         """When binding tools, passthrough"""
