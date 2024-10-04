@@ -18,6 +18,7 @@ from typing import (
     _LiteralGenericAlias,
     _SpecialGenericAlias,
 )
+from uuid import uuid4
 
 from prefect.context import TaskRunContext
 from pydantic import (
@@ -232,16 +233,18 @@ class Task(ControlFlowModel):
             self.id = self._generate_id()
 
     def _generate_id(self):
-        return hash_objects(
-            (
-                type(self).__name__,
-                self.objective,
-                self.instructions,
-                str(self.result_type),
-                self.prompt,
-                str(self.context),
-            )
-        )
+        return str(uuid4())[:8]
+        # generate a short, semi-stable ID for a task
+        # return hash_objects(
+        #     (
+        #         type(self).__name__,
+        #         self.objective,
+        #         self.instructions,
+        #         str(self.result_type),
+        #         self.prompt,
+        #         str(self.context),
+        #     )
+        # )
 
     def __hash__(self) -> int:
         return id(self)
@@ -265,6 +268,18 @@ class Task(ControlFlowModel):
     def __repr__(self) -> str:
         serialized = self.model_dump(include={"id", "objective"})
         return f"{self.__class__.__name__}({', '.join(f'{key}={repr(value)}' for key, value in serialized.items())})"
+
+    @field_validator("objective")
+    def _validate_objective(cls, v):
+        if v:
+            v = unwrap(v)
+        return v
+
+    @field_validator("instructions")
+    def _validate_instructions(cls, v):
+        if v:
+            v = unwrap(v)
+        return v
 
     @field_validator("agents")
     def _validate_agents(cls, v):
@@ -560,8 +575,7 @@ class Task(ControlFlowModel):
         """
         options = {}
         instructions = unwrap("""
-            Use this tool to mark the task as successful and provide a result. 
-            This tool can only be used one time per task.
+            Use this tool to mark the task as successful and provide a result.
         """)
         result_schema = None
 

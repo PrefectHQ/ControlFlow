@@ -3,7 +3,7 @@ from contextlib import contextmanager, nullcontext
 from typing import TYPE_CHECKING, Any, Callable, Generator, Optional, Union
 
 from prefect.context import FlowRunContext
-from pydantic import Field
+from pydantic import Field, field_validator
 from typing_extensions import Self
 
 import controlflow
@@ -11,7 +11,7 @@ from controlflow.agents import Agent
 from controlflow.events.base import Event
 from controlflow.events.history import History
 from controlflow.utilities.context import ctx
-from controlflow.utilities.general import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel, unwrap
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import prefect_flow_context
 
@@ -69,6 +69,12 @@ class Flow(ControlFlowModel):
         if kwargs.get("parent") is None:
             kwargs["parent"] = get_flow()
         super().__init__(**kwargs)
+
+    @field_validator("description")
+    def _validate_description(cls, v):
+        if v:
+            v = unwrap(v)
+        return v
 
     def get_prompt(self) -> str:
         """

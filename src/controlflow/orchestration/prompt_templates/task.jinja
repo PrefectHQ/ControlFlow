@@ -4,3 +4,7 @@
 {% if task.instructions %}- instructions: {{ task.instructions }}{% endif %}
 {% if task.result_type %}- result type: {{ task.result_type }}{% endif %}
 {% if task.context %}- context: {{ task.context }}{% endif %}
+- can be completed before subtasks: {{ not task.wait_for_subtasks }}
+{% if task.depends_on %}- depends on: {{ task.depends_on | map(attribute='id') | join(', ') }}{% endif %}
+{% if task.parent %}- parent task: {{ task.parent.id }}{% endif %}
+{% if task._subtasks%}- subtasks: {{ task._subtasks | map(attribute='id') | join(', ') }}{% endif %}

@@ -1,11 +1,11 @@
-{% macro render_task_hierarchy(task_info, indent='') -%}
-{{ indent }}- {{ task_info.task.id }} ({{ task_info.task.status.value }}){% if task_info['is_active'] %} (active){%
-endif %}
+{% macro render_task_hierarchy(task_info, indent='') %}
+{{ indent }}- {{ task_info.task.id }} ({{ task_info.task.status.value }}){% if task_info['is_active'] %}
+(active){%endif%}
 {%- if task_info.children %}
 
 {% for child in task_info.children %}
 {{ render_task_hierarchy(child, indent + '-') }}
-{%- endfor %}
+{% endfor %}
 {%- endif %}
 {%- endmacro -%}
 
@@ -37,10 +37,3 @@ A task can only be marked complete one time. Do not attempt to mark a task
 successful more than once. Even if the `result_type` does not appear to match
 the objective, you must supply a single compatible result. Only mark a task
 failed if there is a technical error or issue preventing completion.
-
-
-## Task hierarchy
-
-{% for task in task_hierarchy %}
-{{ render_task_hierarchy(task) }}
-{% endfor %}

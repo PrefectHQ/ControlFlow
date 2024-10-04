@@ -55,17 +55,6 @@ class OpenAIRules(LLMRules):
 
     def model_instructions(self) -> list[str]:
         instructions = []
-        if self.model.model_name.endswith("gpt-4o-mini"):
-            instructions.append(
-                unwrap(
-                    """
-                    You can only provide a single result for each task, and a
-                    task can only be marked successful one time. Do not make
-                    multiple tool calls in parallel to supply multiple results
-                    to the same task.                    
-                    """
-                )
-            )
         return instructions
 
 

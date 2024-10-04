@@ -1,13 +1,14 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
 
+import controlflow.orchestration.conditions
 from controlflow.agents import Agent
 from controlflow.flows import Flow
 from controlflow.orchestration.orchestrator import Orchestrator
-from controlflow.orchestration.turn_strategies import (  # Add this import
-    Popcorn,
-    TurnStrategy,
-)
+from controlflow.orchestration.turn_strategies import Popcorn, TurnStrategy
 from controlflow.tasks.task import Task
+from controlflow.utilities.testing import SimpleTask
 
 
 class TestOrchestratorLimits:
@@ -162,3 +163,120 @@ class TestOrchestratorCreation:
         orchestrator.run(max_agent_turns=0)
 
         assert orchestrator.agent == agent1
+
+
+class TestRunEndConditions:
+    def test_run_until_all_complete(self, monkeypatch):
+        task1 = SimpleTask()
+        task2 = SimpleTask()
+        orchestrator = Orchestrator(tasks=[task1, task2], flow=Flow(), agent=Agent())
+
+        # Mock the run_agent_turn method
+        def mock_run_agent_turn(*args, **kwargs):
+            task1.mark_successful()
+            task2.mark_successful()
+            return 1
+
+        monkeypatch.setitem(
+            orchestrator.__dict__,
+            "run_agent_turn",
+            MagicMock(side_effect=mock_run_agent_turn),
+        )
+
+        orchestrator.run(run_until=controlflow.orchestration.conditions.AllComplete())
+
+        assert all(task.is_complete() for task in orchestrator.tasks)
+
+    def test_run_until_any_complete(self, monkeypatch):
+        task1 = SimpleTask()
+        task2 = SimpleTask()
+        orchestrator = Orchestrator(tasks=[task1, task2], flow=Flow(), agent=Agent())
+
+        # Mock the run_agent_turn method
+        def mock_run_agent_turn(*args, **kwargs):
+            task1.mark_successful()
+            return 1
+
+        monkeypatch.setitem(
+            orchestrator.__dict__,
+            "run_agent_turn",
+            MagicMock(side_effect=mock_run_agent_turn),
+        )
+
+        orchestrator.run(run_until=controlflow.orchestration.conditions.AnyComplete())
+
+        assert any(task.is_complete() for task in orchestrator.tasks)
+
+    def test_run_until_fn_condition(self, monkeypatch):
+        task1 = SimpleTask()
+        task2 = SimpleTask()
+        orchestrator = Orchestrator(tasks=[task1, task2], flow=Flow(), agent=Agent())
+
+        # Mock the run_agent_turn method
+        def mock_run_agent_turn(*args, **kwargs):
+            task2.mark_successful()
+            return 1
+
+        monkeypatch.setitem(
+            orchestrator.__dict__,
+            "run_agent_turn",
+            MagicMock(side_effect=mock_run_agent_turn),
+        )
+
+        orchestrator.run(
+            run_until=controlflow.orchestration.conditions.FnCondition(
+                lambda context: context.orchestrator.tasks[1].is_complete()
+            )
+        )
+
+        assert task2.is_complete()
+
+    def test_run_until_lambda_condition(self, monkeypatch):
+        task1 = SimpleTask()
+        task2 = SimpleTask()
+        orchestrator = Orchestrator(tasks=[task1, task2], flow=Flow(), agent=Agent())
+
+        # Mock the run_agent_turn method
+        def mock_run_agent_turn(*args, **kwargs):
+            task2.mark_successful()
+            return 1
+
+        monkeypatch.setitem(
+            orchestrator.__dict__,
+            "run_agent_turn",
+            MagicMock(side_effect=mock_run_agent_turn),
+        )
+
+        orchestrator.run(
+            run_until=lambda context: context.orchestrator.tasks[1].is_complete()
+        )
+
+        assert task2.is_complete()
+
+    def test_compound_condition(self, monkeypatch):
+        task1 = SimpleTask()
+        task2 = SimpleTask()
+        orchestrator = Orchestrator(tasks=[task1, task2], flow=Flow(), agent=Agent())
+
+        # Mock the run_agent_turn method
+        def mock_run_agent_turn(*args, **kwargs):
+            return 1
+
+        monkeypatch.setitem(
+            orchestrator.__dict__,
+            "run_agent_turn",
+            MagicMock(side_effect=mock_run_agent_turn),
+        )
+
+        orchestrator.run(
+            run_until=(
+                # this condition will always fail
+                controlflow.orchestration.conditions.FnCondition(lambda context: False)
+                |
+                # this condition will always pass
+                controlflow.orchestration.conditions.FnCondition(lambda context: True)
+            )
+        )
+
+        # assert to prove we reach this point and the run stopped
+        assert True

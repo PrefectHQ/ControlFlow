@@ -1,7 +1,10 @@
+from controlflow import instructions
 from controlflow.events.base import Event
 from controlflow.events.events import AgentMessage
+from controlflow.orchestration.conditions import AnyComplete, AnyFailed, MaxLLMCalls
 from controlflow.orchestration.handler import Handler
-from controlflow.run import run, run_async
+from controlflow.run import run, run_async, run_tasks, run_tasks_async
+from controlflow.tasks.task import Task
 
 
 class TestHandlers:
@@ -40,3 +43,69 @@ def test_run():
 async def test_run_async():
     result = await run_async("what's 2 + 2", result_type=int)
     assert result == 4
+
+
+class TestRunUntil:
+    def test_any_complete(self):
+        task1 = Task("Task 1")
+        task2 = Task("Task 2")
+
+        with instructions("complete task 2"):
+            run_tasks([task1, task2], run_until=AnyComplete())
+
+        assert task2.is_complete()
+        assert task1.is_incomplete()
+
+    def test_any_failed(self):
+        task1 = Task("Task 1")
+        task2 = Task("Task 2")
+
+        with instructions("fail task 2"):
+            run_tasks([task1, task2], run_until=AnyFailed(), raise_on_failure=False)
+
+        assert task2.is_failed()
+        assert task1.is_incomplete()
+
+    def test_max_llm_calls(self):
+        task1 = Task("Task 1")
+        task2 = Task("Task 2")
+
+        with instructions("say hi but do not complete any tasks"):
+            run_tasks([task1, task2], run_until=MaxLLMCalls(1))
+
+        assert task2.is_incomplete()
+        assert task1.is_incomplete()
+
+
+class TestRunUntilAsync:
+    async def test_any_complete(self):
+        task1 = Task("Task 1")
+        task2 = Task("Task 2")
+
+        with instructions("complete task 2"):
+            await run_tasks_async([task1, task2], run_until=AnyComplete())
+
+        assert task2.is_complete()
+        assert task1.is_incomplete()
+
+    async def test_any_failed(self):
+        task1 = Task("Task 1")
+        task2 = Task("Task 2")
+
+        with instructions("fail task 2"):
+            await run_tasks_async(
+                [task1, task2], run_until=AnyFailed(), raise_on_failure=False
+            )
+
+        assert task2.is_failed()
+        assert task1.is_incomplete()
+
+    async def test_max_llm_calls(self):
+        task1 = Task("Task 1")
+        task2 = Task("Task 2")
+
+        with instructions("say hi but do not complete any tasks"):
+            await run_tasks_async([task1, task2], run_until=MaxLLMCalls(1))
+
+        assert task2.is_incomplete()
+        assert task1.is_incomplete()

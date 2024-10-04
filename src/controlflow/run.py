@@ -1,9 +1,10 @@
-from typing import Any, Optional
+from typing import Any, Callable, Optional, Union
 
 from prefect.context import TaskRunContext
 
 from controlflow.agents.agent import Agent
 from controlflow.flows import Flow, get_flow
+from controlflow.orchestration.conditions import RunContext, RunEndCondition
 from controlflow.orchestration.handler import Handler
 from controlflow.orchestration.orchestrator import Orchestrator, TurnStrategy
 from controlflow.tasks.task import Task
@@ -28,6 +29,7 @@ def run_tasks(
     max_agent_turns: int = None,
     handlers: list[Handler] = None,
     model_kwargs: Optional[dict] = None,
+    run_until: Optional[Union[RunEndCondition, Callable[[RunContext], bool]]] = None,
 ) -> list[Any]:
     """
     Run a list of tasks.
@@ -47,6 +49,7 @@ def run_tasks(
         max_llm_calls=max_llm_calls,
         max_agent_turns=max_agent_turns,
         model_kwargs=model_kwargs,
+        run_until=run_until,
     )
 
     if raise_on_failure and any(t.is_failed() for t in tasks):
@@ -71,9 +74,10 @@ async def run_tasks_async(
     max_agent_turns: int = None,
     handlers: list[Handler] = None,
     model_kwargs: Optional[dict] = None,
+    run_until: Optional[Union[RunEndCondition, Callable[[RunContext], bool]]] = None,
 ):
     """
-    Run a list of tasks.
+    Run a list of tasks asynchronously.
     """
     flow = flow or get_flow() or Flow()
     orchestrator = Orchestrator(
@@ -87,6 +91,7 @@ async def run_tasks_async(
         max_llm_calls=max_llm_calls,
         max_agent_turns=max_agent_turns,
         model_kwargs=model_kwargs,
+        run_until=run_until,
     )
 
     if raise_on_failure and any(t.is_failed() for t in tasks):
@@ -109,6 +114,7 @@ def run(
     raise_on_failure: bool = True,
     handlers: list[Handler] = None,
     model_kwargs: Optional[dict] = None,
+    run_until: Optional[Union[RunEndCondition, Callable[[RunContext], bool]]] = None,
     **task_kwargs,
 ) -> Any:
     task = Task(objective=objective, **task_kwargs)
@@ -120,6 +126,7 @@ def run(
         max_agent_turns=max_agent_turns,
         handlers=handlers,
         model_kwargs=model_kwargs,
+        run_until=run_until,
     )
     return results[0]
 
@@ -135,6 +142,7 @@ async def run_async(
     raise_on_failure: bool = True,
     handlers: list[Handler] = None,
     model_kwargs: Optional[dict] = None,
+    run_until: Optional[Union[RunEndCondition, Callable[[RunContext], bool]]] = None,
     **task_kwargs,
 ) -> Any:
     task = Task(objective=objective, **task_kwargs)
@@ -148,5 +156,6 @@ async def run_async(
         raise_on_failure=raise_on_failure,
         handlers=handlers,
         model_kwargs=model_kwargs,
+        run_until=run_until,
     )
     return results[0]
