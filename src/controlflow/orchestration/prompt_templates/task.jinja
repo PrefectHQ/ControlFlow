@@ -4,7 +4,9 @@
 {% if task.instructions %}- instructions: {{ task.instructions }}{% endif %}
 {% if task.result_type %}- result type: {{ task.result_type }}{% endif %}
 {% if task.context %}- context: {{ task.context }}{% endif %}
-- can be completed before subtasks: {{ not task.wait_for_subtasks }}
-{% if task.depends_on %}- depends on: {{ task.depends_on | map(attribute='id') | join(', ') }}{% endif %}
-{% if task.parent %}- parent task: {{ task.parent.id }}{% endif %}
-{% if task._subtasks%}- subtasks: {{ task._subtasks | map(attribute='id') | join(', ') }}{% endif %}
+{% if task.parent %}- parent task ID: {{ task.parent.id }}{%endif %}
+{% if task._subtasks%}- this task has the following subtask IDs: {{ task._subtasks | map(attribute='id') | join(', ') }}
+{% if not task.wait_for_subtasks %}- complete this task as soon as you meet its objective, even if you haven't completed
+its subtasks{% endif%}{% endif %}
+{% if task.depends_on %}- this task depends on these upstream task IDs (includes subtasks): {{ task.depends_on |
+map(attribute='id') | join(', ') }}{% endif %}
