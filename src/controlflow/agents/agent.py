@@ -81,6 +81,10 @@ class Agent(ControlFlowModel, abc.ABC):
         description="The LangChain BaseChatModel used by the agent. If not provided, the default model will be used. A compatible string can be passed to automatically retrieve the model.",
         exclude=True,
     )
+    llm_rules: Optional[LLMRules] = Field(
+        None,
+        description="The LLM rules for the agent. If not provided, the rules will be inferred from the model (if possible).",
+    )
 
     _cm_stack: list[contextmanager] = []
 
@@ -164,7 +168,10 @@ class Agent(ControlFlowModel, abc.ABC):
         """
         Retrieve the LLM rules for this agent's model
         """
-        return controlflow.llm.rules.rules_for_model(self.get_model())
+        if self.llm_rules is None:
+            return controlflow.llm.rules.rules_for_model(self.get_model())
+        else:
+            return self.llm_rules
 
     def get_tools(self) -> list["Tool"]:
         from controlflow.tools.input import cli_input
