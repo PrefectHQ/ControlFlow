@@ -4,6 +4,8 @@ description: The intelligent workers in your AI workflows.
 icon: robot
 ---
 
+import { VersionBadge } from '/snippets/version-badge.mdx'
+
 Agents are the intelligent, autonomous entities that power your AI workflows in ControlFlow. They represent AI models capable of understanding instructions, making decisions, and completing tasks.
 
 ```python
@@ -78,6 +80,7 @@ agent2 = cf.Agent(model="anthropic/claude-3-5-sonnet-20240620")
 ```
 
 ### LLM rules
+<VersionBadge version="0.11.0" />
 
 Each LLM provider may have different requirements for how messages are formatted or presented. For example, OpenAI permits system messages to be interspersed between user messages, but Anthropic requires them to be at the beginning of the conversation. ControlFlow uses provider-specific rules to properly compile messages for each agent's API. 
 
