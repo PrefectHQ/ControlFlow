@@ -1,10 +1,11 @@
-{% macro render_task_hierarchy(task_info, indent='') -%}
+{% macro render_task_hierarchy(task_info, indent='') %}
 {{ indent }}- {{ task_info.task.id }} ({{ task_info.task.status.value }}){% if task_info['is_active'] %}
-(active){% endif %}
+(active){%endif%}
 {%- if task_info.children %}
+
 {% for child in task_info.children %}
-{{ render_task_hierarchy(child, indent + ' ') }}
-{%- endfor %}
+{{ render_task_hierarchy(child, indent + '-') }}
+{% endfor %}
 {%- endif %}
 {%- endmacro -%}
 
@@ -21,15 +22,29 @@ The following tasks are active:
 
     {{ task.get_prompt() }}
 </Task>
+
+
 {% endfor %}
 
-Only agents assigned to a task are able to mark the task as complete. You must use a tool to end your turn to let other
-agents participate. If you are asked to talk to other agents, post messages. Do not impersonate another agent! Do not
-impersonate the orchestrator!
+Only agents assigned to a task are able to mark the task as complete. You must
+use a tool to end your turn to let other agents participate. If you are asked to
+talk to other agents, post messages. Do not impersonate another agent! Do not
+impersonate the orchestrator! If you have been assigned a task, then you (and
+other agents) must have the resources, knowledge, or tools required to complete
+it.
 
-Only mark a task failed if there is a technical error or issue preventing completion.
+A task can only be marked complete one time. Do not attempt to mark a task
+successful more than once. Even if the `result_type` does not appear to match
+the objective, you must supply a single compatible result. Only mark a task
+failed if there is a technical error or issue preventing completion.
 
-## Task hierarchy
+When a parent task must wait for subtasks, it means that all of its subtasks are
+treated as upstream dependencies and must be completed before the parent task
+can be marked as complete. However, if the parent task has
+`wait_for_subtasks=False`, then it can and should be marked as complete as soon
+as you can, regardless of the status of its subtasks.
+
+## Subtask hierarchy
 
 {% for task in task_hierarchy %}
 {{ render_task_hierarchy(task) }}

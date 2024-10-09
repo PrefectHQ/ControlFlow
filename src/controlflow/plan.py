@@ -61,7 +61,7 @@ def plan(
 
     agent_dict = dict(enumerate(agents))
     tool_dict = dict(
-        enumerate([t.dict(include={"name", "description"}) for t in tools])
+        enumerate([t.model_dump(include={"name", "description"}) for t in tools])
     )
 
     def validate_plan(plan: list[PlanTask]):

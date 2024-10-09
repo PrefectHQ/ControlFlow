@@ -1,0 +1,101 @@
+---
+title: Using Memory
+description: How to use memory to persist information across different conversations
+icon: brain
+---
+import { VersionBadge } from '/snippets/version-badge.mdx'
+
+<VersionBadge version="0.10" />
+
+
+Memory in ControlFlow allows agents to store and retrieve information across different conversations or workflow executions. This is particularly useful for maintaining context over time or sharing information between separate interactions.
+
+## Setup
+
+In order to use memory, you'll need to configure a [memory provider](/patterns/memory#provider). For this example, we'll use the default Chroma provider. You'll need to `pip install chromadb` to install its dependencies.
+
+## Code
+
+In this example, we'll create a simple workflow that remembers a user's favorite color across different conversations. For simplicity, we'll demonstrate the memory by using two different flows, which represent two different threads.
+
+```python
+import controlflow as cf
+
+
+# Create a memory module for user preferences
+user_preferences = cf.Memory(
+    key="user_preferences",
+    instructions="Store and retrieve user preferences."
+)
+
+
+# Create an agent with access to the memory
+agent = cf.Agent(memories=[user_preferences])
+
+
+# Create a flow to ask for the user's favorite color
+@cf.flow
+def remember_color():
+    return cf.run(
+        "Ask the user for their favorite color and store it in memory",
+        agents=[agent],
+        interactive=True,
+    )
+
+
+# Create a flow to recall the user's favorite color
+@cf.flow
+def recall_color():
+    return cf.run(
+        "What is the user's favorite color?",
+        agents=[agent],
+    )
+```
+
+Ordinarily, running the flows above would result in two separate -- unconnected -- conversations. The agent in the `recall_color` flow would have no way of knowing about the information from the first flow, even though its the same agent, because the conversation histories are not shared. 
+
+However, because we gave the agent a memory module and instructions for how to use it, the agent *will* be able to recall the information from the first flow.
+
+Run the first flow:
+<CodeGroup>
+```python First flow
+remember_color()
+```
+```text Result
+Agent: Hello! What is your favorite color?
+User: I really like a blue-purple shade.
+Agent: Great, thank you.
+```
+</CodeGroup>
+
+When we run the second flow, the agent correctly recalls the favorite color:
+<CodeGroup>
+```python Second flow
+result = recall_color()
+print(result)
+```
+```text Result
+The user's favorite color is a blue-purple shade.
+```
+</CodeGroup>
+
+## Key concepts
+
+1. **[Memory creation](/patterns/memory#creating-memory-modules)**: We create a `Memory` object with a unique key and instructions for its use.
+
+   ```python
+   user_preferences = cf.Memory(
+       key="user_preferences",
+       instructions="Store and retrieve user preferences."
+   )
+   ```
+
+2. **[Assigning memory to agents](/patterns/memory#assigning-memories)**: We assign the memory to an agent, allowing it to access and modify the stored information.
+
+   ```python
+   agent = cf.Agent(name="PreferenceAgent", memories=[user_preferences])
+   ```
+
+3. **[Using memory across flows](/patterns/memory#sharing-memories)**: By using the same memory in different flows, we can access information across separate conversations.
+
+This example demonstrates how ControlFlow's memory feature allows information to persist across different workflow executions, enabling more context-aware and personalized interactions.

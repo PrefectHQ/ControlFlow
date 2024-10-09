@@ -4,6 +4,7 @@ from pydantic import model_validator
 
 from controlflow.agents.agent import Agent
 from controlflow.flows import Flow
+from controlflow.memory.memory import Memory
 from controlflow.tasks.task import Task
 from controlflow.tools.tools import Tool
 from controlflow.utilities.general import ControlFlowModel
@@ -78,12 +79,28 @@ class InstructionsTemplate(Template):
         return bool(self.instructions)
 
 
+class LLMInstructionsTemplate(Template):
+    template_path: str = "llm_instructions.jinja"
+    instructions: Optional[list[str]] = None
+
+    def should_render(self) -> bool:
+        return bool(self.instructions)
+
+
 class ToolTemplate(Template):
     template_path: str = "tools.jinja"
     tools: list[Tool]
 
     def should_render(self) -> bool:
         return any(t.instructions for t in self.tools)
+
+
+class MemoryTemplate(Template):
+    template_path: str = "memories.jinja"
+    memories: list[Memory]
+
+    def should_render(self) -> bool:
+        return bool(self.memories)
 
 
 def build_task_hierarchy(provided_tasks: List[Task]) -> List[Dict[str, Any]]:

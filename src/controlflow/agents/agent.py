@@ -14,6 +14,7 @@ from typing import (
 
 from langchain_core.language_models import BaseChatModel
 from pydantic import Field, field_serializer, field_validator
+from typing_extensions import Self
 
 import controlflow
 from controlflow.agents.names import AGENT_NAMES
@@ -22,6 +23,7 @@ from controlflow.instructions import get_instructions
 from controlflow.llm.messages import AIMessage, BaseMessage
 from controlflow.llm.models import get_model as get_model_from_string
 from controlflow.llm.rules import LLMRules
+from controlflow.memory import Memory
 from controlflow.tools.tools import (
     Tool,
     as_lc_tools,
@@ -30,10 +32,8 @@ from controlflow.tools.tools import (
     handle_tool_call_async,
 )
 from controlflow.utilities.context import ctx
-from controlflow.utilities.general import ControlFlowModel, hash_objects
+from controlflow.utilities.general import ControlFlowModel, hash_objects, unwrap
 from controlflow.utilities.prefect import create_markdown_artifact, prefect_task
-
-from .memory import Memory
 
 if TYPE_CHECKING:
     from controlflow.orchestration.handler import Handler
@@ -71,19 +71,19 @@ class Agent(ControlFlowModel, abc.ABC):
         False,
         description="If True, the agent is given tools for interacting with a human user.",
     )
-    memory: Optional[Memory] = Field(
-        default=None,
-        # default_factory=ThreadMemory,
-        description="The memory object used by the agent. If not specified, an in-memory memory object will be used. Pass None to disable memory.",
-        exclude=True,
+    memories: list[Memory] = Field(
+        default=[],
+        description="A list of memory modules for the agent to use.",
     )
 
-    # note: `model` should be typed as Optional[BaseChatModel] but V2 models can't have
-    # V1 attributes without erroring, so we have to use Any.
-    model: Optional[Union[str, Any]] = Field(
+    model: Optional[Union[str, BaseChatModel]] = Field(
         None,
         description="The LangChain BaseChatModel used by the agent. If not provided, the default model will be used. A compatible string can be passed to automatically retrieve the model.",
         exclude=True,
+    )
+    llm_rules: Optional[LLMRules] = Field(
+        None,
+        description="The LLM rules for the agent. If not provided, the rules will be inferred from the model (if possible).",
     )
 
     _cm_stack: list[contextmanager] = []
@@ -128,12 +128,18 @@ class Agent(ControlFlowModel, abc.ABC):
             )
         )
 
+    @field_validator("instructions")
+    def _validate_instructions(cls, v):
+        if v:
+            v = unwrap(v)
+        return v
+
     @field_validator("tools", mode="before")
     def _validate_tools(cls, tools: list[Tool]):
         return as_tools(tools or [])
 
     @field_validator("model", mode="before")
-    def _validate_model(cls, model: Optional[Union[str, Any]]):
+    def _validate_model(cls, model: Optional[Union[str, BaseChatModel]]):
         if isinstance(model, str):
             return get_model_from_string(model)
         return model
@@ -141,8 +147,7 @@ class Agent(ControlFlowModel, abc.ABC):
     @field_serializer("tools")
     def _serialize_tools(self, tools: list[Tool]):
         tools = controlflow.tools.as_tools(tools)
-        # tools are Pydantic 1 objects
-        return [t.dict(include={"name", "description"}) for t in tools]
+        return [t.model_dump(include={"name", "description"}) for t in tools]
 
     def serialize_for_prompt(self) -> dict:
         dct = self.model_dump(
@@ -169,7 +174,10 @@ class Agent(ControlFlowModel, abc.ABC):
         """
         Retrieve the LLM rules for this agent's model
         """
-        return controlflow.llm.rules.rules_for_model(self.get_model())
+        if self.llm_rules is None:
+            return controlflow.llm.rules.rules_for_model(self.get_model())
+        else:
+            return self.llm_rules
 
     def get_tools(self) -> list["Tool"]:
         from controlflow.tools.input import cli_input
@@ -177,8 +185,8 @@ class Agent(ControlFlowModel, abc.ABC):
         tools = self.tools.copy()
         if self.interactive:
             tools.append(cli_input)
-        if self.memory is not None:
-            tools.extend(self.memory.get_tools())
+        for memory in self.memories:
+            tools.extend(memory.get_tools())
 
         return as_tools(tools)
 
@@ -189,11 +197,11 @@ class Agent(ControlFlowModel, abc.ABC):
         return template.render()
 
     @contextmanager
-    def create_context(self):
+    def create_context(self) -> Generator[Self, None, None]:
         with ctx(agent=self):
             yield self
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         self._cm_stack.append(self.create_context())
         return self._cm_stack[-1].__enter__()
 
@@ -269,6 +277,7 @@ class Agent(ControlFlowModel, abc.ABC):
         messages: list[BaseMessage],
         tools: list["Tool"],
         stream: bool = True,
+        model_kwargs: Optional[dict] = None,
     ) -> Generator[Event, None, None]:
         from controlflow.events.events import (
             AgentMessage,
@@ -286,7 +295,7 @@ class Agent(ControlFlowModel, abc.ABC):
 
         if stream:
             response = None
-            for delta in model.stream(messages):
+            for delta in model.stream(messages, **(model_kwargs or {})):
                 if response is None:
                     response = delta
                 else:
@@ -298,14 +307,13 @@ class Agent(ControlFlowModel, abc.ABC):
             response: AIMessage = model.invoke(messages)
 
         yield AgentMessage(agent=self, message=response)
-
         create_markdown_artifact(
             markdown=f"""
 {response.content or '(No content)'}
 
 #### Payload
 ```json
-{response.json(indent=2)}
+{response.model_dump_json(indent=2)}
 ```
 """,
             description=f"LLM Response for Agent {self.name}",
@@ -326,6 +334,7 @@ class Agent(ControlFlowModel, abc.ABC):
         messages: list[BaseMessage],
         tools: list["Tool"],
         stream: bool = True,
+        model_kwargs: Optional[dict] = None,
     ) -> AsyncGenerator[Event, None]:
         from controlflow.events.events import (
             AgentMessage,
@@ -343,7 +352,7 @@ class Agent(ControlFlowModel, abc.ABC):
 
         if stream:
             response = None
-            async for delta in model.astream(messages):
+            async for delta in model.astream(messages, **(model_kwargs or {})):
                 if response is None:
                     response = delta
                 else:
@@ -362,7 +371,7 @@ class Agent(ControlFlowModel, abc.ABC):
 
 #### Payload
 ```json
-{response.json(indent=2)}
+{response.model_dump_json(indent=2)}
 ```
 """,
             description=f"LLM Response for Agent {self.name}",

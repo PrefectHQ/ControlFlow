@@ -81,6 +81,28 @@ class Settings(ControlFlowSettings):
         100_000, description="The maximum number of tokens to send to an LLM."
     )
 
+    # ------------ Memory settings ------------
+
+    memory_provider: Optional[str] = Field(
+        default="chroma-db",
+        description="The default memory provider for agents.",
+    )
+
+    # ------------ Memory settings: ChromaDB ------------
+
+    chroma_cloud_tenant: Optional[str] = Field(
+        None,
+        description="The tenant for Chroma Cloud.",
+    )
+    chroma_cloud_database: Optional[str] = Field(
+        None,
+        description="The database for Chroma Cloud.",
+    )
+    chroma_cloud_api_key: Optional[str] = Field(
+        None,
+        description="The API key for Chroma Cloud.",
+    )
+
     # ------------ Debug settings ------------
 
     debug_messages: bool = Field(

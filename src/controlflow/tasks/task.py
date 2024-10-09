@@ -1,4 +1,5 @@
 import datetime
+import textwrap
 import warnings
 from contextlib import ExitStack, contextmanager
 from enum import Enum
@@ -6,7 +7,9 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Generator,
     GenericAlias,
+    Literal,
     Optional,
     TypeVar,
     Union,
@@ -15,6 +18,7 @@ from typing import (
     _LiteralGenericAlias,
     _SpecialGenericAlias,
 )
+from uuid import uuid4
 
 from prefect.context import TaskRunContext
 from pydantic import (
@@ -25,10 +29,12 @@ from pydantic import (
     field_serializer,
     field_validator,
 )
+from typing_extensions import Self
 
 import controlflow
 from controlflow.agents import Agent
 from controlflow.instructions import get_instructions
+from controlflow.memory.memory import Memory
 from controlflow.tools import Tool, tool
 from controlflow.tools.input import cli_input
 from controlflow.tools.tools import as_tools
@@ -37,6 +43,7 @@ from controlflow.utilities.general import (
     NOTSET,
     ControlFlowModel,
     hash_objects,
+    unwrap,
 )
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import prefect_task as prefect_task
@@ -48,6 +55,9 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 logger = get_logger(__name__)
+
+
+COMPLETION_TOOLS = Literal["SUCCEED", "FAIL"]
 
 
 def get_task_run_name():
@@ -97,8 +107,7 @@ class Task(ControlFlowModel):
     )
     context: dict = Field(
         default_factory=dict,
-        description="Additional context for the task. If tasks are provided as "
-        "context, they are automatically added as `depends_on`",
+        description="Additional context for the task.",
     )
     parent: Optional["Task"] = Field(
         NOTSET,
@@ -141,11 +150,23 @@ class Task(ControlFlowModel):
         default_factory=list,
         description="Tools available to every agent working on this task.",
     )
+    completion_tools: Optional[list[COMPLETION_TOOLS]] = Field(
+        default=None,
+        description="""
+            Completion tools that will be generated for this task. If None, all 
+            tools will be generated; if a list of strings, only the corresponding 
+            tools will be generated automatically.
+            """,
+    )
     completion_agents: Optional[list[Agent]] = Field(
         default=None,
         description="Agents that are allowed to mark this task as complete. If None, all agents are allowed.",
     )
     interactive: bool = False
+    memories: list[Memory] = Field(
+        default=[],
+        description="A list of memory modules for the task to use.",
+    )
     max_llm_calls: Optional[int] = Field(
         default_factory=lambda: controlflow.settings.task_max_llm_calls,
         description="Maximum number of LLM calls to make before the task should be marked as failed. "
@@ -153,6 +174,10 @@ class Task(ControlFlowModel):
         "which this task is considered `assigned`.",
     )
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    wait_for_subtasks: bool = Field(
+        default=True,
+        description="If True, the task will not be considered ready until all subtasks are complete.",
+    )
     _subtasks: set["Task"] = set()
     _downstreams: set["Task"] = set()
     _cm_stack: list[contextmanager] = []
@@ -207,16 +232,18 @@ class Task(ControlFlowModel):
             self.id = self._generate_id()
 
     def _generate_id(self):
-        return hash_objects(
-            (
-                type(self).__name__,
-                self.objective,
-                self.instructions,
-                str(self.result_type),
-                self.prompt,
-                str(self.context),
-            )
-        )
+        return str(uuid4())[:8]
+        # generate a short, semi-stable ID for a task
+        # return hash_objects(
+        #     (
+        #         type(self).__name__,
+        #         self.objective,
+        #         self.instructions,
+        #         str(self.result_type),
+        #         self.prompt,
+        #         str(self.context),
+        #     )
+        # )
 
     def __hash__(self) -> int:
         return id(self)
@@ -231,15 +258,34 @@ class Task(ControlFlowModel):
         if type(self) is type(other):
             d1 = dict(self)
             d2 = dict(other)
+
+            for attr in ["id", "created_at"]:
+                d1.pop(attr)
+                d2.pop(attr)
+
             # conver sets to lists for comparison
             d1["depends_on"] = list(d1["depends_on"])
             d2["depends_on"] = list(d2["depends_on"])
+            d1["subtasks"] = list(self.subtasks)
+            d2["subtasks"] = list(other.subtasks)
             return d1 == d2
         return False
 
     def __repr__(self) -> str:
         serialized = self.model_dump(include={"id", "objective"})
         return f"{self.__class__.__name__}({', '.join(f'{key}={repr(value)}' for key, value in serialized.items())})"
+
+    @field_validator("objective")
+    def _validate_objective(cls, v):
+        if v:
+            v = unwrap(v)
+        return v
+
+    @field_validator("instructions")
+    def _validate_instructions(cls, v):
+        if v:
+            v = unwrap(v)
+        return v
 
     @field_validator("agents")
     def _validate_agents(cls, v):
@@ -335,7 +381,6 @@ class Task(ControlFlowModel):
         elif task.parent is not self:
             raise ValueError(f"{self.friendly_name()} already has a parent.")
         self._subtasks.add(task)
-        self.depends_on.add(task)
 
     def add_dependency(self, task: "Task"):
         """
@@ -353,6 +398,8 @@ class Task(ControlFlowModel):
         max_llm_calls: int = None,
         max_agent_turns: int = None,
         handlers: list["Handler"] = None,
+        raise_on_failure: bool = True,
+        model_kwargs: Optional[dict] = None,
     ) -> T:
         """
         Run the task
@@ -365,13 +412,14 @@ class Task(ControlFlowModel):
             turn_strategy=turn_strategy,
             max_llm_calls=max_llm_calls,
             max_agent_turns=max_agent_turns,
-            raise_on_error=False,
+            raise_on_failure=False,
             handlers=handlers,
+            model_kwargs=model_kwargs,
         )
 
         if self.is_successful():
             return self.result
-        elif self.is_failed():
+        elif raise_on_failure and self.is_failed():
             raise ValueError(f"{self.friendly_name()} failed: {self.result}")
 
     @prefect_task(task_run_name=get_task_run_name)
@@ -383,6 +431,7 @@ class Task(ControlFlowModel):
         max_llm_calls: int = None,
         max_agent_turns: int = None,
         handlers: list["Handler"] = None,
+        raise_on_failure: bool = True,
     ) -> T:
         """
         Run the task
@@ -395,22 +444,22 @@ class Task(ControlFlowModel):
             turn_strategy=turn_strategy,
             max_llm_calls=max_llm_calls,
             max_agent_turns=max_agent_turns,
-            raise_on_error=False,
+            raise_on_failure=False,
             handlers=handlers,
         )
 
         if self.is_successful():
             return self.result
-        elif self.is_failed():
+        elif raise_on_failure and self.is_failed():
             raise ValueError(f"{self.friendly_name()} failed: {self.result}")
 
     @contextmanager
-    def create_context(self):
+    def create_context(self) -> Generator[Self, None, None]:
         stack = ctx.get("tasks") or []
         with ctx(tasks=stack + [self]):
             yield self
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         # use stack so we can enter the context multiple times
         self._cm_stack.append(ExitStack())
         return self._cm_stack[-1].enter_context(self.create_context())
@@ -444,7 +493,11 @@ class Task(ControlFlowModel):
         Returns True if all dependencies are complete and this task is
         incomplete, meaning it is ready to be worked on.
         """
-        return self.is_incomplete() and all(t.is_complete() for t in self.depends_on)
+        depends_on = self.depends_on
+        if self.wait_for_subtasks:
+            depends_on = depends_on.union(self._subtasks)
+
+        return self.is_incomplete() and all(t.is_complete() for t in depends_on)
 
     def get_agents(self) -> list[Agent]:
         if self.agents is not None:
@@ -463,17 +516,32 @@ class Task(ControlFlowModel):
             else:
                 return [controlflow.defaults.agent]
 
-    def get_tools(self) -> list[Union[Tool, Callable]]:
+    def get_tools(self) -> list[Tool]:
+        """
+        Return a list of all tools available for the task.
+
+        Note this does not include completion tools, which are handled separately.
+        """
         tools = self.tools.copy()
         if self.interactive:
             tools.append(cli_input)
-        return tools
+        for memory in self.memories:
+            tools.extend(memory.get_tools())
+        return as_tools(tools)
 
     def get_completion_tools(self) -> list[Tool]:
-        tools = [
-            self.create_success_tool(),
-            self.create_fail_tool(),
-        ]
+        """
+        Return a list of all completion tools available for the task.
+        """
+        tools = []
+        completion_tools = self.completion_tools
+        if completion_tools is None:
+            completion_tools = ["SUCCEED", "FAIL"]
+
+        if "SUCCEED" in completion_tools:
+            tools.append(self.get_success_tool())
+        if "FAIL" in completion_tools:
+            tools.append(self.get_fail_tool())
         return tools
 
     def get_prompt(self) -> str:
@@ -506,12 +574,14 @@ class Task(ControlFlowModel):
     def mark_skipped(self):
         self.set_status(TaskStatus.SKIPPED)
 
-    def create_success_tool(self) -> Tool:
+    def get_success_tool(self) -> Tool:
         """
         Create an agent-compatible tool for marking this task as successful.
         """
         options = {}
-        instructions = None
+        instructions = unwrap("""
+            Use this tool to mark the task as successful and provide a result.
+        """)
         result_schema = None
 
         # if the result_type is a tuple of options, then we want the LLM to provide
@@ -532,10 +602,12 @@ class Task(ControlFlowModel):
             options_str = "\n\n".join(
                 f"Option {i}: {option}" for i, option in serialized_options.items()
             )
-            instructions = f"""
+            instructions += "\n\n" + unwrap("""
                 Provide a single integer as the result, corresponding to the index
-                of your chosen option. Your options are: {options_str}
-                """
+                of your chosen option. Your options are: 
+                
+                {options_str}
+                """).format(options_str=options_str)
 
         # otherwise try to load the schema for the result type
         elif self.result_type is not None:
@@ -571,7 +643,7 @@ class Task(ControlFlowModel):
 
         return succeed
 
-    def create_fail_tool(self) -> Tool:
+    def get_fail_tool(self) -> Tool:
         """
         Create an agent-compatible tool for failing this task.
         """

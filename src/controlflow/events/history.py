@@ -147,18 +147,11 @@ class InMemoryHistory(History):
 
 class FileHistory(History):
     base_path: Path = Field(
-        default_factory=lambda: controlflow.settings.home_path / "filestore_events"
+        default_factory=lambda: controlflow.settings.home_path / "history/FileHistory"
     )
 
     def path(self, thread_id: str) -> Path:
         return self.base_path / f"{thread_id}.json"
-
-    @field_validator("base_path", mode="before")
-    def _validate_path(cls, v):
-        v = Path(v).expanduser()
-        if not v.exists():
-            v.mkdir(parents=True, exist_ok=True)
-        return v
 
     def get_events(
         self,
@@ -173,7 +166,6 @@ class FileHistory(History):
 
         Args:
             thread_id (str): The ID of the thread to retrieve events from.
-            tags (Optional[list[str]]): The tags associated with the events (default: None).
             types (Optional[list[str]]): The list of event types to filter by (default: None).
             before_id (Optional[str]): The ID of the event before which to stop retrieving events (default: None).
             after_id (Optional[str]): The ID of the event after which to start retrieving events (default: None).
@@ -182,10 +174,12 @@ class FileHistory(History):
         Returns:
             list[Event]: A list of events that match the specified criteria.
         """
-        if not self.path(thread_id).exists():
+        file_path = self.path(thread_id)
+
+        if not file_path.exists():
             return []
 
-        with open(self.path(thread_id), "r") as f:
+        with file_path.open("r") as f:
             raw_data = f.read()
 
         validator = get_event_validator()
@@ -200,11 +194,22 @@ class FileHistory(History):
         )
 
     def add_events(self, thread_id: str, events: list[Event]):
-        if self.path(thread_id).exists():
-            with open(self.path(thread_id), "r") as f:
+        # TODO: this is pretty inefficient because we read / write the entire file
+        # every time instead of doing it incrementally. Need to switch to JSONL
+        # if we want to improve performance.
+        file_path = self.path(thread_id)
+
+        if not file_path.exists():
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.touch()
+
+        with file_path.open("r") as f:
+            try:
                 all_events = json.load(f)
-        else:
-            all_events = []
+            except json.JSONDecodeError:
+                all_events = []
+
         all_events.extend([event.model_dump(mode="json") for event in events])
-        with open(self.path(thread_id), "w") as f:
+
+        with file_path.open("w") as f:
             json.dump(all_events, f)

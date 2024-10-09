@@ -128,9 +128,12 @@ print(result)
 Note that annotated types are not validated; the annotation is provided as part of the agent's natural language instructions. You could additionaly provide a custom [result validator](#result-validators) to enforce the constraint.
 </Tip>
 
-### Specific values
+### Labeling / classification
 
-You can limit the result to one of a specific set of values, in order to label or classify a response. To do this, specify a list or tuple of allowed values for the result type. Here, we classify the media type of "Star Wars: Return of the Jedi":
+Often, you may want an agent to choose a value from a specific set of options, in order to label or classify a response as one of potentially many choices.
+
+
+To do this, specify a list, tuple, `Literal`, or enum of allowed values for the result type. Here, we classify the media type of "Star Wars: Return of the Jedi" from a list of options:
 
 <CodeGroup>
 ```python Code
@@ -149,10 +152,77 @@ movie
 ```
 </CodeGroup>
 
-
 <Tip>
-For classification tasks, ControlFlow asks agents to choose a value by index rather than writing out the entire response. This optimization significantly improves latency while also conserving output tokens.
+ControlFlow optimizes single-choice constrained selection by asking agents to choose a value by index rather than writing out the entire response. This optimization significantly improves latency while also conserving output tokens.
 </Tip>
+
+You can provide almost any Python object as a constrained choice, and ControlFlow will return *that object* as the result. Note that objects must be serialized in order to be shown to the agent.
+
+#### A list of labels
+
+
+When you provide a set of constrained choices, the agent will choose **one and only one** as the task's result. Often, you will want to produce a list of labels, either because you want to classify multiple items at once OR because you want to allow the agent to choose multiple values for a single input. To do so, you must indicate that your expected result type is a list of either `Literal` values or enum members.
+
+In the following example, two media types are provided as context, and because the result type is a list, the agent is able to produce two responses:
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+from typing import Literal
+
+media = cf.run(
+    ["Star Wars: Return of the Jedi", "LOST"], 
+    result_type=list[Literal["movie", "tv show", "book", "comic", "other"]]
+)
+
+print(media)
+```
+
+```text Result
+['movie', 'tv show']
+```
+</CodeGroup>
+
+In this example, the agent is able to choose multiple values for a single input, and the result is a list of strings:
+
+<CodeGroup>
+```python Code
+import controlflow as cf
+from typing import Literal
+
+tags = cf.run(
+    'Star Wars: Return of the Jedi', 
+    instructions="Choose all that apply",
+    result_type=list[Literal["Star Wars", "space", "pirates", "adventure", "musical"]]
+)
+
+print(tags)
+```
+
+```text Result
+['Star Wars', 'space', 'adventure']
+```
+</CodeGroup>
+
+<Warning>
+Labeling multiple inputs at once relies on Python's built-in type annotations and does not provide the same list- and tuple-aware optimizations and sugar that ControlFlow provides for single-choice constrained selection. Therefore the following syntax, which is not considered proper Python, will error:
+
+```python
+cf.run(
+    ...,
+    result_type=list[["A", "B"]]
+)
+```
+
+but using a `Literal` or enum will work:
+
+```python
+cf.run(
+    ...,
+    result_type=list[Literal["A", "B"]]
+)
+```
+</Warning>
 
 ### Pydantic models
 

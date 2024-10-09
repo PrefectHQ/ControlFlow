@@ -1,10 +1,11 @@
+import textwrap
 from typing import Optional
 
 from langchain_anthropic import ChatAnthropic
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
 
 from controlflow.llm.models import BaseChatModel
-from controlflow.utilities.general import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel, unwrap
 
 
 class LLMRules(ControlFlowModel):
@@ -15,6 +16,8 @@ class LLMRules(ControlFlowModel):
     Rules can be added here (to the base class) and overridden in subclasses, if
     necessary.
     """
+
+    model: Optional[BaseChatModel]
 
     # require at least one non-system message
     require_at_least_one_message: bool = False
@@ -41,9 +44,18 @@ class LLMRules(ControlFlowModel):
     # the name associated with a message must conform to a specific format
     require_message_name_format: Optional[str] = None
 
+    def model_instructions(self) -> Optional[list[str]]:
+        pass
+
 
 class OpenAIRules(LLMRules):
     require_message_name_format: str = r"[^a-zA-Z0-9_-]"
+
+    model: ChatOpenAI
+
+    def model_instructions(self) -> list[str]:
+        instructions = []
+        return instructions
 
 
 class AnthropicRules(LLMRules):
@@ -56,8 +68,17 @@ class AnthropicRules(LLMRules):
 
 def rules_for_model(model: BaseChatModel) -> LLMRules:
     if isinstance(model, (ChatOpenAI, AzureChatOpenAI)):
-        return OpenAIRules()
-    elif isinstance(model, ChatAnthropic):
-        return AnthropicRules()
-    else:
-        return LLMRules()
+        return OpenAIRules(model=model)
+    if isinstance(model, ChatAnthropic):
+        return AnthropicRules(model=model)
+
+    try:
+        from langchain_google_vertexai.model_garden import ChatAnthropicVertex
+
+        if isinstance(model, ChatAnthropicVertex):
+            return AnthropicRules(model=model)
+    except ImportError:
+        pass
+
+    # catchall
+    return LLMRules(model=model)

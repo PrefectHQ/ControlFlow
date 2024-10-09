@@ -1,16 +1,17 @@
 import uuid
 from contextlib import contextmanager, nullcontext
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Generator, Optional, Union
 
 from prefect.context import FlowRunContext
-from pydantic import Field
+from pydantic import Field, field_validator
+from typing_extensions import Self
 
 import controlflow
 from controlflow.agents import Agent
 from controlflow.events.base import Event
 from controlflow.events.history import History
 from controlflow.utilities.context import ctx
-from controlflow.utilities.general import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel, unwrap
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import prefect_flow_context
 
@@ -54,7 +55,7 @@ class Flow(ControlFlowModel):
     context: dict[str, Any] = {}
     _cm_stack: list[contextmanager] = []
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         # use stack so we can enter the context multiple times
         cm = self.create_context()
         self._cm_stack.append(cm)
@@ -68,6 +69,12 @@ class Flow(ControlFlowModel):
         if kwargs.get("parent") is None:
             kwargs["parent"] = get_flow()
         super().__init__(**kwargs)
+
+    @field_validator("description")
+    def _validate_description(cls, v):
+        if v:
+            v = unwrap(v)
+        return v
 
     def get_prompt(self) -> str:
         """
@@ -111,7 +118,7 @@ class Flow(ControlFlowModel):
         self.history.add_events(thread_id=self.thread_id, events=events)
 
     @contextmanager
-    def create_context(self, **prefect_kwargs):
+    def create_context(self, **prefect_kwargs) -> Generator[Self, None, None]:
         # create a new Prefect flow if we're not already in a flow run
         if FlowRunContext.get() is None:
             prefect_context = prefect_flow_context(**prefect_kwargs)

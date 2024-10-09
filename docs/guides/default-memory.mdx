@@ -1,0 +1,62 @@
+---
+title: Configure a Default Memory Provider
+sidebarTitle: Default Memory Provider
+description: Set up a default persistent memory provider for your agents
+icon: brain
+---
+import { VersionBadge } from '/snippets/version-badge.mdx'
+
+<VersionBadge version="0.10" />
+ControlFlow's [memory](/patterns/memory) feature allows agents to store and retrieve information across multiple workflows. Memory modules are backed by a vector database, configured using a `MemoryProvider`. 
+
+Setting up a default provider simplifies the process of creating memory objects throughout your application. Once configured, you can create memory objects without specifying a provider each time.
+
+<Tip>
+While ControlFlow does not include any vector database dependencies by default, the default provider is set to `"chroma-db"`. This means that if you install the `chromadb` package, your memory modules will work without any additional configuration.
+</Tip>
+
+## Install dependencies
+
+To use a provider, you must first install its dependencies. Please refer to the [Memory doc](/patterns/memory) to see all supported providers and their required dependencies. 
+
+For example, to use the default [Chroma](https://trychroma.com/) provider, you need to install `chromadb`:
+
+```bash
+pip install chromadb
+```
+
+## Configure a default provider
+
+There are two ways to set up a default provider: using a string setting for common defaults, or instantiating a custom provider. Here, we'll use a persistent Chroma database as our example.
+
+### String configurations
+
+For simple provider setups, you can modify ControlFlow's default settings using a string value. The default value is `"chroma-db"`, which will create a persistent Chroma database. To change it:
+
+<CodeGroup>
+```bash Environment variable
+export CONTROLFLOW_MEMORY_PROVIDER="chroma-ephemeral"
+```
+```python Runtime
+import controlflow as cf
+
+cf.settings.memory_provider = "chroma-ephemeral"
+```
+</CodeGroup>
+
+For a list of available string configurations, see the [Memory pattern guide](/patterns/memory).
+
+### Custom provider configuration
+
+For more advanced setups, instantiate a provider with custom settings and assign it to the ControlFlow default. Note this must be done at runtime.
+
+```python
+import controlflow as cf
+from controlflow.memory.providers.chroma import ChromaMemory
+import chromadb
+
+# Set the default provider
+cf.defaults.memory_provider = ChromaMemory(
+    client=chromadb.PersistentClient(path="/custom/path"),
+)
+```

@@ -1,3 +1,4 @@
+import asyncio
 import functools
 import inspect
 from typing import Any, Callable, Optional, Union
@@ -67,19 +68,7 @@ def flow(
 
     sig = inspect.signature(fn)
 
-    # the flow decorator creates a proper prefect flow
-    @prefect_flow(
-        timeout_seconds=timeout_seconds,
-        retries=retries,
-        retry_delay_seconds=retry_delay_seconds,
-        **(prefect_kwargs or {}),
-    )
-    @functools.wraps(fn)
-    def wrapper(
-        *wrapper_args,
-        flow_kwargs: dict = None,
-        **wrapper_kwargs,
-    ):
+    def _inner_wrapper(*wrapper_args, flow_kwargs: dict = None, **wrapper_kwargs):
         # first process callargs
         bound = sig.bind(*wrapper_args, **wrapper_kwargs)
         bound.apply_defaults()
@@ -108,6 +97,23 @@ def flow(
         ):
             return fn(*wrapper_args, **wrapper_kwargs)
 
+    if asyncio.iscoroutinefunction(fn):
+
+        @functools.wraps(fn)
+        async def wrapper(*wrapper_args, **wrapper_kwargs):
+            return await _inner_wrapper(*wrapper_args, **wrapper_kwargs)
+    else:
+
+        @functools.wraps(fn)
+        def wrapper(*wrapper_args, **wrapper_kwargs):
+            return _inner_wrapper(*wrapper_args, **wrapper_kwargs)
+
+    wrapper = prefect_flow(
+        timeout_seconds=timeout_seconds,
+        retries=retries,
+        retry_delay_seconds=retry_delay_seconds,
+        **(prefect_kwargs or {}),
+    )(wrapper)
     return wrapper
 
 
@@ -195,18 +201,24 @@ def task(
             **task_kwargs,
         )
 
-    @functools.wraps(fn)
-    @prefect_task(
+    if asyncio.iscoroutinefunction(fn):
+
+        @functools.wraps(fn)
+        async def wrapper(*args, **kwargs):
+            task = _get_task(*args, **kwargs)
+            return await task.run_async()
+    else:
+
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            task = _get_task(*args, **kwargs)
+            return task.run()
+
+    wrapper = prefect_task(
         timeout_seconds=timeout_seconds,
         retries=retries,
         retry_delay_seconds=retry_delay_seconds,
-    )
-    def wrapper(
-        *args,
-        **kwargs,
-    ):
-        task = _get_task(*args, **kwargs)
-        return task.run()
+    )(wrapper)
 
     # store the `as_task` method for loading the task object
     wrapper.as_task = _get_task

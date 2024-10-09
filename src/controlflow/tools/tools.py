@@ -6,13 +6,12 @@ from typing import Annotated, Any, Callable, Optional, Union
 
 import langchain_core.tools
 import pydantic
-import pydantic.v1
 from langchain_core.messages import InvalidToolCall, ToolCall
 from prefect.utilities.asyncutils import run_coro_as_sync
 from pydantic import Field, PydanticSchemaGenerationError, TypeAdapter
 
 import controlflow
-from controlflow.utilities.general import ControlFlowModel
+from controlflow.utilities.general import ControlFlowModel, unwrap
 from controlflow.utilities.prefect import create_markdown_artifact, prefect_task
 
 TOOL_CALL_FUNCTION_RESULT_TEMPLATE = """
@@ -176,13 +175,13 @@ class Tool(ControlFlowModel):
 
         if len(description) > 1024:
             raise ValueError(
-                inspect.cleandoc(f"""
-                {name}: The tool's description exceeds 1024
-                characters. Please provide a shorter description, fewer
-                annotations, or pass
-                `include_param_descriptions=False` or
-                `include_return_description=False` to `from_function`.
-                """).replace("\n", " ")
+                unwrap(f"""
+                    {name}: The tool's description exceeds 1024
+                    characters. Please provide a shorter description, fewer
+                    annotations, or pass
+                    `include_param_descriptions=False` or
+                    `include_return_description=False` to `from_function`.
+                    """)
             )
 
         return cls(

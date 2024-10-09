@@ -80,7 +80,7 @@ def routing_flow():
                 ),
                 agents=[trainee],
                 result_type=None,
-                tools=[main_task.create_success_tool()]
+                tools=[main_task.get_success_tool()]
             )
     
     if main_task.result == target_department:

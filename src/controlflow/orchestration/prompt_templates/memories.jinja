@@ -1,0 +1,12 @@
+# Memories
+
+You have the following memory modules installed. Consult your memory whenever
+you think it would be helpful, and make sure to add new memories when you learn
+something new. You should not refer directly to memories in your responses.
+
+{% for memory in memories %}
+## Memory: {{ memory.key }}
+
+Instructions: {{ memory.instructions }}
+
+{% endfor %}

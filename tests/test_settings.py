@@ -1,5 +1,6 @@
 import importlib
 
+import openai
 import pytest
 from prefect.logging import get_logger
 
@@ -78,7 +79,9 @@ def test_import_without_default_api_key_errors_when_loading_model(monkeypatch):
             importlib.reload(defaults_module)
             importlib.reload(controlflow)
 
-            with pytest.raises(ValueError, match="Did not find openai_api_key"):
+            with pytest.raises(
+                openai.OpenAIError, match="api_key client option must be set"
+            ):
                 controlflow.llm.models.get_default_model()
 
             with pytest.raises(

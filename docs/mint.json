@@ -57,6 +57,7 @@
                 "patterns/tools",
                 "patterns/interactivity",
                 "patterns/dependencies",
+                "patterns/memory",
                 "patterns/instructions",
                 "patterns/planning",
                 "patterns/history"
@@ -66,8 +67,9 @@
             "group": "Configuration",
             "pages": [
                 "guides/settings",
-                "guides/llms",
-                "guides/default-agent"
+                "guides/configure-llms",
+                "guides/default-agent",
+                "guides/default-memory"
             ]
         },
         {
@@ -76,7 +78,9 @@
                 "examples/features/dependent-tasks",
                 "examples/features/tools",
                 "examples/features/multi-llm",
-                "examples/features/private-flows"
+                "examples/features/private-flows",
+                "examples/features/memory",
+                "examples/features/early-termination"
             ]
         },
         {
@@ -98,8 +102,9 @@
             "pages": [
                 "examples/language-tutor",
                 "examples/rock-paper-scissors",
-                "examples/agent-engineer",
-                "examples/call-routing"
+                "examples/seinfeld-conversation",
+                "examples/call-routing",
+                "examples/agent-engineer"
             ]
         },
         {

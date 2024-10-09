@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.tools import BaseTool
-from pydantic.v1 import BaseModel
+from pydantic import BaseModel
 
 import controlflow
 from controlflow.events.events import AIMessage, ToolCall
@@ -13,8 +13,8 @@ class LCBaseToolInput(BaseModel):
 
 
 class LCBaseTool(BaseTool):
-    name = "TestTool"
-    description = "A test tool"
+    name: str = "TestTool"
+    description: str = "A test tool"
     args_schema: type[BaseModel] = LCBaseToolInput
 
     def _run(self, x: int) -> str:
