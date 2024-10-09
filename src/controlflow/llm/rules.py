@@ -22,6 +22,9 @@ class LLMRules(ControlFlowModel):
     # require at least one non-system message
     require_at_least_one_message: bool = False
 
+    # system messages are supported as a role
+    allow_system_messages: bool = True
+
     # system messages can only be provided as the very first message in a thread
     require_system_message_first: bool = False
 
