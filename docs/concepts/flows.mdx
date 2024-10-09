@@ -119,19 +119,18 @@ The following flow properties are inferred from the decorated function:
 | ------------- | ------------- |
 | `name` | The function's name |
 | `description` | The function's docstring |
-| `context` | The function's arguments (keyed by argument name) |
+| `context` | The function's arguments, if specified as `context_kwargs` (keyed by argument name) |
 
-Additional properties can be set by passing keyword arguments directly to the `@flow` decorator or to the `flow_kwargs` parameter when calling the decorated function.
-
-<Tip>
-You may not want the arguments to your flow function to be used as context. In that case, you can set `args_as_context=False` when decorating or calling the function:
+To automatically put some of your flow's arguments into the global context that all agents can see, specify `context_kwargs` when decorating your flow:
 
 ```python
-@cf.flow(args_as_context=False)
-def my_flow(secret_var: str):
+@cf.flow(context_kwargs=["x"])
+def my_flow(x: int, y: int):
+    # x will be automatically added to a global, agent-visible context
     ...
 ```
-</Tip>
+
+Additional properties can be set by passing keyword arguments directly to the `@flow` decorator or to the `flow_kwargs` parameter when calling the decorated function.
 
 ### The `Flow` object and context manager
 
