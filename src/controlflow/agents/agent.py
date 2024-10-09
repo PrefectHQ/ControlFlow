@@ -32,7 +32,7 @@ from controlflow.tools.tools import (
     handle_tool_call_async,
 )
 from controlflow.utilities.context import ctx
-from controlflow.utilities.general import ControlFlowModel, hash_objects
+from controlflow.utilities.general import ControlFlowModel, hash_objects, unwrap
 from controlflow.utilities.prefect import create_markdown_artifact, prefect_task
 
 if TYPE_CHECKING:
@@ -127,6 +127,12 @@ class Agent(ControlFlowModel, abc.ABC):
                 self.instructions,
             )
         )
+
+    @field_validator("instructions")
+    def _validate_instructions(cls, v):
+        if v:
+            v = unwrap(v)
+        return v
 
     @field_validator("tools", mode="before")
     def _validate_tools(cls, tools: list[Tool]):

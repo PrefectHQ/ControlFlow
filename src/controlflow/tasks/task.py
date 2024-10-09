@@ -18,6 +18,7 @@ from typing import (
     _LiteralGenericAlias,
     _SpecialGenericAlias,
 )
+from uuid import uuid4
 
 from prefect.context import TaskRunContext
 from pydantic import (
@@ -106,8 +107,7 @@ class Task(ControlFlowModel):
     )
     context: dict = Field(
         default_factory=dict,
-        description="Additional context for the task. If tasks are provided as "
-        "context, they are automatically added as `depends_on`",
+        description="Additional context for the task.",
     )
     parent: Optional["Task"] = Field(
         NOTSET,
@@ -232,16 +232,18 @@ class Task(ControlFlowModel):
             self.id = self._generate_id()
 
     def _generate_id(self):
-        return hash_objects(
-            (
-                type(self).__name__,
-                self.objective,
-                self.instructions,
-                str(self.result_type),
-                self.prompt,
-                str(self.context),
-            )
-        )
+        return str(uuid4())[:8]
+        # generate a short, semi-stable ID for a task
+        # return hash_objects(
+        #     (
+        #         type(self).__name__,
+        #         self.objective,
+        #         self.instructions,
+        #         str(self.result_type),
+        #         self.prompt,
+        #         str(self.context),
+        #     )
+        # )
 
     def __hash__(self) -> int:
         return id(self)
@@ -256,15 +258,34 @@ class Task(ControlFlowModel):
         if type(self) is type(other):
             d1 = dict(self)
             d2 = dict(other)
+
+            for attr in ["id", "created_at"]:
+                d1.pop(attr)
+                d2.pop(attr)
+
             # conver sets to lists for comparison
             d1["depends_on"] = list(d1["depends_on"])
             d2["depends_on"] = list(d2["depends_on"])
+            d1["subtasks"] = list(self.subtasks)
+            d2["subtasks"] = list(other.subtasks)
             return d1 == d2
         return False
 
     def __repr__(self) -> str:
         serialized = self.model_dump(include={"id", "objective"})
         return f"{self.__class__.__name__}({', '.join(f'{key}={repr(value)}' for key, value in serialized.items())})"
+
+    @field_validator("objective")
+    def _validate_objective(cls, v):
+        if v:
+            v = unwrap(v)
+        return v
+
+    @field_validator("instructions")
+    def _validate_instructions(cls, v):
+        if v:
+            v = unwrap(v)
+        return v
 
     @field_validator("agents")
     def _validate_agents(cls, v):
@@ -360,7 +381,6 @@ class Task(ControlFlowModel):
         elif task.parent is not self:
             raise ValueError(f"{self.friendly_name()} already has a parent.")
         self._subtasks.add(task)
-        self.depends_on.add(task)
 
     def add_dependency(self, task: "Task"):
         """
@@ -474,8 +494,8 @@ class Task(ControlFlowModel):
         incomplete, meaning it is ready to be worked on.
         """
         depends_on = self.depends_on
-        if not self.wait_for_subtasks:
-            depends_on = depends_on.difference(self._subtasks)
+        if self.wait_for_subtasks:
+            depends_on = depends_on.union(self._subtasks)
 
         return self.is_incomplete() and all(t.is_complete() for t in depends_on)
 
@@ -560,8 +580,7 @@ class Task(ControlFlowModel):
         """
         options = {}
         instructions = unwrap("""
-            Use this tool to mark the task as successful and provide a result. 
-            This tool can only be used one time per task.
+            Use this tool to mark the task as successful and provide a result.
         """)
         result_schema = None
 

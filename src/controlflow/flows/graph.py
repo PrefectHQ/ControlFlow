@@ -73,7 +73,7 @@ class Graph:
             )
 
         # add the task's subtasks
-        for subtask in task._subtasks:
+        for subtask in task.subtasks:
             self.add_edge(
                 Edge(
                     upstream=subtask,

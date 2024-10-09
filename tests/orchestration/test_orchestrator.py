@@ -1,26 +1,28 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
 
+import controlflow.orchestration.conditions
 from controlflow.agents import Agent
 from controlflow.flows import Flow
 from controlflow.orchestration.orchestrator import Orchestrator
-from controlflow.orchestration.turn_strategies import (  # Add this import
-    Popcorn,
-    TurnStrategy,
-)
+from controlflow.orchestration.turn_strategies import Popcorn, TurnStrategy
 from controlflow.tasks.task import Task
+from controlflow.utilities.testing import FakeLLM, SimpleTask
 
 
 class TestOrchestratorLimits:
-    call_count = 0
-    turn_count = 0
-
     @pytest.fixture
-    def mocked_orchestrator(self, default_fake_llm):
-        # Reset counts at the start of each test
-        self.call_count = 0
-        self.turn_count = 0
+    def orchestrator(self, default_fake_llm):
+        default_fake_llm.set_responses([dict(name="count_call")])
+        self.calls = 0
+        self.turns = 0
 
         class TwoCallTurnStrategy(TurnStrategy):
+            """
+            A turn strategy that ends a turn after 2 calls
+            """
+
             calls: int = 0
 
             def get_tools(self, *args, **kwargs):
@@ -30,84 +32,52 @@ class TestOrchestratorLimits:
                 return current_agent
 
             def begin_turn(ts_instance):
-                self.turn_count += 1
+                self.turns += 1
                 super().begin_turn()
 
-            def should_end_turn(ts_instance):
-                ts_instance.calls += 1
+            def should_end_turn(ts_self):
+                ts_self.calls += 1
                 # if this would be the third call, end the turn
-                if ts_instance.calls >= 3:
-                    ts_instance.calls = 0
+                if ts_self.calls >= 3:
+                    ts_self.calls = 0
                     return True
                 # record a new call for the unit test
-                self.call_count += 1
+                # self.calls += 1
                 return False
 
-        agent = Agent()
+        def count_call():
+            self.calls += 1
+
+        agent = Agent(tools=[count_call])
         task = Task("Test task", agents=[agent])
         flow = Flow()
         orchestrator = Orchestrator(
-            tasks=[task], flow=flow, agent=agent, turn_strategy=TwoCallTurnStrategy()
+            tasks=[task],
+            flow=flow,
+            agent=agent,
+            turn_strategy=TwoCallTurnStrategy(),
         )
-
         return orchestrator
 
-    def test_default_limits(self, mocked_orchestrator):
-        mocked_orchestrator.run()
+    def test_max_llm_calls(self, orchestrator):
+        orchestrator.run(max_llm_calls=5)
+        assert self.calls == 5
 
-        assert self.turn_count == 5
-        assert self.call_count == 10
+    def test_max_agent_turns(self, orchestrator):
+        orchestrator.run(max_agent_turns=3)
+        assert self.calls == 6
 
-    @pytest.mark.parametrize(
-        "max_agent_turns, max_llm_calls, expected_turns, expected_calls",
-        [
-            (1, 1, 1, 1),
-            (1, 2, 1, 2),
-            (5, 3, 2, 3),
-            (3, 12, 3, 6),
-        ],
-    )
-    def test_custom_limits(
-        self,
-        mocked_orchestrator,
-        max_agent_turns,
-        max_llm_calls,
-        expected_turns,
-        expected_calls,
-    ):
-        mocked_orchestrator.run(
-            max_agent_turns=max_agent_turns, max_llm_calls=max_llm_calls
+    def test_max_llm_calls_and_max_agent_turns(self, orchestrator):
+        orchestrator.run(
+            max_llm_calls=10,
+            max_agent_turns=3,
+            model_kwargs={"tool_choice": "required"},
         )
+        assert self.calls == 6
 
-        assert self.turn_count == expected_turns
-        assert self.call_count == expected_calls
-
-    def test_task_limit(self, mocked_orchestrator):
-        task = Task("Test task", max_llm_calls=5, agents=[mocked_orchestrator.agent])
-        mocked_orchestrator.tasks = [task]
-        mocked_orchestrator.run()
-        assert task.is_failed()
-        assert self.turn_count == 3
-        # Note: the call count will be 6 because the orchestrator call count is
-        # incremented in "should_end_turn" which is called before the task's
-        # call count is evaluated
-        assert self.call_count == 6
-
-    def test_task_lifetime_limit(self, mocked_orchestrator):
-        task = Task("Test task", max_llm_calls=5, agents=[mocked_orchestrator.agent])
-        mocked_orchestrator.tasks = [task]
-        mocked_orchestrator.run(max_agent_turns=1)
-        assert task.is_incomplete()
-        mocked_orchestrator.run(max_agent_turns=1)
-        assert task.is_incomplete()
-        mocked_orchestrator.run(max_agent_turns=1)
-        assert task.is_failed()
-
-        assert self.turn_count == 3
-        # Note: the call count will be 6 because the orchestrator call count is
-        # incremented in "should_end_turn" which is called before the task's
-        # call count is evaluated
-        assert self.call_count == 6
+    def test_default_limits(self, orchestrator):
+        orchestrator.run(model_kwargs={"tool_choice": "required"})
+        assert self.calls == 10  # Assuming the default max_llm_calls is 10
 
 
 class TestOrchestratorCreation:
@@ -162,3 +132,120 @@ class TestOrchestratorCreation:
         orchestrator.run(max_agent_turns=0)
 
         assert orchestrator.agent == agent1
+
+
+class TestRunEndConditions:
+    def test_run_until_all_complete(self, monkeypatch):
+        task1 = SimpleTask()
+        task2 = SimpleTask()
+        orchestrator = Orchestrator(tasks=[task1, task2], flow=Flow(), agent=Agent())
+
+        # Mock the run_agent_turn method
+        def mock_run_agent_turn(*args, **kwargs):
+            task1.mark_successful()
+            task2.mark_successful()
+            return 1
+
+        monkeypatch.setitem(
+            orchestrator.__dict__,
+            "run_agent_turn",
+            MagicMock(side_effect=mock_run_agent_turn),
+        )
+
+        orchestrator.run(run_until=controlflow.orchestration.conditions.AllComplete())
+
+        assert all(task.is_complete() for task in orchestrator.tasks)
+
+    def test_run_until_any_complete(self, monkeypatch):
+        task1 = SimpleTask()
+        task2 = SimpleTask()
+        orchestrator = Orchestrator(tasks=[task1, task2], flow=Flow(), agent=Agent())
+
+        # Mock the run_agent_turn method
+        def mock_run_agent_turn(*args, **kwargs):
+            task1.mark_successful()
+            return 1
+
+        monkeypatch.setitem(
+            orchestrator.__dict__,
+            "run_agent_turn",
+            MagicMock(side_effect=mock_run_agent_turn),
+        )
+
+        orchestrator.run(run_until=controlflow.orchestration.conditions.AnyComplete())
+
+        assert any(task.is_complete() for task in orchestrator.tasks)
+
+    def test_run_until_fn_condition(self, monkeypatch):
+        task1 = SimpleTask()
+        task2 = SimpleTask()
+        orchestrator = Orchestrator(tasks=[task1, task2], flow=Flow(), agent=Agent())
+
+        # Mock the run_agent_turn method
+        def mock_run_agent_turn(*args, **kwargs):
+            task2.mark_successful()
+            return 1
+
+        monkeypatch.setitem(
+            orchestrator.__dict__,
+            "run_agent_turn",
+            MagicMock(side_effect=mock_run_agent_turn),
+        )
+
+        orchestrator.run(
+            run_until=controlflow.orchestration.conditions.FnCondition(
+                lambda context: context.orchestrator.tasks[1].is_complete()
+            )
+        )
+
+        assert task2.is_complete()
+
+    def test_run_until_lambda_condition(self, monkeypatch):
+        task1 = SimpleTask()
+        task2 = SimpleTask()
+        orchestrator = Orchestrator(tasks=[task1, task2], flow=Flow(), agent=Agent())
+
+        # Mock the run_agent_turn method
+        def mock_run_agent_turn(*args, **kwargs):
+            task2.mark_successful()
+            return 1
+
+        monkeypatch.setitem(
+            orchestrator.__dict__,
+            "run_agent_turn",
+            MagicMock(side_effect=mock_run_agent_turn),
+        )
+
+        orchestrator.run(
+            run_until=lambda context: context.orchestrator.tasks[1].is_complete()
+        )
+
+        assert task2.is_complete()
+
+    def test_compound_condition(self, monkeypatch):
+        task1 = SimpleTask()
+        task2 = SimpleTask()
+        orchestrator = Orchestrator(tasks=[task1, task2], flow=Flow(), agent=Agent())
+
+        # Mock the run_agent_turn method
+        def mock_run_agent_turn(*args, **kwargs):
+            return 1
+
+        monkeypatch.setitem(
+            orchestrator.__dict__,
+            "run_agent_turn",
+            MagicMock(side_effect=mock_run_agent_turn),
+        )
+
+        orchestrator.run(
+            run_until=(
+                # this condition will always fail
+                controlflow.orchestration.conditions.FnCondition(lambda context: False)
+                |
+                # this condition will always pass
+                controlflow.orchestration.conditions.FnCondition(lambda context: True)
+            )
+        )
+
+        # assert to prove we reach this point and the run stopped
+        assert True

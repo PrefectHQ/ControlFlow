@@ -1,0 +1,102 @@
+---
+title: Early Termination 
+description: Control workflow execution with flexible termination logic.
+icon: circle-stop
+---
+
+import { VersionBadge } from "/snippets/version-badge.mdx"
+
+<VersionBadge version="0.11" />
+
+This example demonstrates how to use termination conditions with the `run_until` parameter to control the execution of a ControlFlow workflow. We'll create a simple research workflow that stops under various conditions, showcasing the flexibility of this feature. In this case, we'll allow research to continue until either two topics are researched or 15 LLM calls are made. 
+
+## Code
+
+```python
+import controlflow as cf
+from controlflow.orchestration.conditions import AnyComplete, MaxLLMCalls
+from pydantic import BaseModel
+
+
+class ResearchPoint(BaseModel):
+    topic: str
+    key_findings: list[str]
+
+
+@cf.flow
+def research_workflow(topics: list[str]):
+    if len(topics) < 2:
+        raise ValueError("At least two topics are required")
+
+    research_tasks = [
+        cf.Task(f"Research {topic}", result_type=ResearchPoint)
+        for topic in topics
+    ]
+    
+    # Run tasks with termination conditions
+    results = cf.run_tasks(
+        research_tasks,
+        instructions="Research only one topic at a time.",
+        run_until=(
+            AnyComplete(min_complete=2)  # stop after two tasks (if there are more than two topics)
+            | MaxLLMCalls(15)  # or stop after 15 LLM calls, whichever comes first
+        )
+    )
+    
+    completed_research = [r for r in results if isinstance(r, ResearchPoint)]
+    return completed_research
+```
+
+<CodeGroup>
+
+Now, if we run this workflow on 4 topics, it will stop after two topics are researched:
+
+```python Example Usage
+# Example usage
+topics = [
+    "Artificial Intelligence",
+    "Quantum Computing",
+    "Biotechnology",
+    "Renewable Energy",
+]
+results = research_workflow(topics)
+
+print(f"Completed research on {len(results)} topics:")
+for research in results:
+    print(f"\nTopic: {research.topic}")
+    print("Key Findings:")
+    for finding in research.key_findings:
+        print(f"- {finding}")
+```
+
+```text Result
+Completed research on 2 topics:
+
+Topic: Artificial Intelligence
+Key Findings:
+- Machine Learning and Deep Learning: These are subsets of AI that involve training models on large datasets to make predictions or decisions without being explicitly programmed. They are widely used in various applications, including image and speech recognition, natural language processing, and autonomous vehicles.
+- AI Ethics and Bias: As AI systems become more prevalent, ethical concerns such as bias in AI algorithms, data privacy, and the impact on employment are increasingly significant. Ensuring fairness, transparency, and accountability in AI systems is a growing area of focus.
+- AI in Healthcare: AI technologies are revolutionizing healthcare through applications in diagnostics, personalized medicine, and patient monitoring. AI can analyze medical data to assist in early disease detection and treatment planning.
+- Natural Language Processing (NLP): NLP is a field of AI focused on the interaction between computers and humans through natural language. Recent advancements include transformers and large language models, which have improved the ability of machines to understand and generate human language.
+- AI in Autonomous Systems: AI is a crucial component in developing autonomous systems, such as self-driving cars and drones, which require perception, decision-making, and control capabilities to navigate and operate in real-world environments.
+
+Topic: Quantum Computing
+Key Findings:
+- Quantum Bits (Qubits): Unlike classical bits, qubits can exist in multiple states simultaneously due to superposition. This allows quantum computers to process a vast amount of information at once, offering a potential exponential speed-up over classical computers for certain tasks.
+- Quantum Entanglement: This phenomenon allows qubits that are entangled to be correlated with each other, even when separated by large distances. Entanglement is a key resource in quantum computing and quantum communication.
+- Quantum Algorithms: Quantum algorithms, such as Shor's algorithm for factoring large numbers and Grover's algorithm for searching unsorted databases, demonstrate the potential power of quantum computing over classical approaches.
+- Quantum Error Correction: Quantum systems are prone to errors due to decoherence and noise from the environment. Quantum error correction methods are essential for maintaining the integrity of quantum computations.
+- Applications and Challenges: Quantum computing holds promise for solving complex problems in cryptography, material science, and optimization. However, significant technological challenges remain, including maintaining qubit coherence, scaling up the number of qubits, and developing practical quantum software.
+```
+</CodeGroup>
+## Key Concepts
+
+1. **Custom Termination Conditions**: We use a combination of `AnyComplete` and `MaxLLMCalls` conditions to control when the workflow should stop.
+
+2. **Flexible Workflow Control**: By using termination conditions with the `run_until` parameter, we can create more dynamic workflows that adapt to different scenarios. In this case, we're balancing between getting enough research done and limiting resource usage.
+
+3. **Partial Results**: The workflow can end before all tasks are complete, so we handle partial results by filtering for completed `ResearchPoint` objects.
+
+4. **Combining Conditions**: We use the `|` operator to combine multiple termination conditions. ControlFlow also supports `&` for more complex logic.
+
+This example demonstrates how termination conditions provide fine-grained control over workflow execution, allowing you to balance between task completion and resource usage. This can be particularly useful for managing costs, handling time-sensitive operations, or creating more responsive AI workflows.
