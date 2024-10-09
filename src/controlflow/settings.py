@@ -57,17 +57,17 @@ class Settings(ControlFlowSettings):
     orchestrator_max_agent_turns: Optional[int] = Field(
         default=100,
         description="The default maximum number of agent turns per orchestration session."
-        "If None, orchestration may run indefinitely. This setting can be overriden on a per-call basis.",
+        "If None, orchestration may run indefinitely. This setting can be overridden on a per-call basis.",
     )
     orchestrator_max_llm_calls: Optional[int] = Field(
         default=1000,
         description="The default maximum number of LLM calls per orchestrating session. "
-        "If None, orchestration may run indefinitely. This setting can be overriden on a per-call basis.",
+        "If None, orchestration may run indefinitely. This setting can be overridden on a per-call basis.",
     )
     task_max_llm_calls: Optional[int] = Field(
         default=None,
         description="The default maximum number of LLM calls over a task's lifetime. "
-        "If None, the task may run indefinitely. This setting can be overriden on a per-task basis.",
+        "If None, the task may run indefinitely. This setting can be overridden on a per-task basis.",
     )
 
     # ------------ LLM settings ------------
