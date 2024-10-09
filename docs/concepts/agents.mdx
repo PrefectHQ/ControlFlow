@@ -4,6 +4,8 @@ description: The intelligent workers in your AI workflows.
 icon: robot
 ---
 
+import { VersionBadge } from '/snippets/version-badge.mdx'
+
 Agents are the intelligent, autonomous entities that power your AI workflows in ControlFlow. They represent AI models capable of understanding instructions, making decisions, and completing tasks.
 
 ```python
@@ -68,6 +70,35 @@ Tools are Python functions that the agent can call to perform specific actions o
 Each agent has a model, which is the LLM that powers the agent responses. This allows you to choose the most suitable model for your needs, based on factors such as performance, latency, and cost.
 
 ControlFlow supports any LangChain LLM that supports chat and function calling. For more details on how to configure models, see the [LLMs guide](/guides/configure-llms).
+
+```python
+import controlflow as cf
+
+
+agent1 = cf.Agent(model="openai/gpt-4o")
+agent2 = cf.Agent(model="anthropic/claude-3-5-sonnet-20240620")
+```
+
+### LLM rules
+<VersionBadge version="0.11.0" />
+
+Each LLM provider may have different requirements for how messages are formatted or presented. For example, OpenAI permits system messages to be interspersed between user messages, but Anthropic requires them to be at the beginning of the conversation. ControlFlow uses provider-specific rules to properly compile messages for each agent's API. 
+
+For common providers like OpenAI and Anthropic, LLM rules can be automatically inferred from the agent's model. However, you can use a custom `LLMRules` object to override these rules or provide rules for non-standard providers.
+
+Here is an example of how to tell the agent to use the Anthropic compilation rules with a custom model that can't be automatically inferred:
+
+```python
+import controlflow as cf
+
+# note: this is just an example
+llm_model = CustomAnthropicModel()
+
+agent = cf.Agent(
+    model=model,
+    llm_rules=cf.llm.rules.AnthropicRules(model=model)
+)
+```
 
 ### Interactivity
 

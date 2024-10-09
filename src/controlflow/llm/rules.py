@@ -69,7 +69,16 @@ class AnthropicRules(LLMRules):
 def rules_for_model(model: BaseChatModel) -> LLMRules:
     if isinstance(model, (ChatOpenAI, AzureChatOpenAI)):
         return OpenAIRules(model=model)
-    elif isinstance(model, ChatAnthropic):
+    if isinstance(model, ChatAnthropic):
         return AnthropicRules(model=model)
-    else:
-        return LLMRules(model=model)
+
+    try:
+        from langchain_google_vertexai.model_garden import ChatAnthropicVertex
+
+        if isinstance(model, ChatAnthropicVertex):
+            return AnthropicRules(model=model)
+    except ImportError:
+        pass
+
+    # catchall
+    return LLMRules(model=model)
