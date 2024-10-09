@@ -113,19 +113,25 @@ def convert_system_messages(
     messages: list[BaseMessage], rules: LLMRules
 ) -> list[BaseMessage]:
     """
-    Converts system messages to human messages if the LLM doesnt support system messages.
+    Converts system messages to human messages if the LLM doesnt support system
+    messages, either at all or in the first position.
     """
-    if not messages or not rules.require_system_message_first:
-        return messages
-
     new_messages = []
-    for message in messages:
+    for i, message in enumerate(messages):
         if isinstance(message, SystemMessage):
-            new_messages.append(
-                HumanMessage(
-                    content=f"ORCHESTRATOR: {message.content}", name=message.name
+            # If system messages are not supported OR if they must be first and
+            # this is not the first message, THEN convert the message to a human message
+            if not rules.allow_system_messages or (
+                i > 0 and rules.require_system_message_first
+            ):
+                new_messages.append(
+                    HumanMessage(
+                        content=f"ORCHESTRATOR: {message.content}", name=message.name
+                    )
                 )
-            )
+            else:
+                # If the system message is allowed, add it as-is
+                new_messages.append(message)
         else:
             new_messages.append(message)
     return new_messages
@@ -249,7 +255,9 @@ class MessageCompiler:
         messages = break_up_consecutive_ai_messages(messages, rules=context.llm_rules)
         messages = format_message_name(messages, rules=context.llm_rules)
 
+        messages = system_prompt + messages
+
         # this should go last
         messages = convert_system_messages(messages, rules=context.llm_rules)
 
-        return system_prompt + messages
+        return messages

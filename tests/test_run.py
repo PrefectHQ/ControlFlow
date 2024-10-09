@@ -93,7 +93,7 @@ class TestRunUntil:
         task2 = Task("Task 2")
         task3 = Task("Task 3")
 
-        with instructions("fail tasks 1 and 3"):
+        with instructions("fail tasks 1 and 3. Don't work on task 2."):
             run_tasks(
                 [task1, task2, task3],
                 run_until=AnyFailed(min_failed=2),
@@ -157,7 +157,7 @@ class TestRunUntilAsync:
         task2 = Task("Task 2")
         task3 = Task("Task 3")
 
-        with instructions("fail tasks 1 and 3"):
+        with instructions("fail tasks 1 and 3. Don't work on task 2."):
             await run_tasks_async(
                 [task1, task2, task3],
                 run_until=AnyFailed(min_failed=2),
