@@ -4,6 +4,8 @@ description: Control task execution and manage how agents collaborate.
 icon: play
 ---
 
+import { VersionBadge } from "/snippets/version-badge.mdx"
+
 Tasks represent a unit of work that needs to be completed by your agents. To execute that work and retrieve its result, you need to instruct your agents to run the task.
 
 
@@ -354,6 +356,36 @@ A global default can be set with ControlFlow's `task_max_llm_calls` setting.
 <Tip>
 Note that the setting `max_llm_calls` on the task results in the task failing if the limit is reached. Setting `max_llm_calls` on the orchestrator only exits the loop early, but does not otherwise affect task behavior.
 </Tip>
+
+
+#### Early termination conditions
+
+<VersionBadge version="0.11" />
+
+ControlFlow supports more flexible control over when an orchestration run should end through the use of `run_until` conditions. These conditions allow you to specify complex termination logic based on various factors such as task completion, failure, or custom criteria.
+
+To use a run until condition, you can pass it to the `run_until` parameter when calling `run`, `run_async`, `run_tasks`, or `run_tasks_async`. For example, the following tasks will run until either one of them is complete or 10 LLM calls have been made:
+
+```python
+import controlflow as cf
+from controlflow.orchestration.conditions import AnyComplete, MaxLLMCalls
+
+result = cf.run_tasks(
+    tasks=[cf.Task("write a poem about AI"), cf.Task("write a poem about ML")],
+    run_until=AnyComplete() | MaxLLMCalls(10)
+)
+```
+
+(Note that because tasks can be run in parallel, it's possible for both subtasks to be completed.)
+
+Termination conditions can be combined using boolean logic: `|` indicates "or" and `&` indicates "and". A variety of built-in conditions are available:
+
+- `AllComplete()`: stop when all tasks are complete (this is the default behavior)
+- `MaxLLMCalls(n: int)`: stop when `n` LLM calls have been made (equivalent to providing `max_llm_calls`)
+- `MaxAgentTurns(n: int)`: stop when `n` agent turns have been made (equivalent to providing `max_agent_turns`)
+- `AnyComplete(tasks: list[Task], min_complete: int=1)`: stop when at least `min_complete` tasks are complete. If no tasks are provided, all of the orchestrator's tasks will be used.
+- `AnyFailed(tasks: list[Task], min_failed: int=1)`: stop when at least `min_failed` tasks have failed. If no tasks are provided, all of the orchestrator's tasks will be used.
+
 
 
 ### Accessing an orchestrator directly

@@ -76,6 +76,34 @@ class TestRunUntil:
         assert task2.is_incomplete()
         assert task1.is_incomplete()
 
+    def test_min_complete(self):
+        task1 = Task("Task 1")
+        task2 = Task("Task 2")
+        task3 = Task("Task 3")
+
+        with instructions("complete tasks 1 and 2"):
+            run_tasks([task1, task2, task3], run_until=AnyComplete(min_complete=2))
+
+        assert task1.is_complete()
+        assert task2.is_complete()
+        assert task3.is_incomplete()
+
+    def test_min_failed(self):
+        task1 = Task("Task 1")
+        task2 = Task("Task 2")
+        task3 = Task("Task 3")
+
+        with instructions("fail tasks 1 and 3"):
+            run_tasks(
+                [task1, task2, task3],
+                run_until=AnyFailed(min_failed=2),
+                raise_on_failure=False,
+            )
+
+        assert task1.is_failed()
+        assert task2.is_incomplete()
+        assert task3.is_failed()
+
 
 class TestRunUntilAsync:
     async def test_any_complete(self):
@@ -109,3 +137,33 @@ class TestRunUntilAsync:
 
         assert task2.is_incomplete()
         assert task1.is_incomplete()
+
+    async def test_min_complete(self):
+        task1 = Task("Task 1")
+        task2 = Task("Task 2")
+        task3 = Task("Task 3")
+
+        with instructions("complete tasks 1 and 2"):
+            await run_tasks_async(
+                [task1, task2, task3], run_until=AnyComplete(min_complete=2)
+            )
+
+        assert task1.is_complete()
+        assert task2.is_complete()
+        assert task3.is_incomplete()
+
+    async def test_min_failed(self):
+        task1 = Task("Task 1")
+        task2 = Task("Task 2")
+        task3 = Task("Task 3")
+
+        with instructions("fail tasks 1 and 3"):
+            await run_tasks_async(
+                [task1, task2, task3],
+                run_until=AnyFailed(min_failed=2),
+                raise_on_failure=False,
+            )
+
+        assert task1.is_failed()
+        assert task2.is_incomplete()
+        assert task3.is_failed()

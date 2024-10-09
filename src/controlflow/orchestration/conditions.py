@@ -113,24 +113,30 @@ class AllComplete(RunEndCondition):
 
 
 class AnyComplete(RunEndCondition):
-    def __init__(self, tasks: Optional[list[Task]] = None):
+    def __init__(self, tasks: Optional[list[Task]] = None, min_complete: int = 1):
         self.tasks = tasks
+        if min_complete < 1:
+            raise ValueError("min_complete must be at least 1")
+        self.min_complete = min_complete
 
     def should_end(self, context: RunContext) -> bool:
         tasks = self.tasks if self.tasks is not None else context.orchestrator.tasks
-        result = any(t.is_complete() for t in tasks)
+        result = sum(t.is_complete() for t in tasks) >= self.min_complete
         if result:
             logger.debug("At least one task is complete; ending run.")
         return result
 
 
 class AnyFailed(RunEndCondition):
-    def __init__(self, tasks: Optional[list[Task]] = None):
+    def __init__(self, tasks: Optional[list[Task]] = None, min_failed: int = 1):
         self.tasks = tasks
+        if min_failed < 1:
+            raise ValueError("min_failed must be at least 1")
+        self.min_failed = min_failed
 
     def should_end(self, context: RunContext) -> bool:
         tasks = self.tasks if self.tasks is not None else context.orchestrator.tasks
-        result = any(t.is_failed() for t in tasks)
+        result = sum(t.is_failed() for t in tasks) >= self.min_failed
         if result:
             logger.debug("At least one task has failed; ending run.")
         return result

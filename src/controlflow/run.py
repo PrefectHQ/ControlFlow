@@ -2,6 +2,7 @@ from typing import Any, Callable, Optional, Union
 
 from prefect.context import TaskRunContext
 
+import controlflow
 from controlflow.agents.agent import Agent
 from controlflow.flows import Flow, get_flow
 from controlflow.orchestration.conditions import RunContext, RunEndCondition
@@ -21,6 +22,7 @@ def get_task_run_name() -> str:
 @prefect_task(task_run_name=get_task_run_name)
 def run_tasks(
     tasks: list[Task],
+    instructions: str = None,
     flow: Flow = None,
     agent: Agent = None,
     turn_strategy: TurnStrategy = None,
@@ -45,12 +47,14 @@ def run_tasks(
         turn_strategy=turn_strategy,
         handlers=handlers,
     )
-    orchestrator.run(
-        max_llm_calls=max_llm_calls,
-        max_agent_turns=max_agent_turns,
-        model_kwargs=model_kwargs,
-        run_until=run_until,
-    )
+
+    with controlflow.instructions(instructions):
+        orchestrator.run(
+            max_llm_calls=max_llm_calls,
+            max_agent_turns=max_agent_turns,
+            model_kwargs=model_kwargs,
+            run_until=run_until,
+        )
 
     if raise_on_failure and any(t.is_failed() for t in tasks):
         errors = [f"- {t.friendly_name()}: {t.result}" for t in tasks if t.is_failed()]
@@ -66,6 +70,7 @@ def run_tasks(
 @prefect_task(task_run_name=get_task_run_name)
 async def run_tasks_async(
     tasks: list[Task],
+    instructions: str = None,
     flow: Flow = None,
     agent: Agent = None,
     turn_strategy: TurnStrategy = None,
@@ -87,12 +92,14 @@ async def run_tasks_async(
         turn_strategy=turn_strategy,
         handlers=handlers,
     )
-    await orchestrator.run_async(
-        max_llm_calls=max_llm_calls,
-        max_agent_turns=max_agent_turns,
-        model_kwargs=model_kwargs,
-        run_until=run_until,
-    )
+
+    with controlflow.instructions(instructions):
+        await orchestrator.run_async(
+            max_llm_calls=max_llm_calls,
+            max_agent_turns=max_agent_turns,
+            model_kwargs=model_kwargs,
+            run_until=run_until,
+        )
 
     if raise_on_failure and any(t.is_failed() for t in tasks):
         errors = [f"- {t.friendly_name()}: {t.result}" for t in tasks if t.is_failed()]
