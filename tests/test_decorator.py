@@ -103,6 +103,33 @@ class TestFlowDecorator:
         result = partial_flow()
         assert result == 10
 
+    def test_flow_decorator_with_context_kwargs(self):
+        @controlflow.flow(context_kwargs=["x", "z"])
+        def flow_with_context(x: int, y: int, z: str):
+            flow = controlflow.flows.get_flow()
+            return flow.context
+
+        result = flow_with_context(1, 2, "test")
+        assert result == {"x": 1, "z": "test"}
+
+    def test_flow_decorator_without_context_kwargs(self):
+        @controlflow.flow
+        def flow_without_context(x: int, y: int, z: str):
+            flow = controlflow.flows.get_flow()
+            return flow.context
+
+        result = flow_without_context(1, 2, "test")
+        assert result == {}
+
+    async def test_async_flow_decorator_with_context_kwargs(self):
+        @controlflow.flow(context_kwargs=["a", "b"])
+        async def async_flow_with_context(a: int, b: str, c: float):
+            flow = controlflow.flows.get_flow()
+            return flow.context
+
+        result = await async_flow_with_context(10, "hello", 3.14)
+        assert result == {"a": 10, "b": "hello"}
+
 
 class TestTaskDecorator:
     def test_task_decorator_sync_as_task(self):
