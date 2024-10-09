@@ -141,18 +141,6 @@ class Settings(ControlFlowSettings):
         alias="PREFECT_LOGGING_LEVEL",
     )
 
-    prefect_api_url: Optional[str] = Field(
-        default=None,
-        description="The URL for the Prefect API. Leave unset to use an ephemeral API.",
-        alias="PREFECT_API_URL",
-    )
-
-    prefect_server_allow_ephemeral_mode: bool = Field(
-        default=True,
-        description="If True, ephemeral mode will be allowed for Prefect Server.",
-        alias="PREFECT_SERVER_ALLOW_EPHEMERAL_MODE",
-    )
-
     _prefect_context: contextmanager = None
 
     @field_validator("home_path", mode="before")
@@ -181,8 +169,6 @@ class Settings(ControlFlowSettings):
 
         settings_map = {
             "prefect_log_level": prefect.settings.PREFECT_LOGGING_LEVEL,
-            "prefect_api_url": prefect.settings.PREFECT_API_URL,
-            "prefect_server_allow_ephemeral_mode": prefect.settings.PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
         }
 
         prefect_settings = {}
