@@ -21,12 +21,12 @@ def flow(
     thread: Optional[str] = None,
     instructions: Optional[str] = None,
     tools: Optional[list[Callable[..., Any]]] = None,
-    default_agent: Optional[Agent] = None,  # Changed from 'agents'
+    default_agent: Optional[Agent] = None,
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[float, int]] = None,
     timeout_seconds: Optional[Union[float, int]] = None,
     prefect_kwargs: Optional[dict[str, Any]] = None,
-    args_as_context: Optional[bool] = True,
+    context_kwargs: Optional[list[str]] = None,
     **kwargs: Optional[dict[str, Any]],
 ):
     """
@@ -46,67 +46,69 @@ def flow(
         instructions (str, optional): Instructions for the flow. Defaults to None.
         tools (list[Callable], optional): List of tools to be used in the flow. Defaults to None.
         default_agent (Agent, optional): The default agent to be used in the flow. Defaults to None.
-        args_as_context (bool, optional): Whether to pass the arguments as context to the flow. Defaults to True.
+        context_kwargs (list[str], optional): List of argument names to be added to the flow context.
+            Defaults to None.
     Returns:
         callable: The wrapped function or a new flow decorator if `fn` is not provided.
     """
-    ...
-
     if fn is None:
         return functools.partial(
             flow,
             thread=thread,
             instructions=instructions,
             tools=tools,
-            default_agent=default_agent,  # Changed from 'agents'
+            default_agent=default_agent,
             retries=retries,
             retry_delay_seconds=retry_delay_seconds,
             timeout_seconds=timeout_seconds,
-            args_as_context=args_as_context,
+            context_kwargs=context_kwargs,
             **kwargs,
         )
 
     sig = inspect.signature(fn)
 
-    def _inner_wrapper(*wrapper_args, flow_kwargs: dict = None, **wrapper_kwargs):
-        # first process callargs
-        bound = sig.bind(*wrapper_args, **wrapper_kwargs)
-        bound.apply_defaults()
-
-        flow_kwargs = kwargs | (flow_kwargs or {})
-
+    def create_flow_context(bound_args):
+        flow_kwargs = kwargs.copy()
         if thread is not None:
             flow_kwargs.setdefault("thread_id", thread)
         if tools is not None:
             flow_kwargs.setdefault("tools", tools)
-        if default_agent is not None:  # Changed from 'agents'
-            flow_kwargs.setdefault(
-                "default_agent", default_agent
-            )  # Changed from 'agents'
+        if default_agent is not None:
+            flow_kwargs.setdefault("default_agent", default_agent)
 
-        context = bound.arguments if args_as_context else {}
+        context = {}
+        if context_kwargs:
+            context = {k: bound_args[k] for k in context_kwargs if k in bound_args}
 
-        with (
-            Flow(
-                name=fn.__name__,
-                description=fn.__doc__,
-                context=context,
-                **flow_kwargs,
-            ),
-            controlflow.instructions(instructions),
-        ):
-            return fn(*wrapper_args, **wrapper_kwargs)
+        return Flow(
+            name=fn.__name__,
+            description=fn.__doc__,
+            context=context,
+            **flow_kwargs,
+        )
 
     if asyncio.iscoroutinefunction(fn):
 
         @functools.wraps(fn)
         async def wrapper(*wrapper_args, **wrapper_kwargs):
-            return await _inner_wrapper(*wrapper_args, **wrapper_kwargs)
+            bound = sig.bind(*wrapper_args, **wrapper_kwargs)
+            bound.apply_defaults()
+            with (
+                create_flow_context(bound.arguments),
+                controlflow.instructions(instructions),
+            ):
+                return await fn(*wrapper_args, **wrapper_kwargs)
     else:
 
         @functools.wraps(fn)
         def wrapper(*wrapper_args, **wrapper_kwargs):
-            return _inner_wrapper(*wrapper_args, **wrapper_kwargs)
+            bound = sig.bind(*wrapper_args, **wrapper_kwargs)
+            bound.apply_defaults()
+            with (
+                create_flow_context(bound.arguments),
+                controlflow.instructions(instructions),
+            ):
+                return fn(*wrapper_args, **wrapper_kwargs)
 
     wrapper = prefect_flow(
         timeout_seconds=timeout_seconds,
