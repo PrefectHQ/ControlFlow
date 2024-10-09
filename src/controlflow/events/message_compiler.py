@@ -113,14 +113,14 @@ def convert_system_messages(
     messages: list[BaseMessage], rules: LLMRules
 ) -> list[BaseMessage]:
     """
-    Converts system messages to human messages if the LLM doesnt support system messages, either at all or in the first position.
+    Converts system messages to human messages if the LLM doesnt support system
+    messages, either at all or in the first position.
     """
-
     new_messages = []
     for i, message in enumerate(messages):
         if isinstance(message, SystemMessage):
-            # if system messages are not supported OR if they must be first and this is not the first message
-            # THEN convert the message to a human message
+            # If system messages are not supported OR if they must be first and
+            # this is not the first message, THEN convert the message to a human message
             if not rules.allow_system_messages or (
                 i > 0 and rules.require_system_message_first
             ):
@@ -129,6 +129,9 @@ def convert_system_messages(
                         content=f"ORCHESTRATOR: {message.content}", name=message.name
                     )
                 )
+            else:
+                # If the system message is allowed, add it as-is
+                new_messages.append(message)
         else:
             new_messages.append(message)
     return new_messages
