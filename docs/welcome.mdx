@@ -132,7 +132,7 @@ import random
 
 def roll_dice(num_dice: int) -> list[int]:
     """Roll multiple dice and return the results."""
-    return [random.randint(1, 6) for * in range(num_dice)]
+    return [random.randint(1, 6) for _ in range(num_dice)]
 
 result = cf.run("Roll 3 dice and return the results", tools=[roll_dice])
 
