@@ -5,8 +5,7 @@ from typing import Literal
 import httpx
 from langchain_google_community import GoogleSearchAPIWrapper
 from raggy.vectorstores.chroma import query_collection
-
-from .settings import settings
+from settings import settings
 
 
 def convert_md_links_to_slack(text) -> str:

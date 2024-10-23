@@ -1,20 +1,19 @@
 import asyncio
 from typing import Any
 
+from custom_types import SlackPayload
 from fastapi import FastAPI, Request
+from moderation import moderate_event
 from prefect import flow, task
-
-from controlflow import Agent, Memory
-from controlflow import run as run_ai
-
-from .moderation import moderate_event
-from .settings import settings
-from .tools import (
+from settings import settings
+from tools import (
     post_slack_message,
     search_internet,
     search_knowledge_base,
 )
-from .types import SlackPayload
+
+from controlflow import Agent, Memory
+from controlflow import run as run_ai
 
 app = FastAPI()
 
@@ -22,7 +21,11 @@ app = FastAPI()
 ## agent
 agent = Agent(
     name="Marvin (from Hitchhiker's Guide to the Galaxy)",
-    instructions="Use tools to assist users with their Prefect inquiries.",
+    instructions=(
+        "Use tools to assist with Prefect inquiries. "
+        "You should assume all your inherent knowledge is out of date, "
+        "so use the search tools to find the most up-to-date information. "
+    ),
     tools=[search_knowledge_base, search_internet],
 )
 
@@ -67,4 +70,7 @@ async def handle_events(request: Request):
         return {"message": "Unknown event type"}
 
 
-# Run with: uvicorn main:app --reload
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

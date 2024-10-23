@@ -1,10 +1,12 @@
 from typing import Annotated, TypedDict
 
 import marvin
+from custom_types import SlackEvent
 from prefect.events import emit_event
+from prefect.logging import get_logger
 from pydantic import Field
 
-from .types import SlackEvent
+logger = get_logger(__name__)
 
 Activation = Annotated[float, Field(ge=0, le=1)]
 
@@ -54,6 +56,8 @@ def moderate_event(event: SlackEvent) -> tuple[str, ...]:
         event.model_dump_json(include={"type", "text", "user", "channel"}),
         ViolationActivation,
     )
+
+    logger.info("Moderation activation: %s", activation)
 
     emit_moderated_event(event, activation)
 
