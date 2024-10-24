@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: slackbot-config
+data:
+  OPENAI_API_KEY: ${OPENAI_API_KEY}
+  PREFECT_API_KEY: ${PREFECT_API_KEY}
+  NEO4J_URI: ${NEO4J_URI}
+  NEO4J_USERNAME: ${NEO4J_USERNAME}
+  NEO4J_PASSWORD: ${NEO4J_PASSWORD}

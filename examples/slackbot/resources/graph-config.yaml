@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: neo4j-config
+data:
+  NEO4J_server_memory_heap_initial__size: "512m"
+  NEO4J_server_memory_heap_max__size: "512m"
+  NEO4J_server_memory_pagecache_size: "256m"
