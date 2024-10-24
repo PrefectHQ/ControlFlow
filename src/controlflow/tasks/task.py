@@ -29,6 +29,7 @@ from pydantic import (
     field_serializer,
     field_validator,
 )
+from pydantic_extra_types.pendulum_dt import DateTime
 from typing_extensions import Self
 
 import controlflow
@@ -173,7 +174,7 @@ class Task(ControlFlowModel):
         "The total calls are measured over the life of the task, and include any LLM call for "
         "which this task is considered `assigned`.",
     )
-    created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    created_at: DateTime = Field(default_factory=datetime.datetime.now)
     wait_for_subtasks: bool = Field(
         default=True,
         description="If True, the task will not be considered ready until all subtasks are complete.",

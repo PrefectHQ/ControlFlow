@@ -55,7 +55,7 @@ def search_internet(query: str) -> str:
 
 
 async def search_knowledge_base(query: str, domain: Literal["docs"]) -> str:
-    """Search the knowledge base for information relevant to the query."""
+    """Search documentation for information relevant to the query."""
     return await query_collection(
         query_text=query,
         collection_name=domain,

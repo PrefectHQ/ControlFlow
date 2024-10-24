@@ -289,7 +289,9 @@ class Agent(ControlFlowModel, abc.ABC):
         tools = as_tools(self.get_tools() + tools)
         model = self.get_model(tools=tools)
 
-        logger.debug(f"Running model {model} for agent {self.name} with tools {tools}")
+        logger.debug(
+            f"Running model {controlflow.settings.llm_model} for agent {self.name} with tools {[t.name for t in tools]!r}"
+        )
         if controlflow.settings.log_all_messages:
             logger.debug(f"Input messages: {messages}")
 
@@ -346,7 +348,9 @@ class Agent(ControlFlowModel, abc.ABC):
         tools = as_tools(self.get_tools() + tools)
         model = self.get_model(tools=tools)
 
-        logger.debug(f"Running model {model} for agent {self.name} with tools {tools}")
+        logger.debug(
+            f"Running model {controlflow.settings.llm_model} for agent {self.name} with tools {[t.name for t in tools]!r}"
+        )
         if controlflow.settings.log_all_messages:
             logger.debug(f"Input messages: {messages}")
 

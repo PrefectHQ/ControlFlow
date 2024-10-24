@@ -1,9 +1,9 @@
 import uuid
-from contextlib import contextmanager, nullcontext
-from typing import TYPE_CHECKING, Any, Callable, Generator, Optional, Union
+from contextlib import AbstractContextManager, contextmanager, nullcontext
+from typing import Any, Callable, Generator, Optional, Union
 
 from prefect.context import FlowRunContext
-from pydantic import Field, field_validator
+from pydantic import ConfigDict, Field, PrivateAttr, field_validator
 from typing_extensions import Self
 
 import controlflow
@@ -15,14 +15,12 @@ from controlflow.utilities.general import ControlFlowModel, unwrap
 from controlflow.utilities.logging import get_logger
 from controlflow.utilities.prefect import prefect_flow_context
 
-if TYPE_CHECKING:
-    pass
-
 logger = get_logger(__name__)
 
 
 class Flow(ControlFlowModel):
-    model_config = dict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     thread_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     name: Optional[str] = None
     description: Optional[str] = None
@@ -35,25 +33,31 @@ class Flow(ControlFlowModel):
         description="Tools that will be available to every agent in the flow",
     )
     default_agent: Optional[Agent] = Field(
-        None,
-        description="The default agent for the flow. This agent will be used "
-        "for any task that does not specify an agent.",
+        default=None,
+        description=(
+            "The default agent for the flow. This agent will be used "
+            "for any task that does not specify an agent."
+        ),
     )
     prompt: Optional[str] = Field(
-        None, description="A prompt to display to the agent working on the flow."
+        default=None,
+        description="A prompt to display to the agent working on the flow.",
     )
     parent: Optional["Flow"] = Field(
-        None,
+        default_factory=lambda: get_flow(),
         description="The parent flow. This is the flow that created this flow.",
     )
     load_parent_events: bool = Field(
-        True,
-        description="Whether to load events from the parent flow. If a flow is nested, "
-        "this will load events from the parent flow so that the child flow can "
-        "access the full conversation history, even though the child flow is a separate thread.",
+        default=True,
+        description=(
+            "Whether to load events from the parent flow. If a flow is nested, "
+            "this will load events from the parent flow so that the child flow can "
+            "access the full conversation history, even though the child flow is a separate thread."
+        ),
     )
     context: dict[str, Any] = {}
-    _cm_stack: list[contextmanager] = []
+
+    _cm_stack: list[AbstractContextManager] = PrivateAttr(default_factory=list)
 
     def __enter__(self) -> Self:
         # use stack so we can enter the context multiple times
@@ -64,11 +68,6 @@ class Flow(ControlFlowModel):
     def __exit__(self, *exc_info):
         # exit the context manager
         return self._cm_stack.pop().__exit__(*exc_info)
-
-    def __init__(self, **kwargs):
-        if kwargs.get("parent") is None:
-            kwargs["parent"] = get_flow()
-        super().__init__(**kwargs)
 
     @field_validator("description")
     def _validate_description(cls, v):
@@ -139,7 +138,7 @@ def get_flow() -> Optional[Flow]:
     return flow
 
 
-def get_flow_events(limit: int = None) -> list[Event]:
+def get_flow_events(limit: Optional[int] = None) -> list[Event]:
     """
     Loads events from the active flow's thread.
     """
