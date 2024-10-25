@@ -50,7 +50,7 @@ class TestRunUntil:
         task1 = Task("Task 1")
         task2 = Task("Task 2")
 
-        with instructions("complete task 2"):
+        with instructions("complete only task 2"):
             run_tasks([task1, task2], run_until=AnyComplete())
 
         assert task2.is_complete()
@@ -60,7 +60,7 @@ class TestRunUntil:
         task1 = Task("Task 1")
         task2 = Task("Task 2")
 
-        with instructions("fail task 2"):
+        with instructions("fail only task 2"):
             run_tasks([task1, task2], run_until=AnyFailed(), raise_on_failure=False)
 
         assert task2.is_failed()
