@@ -50,7 +50,7 @@ from controlflow.utilities.prefect import prefect_task as prefect_task
 
 if TYPE_CHECKING:
     from controlflow.flows import Flow
-    from controlflow.orchestration.handler import Handler
+    from controlflow.orchestration.handler import AsyncHandler, Handler
     from controlflow.orchestration.turn_strategies import TurnStrategy
 
 T = TypeVar("T")
@@ -430,7 +430,7 @@ class Task(ControlFlowModel):
         turn_strategy: "TurnStrategy" = None,
         max_llm_calls: int = None,
         max_agent_turns: int = None,
-        handlers: list["Handler"] = None,
+        handlers: list[Union["Handler", "AsyncHandler"]] = None,
         raise_on_failure: bool = True,
     ) -> T:
         """

@@ -20,7 +20,7 @@ from controlflow.orchestration.conditions import (
     RunContext,
     RunEndCondition,
 )
-from controlflow.orchestration.handler import Handler
+from controlflow.orchestration.handler import AsyncHandler, Handler
 from controlflow.orchestration.turn_strategies import Popcorn, TurnStrategy
 from controlflow.tasks.task import Task
 from controlflow.tools.tools import Tool, as_tools
@@ -51,7 +51,7 @@ class Orchestrator(ControlFlowModel):
         description="The strategy to use for managing agent turns",
         validate_default=True,
     )
-    handlers: list[Handler] = Field(None, validate_default=True)
+    handlers: list[Union[Handler, AsyncHandler]] = Field(None, validate_default=True)
 
     @field_validator("turn_strategy", mode="before")
     def _validate_turn_strategy(cls, v):
@@ -86,7 +86,25 @@ class Orchestrator(ControlFlowModel):
         if not isinstance(event, AgentMessageDelta):
             logger.debug(f"Handling event: {repr(event)}")
         for handler in self.handlers:
-            handler.handle(event)
+            if isinstance(handler, Handler):
+                handler.handle(event)
+        if event.persist:
+            self.flow.add_events([event])
+
+    async def handle_event_async(self, event: Event):
+        """
+        Handle an event asynchronously by passing it to all handlers and persisting if necessary.
+
+        Args:
+            event (Event): The event to handle.
+        """
+        if not isinstance(event, AgentMessageDelta):
+            logger.debug(f"Handling event asynchronously: {repr(event)}")
+        for handler in self.handlers:
+            if isinstance(handler, AsyncHandler):
+                await handler.handle(event)
+            elif isinstance(handler, Handler):
+                handler.handle(event)
         if event.persist:
             self.flow.add_events([event])
 
@@ -264,17 +282,16 @@ class Orchestrator(ControlFlowModel):
             )
 
         # Signal the start of orchestration
-        self.handle_event(
+        await self.handle_event_async(
             controlflow.events.orchestrator_events.OrchestratorStart(orchestrator=self)
         )
 
         try:
             while True:
-                # Check termination condition
                 if run_context.should_end():
                     break
 
-                self.handle_event(
+                await self.handle_event_async(
                     controlflow.events.orchestrator_events.AgentTurnStart(
                         orchestrator=self, agent=self.agent
                     )
@@ -283,7 +300,7 @@ class Orchestrator(ControlFlowModel):
                     run_context=run_context,
                     model_kwargs=model_kwargs,
                 )
-                self.handle_event(
+                await self.handle_event_async(
                     controlflow.events.orchestrator_events.AgentTurnEnd(
                         orchestrator=self, agent=self.agent
                     )
@@ -297,7 +314,7 @@ class Orchestrator(ControlFlowModel):
 
         except Exception as exc:
             # Handle any exceptions that occur during orchestration
-            self.handle_event(
+            await self.handle_event_async(
                 controlflow.events.orchestrator_events.OrchestratorError(
                     orchestrator=self, error=exc
                 )
@@ -305,7 +322,7 @@ class Orchestrator(ControlFlowModel):
             raise
         finally:
             # Signal the end of orchestration
-            self.handle_event(
+            await self.handle_event_async(
                 controlflow.events.orchestrator_events.OrchestratorEnd(
                     orchestrator=self
                 )
@@ -389,7 +406,7 @@ class Orchestrator(ControlFlowModel):
         for task in assigned_tasks:
             if not task.is_running():
                 task.mark_running()
-                self.handle_event(
+                await self.handle_event_async(
                     OrchestratorMessage(
                         content=f"Starting task {task.name} (ID {task.id}) "
                         f"with objective: {task.objective}"
@@ -418,7 +435,7 @@ class Orchestrator(ControlFlowModel):
                 tools=tools,
                 model_kwargs=model_kwargs,
             ):
-                self.handle_event(event)
+                await self.handle_event_async(event)
 
             run_context.llm_calls += 1
             for task in assigned_tasks:

@@ -3,12 +3,12 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from pydantic import BaseModel, field_validator
 
-from controlflow.tasks.task import Task
 from controlflow.utilities.general import ControlFlowModel
 from controlflow.utilities.logging import get_logger
 
 if TYPE_CHECKING:
     from controlflow.orchestration.orchestrator import Orchestrator
+    from controlflow.tasks.task import Task
 
 logger = get_logger(__name__)
 
@@ -101,7 +101,7 @@ class AND_(RunEndCondition):
 
 
 class AllComplete(RunEndCondition):
-    def __init__(self, tasks: Optional[list[Task]] = None):
+    def __init__(self, tasks: Optional[list["Task"]] = None):
         self.tasks = tasks
 
     def should_end(self, context: RunContext) -> bool:
@@ -113,7 +113,7 @@ class AllComplete(RunEndCondition):
 
 
 class AnyComplete(RunEndCondition):
-    def __init__(self, tasks: Optional[list[Task]] = None, min_complete: int = 1):
+    def __init__(self, tasks: Optional[list["Task"]] = None, min_complete: int = 1):
         self.tasks = tasks
         if min_complete < 1:
             raise ValueError("min_complete must be at least 1")
@@ -128,7 +128,7 @@ class AnyComplete(RunEndCondition):
 
 
 class AnyFailed(RunEndCondition):
-    def __init__(self, tasks: Optional[list[Task]] = None, min_failed: int = 1):
+    def __init__(self, tasks: Optional[list["Task"]] = None, min_failed: int = 1):
         self.tasks = tasks
         if min_failed < 1:
             raise ValueError("min_failed must be at least 1")

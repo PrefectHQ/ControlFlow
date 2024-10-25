@@ -36,7 +36,7 @@ from controlflow.utilities.general import ControlFlowModel, hash_objects, unwrap
 from controlflow.utilities.prefect import create_markdown_artifact, prefect_task
 
 if TYPE_CHECKING:
-    from controlflow.orchestration.handler import Handler
+    from controlflow.orchestration.handler import AsyncHandler, Handler
     from controlflow.orchestration.turn_strategies import TurnStrategy
     from controlflow.tasks import Task
     from controlflow.tools.tools import Tool
@@ -229,7 +229,7 @@ class Agent(ControlFlowModel, abc.ABC):
         objective: str,
         *,
         turn_strategy: "TurnStrategy" = None,
-        handlers: list["Handler"] = None,
+        handlers: list[Union["Handler", "AsyncHandler"]] = None,
         **task_kwargs,
     ):
         return await controlflow.run_async(
