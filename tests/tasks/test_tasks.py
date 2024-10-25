@@ -10,7 +10,7 @@ from controlflow.events.base import Event
 from controlflow.events.events import AgentMessage
 from controlflow.flows import Flow
 from controlflow.instructions import instructions
-from controlflow.orchestration.handler import Handler
+from controlflow.orchestration.handler import AsyncHandler, Handler
 from controlflow.tasks.task import (
     COMPLETE_STATUSES,
     INCOMPLETE_STATUSES,
@@ -535,6 +535,17 @@ class TestHandlers:
         def on_agent_message(self, event: AgentMessage):
             self.agent_messages.append(event)
 
+    class AsyncExampleHandler(AsyncHandler):
+        def __init__(self):
+            self.events = []
+            self.agent_messages = []
+
+        async def on_event(self, event: Event):
+            self.events.append(event)
+
+        async def on_agent_message(self, event: AgentMessage):
+            self.agent_messages.append(event)
+
     def test_task_run_with_handlers(self, default_fake_llm):
         handler = self.ExampleHandler()
         task = Task(objective="Calculate 2 + 2", result_type=int)
@@ -545,6 +556,14 @@ class TestHandlers:
 
     async def test_task_run_async_with_handlers(self, default_fake_llm):
         handler = self.ExampleHandler()
+        task = Task(objective="Calculate 2 + 2", result_type=int)
+        await task.run_async(handlers=[handler], max_llm_calls=1)
+
+        assert len(handler.events) > 0
+        assert len(handler.agent_messages) == 1
+
+    async def test_task_run_async_with_async_handlers(self, default_fake_llm):
+        handler = self.AsyncExampleHandler()
         task = Task(objective="Calculate 2 + 2", result_type=int)
         await task.run_async(handlers=[handler], max_llm_calls=1)
 

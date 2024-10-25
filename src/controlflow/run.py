@@ -6,7 +6,7 @@ import controlflow
 from controlflow.agents.agent import Agent
 from controlflow.flows import Flow, get_flow
 from controlflow.orchestration.conditions import RunContext, RunEndCondition
-from controlflow.orchestration.handler import Handler
+from controlflow.orchestration.handler import AsyncHandler, Handler
 from controlflow.orchestration.orchestrator import Orchestrator, TurnStrategy
 from controlflow.tasks.task import Task
 from controlflow.utilities.prefect import prefect_task
@@ -77,7 +77,7 @@ async def run_tasks_async(
     raise_on_failure: bool = True,
     max_llm_calls: int = None,
     max_agent_turns: int = None,
-    handlers: list[Handler] = None,
+    handlers: list[Union[Handler, AsyncHandler]] = None,
     model_kwargs: Optional[dict] = None,
     run_until: Optional[Union[RunEndCondition, Callable[[RunContext], bool]]] = None,
 ):
@@ -147,7 +147,7 @@ async def run_async(
     max_llm_calls: int = None,
     max_agent_turns: int = None,
     raise_on_failure: bool = True,
-    handlers: list[Handler] = None,
+    handlers: list[Union[Handler, AsyncHandler]] = None,
     model_kwargs: Optional[dict] = None,
     run_until: Optional[Union[RunEndCondition, Callable[[RunContext], bool]]] = None,
     **task_kwargs,
