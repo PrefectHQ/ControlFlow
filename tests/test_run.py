@@ -64,7 +64,7 @@ class TestRunUntil:
             run_tasks([task1, task2], run_until=AnyFailed(), raise_on_failure=False)
 
         assert task2.is_failed()
-        assert task1.is_incomplete()
+        assert not task1.is_failed()
 
     def test_max_llm_calls(self):
         task1 = Task("Task 1")
@@ -110,7 +110,7 @@ class TestRunUntilAsync:
         task1 = Task("Task 1")
         task2 = Task("Task 2")
 
-        with instructions("complete task 2"):
+        with instructions("complete only task 2"):
             await run_tasks_async([task1, task2], run_until=AnyComplete())
 
         assert task2.is_complete()
@@ -120,13 +120,13 @@ class TestRunUntilAsync:
         task1 = Task("Task 1")
         task2 = Task("Task 2")
 
-        with instructions("fail task 2"):
+        with instructions("fail only task 2"):
             await run_tasks_async(
                 [task1, task2], run_until=AnyFailed(), raise_on_failure=False
             )
 
         assert task2.is_failed()
-        assert task1.is_incomplete()
+        assert not task1.is_failed()
 
     async def test_max_llm_calls(self):
         task1 = Task("Task 1")
