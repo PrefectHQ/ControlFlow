@@ -1,8 +1,12 @@
+import threading
+
+import pytest
+
 from controlflow.events.events import UserMessage
 from controlflow.events.history import FileHistory
 from controlflow.flows import Flow
-import threading
-import pytest
+
+
 class TestFileHistory:
     def test_write_to_thread_id_file(self, tmp_path):
         h = FileHistory(base_path=tmp_path)
@@ -45,6 +49,7 @@ class TestFileHistory:
 
         h.add_events(thread_id, [event])
         assert (tmp_path / "subdir" / f"{thread_id}.json").exists()
+
     def test_add_none_event(self, tmp_path):
         """Test adding a None event should raise a ValueError"""
         h = FileHistory(base_path=tmp_path)
@@ -92,7 +97,7 @@ class TestFileHistoryFlow:
         assert len(f1.get_events()) == 1
         assert len(f2.get_events()) == 0
         assert len(f3.get_events()) == 1
-        
+
     def test_concurrent_access(self, tmp_path):
         """Test concurrent access to the same thread file"""
         f1 = Flow(thread_id="abc", history=FileHistory(base_path=tmp_path))
