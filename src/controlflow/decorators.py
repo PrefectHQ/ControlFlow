@@ -3,6 +3,8 @@ import functools
 import inspect
 from typing import Any, Callable, Optional, Union
 
+from prefect.utilities.asyncutils import run_coro_as_sync
+
 import controlflow
 from controlflow.agents import Agent
 from controlflow.flows import Flow
@@ -187,7 +189,11 @@ def task(
         context = bound.arguments.copy()
 
         # call the function to see if it produces an updated objective
-        result = fn(*args, **kwargs)
+        maybe_coro = fn(*args, **kwargs)
+        if asyncio.iscoroutine(maybe_coro):
+            result = run_coro_as_sync(maybe_coro)
+        else:
+            result = maybe_coro
         if result is not None:
             context["Additional context"] = result
 

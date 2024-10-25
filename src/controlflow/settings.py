@@ -92,14 +92,17 @@ class Settings(ControlFlowSettings):
 
     chroma_cloud_tenant: Optional[str] = Field(
         None,
+        alias="CHROMA_CLOUD_TENANT",
         description="The tenant for Chroma Cloud.",
     )
     chroma_cloud_database: Optional[str] = Field(
         None,
+        alias="CHROMA_CLOUD_DATABASE",
         description="The database for Chroma Cloud.",
     )
     chroma_cloud_api_key: Optional[str] = Field(
         None,
+        alias="CHROMA_CLOUD_API_KEY",
         description="The API key for Chroma Cloud.",
     )
 

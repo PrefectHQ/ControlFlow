@@ -7,6 +7,9 @@ from pydantic import Field, field_validator, model_validator
 import controlflow
 from controlflow.tools.tools import Tool
 from controlflow.utilities.general import ControlFlowModel, unwrap
+from controlflow.utilities.logging import get_logger
+
+logger = get_logger("controlflow.memory")
 
 
 def sanitize_memory_key(key: str) -> str:
@@ -128,6 +131,8 @@ class Memory(ControlFlowModel):
 
 
 def get_memory_provider(provider: str) -> MemoryProvider:
+    logger.debug(f"Loading memory provider: {provider}")
+
     # --- CHROMA ---
 
     if provider.startswith("chroma"):

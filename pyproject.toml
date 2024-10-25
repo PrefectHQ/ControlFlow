@@ -121,3 +121,8 @@ env = [
     'D:CONTROLFLOW_LOG_LEVEL=DEBUG',
     'D:PREFECT_LOGGING_LEVEL=DEBUG',
 ]
+filterwarnings = [
+    "ignore:Type google\\._upb\\._message\\.MessageMapContainer uses PyType_Spec:DeprecationWarning",
+    "ignore:Type google\\._upb\\._message\\.ScalarMapContainer uses PyType_Spec:DeprecationWarning",
+    "ignore:datetime.datetime.utcfromtimestamp\\(\\) is deprecated:DeprecationWarning",
+]
