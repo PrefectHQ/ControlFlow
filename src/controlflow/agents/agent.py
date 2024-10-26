@@ -97,37 +97,28 @@ class Agent(ControlFlowModel, abc.ABC):
 
     _cm_stack: list[AbstractContextManager] = PrivateAttr(default_factory=list)
 
-    @model_validator(mode="before")
-    def handle_positional_arg(cls, v):
-        if isinstance(v, str):
-            return {"instructions": v}
-        return v
+    def __init__(self, instructions: Optional[str] = None, **kwargs):
+        if instructions is not None:
+            kwargs["instructions"] = instructions
 
-    @model_validator(mode="before")
-    @classmethod
-    def emit_deprecation_warnings(cls, v):
         # deprecated in 0.9
-        if "user_access" in v:
+        if "user_access" in kwargs:
             warnings.warn(
                 "The `user_access` argument is deprecated. Use `interactive=True` instead.",
                 DeprecationWarning,
             )
-            v["interactive"] = v.pop("user_access")
-        return v
+            kwargs["interactive"] = kwargs.pop("user_access")
 
-    @model_validator(mode="after")
-    def add_instructions(self) -> Self:
         if additional_instructions := get_instructions():
-            self.instructions = (
-                self.instructions or "" + "\n" + "\n".join(additional_instructions)
+            kwargs["instructions"] = (
+                kwargs.get("instructions")
+                or "" + "\n" + "\n".join(additional_instructions)
             ).strip()
-        return self
 
-    @model_validator(mode="after")
-    def generate_id(self) -> Self:
+        super().__init__(**kwargs)
+
         if not self.id:
             self.id = self._generate_id()
-        return self
 
     def __hash__(self) -> int:
         return id(self)
