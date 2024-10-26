@@ -55,7 +55,7 @@ class TestAgentInitialization:
         with instructions("test instruction"):
             agent = Agent()
 
-        assert "test instruction" in agent.instructions
+        assert agent.instructions and "test instruction" in agent.instructions
 
     @pytest.mark.skip(reason="IDs are not stable right now")
     def test_stable_id(self):

@@ -2,7 +2,7 @@ import abc
 import logging
 import random
 import warnings
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -13,7 +13,14 @@ from typing import (
 )
 
 from langchain_core.language_models import BaseChatModel
-from pydantic import Field, field_serializer, field_validator
+from pydantic import (
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 from typing_extensions import Self
 
 import controlflow
@@ -48,27 +55,29 @@ class Agent(ControlFlowModel, abc.ABC):
     Class for objects that can be used as agents in a flow
     """
 
-    model_config = dict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    id: str = Field(None)
+    id: Optional[str] = Field(default=None)
     name: str = Field(
         default_factory=lambda: random.choice(AGENT_NAMES),
         description="The name of the agent.",
     )
     description: Optional[str] = Field(
-        None, description="A description of the agent, visible to other agents."
+        default=None, description="A description of the agent, visible to other agents."
     )
     instructions: Optional[str] = Field(
-        "You are a diligent AI assistant. You complete your tasks efficiently and without error.",
+        default="You are a diligent AI assistant. You complete your tasks efficiently and without error.",
         description="Instructions for the agent, private to this agent.",
     )
     prompt: Optional[str] = Field(
-        None,
+        default=None,
         description="A system template for the agent. The template should be formatted as a jinja2 template.",
     )
-    tools: list[Tool] = Field([], description="List of tools available to the agent.")
+    tools: list[Tool] = Field(
+        default=[], description="List of tools available to the agent."
+    )
     interactive: bool = Field(
-        False,
+        default=False,
         description="If True, the agent is given tools for interacting with a human user.",
     )
     memories: list[Memory] = Field(
@@ -77,18 +86,18 @@ class Agent(ControlFlowModel, abc.ABC):
     )
 
     model: Optional[Union[str, BaseChatModel]] = Field(
-        None,
+        default=None,
         description="The LangChain BaseChatModel used by the agent. If not provided, the default model will be used. A compatible string can be passed to automatically retrieve the model.",
         exclude=True,
     )
     llm_rules: Optional[LLMRules] = Field(
-        None,
+        default=None,
         description="The LLM rules for the agent. If not provided, the rules will be inferred from the model (if possible).",
     )
 
-    _cm_stack: list[contextmanager] = []
+    _cm_stack: list[AbstractContextManager] = PrivateAttr(default_factory=list)
 
-    def __init__(self, instructions: str = None, **kwargs):
+    def __init__(self, instructions: Optional[str] = None, **kwargs):
         if instructions is not None:
             kwargs["instructions"] = instructions
 
@@ -157,7 +166,7 @@ class Agent(ControlFlowModel, abc.ABC):
             dct.pop("interactive")
         return dct
 
-    def get_model(self, tools: list["Tool"] = None) -> BaseChatModel:
+    def get_model(self, tools: Optional[list["Tool"]] = None) -> BaseChatModel:
         """
         Retrieve the LLM model for this agent
         """
@@ -212,8 +221,8 @@ class Agent(ControlFlowModel, abc.ABC):
         self,
         objective: str,
         *,
-        turn_strategy: "TurnStrategy" = None,
-        handlers: list["Handler"] = None,
+        turn_strategy: Optional["TurnStrategy"] = None,
+        handlers: Optional[list["Handler"]] = None,
         **task_kwargs,
     ):
         return controlflow.run(
@@ -228,8 +237,8 @@ class Agent(ControlFlowModel, abc.ABC):
         self,
         objective: str,
         *,
-        turn_strategy: "TurnStrategy" = None,
-        handlers: list[Union["Handler", "AsyncHandler"]] = None,
+        turn_strategy: Optional["TurnStrategy"] = None,
+        handlers: Optional[list["Handler"]] = None,
         **task_kwargs,
     ):
         return await controlflow.run_async(
@@ -289,7 +298,9 @@ class Agent(ControlFlowModel, abc.ABC):
         tools = as_tools(self.get_tools() + tools)
         model = self.get_model(tools=tools)
 
-        logger.debug(f"Running model {model} for agent {self.name} with tools {tools}")
+        logger.debug(
+            f"Running model {model} for agent {self.name} with tools {[t.name for t in tools]!r}"
+        )
         if controlflow.settings.log_all_messages:
             logger.debug(f"Input messages: {messages}")
 
@@ -346,7 +357,9 @@ class Agent(ControlFlowModel, abc.ABC):
         tools = as_tools(self.get_tools() + tools)
         model = self.get_model(tools=tools)
 
-        logger.debug(f"Running model {model} for agent {self.name} with tools {tools}")
+        logger.debug(
+            f"Running model {model} for agent {self.name} with tools {[t.name for t in tools]!r}"
+        )
         if controlflow.settings.log_all_messages:
             logger.debug(f"Input messages: {messages}")
 
