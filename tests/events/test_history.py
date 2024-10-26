@@ -91,28 +91,6 @@ class TestFileHistoryFlow:
         assert len(f2.get_events()) == 0
         assert len(f3.get_events()) == 1
 
-    @pytest.mark.skip(reason="Not sure what this supposed to test")
-    def test_concurrent_access(self, tmp_path):
-        """Test concurrent access to the same thread file"""
-        f1 = Flow(thread_id="abc", history=FileHistory(base_path=tmp_path))
-        f2 = Flow(thread_id="abc", history=FileHistory(base_path=tmp_path))
-        event1 = UserMessage(content="test1")
-        event2 = UserMessage(content="test2")
-
-        def write_events(flow, events):
-            for event in events:
-                flow.add_events([event])
-
-        thread1 = threading.Thread(target=write_events, args=(f1, [event1]))
-        thread2 = threading.Thread(target=write_events, args=(f2, [event2]))
-
-        thread1.start()
-        thread2.start()
-        thread1.join()
-        thread2.join()
-
-        assert len(FileHistory(base_path=tmp_path).get_events("abc")) == 2
-
     def test_flow_empty_event_content(self, tmp_path):
         """Test flow handling of empty content events"""
         f = Flow(thread_id="abc", history=FileHistory(base_path=tmp_path))
