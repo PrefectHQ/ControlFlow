@@ -1,6 +1,10 @@
 from typing import TYPE_CHECKING, Literal, Optional, Union, List
 
-from pydantic import field_validator, model_validator
+
+
+from pydantic import ConfigDict, field_validator, model_validator
+
+
 from controlflow.agents.agent import Agent
 from controlflow.events.base import Event, UnpersistedEvent
 from controlflow.llm.messages import (

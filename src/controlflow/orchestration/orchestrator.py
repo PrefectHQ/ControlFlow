@@ -473,6 +473,7 @@ class Orchestrator(ControlFlowModel):
         ]
 
         prompt = "\n\n".join([p for p in prompts if p])
+        logger.debug(f"{'='*10}\nCompiled prompt: {prompt}\n{'='*10}")
         return prompt
 
     def compile_messages(self) -> list[BaseMessage]:

@@ -2,7 +2,8 @@ import datetime
 import uuid
 from typing import TYPE_CHECKING, Optional
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
+from pydantic_extra_types.pendulum_dt import DateTime
 
 from controlflow.utilities.general import ControlFlowModel
 
@@ -15,12 +16,12 @@ IN_MEMORY_STORE = {}
 
 
 class Event(ControlFlowModel):
-    model_config: dict = dict(extra="forbid")
+    model_config: ConfigDict = ConfigDict(extra="forbid")
 
     event: str
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     thread_id: Optional[str] = None
-    timestamp: datetime.datetime = Field(
+    timestamp: DateTime = Field(
         default_factory=lambda: datetime.datetime.now(datetime.timezone.utc)
     )
     persist: bool = True
@@ -28,7 +29,10 @@ class Event(ControlFlowModel):
     def to_messages(self, context: "CompileContext") -> list["BaseMessage"]:
         return []
 
+    def __repr__(self) -> str:
+        return f"{self.event} ({self.timestamp})"
+
 
 class UnpersistedEvent(Event):
-    model_config = dict(arbitrary_types_allowed=True)
+    model_config: ConfigDict = ConfigDict(arbitrary_types_allowed=True)
     persist: bool = False
