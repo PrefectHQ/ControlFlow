@@ -51,7 +51,7 @@ class Orchestrator(ControlFlowModel):
         description="The strategy to use for managing agent turns",
         validate_default=True,
     )
-    handlers: list[Union[Handler, AsyncHandler]] = Field(None, validate_default=True)
+    handlers: list[Union[Handler, AsyncHandler]] = Field(None, validate_default=True, exclude=True)
 
     @field_validator("turn_strategy", mode="before")
     def _validate_turn_strategy(cls, v):
