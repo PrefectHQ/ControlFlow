@@ -77,3 +77,10 @@ class PandasSeries(ControlFlowModel):
     index: Optional[list[str]] = None
     name: Optional[str] = None
     dtype: Optional[str] = None
+
+
+def safe_issubclass(cls: type, subclass: type) -> bool:
+    try:
+        return isinstance(cls, type) and issubclass(cls, subclass)
+    except TypeError:
+        return False

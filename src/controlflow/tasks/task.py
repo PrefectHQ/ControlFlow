@@ -45,6 +45,7 @@ from controlflow.utilities.general import (
     NOTSET,
     ControlFlowModel,
     hash_objects,
+    safe_issubclass,
     unwrap,
 )
 from controlflow.utilities.logging import get_logger
@@ -626,7 +627,7 @@ class Task(ControlFlowModel):
                 )
 
         # for basemodel subclasses, we accept the model properties directly as kwargs
-        if isinstance(result_schema, type) and issubclass(result_schema, BaseModel):
+        if safe_issubclass(result_schema, BaseModel):
 
             def succeed(**kwargs) -> str:
                 self.mark_successful(result=result_schema(**kwargs))
