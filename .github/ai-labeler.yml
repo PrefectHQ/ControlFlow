@@ -1,5 +1,4 @@
 labels:
-  # Simple form: just the name
   - bug
   - breaking change
   - documentation

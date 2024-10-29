@@ -22,6 +22,7 @@ from uuid import uuid4
 
 from prefect.context import TaskRunContext
 from pydantic import (
+    BaseModel,
     Field,
     PydanticSchemaGenerationError,
     RootModel,
@@ -44,6 +45,7 @@ from controlflow.utilities.general import (
     NOTSET,
     ControlFlowModel,
     hash_objects,
+    safe_issubclass,
     unwrap,
 )
 from controlflow.utilities.logging import get_logger
@@ -624,25 +626,45 @@ class Task(ControlFlowModel):
                     "Please use a custom type or add compatibility."
                 )
 
-        @tool(
-            name=f"mark_task_{self.id}_successful",
-            description=f"Mark task {self.id} as successful.",
-            instructions=instructions,
-            include_return_description=False,
-        )
-        def succeed(result: result_schema) -> str:  # type: ignore
-            if self.is_successful():
-                raise ValueError(
-                    f"{self.friendly_name()} is already marked successful."
-                )
-            if options:
-                if result not in options:
-                    raise ValueError(f"Invalid option. Please choose one of {options}")
-                result = options[result]
-            self.mark_successful(result=result)
-            return f"{self.friendly_name()} marked successful."
+        # for basemodel subclasses, we accept the model properties directly as kwargs
+        if safe_issubclass(result_schema, BaseModel):
 
-        return succeed
+            def succeed(**kwargs) -> str:
+                self.mark_successful(result=result_schema(**kwargs))
+                return f"{self.friendly_name()} marked successful."
+
+            return Tool(
+                fn=succeed,
+                name=f"mark_task_{self.id}_successful",
+                description=f"Mark task {self.id} as successful.",
+                instructions=instructions,
+                parameters=result_schema.model_json_schema(),
+            )
+
+        # for all other results, we create a single `result` kwarg to capture the result
+        else:
+
+            @tool(
+                name=f"mark_task_{self.id}_successful",
+                description=f"Mark task {self.id} as successful.",
+                instructions=instructions,
+                include_return_description=False,
+            )
+            def succeed(result: result_schema) -> str:  # type: ignore
+                if self.is_successful():
+                    raise ValueError(
+                        f"{self.friendly_name()} is already marked successful."
+                    )
+                if options:
+                    if result not in options:
+                        raise ValueError(
+                            f"Invalid option. Please choose one of {options}"
+                        )
+                    result = options[result]
+                self.mark_successful(result=result)
+                return f"{self.friendly_name()} marked successful."
+
+            return succeed
 
     def get_fail_tool(self) -> Tool:
         """
