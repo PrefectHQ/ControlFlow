@@ -1,0 +1,17 @@
+labels:
+  - bug
+  - breaking change
+  - documentation
+  - feature
+  - enhancement
+  - question
+  - example
+  - good first issue
+  - tests
+  - ignore in release notes:
+    description: "Ignore this PR in release notes"
+    instructions: |
+      Administrative changes that don't need to be mentioned in release notes,
+      such as CI configuration changes. Small changes, including typos, SHOULD
+      be kept in the release notes; only changes that aren't relevant to
+      behavior should be ignored.

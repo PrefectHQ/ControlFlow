@@ -77,3 +77,15 @@ class PandasSeries(ControlFlowModel):
     index: Optional[list[str]] = None
     name: Optional[str] = None
     dtype: Optional[str] = None
+
+
+def safe_issubclass(cls: type, subclass: type) -> bool:
+    """
+    `issubclass` raises a TypeError if cls is not a type. This helper function
+    safely checks if cls is a type and then checks if it is a subclass of
+    subclass.
+    """
+    try:
+        return isinstance(cls, type) and issubclass(cls, subclass)
+    except TypeError:
+        return False
