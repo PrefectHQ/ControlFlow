@@ -582,7 +582,7 @@ class Task(ControlFlowModel):
         Create an agent-compatible tool for marking this task as successful.
         """
         options = {}
-        instructions = None
+        instructions = []
         result_schema = None
 
         # if the result_type is a tuple of options, then we want the LLM to provide
@@ -603,14 +603,16 @@ class Task(ControlFlowModel):
             options_str = "\n\n".join(
                 f"Option {i}: {option}" for i, option in serialized_options.items()
             )
-            instructions = unwrap(
-                """
-                Provide a single integer as the task result, corresponding to the index
-                of your chosen option. Your options are: 
-                
-                {options_str}
-                """
-            ).format(options_str=options_str)
+            instructions.append(
+                unwrap(
+                    """
+                    Provide a single integer as the task result, corresponding to the index
+                    of your chosen option. Your options are: 
+                    
+                    {options_str}
+                    """
+                ).format(options_str=options_str)
+            )
 
         # otherwise try to load the schema for the result type
         elif self.result_type is not None:
@@ -628,10 +630,12 @@ class Task(ControlFlowModel):
 
         # for basemodel subclasses, we accept the model properties directly as kwargs
         if safe_issubclass(result_schema, BaseModel):
-            instructions = unwrap(
-                f"""
-                Use this tool to mark the task as successful and provide a result. The result schema is: {result_schema}
-                """
+            instructions.append(
+                unwrap(
+                    f"""
+                    Use this tool to mark the task as successful and provide a result. The result schema is: {result_schema}
+                    """
+                )
             )
 
             def succeed(**kwargs) -> str:
@@ -642,23 +646,25 @@ class Task(ControlFlowModel):
                 fn=succeed,
                 name=f"mark_task_{self.id}_successful",
                 description=f"Mark task {self.id} as successful.",
-                instructions=instructions,
+                instructions="\n\n".join(instructions) or None,
                 parameters=result_schema.model_json_schema(),
             )
 
         # for all other results, we create a single `result` kwarg to capture the result
         elif result_schema is not None:
-            instructions = unwrap(
-                f"""
-                Use this tool to mark the task as successful and provide a result.
-                The result schema is: {{"task_result": {result_schema}}}
-                """
+            instructions.append(
+                unwrap(
+                    f"""
+                    Use this tool to mark the task as successful and provide a result with the `task_result` kwarg.
+                    The `task_result` schema is: {{"task_result": {result_schema}}}
+                    """
+                )
             )
 
             @tool(
                 name=f"mark_task_{self.id}_successful",
                 description=f"Mark task {self.id} as successful.",
-                instructions=instructions,
+                instructions="\n\n".join(instructions) or None,
                 include_return_description=False,
             )
             def succeed(task_result: result_schema) -> str:  # type: ignore
@@ -675,13 +681,14 @@ class Task(ControlFlowModel):
                 self.mark_successful(result=task_result)
                 return f"{self.friendly_name()} marked successful."
 
+            return succeed
         # for no result schema, we provide a tool that takes no arguments
         else:
 
             @tool(
                 name=f"mark_task_{self.id}_successful",
                 description=f"Mark task {self.id} as successful.",
-                instructions=instructions,
+                instructions="\n\n".join(instructions) or None,
                 include_return_description=False,
             )
             def succeed() -> str:
