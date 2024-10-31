@@ -485,14 +485,14 @@ class TestSuccessTool:
     def test_success_tool(self):
         task = Task("choose 5", result_type=int)
         tool = task.get_success_tool()
-        tool.run(input=dict(result=5))
+        tool.run(input=dict(task_result=5))
         assert task.is_successful()
         assert task.result == 5
 
     def test_success_tool_with_list_of_options(self):
         task = Task('choose "good"', result_type=["bad", "good", "medium"])
         tool = task.get_success_tool()
-        tool.run(input=dict(result=1))
+        tool.run(input=dict(task_result=1))
         assert task.is_successful()
         assert task.result == "good"
 
@@ -500,12 +500,12 @@ class TestSuccessTool:
         task = Task('choose "good"', result_type=["bad", "good", "medium"])
         tool = task.get_success_tool()
         with pytest.raises(ValueError):
-            tool.run(input=dict(result="good"))
+            tool.run(input=dict(task_result="good"))
 
     def test_tuple_of_ints_result(self):
         task = Task("choose 5", result_type=(4, 5, 6))
         tool = task.get_success_tool()
-        tool.run(input=dict(result=1))
+        tool.run(input=dict(task_result=1))
         assert task.result == 5
 
     def test_tuple_of_pydantic_models_result(self):
@@ -518,7 +518,7 @@ class TestSuccessTool:
             result_type=(Person(name="Alice", age=30), Person(name="Bob", age=35)),
         )
         tool = task.get_success_tool()
-        tool.run(input=dict(result=1))
+        tool.run(input=dict(task_result=1))
         assert task.result == Person(name="Bob", age=35)
         assert isinstance(task.result, Person)
 
@@ -604,7 +604,7 @@ class TestCompletionTools:
     def test_manual_success_tool(self):
         task = Task(objective="Test task", completion_tools=[], result_type=int)
         success_tool = task.get_success_tool()
-        success_tool.run(input=dict(result=5))
+        success_tool.run(input=dict(task_result=5))
         assert task.is_successful()
         assert task.result == 5
 
