@@ -2,12 +2,15 @@ import copy
 import os
 from contextlib import contextmanager
 from pathlib import Path
+from pyexpat import model
 from typing import Any, Literal, Optional, Union
 
 import prefect.logging.configuration
 import prefect.settings
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from controlflow.utilities.general import unwrap
 
 CONTROLFLOW_ENV_FILE = os.getenv("CONTROLFLOW_ENV_FILE", "~/.controlflow/.env")
 
@@ -47,7 +50,27 @@ class Settings(ControlFlowSettings):
         default=False,
         description="If True, all LLM messages will be logged at the debug level.",
     )
-    pretty_print_agent_events: bool = Field(
+    pretty_print_agent_events: Optional[bool] = Field(
+        default=None,
+        description="If True, agent events will be pretty-printed.",
+        deprecated=True,
+    )
+
+    @model_validator(mode="before")
+    def _validate_pretty_print_agent_events(cls, data: dict) -> dict:
+        if data.get("pretty_print_agent_events") is not None:
+            data["enable_default_print_handler"] = data["pretty_print_agent_events"]
+            data["pretty_print_agent_events"] = None
+            print(
+                unwrap("""
+                    The `pretty_print_agent_events` setting is deprecated, use
+                    `enable_default_print_handler` instead. Your settings were
+                    updated.
+                    """)
+            )
+        return data
+
+    enable_default_print_handler: bool = Field(
         default=True,
         description="If True, a PrintHandler will be enabled and automatically "
         "pretty-print agent events. Note that this may interfere with logging.",

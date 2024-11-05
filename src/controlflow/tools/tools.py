@@ -113,6 +113,7 @@ class Tool(ControlFlowModel):
         instructions: Optional[str] = None,
         include_param_descriptions: bool = True,
         include_return_description: bool = True,
+        metadata: Optional[dict] = None,
         **kwargs,
     ):
         name = name or fn.__name__
@@ -190,6 +191,7 @@ class Tool(ControlFlowModel):
             parameters=parameters,
             fn=fn,
             instructions=instructions,
+            metadata=metadata or {},
             **kwargs,
         )
 
@@ -205,7 +207,7 @@ class Tool(ControlFlowModel):
         )
 
     def serialize_for_prompt(self) -> dict:
-        return self.model_dump(include={"name", "description"})
+        return self.model_dump(include={"name", "description", "metadata"})
 
 
 def tool(
@@ -216,6 +218,7 @@ def tool(
     instructions: Optional[str] = None,
     include_param_descriptions: bool = True,
     include_return_description: bool = True,
+    metadata: Optional[dict] = None,
     **kwargs,
 ) -> Tool:
     """
@@ -225,6 +228,7 @@ def tool(
         instructions=instructions,
         include_param_descriptions=include_param_descriptions,
         include_return_description=include_return_description,
+        metadata=metadata or {},
     )
     if fn is None:
         return functools.partial(tool, name=name, description=description, **kwargs)
@@ -298,6 +302,7 @@ class ToolResult(ControlFlowModel):
     result: Any = Field(exclude=True, repr=False)
     str_result: str = Field(repr=False)
     is_error: bool = False
+    tool_metadata: dict = {}
 
 
 def handle_tool_call(
@@ -339,6 +344,7 @@ def handle_tool_call(
         result=fn_output,
         str_result=output_to_string(fn_output),
         is_error=is_error,
+        tool_metadata=tool.metadata if tool else {},
     )
 
 
@@ -379,4 +385,5 @@ async def handle_tool_call_async(tool_call: ToolCall, tools: list[Tool]) -> Any:
         result=fn_output,
         str_result=output_to_string(fn_output),
         is_error=is_error,
+        tool_metadata=tool.metadata if tool else {},
     )

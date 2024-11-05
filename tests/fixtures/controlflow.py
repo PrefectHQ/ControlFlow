@@ -11,7 +11,7 @@ from controlflow.utilities.testing import FakeLLM
 @pytest.fixture(autouse=True, scope="session")
 def temp_controlflow_settings():
     with temporary_settings(
-        pretty_print_agent_events=False,
+        enable_default_print_handler=False,
         log_all_messages=True,
         log_level="DEBUG",
         orchestrator_max_agent_turns=10,

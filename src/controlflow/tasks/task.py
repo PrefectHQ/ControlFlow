@@ -583,6 +583,7 @@ class Task(ControlFlowModel):
         """
         options = {}
         instructions = []
+        metadata = {"is_completion_tool": True}
         result_schema = None
 
         # if the result_type is a tuple of options, then we want the LLM to provide
@@ -648,6 +649,7 @@ class Task(ControlFlowModel):
                 description=f"Mark task {self.id} as successful.",
                 instructions="\n\n".join(instructions) or None,
                 parameters=result_schema.model_json_schema(),
+                metadata=metadata,
             )
 
         # for all other results, we create a single `result` kwarg to capture the result
@@ -666,6 +668,7 @@ class Task(ControlFlowModel):
                 description=f"Mark task {self.id} as successful.",
                 instructions="\n\n".join(instructions) or None,
                 include_return_description=False,
+                metadata=metadata,
             )
             def succeed(task_result: result_schema) -> str:  # type: ignore
                 if self.is_successful():
@@ -690,6 +693,7 @@ class Task(ControlFlowModel):
                 description=f"Mark task {self.id} as successful.",
                 instructions="\n\n".join(instructions) or None,
                 include_return_description=False,
+                metadata=metadata,
             )
             def succeed() -> str:
                 self.mark_successful()
