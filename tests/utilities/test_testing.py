@@ -47,4 +47,5 @@ def test_record_task_events(default_fake_llm):
         tool_call_id="call_ZEPdV8mCgeBe5UHjKzm6e3pe",
         str_result='Task #12345 ("say hello") marked successful.',
         is_error=False,
+        tool_metadata={"is_completion_tool": True},
     )
