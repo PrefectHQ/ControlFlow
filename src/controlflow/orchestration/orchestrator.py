@@ -74,7 +74,7 @@ class Orchestrator(ControlFlowModel):
         """
         from controlflow.orchestration.print_handler import PrintHandler
 
-        if v is None and controlflow.settings.pretty_print_agent_events:
+        if v is None and controlflow.settings.enable_default_print_handler:
             v = [PrintHandler()]
         return v or []
 

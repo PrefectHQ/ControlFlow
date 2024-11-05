@@ -30,9 +30,10 @@ from controlflow.utilities.rich import console as cf_console
 
 
 class PrintHandler(Handler):
-    def __init__(self):
+    def __init__(self, include_completion_tools: bool = True):
         self.events: dict[str, Event] = {}
         self.paused_id: str = None
+        self.include_completion_tools = include_completion_tools
         super().__init__()
 
     def update_live(self, latest: BaseMessage = None):
@@ -91,6 +92,12 @@ class PrintHandler(Handler):
             self.events.clear()
 
     def on_tool_result(self, event: ToolResultEvent):
+        # skip completion tools if configured to do so
+        if not self.include_completion_tools and event.tool_result.tool_metadata.get(
+            "is_completion_tool"
+        ):
+            return
+
         self.events[f"tool-result:{event.tool_call['id']}"] = event
 
         # # if we were paused, resume the live display

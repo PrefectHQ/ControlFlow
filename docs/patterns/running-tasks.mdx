@@ -407,7 +407,7 @@ Handlers in ControlFlow provide a way to observe and react to events that occur 
 
 ControlFlow supports both synchronous and asynchronous handlers. Synchronous handlers implement the `Handler` interface, while asynchronous handlers implement the `AsyncHandler` interface. Both interfaces define methods for various events that can occur during task execution, including agent messages (and message deltas), user messages, tool calls, tool results, orchestrator sessions starting or stopping, and more.
 
-ControlFlow includes a built-in `PrintHandler` that pretty-prints agent responses and tool calls to the terminal. It's used by default if `controlflow.settings.pretty_print_agent_events=True` and no other handlers are provided.
+ControlFlow includes a built-in `PrintHandler` that pretty-prints agent responses and tool calls to the terminal. It's used by default if `controlflow.settings.enable_default_print_handler=True` and no other handlers are provided.
 
 ### How handlers work
 
