@@ -12,7 +12,7 @@ ControlFlow allows you to specify the expected structure of a task's result usin
 
 ### Strings
 
-By default, the `result_type` of a task is a string, which essentially means the agent can return any value that satisfies the task's objective. 
+By default, the `result_type` of a task is a string, which essentially means the agent can return any value that satisfies the task's objective.
 
 For example, if you ask an agent to "Say hello in three languages", it might return a simple string like `"Hello; Hola; Bonjour"` or a more complex, conversational response instead:
 
@@ -48,7 +48,7 @@ Sometimes this flexibility is useful, especially if your task's result will only
 If your result is a number, you can specify the `result_type` as `int` or `float`:
 
 <CodeGroup>
-```python Code  
+```python Code
 import controlflow as cf
 
 result = cf.run("What is 2 + 2?", result_type=int)
@@ -103,7 +103,7 @@ print(result[0])
 
 ### Annotated types
 
-Sometimes, data types are not precise enough to guide the agent to the desired result. In these cases, you can use an annotated type to provide more specific instructions. 
+Sometimes, data types are not precise enough to guide the agent to the desired result. In these cases, you can use an annotated type to provide more specific instructions.
 
 For example, if we want to ensure that the agent returns a string that is only a zip code, we can specify the `result_type` as `Annotated[str, "a 5 digit zip code"]`.
 
@@ -112,7 +112,7 @@ For example, if we want to ensure that the agent returns a string that is only a
 import controlflow as cf
 
 result = cf.run(
-    "What is the zip code of the White House?", 
+    "What is the zip code of the White House?",
     result_type=Annotated[str, "a 5 digit zip code"],
 )
 
@@ -125,7 +125,7 @@ print(result)
 </CodeGroup>
 
 <Tip>
-Note that annotated types are not validated; the annotation is provided as part of the agent's natural language instructions. You could additionaly provide a custom [result validator](#result-validators) to enforce the constraint.
+Note that annotated types are not validated; the annotation is provided as part of the agent's natural language instructions. You could additionaly provide a custom [result validator](#validation) to enforce the constraint.
 </Tip>
 
 ### Labeling / classification
@@ -140,7 +140,7 @@ To do this, specify a list, tuple, `Literal`, or enum of allowed values for the 
 import controlflow as cf
 
 media = cf.run(
-    "Star Wars: Return of the Jedi", 
+    "Star Wars: Return of the Jedi",
     result_type=["movie", "tv show", "book", "comic", "other"]
 )
 
@@ -171,7 +171,7 @@ import controlflow as cf
 from typing import Literal
 
 media = cf.run(
-    ["Star Wars: Return of the Jedi", "LOST"], 
+    ["Star Wars: Return of the Jedi", "LOST"],
     result_type=list[Literal["movie", "tv show", "book", "comic", "other"]]
 )
 
@@ -191,7 +191,7 @@ import controlflow as cf
 from typing import Literal
 
 tags = cf.run(
-    'Star Wars: Return of the Jedi', 
+    'Star Wars: Return of the Jedi',
     instructions="Choose all that apply",
     result_type=list[Literal["Star Wars", "space", "pirates", "adventure", "musical"]]
 )
@@ -304,7 +304,7 @@ from pydantic import BaseModel, field_validator
 class SentimentAnalysis(BaseModel):
     text: str
     sentiment: float
-    
+
     @field_validator('sentiment')
     def check_sentiment_range(cls, v):
         if not -1 <= v <= 1:
@@ -333,7 +333,7 @@ The result validator will be called with the LLM result **after** it has been co
 
 - `between(min_value, max_value)`: Validates that the result is a float between `min_value` and `max_value`.
 - `has_len(min_length, max_length)`: Validates that the result is a string, list, or tuple with a length between `min_length` and `max_length`.
-- `has_keys(required_keys)`: Validates that the result is a dictionary with all of the specified keys.  
+- `has_keys(required_keys)`: Validates that the result is a dictionary with all of the specified keys.
 - `is_url()`: Validates that the result is a string that is a URL.
 - `is_email()`: Validates that the result is a string that is an email address.
 
