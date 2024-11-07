@@ -73,7 +73,11 @@ class Settings(ControlFlowSettings):
     enable_default_print_handler: bool = Field(
         default=True,
         description="If True, a PrintHandler will be enabled and automatically "
-        "pretty-print agent events. Note that this may interfere with logging.",
+        "pretty-print agent events and completion tools.",
+    )
+    default_print_handler_include_completion_tools: bool = Field(
+        default=True,
+        description="If True, the default PrintHandler will include completion tools.",
     )
 
     # ------------ orchestration settings ------------

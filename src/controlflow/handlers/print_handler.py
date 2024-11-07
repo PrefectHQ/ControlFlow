@@ -15,8 +15,8 @@ from controlflow.events.base import Event
 from controlflow.events.events import (
     AgentMessage,
     AgentMessageDelta,
-    ToolCallEvent,
-    ToolResultEvent,
+    AgentToolCall,
+    ToolResult,
 )
 from controlflow.events.orchestrator_events import (
     OrchestratorEnd,
@@ -44,7 +44,7 @@ class PrintHandler(Handler):
 
         # gather all tool events first
         for _, event in events:
-            if isinstance(event, ToolResultEvent):
+            if isinstance(event, ToolResult):
                 tool_results[event.tool_call["id"]] = event
 
         for _, event in events:
@@ -83,7 +83,7 @@ class PrintHandler(Handler):
         self.events[event.ai_message.id] = event
         self.update_live()
 
-    def on_tool_call(self, event: ToolCallEvent):
+    def on_tool_call(self, event: AgentToolCall):
         # if collecting input on the terminal, pause the live display
         # to avoid overwriting the input prompt
         if event.tool_call["name"] == "cli_input":
@@ -91,7 +91,7 @@ class PrintHandler(Handler):
             self.live.stop()
             self.events.clear()
 
-    def on_tool_result(self, event: ToolResultEvent):
+    def on_tool_result(self, event: ToolResult):
         # skip completion tools if configured to do so
         if not self.include_completion_tools and event.tool_result.tool_metadata.get(
             "is_completion_tool"
@@ -135,7 +135,7 @@ def status(icon, text) -> Table:
 
 def format_event(
     event: Union[AgentMessageDelta, AgentMessage],
-    tool_results: dict[str, ToolResultEvent] = None,
+    tool_results: dict[str, ToolResult] = None,
 ) -> Panel:
     title = f"Agent: {event.agent.name}"
 
@@ -200,7 +200,7 @@ def format_tool_call(tool_call: ToolCall) -> Panel:
     return status(Spinner("dots"), f'Tool call: "{tool_call["name"]}"')
 
 
-def format_tool_result(event: ToolResultEvent) -> Panel:
+def format_tool_result(event: ToolResult) -> Panel:
     if event.tool_result.is_error:
         icon = ":x:"
     else:

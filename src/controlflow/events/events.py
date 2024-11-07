@@ -11,7 +11,7 @@ from controlflow.llm.messages import (
     HumanMessage,
     ToolMessage,
 )
-from controlflow.tools.tools import InvalidToolCall, ToolCall, ToolResult
+from controlflow.tools.tools import InvalidToolCall, Tool, ToolCall, ToolResult
 from controlflow.utilities.logging import get_logger
 
 if TYPE_CHECKING:
@@ -70,6 +70,29 @@ class AgentMessage(Event):
     def ai_message(self) -> AIMessage:
         return AIMessage(**self.message)
 
+    def to_tool_calls(self, tools: list[Tool]) -> list["AgentToolCall"]:
+        calls = []
+        for tool_call in (
+            self.message["tool_calls"] + self.message["invalid_tool_calls"]
+        ):
+            tool = next((t for t in tools if t.name == tool_call.get("name")), None)
+            if tool:
+                calls.append(
+                    AgentToolCall(
+                        agent=self.agent,
+                        tool_call=tool_call,
+                        tool=tool,
+                        args=tool_call["args"],
+                    )
+                )
+        return calls
+
+    def to_content(self) -> "AgentContent":
+        return AgentContent(agent=self.agent, content=self.message["content"])
+
+    def all_related_events(self, tools: list[Tool]) -> list[Event]:
+        return [self, self.to_content()] + self.to_tool_calls(tools)
+
     def to_messages(self, context: "CompileContext") -> list[BaseMessage]:
         if self.agent.name == context.agent.name:
             return [self.ai_message]
@@ -111,6 +134,64 @@ class AgentMessageDelta(UnpersistedEvent):
     def snapshot_message(self) -> AIMessage:
         return AIMessage(**self.snapshot | {"type": "ai"})
 
+    def to_tool_call_deltas(self, tools: list[Tool]) -> list["AgentToolCallDelta"]:
+        deltas = []
+        for call_delta in self.delta["tool_call_chunks"]:
+            # try to retrieve the matching snapshot based on index
+            call_snapshot = next(
+                (
+                    c
+                    for i, c in enumerate(self.snapshot["tool_calls"])
+                    if i == call_delta.get("index")
+                ),
+                None,
+            )
+
+            tool = next((t for t in tools if t.name == call_snapshot.get("name")), None)
+            if call_snapshot:
+                deltas.append(
+                    AgentToolCallDelta(
+                        agent=self.agent,
+                        delta=call_delta,
+                        snapshot=call_snapshot,
+                        tool=tool,
+                        args=call_snapshot["args"],
+                    )
+                )
+        return deltas
+
+    def to_content_delta(self) -> "AgentContentDelta":
+        return AgentContentDelta(
+            agent=self.agent,
+            delta=self.delta["content"],
+            snapshot=self.snapshot["content"],
+        )
+
+    def all_related_events(self, tools: list[Tool]) -> list[Event]:
+        return [self, self.to_content_delta()] + self.to_tool_call_deltas(tools)
+
+
+class AgentContent(UnpersistedEvent):
+    event: Literal["agent-content"] = "agent-content"
+    agent: Agent
+    content: Union[str, list[Union[str, dict]]]
+
+
+class AgentContentDelta(UnpersistedEvent):
+    event: Literal["agent-content-delta"] = "agent-content-delta"
+    agent: Agent
+    delta: str
+    snapshot: str
+
+
+class AgentToolCallDelta(UnpersistedEvent):
+    event: Literal["agent-tool-call-delta"] = "agent-tool-call-delta"
+    agent: Agent
+    delta: dict
+    snapshot: dict
+    tool: Tool
+    args: dict
+
 
 class EndTurn(Event):
     event: Literal["end-turn"] = "end-turn"
@@ -118,13 +199,15 @@ class EndTurn(Event):
     next_agent_name: Optional[str] = None
 
 
-class ToolCallEvent(Event):
+class AgentToolCall(Event):
     event: Literal["tool-call"] = "tool-call"
     agent: Agent
     tool_call: Union[ToolCall, InvalidToolCall]
+    tool: Tool
+    args: dict
 
 
-class ToolResultEvent(Event):
+class ToolResult(Event):
     event: Literal["tool-result"] = "tool-result"
     agent: Agent
     tool_call: Union[ToolCall, InvalidToolCall]

@@ -72,10 +72,14 @@ class Orchestrator(ControlFlowModel):
         Returns:
             list[Handler]: The validated list of handlers.
         """
-        from controlflow.orchestration.print_handler import PrintHandler
+        from controlflow.handlers.print_handler import PrintHandler
 
         if v is None and controlflow.settings.enable_default_print_handler:
-            v = [PrintHandler()]
+            v = [
+                PrintHandler(
+                    include_completion_tools=controlflow.settings.default_print_handler_include_completion_tools
+                )
+            ]
         return v or []
 
     def handle_event(self, event: Event):
