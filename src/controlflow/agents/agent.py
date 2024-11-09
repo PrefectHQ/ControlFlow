@@ -316,7 +316,7 @@ class Agent(ControlFlowModel, abc.ABC):
                     response += delta
 
                 yield from AgentMessageDelta(
-                    agent=self, delta=delta, snapshot=response
+                    agent=self, message_delta=delta, message_snapshot=response
                 ).all_related_events(tools=tools)
 
         else:
@@ -344,7 +344,7 @@ class Agent(ControlFlowModel, abc.ABC):
 
         for tool_call in response.tool_calls + response.invalid_tool_calls:
             result = handle_tool_call(tool_call, tools=tools)
-            yield ToolResult(agent=self, tool_call=tool_call, tool_result=result)
+            yield ToolResult(agent=self, tool_result=result)
 
     @prefect_task(task_run_name="Call LLM")
     async def _run_model_async(
@@ -379,7 +379,7 @@ class Agent(ControlFlowModel, abc.ABC):
                     response += delta
 
                 for event in AgentMessageDelta(
-                    agent=self, delta=delta, snapshot=response
+                    agent=self, message_delta=delta, message_snapshot=response
                 ).all_related_events(tools=tools):
                     yield event
 
@@ -409,4 +409,4 @@ class Agent(ControlFlowModel, abc.ABC):
 
         for tool_call in response.tool_calls + response.invalid_tool_calls:
             result = await handle_tool_call_async(tool_call, tools=tools)
-            yield ToolResult(agent=self, tool_call=tool_call, tool_result=result)
+            yield ToolResult(agent=self, tool_result=result)

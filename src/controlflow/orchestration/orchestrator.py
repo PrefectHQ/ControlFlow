@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Optional, TypeVar, Union
+from typing import AsyncIterator, Callable, Iterator, Optional, TypeVar, Union
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -8,6 +8,13 @@ from controlflow.agents.agent import Agent
 from controlflow.events.base import Event
 from controlflow.events.events import AgentMessageDelta, OrchestratorMessage
 from controlflow.events.message_compiler import MessageCompiler
+from controlflow.events.orchestrator_events import (
+    AgentTurnEnd,
+    AgentTurnStart,
+    OrchestratorEnd,
+    OrchestratorError,
+    OrchestratorStart,
+)
 from controlflow.flows import Flow
 from controlflow.instructions import get_instructions
 from controlflow.llm.messages import BaseMessage
@@ -167,6 +174,56 @@ class Orchestrator(ControlFlowModel):
 
         return memories
 
+    def _run_agent_turn(
+        self,
+        run_context: RunContext,
+        model_kwargs: Optional[dict] = None,
+    ) -> Iterator[Event]:
+        """Run a single agent turn, yielding events as they occur."""
+        assigned_tasks = self.get_tasks("assigned")
+
+        self.turn_strategy.begin_turn()
+
+        # Mark assigned tasks as running
+        for task in assigned_tasks:
+            if not task.is_running():
+                task.mark_running()
+                yield OrchestratorMessage(
+                    content=f"Starting task {task.name + ' ' if task.name else ''}(ID {task.id}) "
+                    f"with objective: {task.objective}"
+                )
+
+        while not self.turn_strategy.should_end_turn():
+            # fail any tasks that have reached their max llm calls
+            for task in assigned_tasks:
+                if task.max_llm_calls and task._llm_calls >= task.max_llm_calls:
+                    task.mark_failed(reason="Max LLM calls reached for this task.")
+
+            # Check if there are any ready tasks left
+            if not any(t.is_ready() for t in assigned_tasks):
+                logger.debug("No `ready` tasks to run")
+                break
+
+            if run_context.should_end():
+                break
+
+            messages = self.compile_messages()
+            tools = self.get_tools()
+
+            # Run model and yield events
+            for event in self.agent._run_model(
+                messages=messages,
+                tools=tools,
+                model_kwargs=model_kwargs,
+            ):
+                yield event
+
+            run_context.llm_calls += 1
+            for task in assigned_tasks:
+                task._llm_calls += 1
+
+        run_context.agent_turns += 1
+
     @prefect_task(task_run_name="Orchestrator.run()")
     def run(
         self,
@@ -177,9 +234,11 @@ class Orchestrator(ControlFlowModel):
             Union[RunEndCondition, Callable[[RunContext], bool]]
         ] = None,
     ) -> RunContext:
-        import controlflow.events.orchestrator_events
-
-        # Create the base termination condition
+        """
+        Run the orchestrator, handling events internally.
+        Returns the final run context.
+        """
+        # Create run context at the outermost level
         if run_until is None:
             run_until = AllComplete()
         elif not isinstance(run_until, RunEndCondition):
@@ -197,6 +256,19 @@ class Orchestrator(ControlFlowModel):
 
         run_context = RunContext(orchestrator=self, run_end_condition=run_until)
 
+        for event in self._run(
+            run_context=run_context,
+            model_kwargs=model_kwargs,
+        ):
+            self.handle_event(event)
+        return run_context
+
+    def _run(
+        self,
+        run_context: RunContext,
+        model_kwargs: Optional[dict] = None,
+    ) -> Iterator[Event]:
+        """Run the orchestrator, yielding events as they occur."""
         # Initialize the agent if not already set
         if not self.agent:
             self.agent = self.turn_strategy.get_next_agent(
@@ -204,29 +276,23 @@ class Orchestrator(ControlFlowModel):
             )
 
         # Signal the start of orchestration
-        self.handle_event(
-            controlflow.events.orchestrator_events.OrchestratorStart(orchestrator=self)
-        )
+        yield OrchestratorStart(orchestrator=self, run_context=run_context)
 
         try:
             while True:
                 if run_context.should_end():
                     break
 
-                self.handle_event(
-                    controlflow.events.orchestrator_events.AgentTurnStart(
-                        orchestrator=self, agent=self.agent
-                    )
-                )
-                self.run_agent_turn(
+                yield AgentTurnStart(orchestrator=self, agent=self.agent)
+
+                # Run turn and yield its events
+                for event in self._run_agent_turn(
                     run_context=run_context,
                     model_kwargs=model_kwargs,
-                )
-                self.handle_event(
-                    controlflow.events.orchestrator_events.AgentTurnEnd(
-                        orchestrator=self, agent=self.agent
-                    )
-                )
+                ):
+                    yield event
+
+                yield AgentTurnEnd(orchestrator=self, agent=self.agent)
 
                 # Select the next agent for the following turn
                 if available_agents := self.get_available_agents():
@@ -235,21 +301,12 @@ class Orchestrator(ControlFlowModel):
                     )
 
         except Exception as exc:
-            # Handle any exceptions that occur during orchestration
-            self.handle_event(
-                controlflow.events.orchestrator_events.OrchestratorError(
-                    orchestrator=self, error=exc
-                )
-            )
+            # Yield error event if something goes wrong
+            yield OrchestratorError(orchestrator=self, error=exc)
             raise
         finally:
             # Signal the end of orchestration
-            self.handle_event(
-                controlflow.events.orchestrator_events.OrchestratorEnd(
-                    orchestrator=self
-                )
-            )
-        return run_context
+            yield OrchestratorEnd(orchestrator=self, run_context=run_context)
 
     @prefect_task
     async def run_async(
@@ -261,9 +318,11 @@ class Orchestrator(ControlFlowModel):
             Union[RunEndCondition, Callable[[RunContext], bool]]
         ] = None,
     ) -> RunContext:
-        import controlflow.events.orchestrator_events
-
-        # Create the base termination condition
+        """
+        Run the orchestrator asynchronously, handling events internally.
+        Returns the final run context.
+        """
+        # Create run context at the outermost level
         if run_until is None:
             run_until = AllComplete()
         elif not isinstance(run_until, RunEndCondition):
@@ -281,58 +340,11 @@ class Orchestrator(ControlFlowModel):
 
         run_context = RunContext(orchestrator=self, run_end_condition=run_until)
 
-        # Initialize the agent if not already set
-        if not self.agent:
-            self.agent = self.turn_strategy.get_next_agent(
-                None, self.get_available_agents()
-            )
-
-        # Signal the start of orchestration
-        await self.handle_event_async(
-            controlflow.events.orchestrator_events.OrchestratorStart(orchestrator=self)
-        )
-
-        try:
-            while True:
-                if run_context.should_end():
-                    break
-
-                await self.handle_event_async(
-                    controlflow.events.orchestrator_events.AgentTurnStart(
-                        orchestrator=self, agent=self.agent
-                    )
-                )
-                await self.run_agent_turn_async(
-                    run_context=run_context,
-                    model_kwargs=model_kwargs,
-                )
-                await self.handle_event_async(
-                    controlflow.events.orchestrator_events.AgentTurnEnd(
-                        orchestrator=self, agent=self.agent
-                    )
-                )
-
-                # Select the next agent for the following turn
-                if available_agents := self.get_available_agents():
-                    self.agent = self.turn_strategy.get_next_agent(
-                        self.agent, available_agents
-                    )
-
-        except Exception as exc:
-            # Handle any exceptions that occur during orchestration
-            await self.handle_event_async(
-                controlflow.events.orchestrator_events.OrchestratorError(
-                    orchestrator=self, error=exc
-                )
-            )
-            raise
-        finally:
-            # Signal the end of orchestration
-            await self.handle_event_async(
-                controlflow.events.orchestrator_events.OrchestratorEnd(
-                    orchestrator=self
-                )
-            )
+        async for event in self._run_async(
+            run_context=run_context,
+            model_kwargs=model_kwargs,
+        ):
+            await self.handle_event_async(event)
         return run_context
 
     @prefect_task(task_run_name="Agent turn: {self.agent.name}")
@@ -580,5 +592,124 @@ class Orchestrator(ControlFlowModel):
 
         return hierarchy
 
+    async def _run_agent_turn_async(
+        self,
+        run_context: RunContext,
+        model_kwargs: Optional[dict] = None,
+    ) -> AsyncIterator[Event]:
+        """Async version of _run_agent_turn."""
+        assigned_tasks = self.get_tasks("assigned")
 
+        self.turn_strategy.begin_turn()
+
+        # Mark assigned tasks as running
+        for task in assigned_tasks:
+            if not task.is_running():
+                task.mark_running()
+                yield OrchestratorMessage(
+                    content=f"Starting task {task.name} (ID {task.id}) "
+                    f"with objective: {task.objective}"
+                )
+
+        while not self.turn_strategy.should_end_turn():
+            # fail any tasks that have reached their max llm calls
+            for task in assigned_tasks:
+                if task.max_llm_calls and task._llm_calls >= task.max_llm_calls:
+                    task.mark_failed(reason="Max LLM calls reached for this task.")
+
+            # Check if there are any ready tasks left
+            if not any(t.is_ready() for t in assigned_tasks):
+                logger.debug("No `ready` tasks to run")
+                break
+
+            if run_context.should_end():
+                break
+
+            messages = self.compile_messages()
+            tools = self.get_tools()
+
+            async for event in self.agent._run_model_async(
+                messages=messages,
+                tools=tools,
+                model_kwargs=model_kwargs,
+            ):
+                yield event
+
+            run_context.llm_calls += 1
+            for task in assigned_tasks:
+                task._llm_calls += 1
+
+        run_context.agent_turns += 1
+
+    async def _run_async(
+        self,
+        max_llm_calls: Optional[int] = None,
+        max_agent_turns: Optional[int] = None,
+        model_kwargs: Optional[dict] = None,
+        run_until: Optional[
+            Union[RunEndCondition, Callable[[RunContext], bool]]
+        ] = None,
+    ) -> AsyncIterator[Event]:
+        """Async version of _run."""
+        # Create the base termination condition
+        if run_until is None:
+            run_until = AllComplete()
+        elif not isinstance(run_until, RunEndCondition):
+            run_until = FnCondition(run_until)
+
+        # Add max_llm_calls condition
+        if max_llm_calls is None:
+            max_llm_calls = controlflow.settings.orchestrator_max_llm_calls
+        run_until = run_until | MaxLLMCalls(max_llm_calls)
+
+        # Add max_agent_turns condition
+        if max_agent_turns is None:
+            max_agent_turns = controlflow.settings.orchestrator_max_agent_turns
+        run_until = run_until | MaxAgentTurns(max_agent_turns)
+
+        run_context = RunContext(orchestrator=self, run_end_condition=run_until)
+
+        # Initialize the agent if not already set
+        if not self.agent:
+            self.agent = self.turn_strategy.get_next_agent(
+                None, self.get_available_agents()
+            )
+
+        # Signal the start of orchestration
+        yield OrchestratorStart(orchestrator=self, run_context=run_context)
+
+        try:
+            while True:
+                if run_context.should_end():
+                    break
+
+                yield AgentTurnStart(orchestrator=self, agent=self.agent)
+
+                async for event in self._run_agent_turn_async(
+                    run_context=run_context,
+                    model_kwargs=model_kwargs,
+                ):
+                    yield event
+
+                yield AgentTurnEnd(orchestrator=self, agent=self.agent)
+
+                # Select the next agent for the following turn
+                if available_agents := self.get_available_agents():
+                    self.agent = self.turn_strategy.get_next_agent(
+                        self.agent, available_agents
+                    )
+
+        except Exception as exc:
+            yield OrchestratorError(orchestrator=self, error=exc)
+            raise
+        finally:
+            yield OrchestratorEnd(orchestrator=self)
+
+
+# Rebuild all models with forward references after Orchestrator is defined
+OrchestratorStart.model_rebuild()
+OrchestratorEnd.model_rebuild()
+OrchestratorError.model_rebuild()
+AgentTurnStart.model_rebuild()
+AgentTurnEnd.model_rebuild()
 RunContext.model_rebuild()

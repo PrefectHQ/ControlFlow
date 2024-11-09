@@ -20,16 +20,58 @@ from typing import Any, AsyncIterator, Callable, Iterator, Literal, Optional, Un
 
 from controlflow.events.base import Event
 from controlflow.events.events import (
+    AgentContent,
+    AgentContentDelta,
     AgentMessage,
     AgentMessageDelta,
     AgentToolCall,
+    AgentToolCallDelta,
     ToolResult,
 )
 from controlflow.orchestration.handler import AsyncHandler, Handler
 from controlflow.orchestration.orchestrator import Orchestrator
 from controlflow.tasks.task import Task
 
-StreamEvents = Union[list[str], Literal["all", "messages", "tools", "completion_tools"]]
+StreamEvents = Union[
+    list[str],
+    Literal["all", "messages", "content", "tools", "completion_tools", "agent_tools"],
+]
+
+
+def event_filter(events: StreamEvents) -> Callable[[Event], bool]:
+    def _event_filter(event: Event) -> bool:
+        if events == "all":
+            return True
+        elif events == "messages":
+            return isinstance(event, (AgentMessage, AgentMessageDelta))
+        elif events == "content":
+            return isinstance(event, (AgentContent, AgentContentDelta))
+        elif events == "tools":
+            return isinstance(event, (AgentToolCall, AgentToolCallDelta, ToolResult))
+        elif events == "completion_tools":
+            if isinstance(event, (AgentToolCall, AgentToolCallDelta)):
+                return event.tool and event.tool.metadata.get("is_completion_tool")
+            elif isinstance(event, ToolResult):
+                return event.tool_result and event.tool_result.tool.metadata.get(
+                    "is_completion_tool"
+                )
+            return False
+        elif events == "agent_tools":
+            if isinstance(event, (AgentToolCall, AgentToolCallDelta)):
+                return event.tool and event.tool in event.agent.get_tools()
+            elif isinstance(event, ToolResult):
+                return (
+                    event.tool_result
+                    and event.tool_result.tool in event.agent.get_tools()
+                )
+            return False
+        else:
+            raise ValueError(f"Invalid event type: {events}")
+
+    return _event_filter
+
+
+# -------------------- BELOW HERE IS THE OLD STUFF --------------------
 
 
 def events(

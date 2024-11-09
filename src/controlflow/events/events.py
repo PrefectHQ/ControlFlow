@@ -11,7 +11,9 @@ from controlflow.llm.messages import (
     HumanMessage,
     ToolMessage,
 )
-from controlflow.tools.tools import InvalidToolCall, Tool, ToolCall, ToolResult
+from controlflow.tools.tools import InvalidToolCall, Tool
+from controlflow.tools.tools import ToolCall as ToolCallPayload
+from controlflow.tools.tools import ToolResult as ToolResultPayload
 from controlflow.utilities.logging import get_logger
 
 if TYPE_CHECKING:
@@ -55,7 +57,7 @@ class AgentMessage(Event):
     message: dict
 
     @field_validator("message", mode="before")
-    def _message(cls, v):
+    def _as_message_dict(cls, v):
         if isinstance(v, BaseMessage):
             v = v.model_dump()
         v["type"] = "ai"
@@ -110,11 +112,11 @@ class AgentMessageDelta(UnpersistedEvent):
     event: Literal["agent-message-delta"] = "agent-message-delta"
 
     agent: Agent
-    delta: dict
-    snapshot: dict
+    message_delta: dict
+    message_snapshot: dict
 
-    @field_validator("delta", "snapshot", mode="before")
-    def _message(cls, v):
+    @field_validator("message_delta", "message_snapshot", mode="before")
+    def _as_message_dict(cls, v):
         if isinstance(v, BaseMessage):
             v = v.model_dump()
         v["type"] = "AIMessageChunk"
@@ -122,26 +124,18 @@ class AgentMessageDelta(UnpersistedEvent):
 
     @model_validator(mode="after")
     def _finalize(self):
-        self.delta["name"] = self.agent.name
-        self.snapshot["name"] = self.agent.name
+        self.message_delta["name"] = self.agent.name
+        self.message_snapshot["name"] = self.agent.name
         return self
-
-    @property
-    def delta_message(self) -> AIMessageChunk:
-        return AIMessageChunk(**self.delta)
-
-    @property
-    def snapshot_message(self) -> AIMessage:
-        return AIMessage(**self.snapshot | {"type": "ai"})
 
     def to_tool_call_deltas(self, tools: list[Tool]) -> list["AgentToolCallDelta"]:
         deltas = []
-        for call_delta in self.delta["tool_call_chunks"]:
+        for call_delta in self.message_delta["tool_call_chunks"]:
             # try to retrieve the matching snapshot based on index
             call_snapshot = next(
                 (
                     c
-                    for i, c in enumerate(self.snapshot["tool_calls"])
+                    for i, c in enumerate(self.message_snapshot["tool_calls"])
                     if i == call_delta.get("index")
                 ),
                 None,
@@ -152,8 +146,8 @@ class AgentMessageDelta(UnpersistedEvent):
                 deltas.append(
                     AgentToolCallDelta(
                         agent=self.agent,
-                        delta=call_delta,
-                        snapshot=call_snapshot,
+                        tool_call_delta=call_delta,
+                        tool_call_snapshot=call_snapshot,
                         tool=tool,
                         args=call_snapshot["args"],
                     )
@@ -163,8 +157,8 @@ class AgentMessageDelta(UnpersistedEvent):
     def to_content_delta(self) -> "AgentContentDelta":
         return AgentContentDelta(
             agent=self.agent,
-            delta=self.delta["content"],
-            snapshot=self.snapshot["content"],
+            content_delta=self.message_delta["content"],
+            content_snapshot=self.message_snapshot["content"],
         )
 
     def all_related_events(self, tools: list[Tool]) -> list[Event]:
@@ -180,17 +174,25 @@ class AgentContent(UnpersistedEvent):
 class AgentContentDelta(UnpersistedEvent):
     event: Literal["agent-content-delta"] = "agent-content-delta"
     agent: Agent
-    delta: str
-    snapshot: str
+    content_delta: str
+    content_snapshot: str
+
+
+class AgentToolCall(Event):
+    event: Literal["tool-call"] = "tool-call"
+    agent: Agent
+    tool_call: Union[ToolCallPayload, InvalidToolCall]
+    tool: Optional[Tool] = None
+    args: dict = {}
 
 
 class AgentToolCallDelta(UnpersistedEvent):
     event: Literal["agent-tool-call-delta"] = "agent-tool-call-delta"
     agent: Agent
-    delta: dict
-    snapshot: dict
-    tool: Tool
-    args: dict
+    tool_call_delta: dict
+    tool_call_snapshot: dict
+    tool: Optional[Tool] = None
+    args: dict = {}
 
 
 class EndTurn(Event):
@@ -199,19 +201,10 @@ class EndTurn(Event):
     next_agent_name: Optional[str] = None
 
 
-class AgentToolCall(Event):
-    event: Literal["tool-call"] = "tool-call"
-    agent: Agent
-    tool_call: Union[ToolCall, InvalidToolCall]
-    tool: Tool
-    args: dict
-
-
 class ToolResult(Event):
     event: Literal["tool-result"] = "tool-result"
     agent: Agent
-    tool_call: Union[ToolCall, InvalidToolCall]
-    tool_result: ToolResult
+    tool_result: ToolResultPayload
 
     def to_messages(self, context: "CompileContext") -> list[BaseMessage]:
         if self.agent.name == context.agent.name:

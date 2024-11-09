@@ -45,7 +45,7 @@ class PrintHandler(Handler):
         # gather all tool events first
         for _, event in events:
             if isinstance(event, ToolResult):
-                tool_results[event.tool_call["id"]] = event
+                tool_results[event.tool_result.tool_call["id"]] = event
 
         for _, event in events:
             if isinstance(event, (AgentMessageDelta, AgentMessage)):
@@ -76,7 +76,7 @@ class PrintHandler(Handler):
         self.live.stop()
 
     def on_agent_message_delta(self, event: AgentMessageDelta):
-        self.events[event.snapshot_message.id] = event
+        self.events[event.message_snapshot["id"]] = event
         self.update_live()
 
     def on_agent_message(self, event: AgentMessage):
@@ -93,15 +93,17 @@ class PrintHandler(Handler):
 
     def on_tool_result(self, event: ToolResult):
         # skip completion tools if configured to do so
-        if not self.include_completion_tools and event.tool_result.tool_metadata.get(
-            "is_completion_tool"
+        if (
+            not self.include_completion_tools
+            and event.tool_result.tool
+            and event.tool_result.tool.metadata.get("is_completion_tool")
         ):
             return
 
-        self.events[f"tool-result:{event.tool_call['id']}"] = event
+        self.events[f"tool-result:{event.tool_result.tool_call['id']}"] = event
 
         # # if we were paused, resume the live display
-        if self.paused_id and self.paused_id == event.tool_call["id"]:
+        if self.paused_id and self.paused_id == event.tool_result.tool_call["id"]:
             self.paused_id = None
             # print newline to avoid odd formatting issues
             print()
@@ -141,22 +143,22 @@ def format_event(
 
     content = []
     if isinstance(event, AgentMessageDelta):
-        message = event.snapshot_message
+        message = event.message_snapshot
     elif isinstance(event, AgentMessage):
-        message = event.ai_message
+        message = event.message
     else:
         return
 
-    if message.content:
-        if isinstance(message.content, str):
-            content.append(Markdown(str(message.content)))
-        elif isinstance(message.content, dict):
-            if "content" in message.content:
-                content.append(Markdown(str(message.content["content"])))
-            elif "text" in message.content:
-                content.append(Markdown(str(message.content["text"])))
-        elif isinstance(message.content, list):
-            for item in message.content:
+    if message["content"]:
+        if isinstance(message["content"], str):
+            content.append(Markdown(str(message["content"])))
+        elif isinstance(message["content"], dict):
+            if "content" in message["content"]:
+                content.append(Markdown(str(message["content"]["content"])))
+            elif "text" in message["content"]:
+                content.append(Markdown(str(message["content"]["text"])))
+        elif isinstance(message["content"], list):
+            for item in message["content"]:
                 if isinstance(item, str):
                     content.append(Markdown(str(item)))
                 elif "content" in item:
@@ -165,7 +167,7 @@ def format_event(
                     content.append(Markdown(str(item["text"])))
 
     tool_content = []
-    for tool_call in message.tool_calls + message.invalid_tool_calls:
+    for tool_call in message["tool_calls"] + message["invalid_tool_calls"]:
         tool_result = (tool_results or {}).get(tool_call["id"])
         if tool_result:
             c = format_tool_result(tool_result)
@@ -207,7 +209,7 @@ def format_tool_result(event: ToolResult) -> Panel:
         icon = ":white_check_mark:"
 
     if controlflow.settings.tools_verbose:
-        msg = f'Tool call: "{event.tool_call["name"]}"\n\nTool args: {event.tool_call["args"]}\n\nTool result: {event.tool_result.str_result}'
+        msg = f'Tool call: "{event.tool_result.tool_call["name"]}"\n\nTool args: {event.tool_result.tool_call["args"]}\n\nTool result: {event.tool_result.str_result}'
     else:
-        msg = f'Tool call: "{event.tool_call["name"]}"'
+        msg = f'Tool call: "{event.tool_result.tool_call["name"]}"'
     return status(icon, msg)
