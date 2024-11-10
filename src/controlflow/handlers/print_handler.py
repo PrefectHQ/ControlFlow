@@ -100,11 +100,13 @@ class ToolState(DisplayState):
                 tool_text = f'Tool "{self.name}": {self.result}'
             else:
                 tool_text = f'Tool "{self.name}" completed'
+            border_style = "red" if self.is_error else "green"
         else:
             icon = Spinner("dots")
             tool_text = f'Tool "{self.name}" running...'
             if show_details and self.args:
                 tool_text += f"\nArguments: {self.args}"
+            border_style = "dim"
 
         t.add_row(icon, tool_text)
 
@@ -112,7 +114,7 @@ class ToolState(DisplayState):
             t,
             subtitle=f"[italic]{self.format_timestamp()}[/]",
             subtitle_align="right",
-            border_style="red" if self.is_error else "blue",
+            border_style=border_style,
             box=box.ROUNDED,
             width=100,
             padding=(1, 2),
