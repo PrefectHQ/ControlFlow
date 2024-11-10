@@ -1,7 +1,8 @@
 import datetime
-from typing import Union
+from typing import Optional
 
 import rich
+from pydantic import BaseModel
 from rich import box
 from rich.console import Group
 from rich.live import Live
@@ -10,89 +11,198 @@ from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.table import Table
 
-import controlflow
-from controlflow.events.base import Event
-from controlflow.events.events import (
-    AgentMessage,
-    AgentMessageDelta,
-    AgentToolCall,
-    ToolResult,
-)
+from controlflow.events.events import AgentContentDelta, AgentToolCallDelta, ToolResult
 from controlflow.events.orchestrator_events import (
     OrchestratorEnd,
     OrchestratorError,
     OrchestratorStart,
 )
-from controlflow.llm.messages import BaseMessage
 from controlflow.orchestration.handler import Handler
-from controlflow.tools.tools import ToolCall
+from controlflow.tools.tools import Tool
 from controlflow.utilities.rich import console as cf_console
+
+
+class DisplayState(BaseModel):
+    """Base class for content to be displayed."""
+
+    agent_name: str
+    first_timestamp: datetime.datetime
+
+    def format_timestamp(self) -> str:
+        """Format the timestamp for display."""
+        local_timestamp = self.first_timestamp.astimezone()
+        return local_timestamp.strftime("%I:%M:%S %p").lstrip("0").rjust(11)
+
+
+class ContentState(DisplayState):
+    """State for content being streamed."""
+
+    content: str = ""
+
+    @staticmethod
+    def _convert_content_to_str(content) -> str:
+        """Convert various content formats to a string."""
+        if isinstance(content, str):
+            return content
+
+        if isinstance(content, dict):
+            return content.get("content", content.get("text", ""))
+
+        if isinstance(content, list):
+            parts = []
+            for item in content:
+                if isinstance(item, str):
+                    parts.append(item)
+                elif isinstance(item, dict):
+                    part = item.get("content", item.get("text", ""))
+                    if part:
+                        parts.append(part)
+            return "\n".join(parts)
+
+        return str(content)
+
+    def update_content(self, new_content) -> None:
+        """Update content, converting complex content types to string."""
+        self.content = self._convert_content_to_str(new_content)
+
+    def render_panel(self) -> Panel:
+        """Render content as a markdown panel."""
+        return Panel(
+            Markdown(self.content),
+            title=f"[bold]Agent: {self.agent_name}[/]",
+            subtitle=f"[italic]{self.format_timestamp()}[/]",
+            title_align="left",
+            subtitle_align="right",
+            border_style="blue",
+            box=box.ROUNDED,
+            width=100,
+            padding=(1, 2),
+        )
+
+
+class ToolState(DisplayState):
+    """State for a tool call and its result."""
+
+    name: str
+    args: dict
+    result: Optional[str] = None
+    is_error: bool = False
+    is_complete: bool = False
+    tool: Optional[Tool] = None
+
+    def render_panel(self, show_details: bool = True) -> Panel:
+        """Render tool state as a panel with status indicator."""
+        t = Table.grid(padding=1)
+
+        if self.is_complete:
+            icon = ":x:" if self.is_error else ":white_check_mark:"
+            if show_details and self.result:
+                tool_text = f'Tool "{self.name}": {self.result}'
+            else:
+                tool_text = f'Tool "{self.name}" completed'
+        else:
+            icon = Spinner("dots")
+            tool_text = f'Tool "{self.name}" running...'
+            if show_details and self.args:
+                tool_text += f"\nArguments: {self.args}"
+
+        t.add_row(icon, tool_text)
+
+        return Panel(
+            t,
+            subtitle=f"[italic]{self.format_timestamp()}[/]",
+            subtitle_align="right",
+            border_style="red" if self.is_error else "blue",
+            box=box.ROUNDED,
+            width=100,
+            padding=(1, 2),
+        )
 
 
 class PrintHandler(Handler):
     def __init__(self, include_completion_tools: bool = True):
-        self.events: dict[str, Event] = {}
-        self.paused_id: str = None
-        self.include_completion_tools = include_completion_tools
         super().__init__()
+        self.include_completion_tools = include_completion_tools
+        self.live: Optional[Live] = None
+        self.paused_id: Optional[str] = None
+        self.states: dict[str, DisplayState] = {}
 
-    def update_live(self, latest: BaseMessage = None):
-        events = sorted(self.events.items(), key=lambda e: (e[1].timestamp, e[0]))
-        content = []
-
-        tool_results = {}  # To track tool results by their call ID
-
-        # gather all tool events first
-        for _, event in events:
-            if isinstance(event, ToolResult):
-                tool_results[event.tool_result.tool_call["id"]] = event
-
-        for _, event in events:
-            if isinstance(event, (AgentMessageDelta, AgentMessage)):
-                if formatted := format_event(event, tool_results=tool_results):
-                    content.append(formatted)
-
-        if not content:
+    def update_display(self):
+        """Render all current state as panels and update display."""
+        if not self.live or not self.live.is_started or self.paused_id:
             return
-        elif self.live.is_started:
-            self.live.update(Group(*content), refresh=True)
-        elif latest:
-            cf_console.print(format_event(latest))
 
-    def on_orchestrator_start(self, event: OrchestratorStart):
-        self.live: Live = Live(
-            auto_refresh=False, console=cf_console, vertical_overflow="visible"
-        )
-        self.events.clear()
-        try:
-            self.live.start()
-        except rich.errors.LiveError:
-            pass
+        # Sort states by timestamp and render panels
+        sorted_states = sorted(self.states.values(), key=lambda s: s.first_timestamp)
+        panels = [
+            state.render_panel(show_details=self.include_completion_tools)
+            if isinstance(state, ToolState)
+            else state.render_panel()
+            for state in sorted_states
+        ]
 
-    def on_orchestrator_end(self, event: OrchestratorEnd):
-        self.live.stop()
+        if panels:
+            self.live.update(Group(*panels), refresh=True)
 
-    def on_orchestrator_error(self, event: OrchestratorError):
-        self.live.stop()
+    def on_agent_content_delta(self, event: AgentContentDelta):
+        """Handle content delta events by updating content state."""
+        if not event.content_delta:
+            return
+        if event.agent_message_id not in self.states:
+            state = ContentState(
+                agent_name=event.agent.name,
+                first_timestamp=event.timestamp,
+            )
+            state.update_content(event.content_snapshot)
+            self.states[event.agent_message_id] = state
+        else:
+            state = self.states[event.agent_message_id]
+            if isinstance(state, ContentState):
+                state.update_content(event.content_snapshot)
 
-    def on_agent_message_delta(self, event: AgentMessageDelta):
-        self.events[event.message_snapshot["id"]] = event
-        self.update_live()
+        self.update_display()
 
-    def on_agent_message(self, event: AgentMessage):
-        self.events[event.ai_message.id] = event
-        self.update_live()
+    def on_agent_tool_call_delta(self, event: AgentToolCallDelta):
+        """Handle tool call delta events by updating tool state."""
+        # Handle CLI input special case
+        if event.tool_call_snapshot["name"] == "cli_input":
+            self.paused_id = event.tool_call_snapshot["id"]
+            if self.live and self.live.is_started:
+                self.live.stop()
+            return
 
-    def on_tool_call(self, event: AgentToolCall):
-        # if collecting input on the terminal, pause the live display
-        # to avoid overwriting the input prompt
-        if event.tool_call["name"] == "cli_input":
-            self.paused_id = event.tool_call["id"]
-            self.live.stop()
-            self.events.clear()
+        # Skip completion tools if configured
+        if (
+            not self.include_completion_tools
+            and event.tool
+            and event.tool.metadata.get("is_completion_tool")
+        ):
+            return
+
+        tool_id = event.tool_call_snapshot["id"]
+        if tool_id not in self.states:
+            self.states[tool_id] = ToolState(
+                agent_name=event.agent.name,
+                first_timestamp=event.timestamp,
+                name=event.tool_call_snapshot["name"],
+                args=event.args,
+                tool=event.tool,
+            )
+
+        self.update_display()
 
     def on_tool_result(self, event: ToolResult):
-        # skip completion tools if configured to do so
+        """Handle tool result events by updating tool state."""
+        # Handle CLI input resume
+        if event.tool_result.tool_call["name"] == "cli_input":
+            if self.paused_id == event.tool_result.tool_call["id"]:
+                self.paused_id = None
+                print()
+                self.live = Live(console=cf_console, auto_refresh=False)
+                self.live.start()
+            return
+
+        # Skip completion tools if configured
         if (
             not self.include_completion_tools
             and event.tool_result.tool
@@ -100,116 +210,33 @@ class PrintHandler(Handler):
         ):
             return
 
-        self.events[f"tool-result:{event.tool_result.tool_call['id']}"] = event
+        tool_id = event.tool_result.tool_call["id"]
+        if tool_id in self.states:
+            state = self.states[tool_id]
+            if isinstance(state, ToolState):
+                state.is_complete = True
+                state.is_error = event.tool_result.is_error
+                state.result = event.tool_result.str_result
 
-        # # if we were paused, resume the live display
-        if self.paused_id and self.paused_id == event.tool_result.tool_call["id"]:
-            self.paused_id = None
-            # print newline to avoid odd formatting issues
-            print()
-            self.live = Live(auto_refresh=False)
-            self.live.start()
-        self.update_live(latest=event)
+        self.update_display()
 
-
-ROLE_COLORS = {
-    "system": "gray",
-    "ai": "blue",
-    "user": "green",
-}
-ROLE_NAMES = {
-    "system": "System",
-    "ai": "Agent",
-    "user": "User",
-}
-
-
-def format_timestamp(timestamp: datetime.datetime) -> str:
-    local_timestamp = timestamp.astimezone()
-    return local_timestamp.strftime("%I:%M:%S %p").lstrip("0").rjust(11)
-
-
-def status(icon, text) -> Table:
-    t = Table.grid(padding=1)
-    t.add_row(icon, text)
-    return t
-
-
-def format_event(
-    event: Union[AgentMessageDelta, AgentMessage],
-    tool_results: dict[str, ToolResult] = None,
-) -> Panel:
-    title = f"Agent: {event.agent.name}"
-
-    content = []
-    if isinstance(event, AgentMessageDelta):
-        message = event.message_snapshot
-    elif isinstance(event, AgentMessage):
-        message = event.message
-    else:
-        return
-
-    if message["content"]:
-        if isinstance(message["content"], str):
-            content.append(Markdown(str(message["content"])))
-        elif isinstance(message["content"], dict):
-            if "content" in message["content"]:
-                content.append(Markdown(str(message["content"]["content"])))
-            elif "text" in message["content"]:
-                content.append(Markdown(str(message["content"]["text"])))
-        elif isinstance(message["content"], list):
-            for item in message["content"]:
-                if isinstance(item, str):
-                    content.append(Markdown(str(item)))
-                elif "content" in item:
-                    content.append(Markdown(str(item["content"])))
-                elif "text" in item:
-                    content.append(Markdown(str(item["text"])))
-
-    tool_content = []
-    for tool_call in message["tool_calls"] + message["invalid_tool_calls"]:
-        tool_result = (tool_results or {}).get(tool_call["id"])
-        if tool_result:
-            c = format_tool_result(tool_result)
-        else:
-            c = format_tool_call(tool_call)
-        if c:
-            tool_content.append(c)
-
-    if content and tool_content:
-        content.append("\n")
-
-    return Panel(
-        Group(*content, *tool_content),
-        title=f"[bold]{title}[/]",
-        subtitle=f"[italic]{format_timestamp(event.timestamp)}[/]",
-        title_align="left",
-        subtitle_align="right",
-        border_style=ROLE_COLORS.get("ai", "red"),
-        box=box.ROUNDED,
-        width=100,
-        expand=True,
-        padding=(1, 2),
-    )
-
-
-def format_tool_call(tool_call: ToolCall) -> Panel:
-    if controlflow.settings.tools_verbose:
-        return status(
-            Spinner("dots"),
-            f'Tool call: "{tool_call["name"]}"\n\nTool args: {tool_call["args"]}',
+    def on_orchestrator_start(self, event: OrchestratorStart):
+        """Initialize live display."""
+        self.live = Live(
+            auto_refresh=False, console=cf_console, vertical_overflow="visible"
         )
-    return status(Spinner("dots"), f'Tool call: "{tool_call["name"]}"')
+        self.states.clear()
+        try:
+            self.live.start()
+        except rich.errors.LiveError:
+            pass
 
+    def on_orchestrator_end(self, event: OrchestratorEnd):
+        """Clean up live display."""
+        if self.live and self.live.is_started:
+            self.live.stop()
 
-def format_tool_result(event: ToolResult) -> Panel:
-    if event.tool_result.is_error:
-        icon = ":x:"
-    else:
-        icon = ":white_check_mark:"
-
-    if controlflow.settings.tools_verbose:
-        msg = f'Tool call: "{event.tool_result.tool_call["name"]}"\n\nTool args: {event.tool_result.tool_call["args"]}\n\nTool result: {event.tool_result.str_result}'
-    else:
-        msg = f'Tool call: "{event.tool_result.tool_call["name"]}"'
-    return status(icon, msg)
+    def on_orchestrator_error(self, event: OrchestratorError):
+        """Clean up live display on error."""
+        if self.live and self.live.is_started:
+            self.live.stop()

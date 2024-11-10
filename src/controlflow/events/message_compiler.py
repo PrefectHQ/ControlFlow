@@ -215,7 +215,7 @@ class MessageCompiler:
                     tool_calls[tc["id"]] = combined_event
             elif isinstance(event, ToolResult):
                 combined_event: CombinedAgentMessage = tool_calls.get(
-                    event.tool_call["id"]
+                    event.tool_result.tool_call["id"]
                 )
                 if combined_event:
                     combined_event.tool_results.append(event)

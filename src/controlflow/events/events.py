@@ -85,12 +85,17 @@ class AgentMessage(Event):
                         tool_call=tool_call,
                         tool=tool,
                         args=tool_call["args"],
+                        agent_message_id=self.message.get("id"),
                     )
                 )
         return calls
 
     def to_content(self) -> "AgentContent":
-        return AgentContent(agent=self.agent, content=self.message["content"])
+        return AgentContent(
+            agent=self.agent,
+            content=self.message["content"],
+            agent_message_id=self.message.get("id"),
+        )
 
     def all_related_events(self, tools: list[Tool]) -> list[Event]:
         return [self, self.to_content()] + self.to_tool_calls(tools)
@@ -141,8 +146,10 @@ class AgentMessageDelta(UnpersistedEvent):
                 None,
             )
 
-            tool = next((t for t in tools if t.name == call_snapshot.get("name")), None)
             if call_snapshot:
+                tool = next(
+                    (t for t in tools if t.name == call_snapshot.get("name")), None
+                )
                 deltas.append(
                     AgentToolCallDelta(
                         agent=self.agent,
@@ -150,6 +157,7 @@ class AgentMessageDelta(UnpersistedEvent):
                         tool_call_snapshot=call_snapshot,
                         tool=tool,
                         args=call_snapshot["args"],
+                        agent_message_id=self.message_snapshot.get("id"),
                     )
                 )
         return deltas
@@ -159,6 +167,7 @@ class AgentMessageDelta(UnpersistedEvent):
             agent=self.agent,
             content_delta=self.message_delta["content"],
             content_snapshot=self.message_snapshot["content"],
+            agent_message_id=self.message_snapshot.get("id"),
         )
 
     def all_related_events(self, tools: list[Tool]) -> list[Event]:
@@ -168,19 +177,22 @@ class AgentMessageDelta(UnpersistedEvent):
 class AgentContent(UnpersistedEvent):
     event: Literal["agent-content"] = "agent-content"
     agent: Agent
+    agent_message_id: Optional[str] = None
     content: Union[str, list[Union[str, dict]]]
 
 
 class AgentContentDelta(UnpersistedEvent):
     event: Literal["agent-content-delta"] = "agent-content-delta"
     agent: Agent
-    content_delta: str
-    content_snapshot: str
+    agent_message_id: Optional[str] = None
+    content_delta: Union[str, list[Union[str, dict]]]
+    content_snapshot: Union[str, list[Union[str, dict]]]
 
 
 class AgentToolCall(Event):
     event: Literal["tool-call"] = "tool-call"
     agent: Agent
+    agent_message_id: Optional[str] = None
     tool_call: Union[ToolCallPayload, InvalidToolCall]
     tool: Optional[Tool] = None
     args: dict = {}
@@ -189,6 +201,7 @@ class AgentToolCall(Event):
 class AgentToolCallDelta(UnpersistedEvent):
     event: Literal["agent-tool-call-delta"] = "agent-tool-call-delta"
     agent: Agent
+    agent_message_id: Optional[str] = None
     tool_call_delta: dict
     tool_call_snapshot: dict
     tool: Optional[Tool] = None
@@ -211,14 +224,14 @@ class ToolResult(Event):
             return [
                 ToolMessage(
                     content=self.tool_result.str_result,
-                    tool_call_id=self.tool_call["id"],
+                    tool_call_id=self.tool_result.tool_call["id"],
                     name=self.agent.name,
                 )
             ]
         else:
             return OrchestratorMessage(
                 prefix=f'Agent "{self.agent.name}" with ID {self.agent.id} made a tool '
-                f'call: {self.tool_call}. The tool{" failed and" if self.tool_result.is_error else " "} '
+                f'call: {self.tool_result.tool_call}. The tool{" failed and" if self.tool_result.is_error else " "} '
                 f'produced this result:',
                 content=self.tool_result.str_result,
                 name=self.agent.name,

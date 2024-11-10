@@ -96,8 +96,8 @@ class Orchestrator(ControlFlowModel):
         Args:
             event (Event): The event to handle.
         """
-        if not isinstance(event, AgentMessageDelta):
-            logger.debug(f"Handling event: {repr(event)}")
+        from controlflow.events.events import AgentContentDelta
+
         for handler in self.handlers:
             if isinstance(handler, Handler):
                 handler.handle(event)
