@@ -103,18 +103,78 @@ class ToolState(DisplayState):
             "gray50",
         )  # Animated spinner, softer running state
 
+    def render_completion_tool(self) -> Panel:
+        """Special rendering for completion tools."""
+        table = Table.grid(padding=0, expand=True)
+        header = Table.grid(padding=1)
+        header.add_column(width=2)
+        header.add_column()
+
+        is_success_tool = self.tool.metadata.get("is_success_tool", False)
+        is_fail_tool = self.tool.metadata.get("is_fail_tool", False)
+        task = self.tool.metadata.get("completion_task")
+        task_name = task.friendly_name() if task else "Unknown Task"
+        task_result = task.result if task else None
+
+        if not self.is_complete:
+            # Running state - muted style
+            icon = Spinner("dots")
+            message = f"Working on task: {task_name}"
+            text_style = "dim"
+            border_style = "gray50"
+        else:
+            if self.is_error:
+                # Tool execution failed (error in the tool itself)
+                icon = "❌"
+                message = f"Error marking task status: {task_name}"
+                text_style = "red"
+                border_style = "red"
+                if self.result:
+                    message += f"\nError: {self.result}"
+            elif is_fail_tool:
+                # Failure tool succeeded (task is being marked as failed)
+                icon = "❌"
+                message = f"Task failed: {task_name}"
+                text_style = "red"
+                border_style = "red"
+                if task_result:
+                    message += f"\nReason: {task_result or 'No reason provided'}"
+            else:
+                # Success tool succeeded (task completed normally)
+                icon = "✓"
+                message = f"Task complete: {task_name}"
+                text_style = "dim"
+                border_style = "gray50"
+
+        header.add_row(icon, f"[{text_style}]{message}[/]")
+        table.add_row(header)
+
+        return Panel(
+            table,
+            title=f"[bold]Agent: {self.agent_name}[/]",
+            subtitle=f"[italic]{self.format_timestamp()}[/]",
+            title_align="left",
+            subtitle_align="right",
+            border_style=border_style,
+            box=box.ROUNDED,
+            width=100,
+            padding=(0, 1),
+        )
+
     def render_panel(self, show_details: bool = True) -> Panel:
         """Render tool state as a panel with status indicator."""
-        icon, text_style, border_style = self.get_status_style()
+        # Handle completion tools separately
+        if self.tool and self.tool.metadata.get("is_completion_tool"):
+            return self.render_completion_tool()
 
-        # Main content with clean layout
+        # Regular tool display logic continues as before...
+        icon, text_style, border_style = self.get_status_style()
         table = Table.grid(padding=0, expand=True)
 
-        # Tool name and icon as a clean header
         header = Table.grid(padding=1)
-        header.add_column(width=2)  # Icon
-        header.add_column()  # Name
-        tool_name = self.name.replace("_", " ").title()  # Prettier display name
+        header.add_column(width=2)
+        header.add_column()
+        tool_name = self.name.replace("_", " ").title()
         header.add_row(icon, f"[{text_style} bold]{tool_name}[/]")
         table.add_row(header)
 
@@ -123,19 +183,17 @@ class ToolState(DisplayState):
             details.add_column(style="dim", width=9)
             details.add_column()
 
-            # Arguments with pretty formatting
             if self.args:
                 details.add_row(
-                    "    Input:",  # Indent to align with tool name
+                    "    Input:",
                     rich.pretty.Pretty(self.args, indent_size=2, expand_all=True),
                 )
 
-            # Result when complete
             if self.is_complete and self.result:
                 label = "Error" if self.is_error else "Output"
                 style = "red" if self.is_error else "green3"
                 details.add_row(
-                    f"    {label}:",  # Indent to align with tool name
+                    f"    {label}:",
                     f"[{style}]{self.result}[/]",
                 )
 
@@ -204,14 +262,6 @@ class PrintHandler(Handler):
             self.paused_id = event.tool_call_snapshot["id"]
             if self.live and self.live.is_started:
                 self.live.stop()
-            return
-
-        # Skip completion tools if configured
-        if (
-            not self.include_completion_tools
-            and event.tool
-            and event.tool.metadata.get("is_completion_tool")
-        ):
             return
 
         tool_id = event.tool_call_snapshot["id"]
