@@ -90,34 +90,67 @@ class ToolState(DisplayState):
     is_complete: bool = False
     tool: Optional[Tool] = None
 
+    def get_status_style(self) -> tuple[str | Spinner, str, str]:
+        """Returns (icon, text style, border style) for current status."""
+        if self.is_complete:
+            if self.is_error:
+                return "❌", "red", "red"
+            else:
+                return "✅", "green", "green3"  # Slightly softer green
+        return (
+            Spinner("dots"),
+            "yellow",
+            "gray50",
+        )  # Animated spinner, softer running state
+
     def render_panel(self, show_details: bool = True) -> Panel:
         """Render tool state as a panel with status indicator."""
-        t = Table.grid(padding=1)
+        icon, text_style, border_style = self.get_status_style()
 
-        if self.is_complete:
-            icon = ":x:" if self.is_error else ":white_check_mark:"
-            if show_details and self.result:
-                tool_text = f'Tool "{self.name}": {self.result}'
-            else:
-                tool_text = f'Tool "{self.name}" completed'
-            border_style = "red" if self.is_error else "green"
-        else:
-            icon = Spinner("dots")
-            tool_text = f'Tool "{self.name}" running...'
-            if show_details and self.args:
-                tool_text += f"\nArguments: {self.args}"
-            border_style = "dim"
+        # Main content with clean layout
+        table = Table.grid(padding=0, expand=True)
 
-        t.add_row(icon, tool_text)
+        # Tool name and icon as a clean header
+        header = Table.grid(padding=1)
+        header.add_column(width=2)  # Icon
+        header.add_column()  # Name
+        tool_name = self.name.replace("_", " ").title()  # Prettier display name
+        header.add_row(icon, f"[{text_style} bold]{tool_name}[/]")
+        table.add_row(header)
+
+        if show_details:
+            details = Table.grid(padding=(0, 2))
+            details.add_column(style="dim", width=9)
+            details.add_column()
+
+            # Arguments with pretty formatting
+            if self.args:
+                details.add_row(
+                    "    Input:",  # Indent to align with tool name
+                    rich.pretty.Pretty(self.args, indent_size=2, expand_all=True),
+                )
+
+            # Result when complete
+            if self.is_complete and self.result:
+                label = "Error" if self.is_error else "Output"
+                style = "red" if self.is_error else "green3"
+                details.add_row(
+                    f"    {label}:",  # Indent to align with tool name
+                    f"[{style}]{self.result}[/]",
+                )
+
+            table.add_row(details)
 
         return Panel(
-            t,
+            table,
+            title=f"[bold]Agent: {self.agent_name}[/]",
             subtitle=f"[italic]{self.format_timestamp()}[/]",
+            title_align="left",
             subtitle_align="right",
             border_style=border_style,
             box=box.ROUNDED,
             width=100,
-            padding=(1, 2),
+            padding=(0, 1),
         )
 
 
@@ -190,6 +223,10 @@ class PrintHandler(Handler):
                 args=event.args,
                 tool=event.tool,
             )
+        else:
+            state = self.states[tool_id]
+            if isinstance(state, ToolState):
+                state.args = event.args
 
         self.update_display()
 
@@ -200,7 +237,7 @@ class PrintHandler(Handler):
             if self.paused_id == event.tool_result.tool_call["id"]:
                 self.paused_id = None
                 print()
-                self.live = Live(console=cf_console, auto_refresh=False)
+                self.live = Live(console=cf_console, auto_refresh=True)
                 self.live.start()
             return
 
@@ -225,7 +262,7 @@ class PrintHandler(Handler):
     def on_orchestrator_start(self, event: OrchestratorStart):
         """Initialize live display."""
         self.live = Live(
-            auto_refresh=False, console=cf_console, vertical_overflow="visible"
+            auto_refresh=True, console=cf_console, vertical_overflow="visible"
         )
         self.states.clear()
         try:

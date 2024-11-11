@@ -289,12 +289,8 @@ class Agent(ControlFlowModel, abc.ABC):
         model_kwargs: Optional[dict] = None,
     ) -> Generator[Event, None, None]:
         from controlflow.events.events import (
-            AgentContent,
-            AgentContentDelta,
             AgentMessage,
             AgentMessageDelta,
-            AgentToolCall,
-            AgentToolCallDelta,
             ToolResult,
         )
 
@@ -357,7 +353,6 @@ class Agent(ControlFlowModel, abc.ABC):
         from controlflow.events.events import (
             AgentMessage,
             AgentMessageDelta,
-            AgentToolCall,
             ToolResult,
         )
 

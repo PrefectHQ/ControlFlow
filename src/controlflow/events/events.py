@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Literal, Optional, Union
 
+import pydantic_core
 from pydantic import ConfigDict, field_validator, model_validator
 
 from controlflow.agents.agent import Agent
@@ -140,8 +141,8 @@ class AgentMessageDelta(UnpersistedEvent):
             call_snapshot = next(
                 (
                     c
-                    for i, c in enumerate(self.message_snapshot["tool_calls"])
-                    if i == call_delta.get("index")
+                    for c in self.message_snapshot["tool_call_chunks"]
+                    if c.get("index", -1) == call_delta.get("index", -2)
                 ),
                 None,
             )
@@ -156,7 +157,9 @@ class AgentMessageDelta(UnpersistedEvent):
                         tool_call_delta=call_delta,
                         tool_call_snapshot=call_snapshot,
                         tool=tool,
-                        args=call_snapshot["args"],
+                        args=pydantic_core.from_json(
+                            call_snapshot["args"] or "{}", allow_partial=True
+                        ),
                         agent_message_id=self.message_snapshot.get("id"),
                     )
                 )
