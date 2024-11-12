@@ -1,3 +1,5 @@
+from typing import Union
+
 import pytest
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
 from pydantic import BaseModel
@@ -6,11 +8,11 @@ from controlflow.llm.rules import OpenAIRules
 
 
 class OpenAIFirst(BaseModel):
-    model: ChatOpenAI | AzureChatOpenAI
+    model: Union[ChatOpenAI, AzureChatOpenAI]
 
 
 class AzureFirst(BaseModel):
-    model: AzureChatOpenAI | ChatOpenAI
+    model: Union[AzureChatOpenAI, ChatOpenAI]
 
 
 class TestModelTypeValidation:
