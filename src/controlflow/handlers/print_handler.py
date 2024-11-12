@@ -21,6 +21,9 @@ from controlflow.orchestration.handler import Handler
 from controlflow.tools.tools import Tool
 from controlflow.utilities.rich import console as cf_console
 
+# Global spinner for consistent animation
+RUNNING_SPINNER = Spinner("dots")
+
 
 class DisplayState(BaseModel):
     """Base class for content to be displayed."""
@@ -98,10 +101,10 @@ class ToolState(DisplayState):
             else:
                 return "✅", "green", "green3"  # Slightly softer green
         return (
-            Spinner("dots"),
+            RUNNING_SPINNER,
             "yellow",
             "gray50",
-        )  # Animated spinner, softer running state
+        )  # Use shared spinner instance
 
     def render_completion_tool(
         self, show_inputs: bool = False, show_outputs: bool = False
@@ -120,7 +123,7 @@ class ToolState(DisplayState):
         task_result = task.result if task else None
 
         if not self.is_complete:
-            icon = Spinner("dots")
+            icon = RUNNING_SPINNER  # Use shared spinner instance
             message = f"Working on task: {task_name}"
             text_style = "dim"
             border_style = "gray50"
@@ -349,7 +352,11 @@ class PrintHandler(Handler):
             if self.paused_id == event.tool_result.tool_call["id"]:
                 self.paused_id = None
                 print()
-                self.live = Live(console=cf_console, auto_refresh=False)
+                self.live = Live(
+                    console=cf_console,
+                    vertical_overflow="visible",
+                    auto_refresh=True,
+                )
                 self.live.start()
             return
 
@@ -374,7 +381,9 @@ class PrintHandler(Handler):
     def on_orchestrator_start(self, event: OrchestratorStart):
         """Initialize live display."""
         self.live = Live(
-            auto_refresh=True, console=cf_console, vertical_overflow="visible"
+            console=cf_console,
+            vertical_overflow="visible",
+            auto_refresh=True,
         )
         self.states.clear()
         try:
