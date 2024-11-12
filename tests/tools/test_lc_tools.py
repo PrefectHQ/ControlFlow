@@ -5,7 +5,7 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel
 
 import controlflow
-from controlflow.events.events import AgentToolCall, AIMessage
+from controlflow.events.events import AIMessage, ToolCall
 
 
 class LCBaseToolInput(BaseModel):
@@ -26,7 +26,7 @@ def test_lc_base_tool(default_fake_llm, monkeypatch):
         AIMessage(
             content="",
             tool_calls=[
-                AgentToolCall(
+                ToolCall(
                     id="abc",
                     name="TestTool",
                     args={"x": 3},
@@ -52,7 +52,7 @@ def test_ddg_tool(default_fake_llm, monkeypatch):
         AIMessage(
             content="",
             tool_calls=[
-                AgentToolCall(
+                ToolCall(
                     id="abc",
                     name="duckduckgo_search",
                     args={"query": "top business headlines"},

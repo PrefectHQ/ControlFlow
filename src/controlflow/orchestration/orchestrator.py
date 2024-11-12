@@ -644,32 +644,10 @@ class Orchestrator(ControlFlowModel):
 
     async def _run_async(
         self,
-        max_llm_calls: Optional[int] = None,
-        max_agent_turns: Optional[int] = None,
+        run_context: RunContext,
         model_kwargs: Optional[dict] = None,
-        run_until: Optional[
-            Union[RunEndCondition, Callable[[RunContext], bool]]
-        ] = None,
     ) -> AsyncIterator[Event]:
-        """Async version of _run."""
-        # Create the base termination condition
-        if run_until is None:
-            run_until = AllComplete()
-        elif not isinstance(run_until, RunEndCondition):
-            run_until = FnCondition(run_until)
-
-        # Add max_llm_calls condition
-        if max_llm_calls is None:
-            max_llm_calls = controlflow.settings.orchestrator_max_llm_calls
-        run_until = run_until | MaxLLMCalls(max_llm_calls)
-
-        # Add max_agent_turns condition
-        if max_agent_turns is None:
-            max_agent_turns = controlflow.settings.orchestrator_max_agent_turns
-        run_until = run_until | MaxAgentTurns(max_agent_turns)
-
-        run_context = RunContext(orchestrator=self, run_end_condition=run_until)
-
+        """Run the orchestrator asynchronously, yielding events as they occur."""
         # Initialize the agent if not already set
         if not self.agent:
             self.agent = self.turn_strategy.get_next_agent(
@@ -686,6 +664,7 @@ class Orchestrator(ControlFlowModel):
 
                 yield AgentTurnStart(orchestrator=self, agent=self.agent)
 
+                # Run turn and yield its events
                 async for event in self._run_agent_turn_async(
                     run_context=run_context,
                     model_kwargs=model_kwargs,
@@ -701,10 +680,12 @@ class Orchestrator(ControlFlowModel):
                     )
 
         except Exception as exc:
+            # Yield error event if something goes wrong
             yield OrchestratorError(orchestrator=self, error=exc)
             raise
         finally:
-            yield OrchestratorEnd(orchestrator=self)
+            # Signal the end of orchestration
+            yield OrchestratorEnd(orchestrator=self, run_context=run_context)
 
 
 # Rebuild all models with forward references after Orchestrator is defined

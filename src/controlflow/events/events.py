@@ -12,8 +12,7 @@ from controlflow.llm.messages import (
     HumanMessage,
     ToolMessage,
 )
-from controlflow.tools.tools import InvalidToolCall, Tool
-from controlflow.tools.tools import ToolCall as ToolCallPayload
+from controlflow.tools.tools import InvalidToolCall, Tool, ToolCall
 from controlflow.tools.tools import ToolResult as ToolResultPayload
 from controlflow.utilities.logging import get_logger
 
@@ -136,13 +135,13 @@ class AgentMessageDelta(UnpersistedEvent):
 
     def to_tool_call_deltas(self, tools: list[Tool]) -> list["AgentToolCallDelta"]:
         deltas = []
-        for call_delta in self.message_delta["tool_call_chunks"]:
+        for call_delta in self.message_delta.get("tool_call_chunks", []):
             # First match chunks by index because streaming chunks come in sequence (0,1,2...)
             # and this index lets us correlate deltas to their snapshots during streaming
             chunk_snapshot = next(
                 (
                     c
-                    for c in self.message_snapshot["tool_call_chunks"]
+                    for c in self.message_snapshot.get("tool_call_chunks", [])
                     if c.get("index", -1) == call_delta.get("index", -2)
                 ),
                 None,
@@ -210,7 +209,7 @@ class AgentToolCall(Event):
     event: Literal["tool-call"] = "tool-call"
     agent: Agent
     agent_message_id: Optional[str] = None
-    tool_call: Union[ToolCallPayload, InvalidToolCall]
+    tool_call: Union[ToolCall, InvalidToolCall]
     tool: Optional[Tool] = None
     args: dict = {}
 

@@ -37,15 +37,15 @@ def test_record_task_events(default_fake_llm):
     assert response == events[1].ai_message
 
     assert events[3].event == "tool-result"
-    assert events[3].tool_call == {
+    assert events[3].tool_result.tool_call == {
         "name": "mark_task_12345_successful",
         "args": {"task_result": "Hello!"},
         "id": "call_ZEPdV8mCgeBe5UHjKzm6e3pe",
         "type": "tool_call",
     }
-    assert events[3].tool_result.model_dump() == dict(
-        tool_call_id="call_ZEPdV8mCgeBe5UHjKzm6e3pe",
-        str_result='Task #12345 ("say hello") marked successful.',
-        is_error=False,
-        tool_metadata={"is_completion_tool": True},
-    )
+    tool_result = events[3].tool_result.model_dump()
+    assert tool_result["tool_call"]["id"] == "call_ZEPdV8mCgeBe5UHjKzm6e3pe"
+    assert tool_result["str_result"] == 'Task #12345 ("say hello") marked successful.'
+    assert not tool_result["is_error"]
+    assert tool_result["tool"]["metadata"]["is_completion_tool"]
+    assert tool_result["tool"]["metadata"]["is_success_tool"]
