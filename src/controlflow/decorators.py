@@ -1,8 +1,9 @@
 import asyncio
 import functools
 import inspect
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, ParamSpec, TypeVar, Union, cast
 
+from prefect import Flow as PrefectFlow
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 import controlflow
@@ -14,11 +15,14 @@ from controlflow.utilities.prefect import prefect_flow, prefect_task
 
 # from controlflow.utilities.marvin import patch_marvin
 
+P = ParamSpec("P")
+R = TypeVar("R")
+
 logger = get_logger(__name__)
 
 
 def flow(
-    fn: Optional[Callable[..., Any]] = None,
+    fn: Optional[Callable[P, R]] = None,
     *,
     thread: Optional[str] = None,
     instructions: Optional[str] = None,
@@ -30,7 +34,7 @@ def flow(
     prefect_kwargs: Optional[dict[str, Any]] = None,
     context_kwargs: Optional[list[str]] = None,
     **kwargs: Optional[dict[str, Any]],
-):
+) -> Callable[[Callable[P, R]], PrefectFlow[P, R]]:
     """
     A decorator that wraps a function as a ControlFlow flow.
 
@@ -54,7 +58,7 @@ def flow(
         callable: The wrapped function or a new flow decorator if `fn` is not provided.
     """
     if fn is None:
-        return functools.partial(
+        return functools.partial(  # type: ignore
             flow,
             thread=thread,
             instructions=instructions,
@@ -72,11 +76,11 @@ def flow(
     def create_flow_context(bound_args):
         flow_kwargs = kwargs.copy()
         if thread is not None:
-            flow_kwargs.setdefault("thread_id", thread)
+            flow_kwargs.setdefault("thread_id", thread)  # type: ignore
         if tools is not None:
-            flow_kwargs.setdefault("tools", tools)
+            flow_kwargs.setdefault("tools", tools)  # type: ignore
         if default_agent is not None:
-            flow_kwargs.setdefault("default_agent", default_agent)
+            flow_kwargs.setdefault("default_agent", default_agent)  # type: ignore
 
         context = {}
         if context_kwargs:
@@ -92,7 +96,7 @@ def flow(
     if asyncio.iscoroutinefunction(fn):
 
         @functools.wraps(fn)
-        async def wrapper(*wrapper_args, **wrapper_kwargs):
+        async def wrapper(*wrapper_args, **wrapper_kwargs):  # type: ignore
             bound = sig.bind(*wrapper_args, **wrapper_kwargs)
             bound.apply_defaults()
             with (
@@ -112,13 +116,13 @@ def flow(
             ):
                 return fn(*wrapper_args, **wrapper_kwargs)
 
-    wrapper = prefect_flow(
+    prefect_wrapper = prefect_flow(
         timeout_seconds=timeout_seconds,
         retries=retries,
         retry_delay_seconds=retry_delay_seconds,
         **(prefect_kwargs or {}),
     )(wrapper)
-    return wrapper
+    return cast(Callable[[Callable[P, R]], PrefectFlow[P, R]], prefect_wrapper)
 
 
 def task(
@@ -222,13 +226,13 @@ def task(
             task = _get_task(*args, **kwargs)
             return task.run()
 
-    wrapper = prefect_task(
+    prefect_wrapper = prefect_task(
         timeout_seconds=timeout_seconds,
         retries=retries,
         retry_delay_seconds=retry_delay_seconds,
     )(wrapper)
 
     # store the `as_task` method for loading the task object
-    wrapper.as_task = _get_task
+    prefect_wrapper.as_task = _get_task
 
-    return wrapper
+    return cast(Callable[[Callable[..., Any]], Task], prefect_wrapper)

@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Generator, List
+from typing import Generator, List, Union
 
 from controlflow.utilities.context import ctx
 from controlflow.utilities.logging import get_logger
@@ -8,7 +8,9 @@ logger = get_logger(__name__)
 
 
 @contextmanager
-def instructions(instructions: str) -> Generator[list[str], None, None]:
+def instructions(
+    instructions: Union[str, None],
+) -> Generator[Union[list[str], None], None, None]:
     """
     Temporarily add instructions to the current instruction stack. The
     instruction is removed when the context is exited.
