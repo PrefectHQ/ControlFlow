@@ -31,7 +31,7 @@ A task in ControlFlow typically consists of:
 There are two primary ways to create tasks in ControlFlow: using the `Task` class directly, or using the `@task` decorator.
 
 <Tip>
-In practice, you will often use the `cf.run` function to create and run a task in a single step. This is a common operation and accepts all the same arguments as creating a `Task` directly. See [Running Tasks](/concepts/tasks/running-tasks) for more information.
+In practice, you will often use the `cf.run` function to create and run a task in a single step. This is a common operation and accepts all the same arguments as creating a `Task` directly. See [Running Tasks](/patterns/running-tasks) for more information.
 </Tip>
 
 ### Using the `Task` class
@@ -45,7 +45,7 @@ import controlflow as cf
 task = cf.Task(
     objective="Write a poem about the provided topic",
     instructions="Write four lines that rhyme",
-    context={"topic": "AI"}    
+    context={"topic": "AI"}
 )
 
 result = task.run()
@@ -90,11 +90,11 @@ AI, the future, as it softly glows.
 The following task properties are inferred directly from the decorated function:
 
 | Task property | Inferred from |
-| -------- | ------------------- | 
-| `name` | The function's name | 
+| -------- | ------------------- |
+| `name` | The function's name |
 | `objective` | The function's docstring and return value (if any) |
-| `result_type` | The function's return annotation | 
-| `context` | The function's arguments (keyed by argument name) and return value (keyed as "Additional context") | 
+| `result_type` | The function's return annotation |
+| `context` | The function's arguments (keyed by argument name) and return value (keyed as "Additional context") |
 
 Additional properties can be set by passing keyword arguments directly to the `@task` decorator.
 
@@ -104,7 +104,7 @@ When creating a task, you can configure various properties to define its behavio
 
 ### Objective
 
-The objective of a task is the main goal that the task is working towards. It is used to guide the task's execution and to help agents understand the task's purpose. 
+The objective of a task is the main goal that the task is working towards. It is used to guide the task's execution and to help agents understand the task's purpose.
 
 The `objective` is the only required task configuration, as it indicates the task's purpose and helps agents understand the task they are working on.
 
@@ -136,8 +136,8 @@ cf.run("Write a poem... then fail this task.")
 ```
 
 ```text Result
-ValueError: Task 04561cda ("Write a poem... then fail this task.") 
-failed: Task instructed to be marked as failed despite 
+ValueError: Task 04561cda ("Write a poem... then fail this task.")
+failed: Task instructed to be marked as failed despite
 no technical error
 ```
 </CodeGroup>
@@ -185,7 +185,7 @@ import controlflow as cf
 from pydantic import BaseModel
 
 media = cf.run(
-    "Star Wars: Return of the Jedi", 
+    "Star Wars: Return of the Jedi",
     result_type=["book", "movie", "album"]
 )
 
@@ -197,7 +197,7 @@ movie
 ```
 </CodeGroup>
 
-For more information, see [Result Types](/concepts/tasks/task-results).
+For more information, see [Task Results](/patterns/task-results).
 
 ### Result validator
 
@@ -216,13 +216,13 @@ number = cf.run("Choose a number", result_validator=validate_even)
 print(number)
 ```
 
-For more information, see [Result Validators](/concepts/tasks/task-results#result-validators).
+For more information, see [Validation](/patterns/task-results#validation).
 
 
 
 ### Instructions
 
-The instructions of a task are a string that provides detailed instructions for the task. This information is visible to agents during execution, helping them understand the task they are working on. 
+The instructions of a task are a string that provides detailed instructions for the task. This information is visible to agents during execution, helping them understand the task they are working on.
 
 <Tip>
 As a general rule, use the task's `objective` to describe what the task's result should be, and use the `instructions` to provide more detailed instructions on how to achieve the objective.
@@ -235,7 +235,7 @@ As a general rule, use the task's `objective` to describe what the task's result
 import controlflow as cf
 
 poem = cf.run(
-    "Write a poem about AI", 
+    "Write a poem about AI",
     instructions="Write only two lines, and end the first line with `not evil`",
 )
 
@@ -332,8 +332,8 @@ The context of a task is a dictionary that provides additional information about
 import controlflow as cf
 
 is_spam = cf.run(
-    "Is this email spam?", 
-    result_type=bool, 
+    "Is this email spam?",
+    result_type=bool,
     context=dict(email='You just won a million dollars!'),
 )
 
@@ -360,7 +360,7 @@ def roll_dice(n_dice: int):
 
 rolls = cf.run(
     "Roll 3 dice",
-    result_type=list[int], 
+    result_type=list[int],
     tools=[roll_dice],
 )
 

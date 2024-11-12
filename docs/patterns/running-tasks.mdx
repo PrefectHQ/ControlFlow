@@ -39,7 +39,7 @@ Crafting worlds and shaping dreams.
 
 ### `@task`-decorated functions
 
-The `@task` [decorator](/concepts/tasks/creating-tasks#the-task-decorator) creates a task from a function. This approach is less common than using the `run` function, but can be useful for quickly "packaging" task definitions as reusable logic. To run the task at any time, simply call the function with appropriate arguments. This will create a new task and run it to completion, returning the result.
+The `@task` [decorator](/concepts/tasks#using-the-task-decorator) creates a task from a function. This approach is less common than using the `run` function, but can be useful for quickly "packaging" task definitions as reusable logic. To run the task at any time, simply call the function with appropriate arguments. This will create a new task and run it to completion, returning the result.
 
 <CodeGroup>
 
@@ -108,24 +108,24 @@ A partner true, as once we dreamt and sought.
 
 ```text Critique
 The poem effectively captures the essence of artificial intelligence, portraying
-it as a creation of human ingenuity that holds immense potential and power. The 
-use of vivid imagery, such as 'In circuits deep, where algorithms play' and 'In 
-binary whispers, turns dark to light,' helps to paint a clear picture of AI's 
+it as a creation of human ingenuity that holds immense potential and power. The
+use of vivid imagery, such as 'In circuits deep, where algorithms play' and 'In
+binary whispers, turns dark to light,' helps to paint a clear picture of AI's
 inner workings and its capabilities.
 
-The poem also touches on the dual nature of AI, highlighting both its promise and 
-the potential risks it carries. Phrases like 'A tool so great, or threat to free' 
-and 'Yet fears arise of what may be' encapsulate the ambivalence that often 
+The poem also touches on the dual nature of AI, highlighting both its promise and
+the potential risks it carries. Phrases like 'A tool so great, or threat to free'
+and 'Yet fears arise of what may be' encapsulate the ambivalence that often
 accompanies discussions about AI.
 
-The structure of the poem, with its consistent rhyme scheme and rhythm, provides 
-a smooth and engaging reading experience. The repetition of certain themes, such 
-as the growth and learning of AI, reinforces the key messages and adds depth to 
+The structure of the poem, with its consistent rhyme scheme and rhythm, provides
+a smooth and engaging reading experience. The repetition of certain themes, such
+as the growth and learning of AI, reinforces the key messages and adds depth to
 the overall narrative.
 
-Overall, the poem is a thoughtful and well-crafted piece that successfully 
-conveys the complexities and nuances of artificial intelligence. It prompts 
-reflection on the ethical considerations and responsibilities that come with 
+Overall, the poem is a thoughtful and well-crafted piece that successfully
+conveys the complexities and nuances of artificial intelligence. It prompts
+reflection on the ethical considerations and responsibilities that come with
 developing and implementing such powerful technology.
 ```
 </CodeGroup>
@@ -157,7 +157,7 @@ Crafting worlds and shaping dreams.
 
 
 ## Multi-Agent Collaboration
-For tasks involving multiple agents, ControlFlow needs a way to manage their collaboration. What makes this more complicated than simply making an LLM call and moving on to the next agent is that it may take multiple LLM calls to complete a single agentic "turn" of work. 
+For tasks involving multiple agents, ControlFlow needs a way to manage their collaboration. What makes this more complicated than simply making an LLM call and moving on to the next agent is that it may take multiple LLM calls to complete a single agentic "turn" of work.
 
 <Info>
   It's tempting to say that a single LLM call is equivalent to a single agentic turn. However, this approach breaks down quickly. If an agent uses a tool (one LLM call), it should almost always be invoked a second time to examine the tool result. If the system moved on after every LLM call, then the result could potentially be evaluated by an LLM that wasn't designed to interpret the tool's output. In addition, naively ending a turn after a tool call would prevent "thinking out loud" and other emergent, iterative behaviors.
@@ -200,7 +200,7 @@ cf.run(
         "agent has posted a message to the thread."
     ),
     agents=[agent1, agent2, agent3],
-    # supply a turn strategy 
+    # supply a turn strategy
     turn_strategy=cf.orchestration.turn_strategies.RoundRobin(),
 )
 ```
@@ -225,7 +225,7 @@ cf.run(
 
 ## Advanced orchestration
 
-All of the approaches described so far will run a group of tasks until they are marked as complete. However, you may want to exert more control over task execution. To do so, you'll need to create and work with an `Orchestrator` directly. 
+All of the approaches described so far will run a group of tasks until they are marked as complete. However, you may want to exert more control over task execution. To do so, you'll need to create and work with an `Orchestrator` directly.
 
 ### The orchestration loop
 When tasks are run, ControlFlow invokes an `Orchestrator` to coordinate agentic activity and complete the work. The orchestrator is ultimately responsible for creating the core agentic loop. In each iteration, an agent (or more specifically, an LLM) is invoked and all available information -- the tasks, the flow, the agents, and the history of the conversation -- is used to compile an appropriate prompt.
@@ -316,7 +316,7 @@ A global default can be set with ControlFlow's `orchestrator_max_agent_turns` se
 
 #### Limiting LLM calls
 
-The `max_llm_calls` argument limits the number of LLM calls that can be made during a single orchestration session. This limit is enforced by the orchestrator, which will end the turn early if the limit is reached. Note that this is enforced independently of the `max_agent_turns` limit. 
+The `max_llm_calls` argument limits the number of LLM calls that can be made during a single orchestration session. This limit is enforced by the orchestrator, which will end the turn early if the limit is reached. Note that this is enforced independently of the `max_agent_turns` limit.
 
 A global default can be set with ControlFlow's `orchestrator_max_llm_calls` setting.
 
@@ -337,8 +337,8 @@ def roll_dice():
     return random.randint(1, 6)
 
 task = cf.Task(
-    "Roll 3 dice and report the results", 
-    max_llm_calls=1, 
+    "Roll 3 dice and report the results",
+    max_llm_calls=1,
     tools=[roll_dice],
 )
 
@@ -390,7 +390,7 @@ Termination conditions can be combined using boolean logic: `|` indicates "or" a
 
 ### Accessing an orchestrator directly
 
-If you want to "step" through the agentic loop yourself, you can create and invoke an `Orchestrator` directly. 
+If you want to "step" through the agentic loop yourself, you can create and invoke an `Orchestrator` directly.
 
 The orchestrator is instantiated with the following arguments:
 - `tasks`: a list of tasks that it is responsible for orchestrating. Note it will also consider all of the tasks' dependencies and subtasks, but these are the tasks that determine whether it is finished.
@@ -415,7 +415,7 @@ Whenever an event is generated by ControlFlow, the orchestrator will pass it to 
 
 | Event Type | Method |
 |------------|--------|
-| `Event` (all events) | `on_event` |   
+| `Event` (all events) | `on_event` |
 | `UserMessage` | `on_user_message` |
 | `OrchestratorMessage` | `on_orchestrator_message` |
 | `AgentMessage` | `on_agent_message` |
