@@ -103,7 +103,9 @@ class ToolState(DisplayState):
             "gray50",
         )  # Animated spinner, softer running state
 
-    def render_completion_tool(self) -> Panel:
+    def render_completion_tool(
+        self, show_inputs: bool = False, show_outputs: bool = False
+    ) -> Panel:
         """Special rendering for completion tools."""
         table = Table.grid(padding=0, expand=True)
         header = Table.grid(padding=1)
@@ -114,33 +116,30 @@ class ToolState(DisplayState):
         is_fail_tool = self.tool.metadata.get("is_fail_tool", False)
         task = self.tool.metadata.get("completion_task")
         task_name = task.friendly_name() if task else "Unknown Task"
+        # completion tools store their results on the task, rather than returning them directly
         task_result = task.result if task else None
 
         if not self.is_complete:
-            # Running state - muted style
             icon = Spinner("dots")
             message = f"Working on task: {task_name}"
             text_style = "dim"
             border_style = "gray50"
         else:
             if self.is_error:
-                # Tool execution failed (error in the tool itself)
                 icon = "❌"
                 message = f"Error marking task status: {task_name}"
                 text_style = "red"
                 border_style = "red"
-                if self.result:
+                if show_outputs and self.result:
                     message += f"\nError: {self.result}"
             elif is_fail_tool:
-                # Failure tool succeeded (task is being marked as failed)
                 icon = "❌"
                 message = f"Task failed: {task_name}"
                 text_style = "red"
                 border_style = "red"
-                if task_result:
-                    message += f"\nReason: {task_result or 'No reason provided'}"
+                if show_outputs and task_result:
+                    message += f"\nReason: {task_result}"
             else:
-                # Success tool succeeded (task completed normally)
                 icon = "✓"
                 message = f"Task complete: {task_name}"
                 text_style = "dim"
@@ -148,6 +147,33 @@ class ToolState(DisplayState):
 
         header.add_row(icon, f"[{text_style}]{message}[/]")
         table.add_row(header)
+
+        # Show details (streaming args or final result)
+        if show_outputs and self.args:
+            details = Table.grid(padding=(0, 2))
+            details.add_column(style="dim", width=9)
+            details.add_column()
+
+            # If complete and successful, show task_result
+            if (
+                self.is_complete
+                and not self.is_error
+                and not is_fail_tool
+                and task_result
+            ):
+                label = "Result" if is_success_tool else "Reason"
+                details.add_row(
+                    f"    {label}:",
+                    f"{task_result}",
+                )
+            # Otherwise show streaming args
+            else:
+                label = "Result" if is_success_tool else "Reason"
+                details.add_row(
+                    f"    {label}:",
+                    rich.pretty.Pretty(self.args, indent_size=2, expand_all=True),
+                )
+            table.add_row(details)
 
         return Panel(
             table,
@@ -161,13 +187,17 @@ class ToolState(DisplayState):
             padding=(0, 1),
         )
 
-    def render_panel(self, show_details: bool = True) -> Panel:
+    def render_panel(
+        self,
+        show_inputs: bool = True,
+        show_outputs: bool = True,
+    ) -> Panel:
         """Render tool state as a panel with status indicator."""
-        # Handle completion tools separately
         if self.tool and self.tool.metadata.get("is_completion_tool"):
-            return self.render_completion_tool()
+            return self.render_completion_tool(
+                show_inputs=show_inputs, show_outputs=show_outputs
+            )
 
-        # Regular tool display logic continues as before...
         icon, text_style, border_style = self.get_status_style()
         table = Table.grid(padding=0, expand=True)
 
@@ -178,18 +208,18 @@ class ToolState(DisplayState):
         header.add_row(icon, f"[{text_style} bold]{tool_name}[/]")
         table.add_row(header)
 
-        if show_details:
+        if show_inputs or show_outputs:
             details = Table.grid(padding=(0, 2))
             details.add_column(style="dim", width=9)
             details.add_column()
 
-            if self.args:
+            if show_inputs and self.args:
                 details.add_row(
                     "    Input:",
                     rich.pretty.Pretty(self.args, indent_size=2, expand_all=True),
                 )
 
-            if self.is_complete and self.result:
+            if show_outputs and self.is_complete and self.result:
                 label = "Error" if self.is_error else "Output"
                 style = "red" if self.is_error else "green3"
                 details.add_row(
@@ -213,9 +243,21 @@ class ToolState(DisplayState):
 
 
 class PrintHandler(Handler):
-    def __init__(self, include_completion_tools: bool = True):
+    def __init__(
+        self,
+        show_completion_tools: bool = True,
+        show_tool_inputs: bool = True,
+        show_tool_outputs: bool = True,
+        show_completion_tool_results: bool = False,
+    ):
         super().__init__()
-        self.include_completion_tools = include_completion_tools
+        # Tool display settings
+        self.show_completion_tools = show_completion_tools
+        self.show_tool_inputs = show_tool_inputs
+        self.show_tool_outputs = show_tool_outputs
+        # Completion tool specific settings
+        self.show_completion_tool_results = show_completion_tool_results
+
         self.live: Optional[Live] = None
         self.paused_id: Optional[str] = None
         self.states: dict[str, DisplayState] = {}
@@ -225,14 +267,34 @@ class PrintHandler(Handler):
         if not self.live or not self.live.is_started or self.paused_id:
             return
 
-        # Sort states by timestamp and render panels
         sorted_states = sorted(self.states.values(), key=lambda s: s.first_timestamp)
-        panels = [
-            state.render_panel(show_details=self.include_completion_tools)
-            if isinstance(state, ToolState)
-            else state.render_panel()
-            for state in sorted_states
-        ]
+        panels = []
+
+        for state in sorted_states:
+            if isinstance(state, ToolState):
+                is_completion_tool = state.tool and state.tool.metadata.get(
+                    "is_completion_tool"
+                )
+
+                # Skip completion tools if disabled
+                if not self.show_completion_tools and is_completion_tool:
+                    continue
+
+                if is_completion_tool:
+                    panels.append(
+                        state.render_completion_tool(
+                            show_outputs=self.show_completion_tool_results
+                        )
+                    )
+                else:
+                    panels.append(
+                        state.render_panel(
+                            show_inputs=self.show_tool_inputs,
+                            show_outputs=self.show_tool_outputs,
+                        )
+                    )
+            else:
+                panels.append(state.render_panel())
 
         if panels:
             self.live.update(Group(*panels), refresh=True)
@@ -287,13 +349,13 @@ class PrintHandler(Handler):
             if self.paused_id == event.tool_result.tool_call["id"]:
                 self.paused_id = None
                 print()
-                self.live = Live(console=cf_console, auto_refresh=True)
+                self.live = Live(console=cf_console, auto_refresh=False)
                 self.live.start()
             return
 
-        # Skip completion tools if configured
+        # Skip completion tools if disabled
         if (
-            not self.include_completion_tools
+            not self.show_completion_tools
             and event.tool_result.tool
             and event.tool_result.tool.metadata.get("is_completion_tool")
         ):

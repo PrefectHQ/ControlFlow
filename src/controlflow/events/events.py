@@ -137,8 +137,9 @@ class AgentMessageDelta(UnpersistedEvent):
     def to_tool_call_deltas(self, tools: list[Tool]) -> list["AgentToolCallDelta"]:
         deltas = []
         for call_delta in self.message_delta["tool_call_chunks"]:
-            # try to retrieve the matching snapshot based on index
-            call_snapshot = next(
+            # First match chunks by index because streaming chunks come in sequence (0,1,2...)
+            # and this index lets us correlate deltas to their snapshots during streaming
+            chunk_snapshot = next(
                 (
                     c
                     for c in self.message_snapshot["tool_call_chunks"]
@@ -147,22 +148,35 @@ class AgentMessageDelta(UnpersistedEvent):
                 None,
             )
 
-            if call_snapshot:
-                tool = next(
-                    (t for t in tools if t.name == call_snapshot.get("name")), None
+            if chunk_snapshot and chunk_snapshot.get("id"):
+                # Once we have the matching chunk, use its ID to find the full tool call
+                # The full tool calls contain properly parsed arguments (as Python dicts)
+                # while chunks just contain raw JSON strings
+                call_snapshot = next(
+                    (
+                        c
+                        for c in self.message_snapshot["tool_calls"]
+                        if c.get("id") == chunk_snapshot["id"]
+                    ),
+                    None,
                 )
-                deltas.append(
-                    AgentToolCallDelta(
-                        agent=self.agent,
-                        tool_call_delta=call_delta,
-                        tool_call_snapshot=call_snapshot,
-                        tool=tool,
-                        args=pydantic_core.from_json(
-                            call_snapshot["args"] or "{}", allow_partial=True
-                        ),
-                        agent_message_id=self.message_snapshot.get("id"),
+
+                if call_snapshot:
+                    tool = next(
+                        (t for t in tools if t.name == call_snapshot.get("name")), None
                     )
-                )
+                    # Use call_snapshot.args which is already parsed into a Python dict
+                    # This avoids issues with pydantic's more limited JSON parser
+                    deltas.append(
+                        AgentToolCallDelta(
+                            agent=self.agent,
+                            tool_call_delta=call_delta,
+                            tool_call_snapshot=call_snapshot,
+                            tool=tool,
+                            args=call_snapshot.get("args", {}),
+                            agent_message_id=self.message_snapshot.get("id"),
+                        )
+                    )
         return deltas
 
     def to_content_delta(self) -> "AgentContentDelta":
