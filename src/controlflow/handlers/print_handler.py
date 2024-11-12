@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional
+from typing import Optional, Union
 
 import rich
 from pydantic import BaseModel
@@ -93,7 +93,7 @@ class ToolState(DisplayState):
     is_complete: bool = False
     tool: Optional[Tool] = None
 
-    def get_status_style(self) -> tuple[str | Spinner, str, str]:
+    def get_status_style(self) -> tuple[Union[str, Spinner], str, str]:
         """Returns (icon, text style, border style) for current status."""
         if self.is_complete:
             if self.is_error:
