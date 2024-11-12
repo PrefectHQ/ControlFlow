@@ -84,7 +84,8 @@ class Orchestrator(ControlFlowModel):
         if v is None and controlflow.settings.enable_default_print_handler:
             v = [
                 PrintHandler(
-                    include_completion_tools=controlflow.settings.default_print_handler_include_completion_tools
+                    show_completion_tools=controlflow.settings.default_print_handler_show_completion_tools,
+                    show_completion_tool_results=controlflow.settings.default_print_handler_show_completion_tool_results,
                 )
             ]
         return v or []
