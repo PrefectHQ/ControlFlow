@@ -298,16 +298,16 @@ def output_to_string(output: Any) -> str:
 
 
 class ToolResult(ControlFlowModel):
-    tool_call_id: str
+    tool_call: Union[ToolCall, InvalidToolCall]
+    tool: Optional[Tool] = None
     result: Any = Field(exclude=True, repr=False)
     str_result: str = Field(repr=False)
     is_error: bool = False
-    tool_metadata: dict = {}
 
 
 def handle_tool_call(
     tool_call: Union[ToolCall, InvalidToolCall], tools: list[Tool]
-) -> Any:
+) -> ToolResult:
     """
     Given a ToolCall and set of available tools, runs the tool call and returns
     a ToolResult object
@@ -340,15 +340,15 @@ def handle_tool_call(
                 raise exc
 
     return ToolResult(
-        tool_call_id=tool_call["id"],
+        tool_call=tool_call,
+        tool=tool,
         result=fn_output,
         str_result=output_to_string(fn_output),
         is_error=is_error,
-        tool_metadata=tool.metadata if tool else {},
     )
 
 
-async def handle_tool_call_async(tool_call: ToolCall, tools: list[Tool]) -> Any:
+async def handle_tool_call_async(tool_call: ToolCall, tools: list[Tool]) -> ToolResult:
     """
     Given a ToolCall and set of available tools, runs the tool call and returns
     a ToolResult object
@@ -381,9 +381,9 @@ async def handle_tool_call_async(tool_call: ToolCall, tools: list[Tool]) -> Any:
                 raise exc
 
     return ToolResult(
-        tool_call_id=tool_call["id"],
+        tool_call=tool_call,
+        tool=tool,
         result=fn_output,
         str_result=output_to_string(fn_output),
         is_error=is_error,
-        tool_metadata=tool.metadata if tool else {},
     )

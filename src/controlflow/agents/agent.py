@@ -291,8 +291,7 @@ class Agent(ControlFlowModel, abc.ABC):
         from controlflow.events.events import (
             AgentMessage,
             AgentMessageDelta,
-            ToolCallEvent,
-            ToolResultEvent,
+            ToolResult,
         )
 
         tools = as_tools(self.get_tools() + tools)
@@ -312,12 +311,17 @@ class Agent(ControlFlowModel, abc.ABC):
                 else:
                     response += delta
 
-                yield AgentMessageDelta(agent=self, delta=delta, snapshot=response)
+                yield from AgentMessageDelta(
+                    agent=self, message_delta=delta, message_snapshot=response
+                ).all_related_events(tools=tools)
 
         else:
             response: AIMessage = model.invoke(messages)
 
-        yield AgentMessage(agent=self, message=response)
+        yield from AgentMessage(agent=self, message=response).all_related_events(
+            tools=tools
+        )
+
         create_markdown_artifact(
             markdown=f"""
 {response.content or '(No content)'}
@@ -335,9 +339,8 @@ class Agent(ControlFlowModel, abc.ABC):
             logger.debug(f"Response: {response}")
 
         for tool_call in response.tool_calls + response.invalid_tool_calls:
-            yield ToolCallEvent(agent=self, tool_call=tool_call)
             result = handle_tool_call(tool_call, tools=tools)
-            yield ToolResultEvent(agent=self, tool_call=tool_call, tool_result=result)
+            yield ToolResult(agent=self, tool_result=result)
 
     @prefect_task(task_run_name="Call LLM")
     async def _run_model_async(
@@ -350,8 +353,7 @@ class Agent(ControlFlowModel, abc.ABC):
         from controlflow.events.events import (
             AgentMessage,
             AgentMessageDelta,
-            ToolCallEvent,
-            ToolResultEvent,
+            ToolResult,
         )
 
         tools = as_tools(self.get_tools() + tools)
@@ -371,12 +373,18 @@ class Agent(ControlFlowModel, abc.ABC):
                 else:
                     response += delta
 
-                yield AgentMessageDelta(agent=self, delta=delta, snapshot=response)
+                for event in AgentMessageDelta(
+                    agent=self, message_delta=delta, message_snapshot=response
+                ).all_related_events(tools=tools):
+                    yield event
 
         else:
             response: AIMessage = await model.ainvoke(messages)
 
-        yield AgentMessage(agent=self, message=response)
+        for event in AgentMessage(agent=self, message=response).all_related_events(
+            tools=tools
+        ):
+            yield event
 
         create_markdown_artifact(
             markdown=f"""
@@ -395,6 +403,5 @@ class Agent(ControlFlowModel, abc.ABC):
             logger.debug(f"Response: {response}")
 
         for tool_call in response.tool_calls + response.invalid_tool_calls:
-            yield ToolCallEvent(agent=self, tool_call=tool_call)
             result = await handle_tool_call_async(tool_call, tools=tools)
-            yield ToolResultEvent(agent=self, tool_call=tool_call, tool_result=result)
+            yield ToolResult(agent=self, tool_result=result)

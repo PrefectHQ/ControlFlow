@@ -21,7 +21,7 @@ def get_event_validator() -> TypeAdapter:
         AgentMessage,
         EndTurn,
         OrchestratorMessage,
-        ToolResultEvent,
+        ToolResult,
         UserMessage,
     )
 
@@ -30,7 +30,7 @@ def get_event_validator() -> TypeAdapter:
         UserMessage,
         AgentMessage,
         EndTurn,
-        ToolResultEvent,
+        ToolResult,
         Event,
     ]
     return TypeAdapter(list[types])

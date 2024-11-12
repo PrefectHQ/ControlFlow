@@ -8,8 +8,8 @@ import controlflow
 from controlflow.events.base import Event, UnpersistedEvent
 from controlflow.events.events import (
     AgentMessage,
-    ToolCallEvent,
-    ToolResultEvent,
+    AgentToolCall,
+    ToolResult,
 )
 from controlflow.llm.messages import (
     AIMessage,
@@ -28,8 +28,8 @@ logger = get_logger(__name__)
 class CombinedAgentMessage(UnpersistedEvent):
     event: Literal["combined-agent-message"] = "combined-agent-message"
     agent_message: AgentMessage
-    tool_call: list[ToolCallEvent] = []
-    tool_results: list[ToolResultEvent] = []
+    tool_call: list[AgentToolCall] = []
+    tool_results: list[ToolResult] = []
 
     def to_messages(self, context: "CompileContext") -> list[BaseMessage]:
         messages = []
@@ -213,9 +213,9 @@ class MessageCompiler:
                     event.ai_message.tool_calls + event.ai_message.invalid_tool_calls
                 ):
                     tool_calls[tc["id"]] = combined_event
-            elif isinstance(event, ToolResultEvent):
+            elif isinstance(event, ToolResult):
                 combined_event: CombinedAgentMessage = tool_calls.get(
-                    event.tool_call["id"]
+                    event.tool_result.tool_call["id"]
                 )
                 if combined_event:
                     combined_event.tool_results.append(event)

@@ -583,7 +583,11 @@ class Task(ControlFlowModel):
         """
         options = {}
         instructions = []
-        metadata = {"is_completion_tool": True}
+        metadata = {
+            "is_completion_tool": True,
+            "is_success_tool": True,
+            "completion_task": self,
+        }
         result_schema = None
 
         # if the result_type is a tuple of options, then we want the LLM to provide
@@ -714,6 +718,11 @@ class Task(ControlFlowModel):
                  failure."""
             ),
             include_return_description=False,
+            metadata={
+                "is_completion_tool": True,
+                "is_fail_tool": True,
+                "completion_task": self,
+            },
         )
         def fail(reason: str) -> str:
             self.mark_failed(reason=reason)

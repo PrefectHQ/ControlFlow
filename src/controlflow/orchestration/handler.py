@@ -7,10 +7,10 @@ if TYPE_CHECKING:
     from controlflow.events.events import (
         AgentMessage,
         AgentMessageDelta,
+        AgentToolCall,
         EndTurn,
         OrchestratorMessage,
-        ToolCallEvent,
-        ToolResultEvent,
+        ToolResult,
         UserMessage,
     )
     from controlflow.events.orchestrator_events import (
@@ -54,10 +54,10 @@ class Handler:
     def on_agent_message_delta(self, event: "AgentMessageDelta"):
         pass
 
-    def on_tool_call(self, event: "ToolCallEvent"):
+    def on_tool_call(self, event: "AgentToolCall"):
         pass
 
-    def on_tool_result(self, event: "ToolResultEvent"):
+    def on_tool_result(self, event: "ToolResult"):
         pass
 
     def on_orchestrator_message(self, event: "OrchestratorMessage"):
@@ -68,14 +68,6 @@ class Handler:
 
     def on_end_turn(self, event: "EndTurn"):
         pass
-
-
-class CallbackHandler(Handler):
-    def __init__(self, callback: Callable[[Event], None]):
-        self.callback = callback
-
-    def on_event(self, event: Event):
-        self.callback(event)
 
 
 class AsyncHandler:
@@ -112,10 +104,10 @@ class AsyncHandler:
     async def on_agent_message_delta(self, event: "AgentMessageDelta"):
         pass
 
-    async def on_tool_call(self, event: "ToolCallEvent"):
+    async def on_tool_call(self, event: "AgentToolCall"):
         pass
 
-    async def on_tool_result(self, event: "ToolResultEvent"):
+    async def on_tool_result(self, event: "ToolResult"):
         pass
 
     async def on_orchestrator_message(self, event: "OrchestratorMessage"):
