@@ -1,10 +1,11 @@
 import asyncio
 import functools
 import inspect
-from typing import Any, Callable, Optional, ParamSpec, TypeVar, Union, cast
+from typing import Any, Callable, Optional, TypeVar, Union, cast
 
 from prefect import Flow as PrefectFlow
 from prefect.utilities.asyncutils import run_coro_as_sync
+from typing_extensions import ParamSpec
 
 import controlflow
 from controlflow.agents import Agent
