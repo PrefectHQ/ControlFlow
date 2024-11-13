@@ -30,7 +30,7 @@ class Event(ControlFlowModel):
         return []
 
     def __repr__(self) -> str:
-        return f"<{self.event} {self.timestamp}>"
+        return f"<Event: {self.event} Timestamp: {self.timestamp}>"
 
 
 class UnpersistedEvent(Event):

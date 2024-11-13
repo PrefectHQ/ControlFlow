@@ -1,10 +1,13 @@
+import controlflow
 from controlflow import instructions
 from controlflow.events.base import Event
 from controlflow.events.events import AgentMessage
+from controlflow.llm.messages import AIMessage
 from controlflow.orchestration.conditions import AnyComplete, AnyFailed, MaxLLMCalls
 from controlflow.orchestration.handler import Handler
 from controlflow.run import run, run_async, run_tasks, run_tasks_async
 from controlflow.tasks.task import Task
+from tests.fixtures.controlflow import default_fake_llm
 
 
 class TestHandlers:
@@ -167,3 +170,35 @@ class TestRunUntilAsync:
         assert task1.is_failed()
         assert task2.is_incomplete()
         assert task3.is_failed()
+
+
+class TestRunStreaming:
+    def test_stream_all(self, default_fake_llm):
+        result = run("what's 2 + 2", stream=True, max_llm_calls=1)
+        r = list(result)
+        assert len(r) == 2
+        assert r[0][0].event == "agent-content-delta"
+        assert r[1][0].event == "agent-content"
+
+    def test_stream_content(self, default_fake_llm):
+        response = AIMessage(
+            id="run-2af8bb73-661f-4ec3-92ff-d7d8e3074926",
+            name="Marvin",
+            role="ai",
+            content="",
+            tool_calls=[
+                {
+                    "name": "mark_task_12345_successful",
+                    "args": {"task_result": "Hello!"},
+                    "id": "call_ZEPdV8mCgeBe5UHjKzm6e3pe",
+                    "type": "tool_call",
+                }
+            ],
+        )
+
+        default_fake_llm.set_responses(["Hello!", response])
+        result = run("say hello", stream=True, max_llm_calls=1)
+        r = list(result)
+        assert len(r) == 2
+        assert r[0][0].event == "agent-content-delta"
+        assert r[1][0].event == "agent-content"

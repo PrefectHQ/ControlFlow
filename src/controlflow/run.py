@@ -1,25 +1,17 @@
-from typing import Any, Callable, Optional, Union
-
-from prefect.context import TaskRunContext
+from typing import Any, Callable, Iterator, Optional, Union
 
 import controlflow
 from controlflow.agents.agent import Agent
+from controlflow.events.events import Event
 from controlflow.flows import Flow, get_flow
 from controlflow.orchestration.conditions import RunContext, RunEndCondition
 from controlflow.orchestration.handler import AsyncHandler, Handler
 from controlflow.orchestration.orchestrator import Orchestrator, TurnStrategy
+from controlflow.stream import Stream, filter_events
 from controlflow.tasks.task import Task
 from controlflow.utilities.prefect import prefect_task
 
 
-def get_task_run_name() -> str:
-    context = TaskRunContext.get()
-    tasks = context.parameters["tasks"]
-    task_names = " | ".join(t.friendly_name() for t in tasks)
-    return f"Run task{'s' if len(tasks) > 1 else ''}: {task_names}"
-
-
-@prefect_task(task_run_name=get_task_run_name)
 def run_tasks(
     tasks: list[Task],
     instructions: str = None,
@@ -32,11 +24,29 @@ def run_tasks(
     handlers: list[Handler] = None,
     model_kwargs: Optional[dict] = None,
     run_until: Optional[Union[RunEndCondition, Callable[[RunContext], bool]]] = None,
-) -> list[Any]:
+    stream: Union[bool, Stream] = False,
+) -> Union[list[Any], Iterator[tuple[Event, Any, Optional[Any]]]]:
     """
     Run a list of tasks.
 
-    Returns a list of task results corresponding to the input tasks, or raises an error if any tasks failed.
+    Args:
+        tasks: List of tasks to run.
+        instructions: Instructions for the tasks.
+        flow: Flow to run the tasks in.
+        agent: Agent to run the tasks with.
+        turn_strategy: Turn strategy to use for the tasks.
+        raise_on_failure: Whether to raise an error if any tasks fail.
+        max_llm_calls: Maximum number of LLM calls to make.
+        max_agent_turns: Maximum number of agent turns to make.
+        handlers: List of handlers to use for the tasks.
+        model_kwargs: Keyword arguments to pass to the LLM.
+        run_until: Condition to stop running tasks.
+        stream: If True, stream all events. Can also provide StreamFilter flags to filter specific events.
+               e.g. StreamFilter.CONTENT | StreamFilter.AGENT_TOOLS
+
+    Returns:
+        If not streaming: List of task results
+        If streaming: Iterator of (event, snapshot, delta) tuples
     """
     flow = flow or get_flow() or Flow()
 
@@ -49,12 +59,18 @@ def run_tasks(
     )
 
     with controlflow.instructions(instructions):
-        orchestrator.run(
+        result = orchestrator.run(
             max_llm_calls=max_llm_calls,
             max_agent_turns=max_agent_turns,
             model_kwargs=model_kwargs,
             run_until=run_until,
+            stream=bool(stream),
         )
+
+        if stream:
+            # Convert True to ALL filter, otherwise use provided filter
+            stream_filter = Stream.ALL if stream is True else stream
+            return filter_events(result, Stream._filter_names(stream_filter))
 
     if raise_on_failure and any(t.is_failed() for t in tasks):
         errors = [f"- {t.friendly_name()}: {t.result}" for t in tasks if t.is_failed()]
@@ -67,7 +83,6 @@ def run_tasks(
     return [t.result for t in tasks]
 
 
-@prefect_task(task_run_name=get_task_run_name)
 async def run_tasks_async(
     tasks: list[Task],
     instructions: str = None,
@@ -122,8 +137,24 @@ def run(
     handlers: list[Handler] = None,
     model_kwargs: Optional[dict] = None,
     run_until: Optional[Union[RunEndCondition, Callable[[RunContext], bool]]] = None,
+    stream: Union[bool, Stream] = False,
     **task_kwargs,
-) -> Any:
+) -> Union[Any, Iterator[tuple[Event, Any, Optional[Any]]]]:
+    """
+    Run a single task.
+
+    Args:
+        objective: Objective of the task.
+        turn_strategy: Turn strategy to use for the task.
+        max_llm_calls: Maximum number of LLM calls to make.
+        max_agent_turns: Maximum number of agent turns to make.
+        raise_on_failure: Whether to raise an error if the task fails.
+        handlers: List of handlers to use for the task.
+        model_kwargs: Keyword arguments to pass to the LLM.
+        run_until: Condition to stop running the task.
+        stream: If True, stream all events. Can also provide StreamFilter flags to filter specific events.
+               e.g. StreamFilter.CONTENT | StreamFilter.AGENT_TOOLS
+    """
     task = Task(objective=objective, **task_kwargs)
     results = run_tasks(
         tasks=[task],
@@ -134,8 +165,12 @@ def run(
         handlers=handlers,
         model_kwargs=model_kwargs,
         run_until=run_until,
+        stream=stream,
     )
-    return results[0]
+    if stream:
+        return results
+    else:
+        return results[0]
 
 
 async def run_async(
