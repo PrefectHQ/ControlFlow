@@ -8,11 +8,11 @@ from pathlib import Path
 from typing import Annotated, TypedDict
 
 import httpx
+from prefect import flow, task
 from prefect.artifacts import create_markdown_artifact
-from prefect.blocks.system import Secret
 from prefect.docker import DockerImage
 from prefect.runner.storage import GitCredentials, GitRepository
-from pydantic import AnyHttpUrl, Field
+from pydantic import AnyHttpUrl, Field, TypeAdapter
 
 import controlflow as cf
 
@@ -32,24 +32,22 @@ def analyze_article(id: str) -> HNArticleSummary:
     return f"here is the article content: {content}"  # type: ignore
 
 
-@cf.task()
-def summarize_article_briefs(
-    briefs: list[HNArticleSummary],
-) -> Annotated[str, Field(description="markdown summary")]:
-    """Summarize a list of article briefs"""
-    return f"here are the article briefs: {briefs}"  # type: ignore
-
-
-@cf.flow(retries=2)
-def analyze_hn_articles(n: int = 5):
+@flow(retries=2)
+def analyze_hn_articles(n: int = 5) -> list[HNArticleSummary]:
     top_article_ids = httpx.get(
         "https://hacker-news.firebaseio.com/v0/topstories.json"
     ).json()[:n]
     briefs = analyze_article.map(top_article_ids).result()
     create_markdown_artifact(
         key="hn-article-exec-summary",
-        markdown=summarize_article_briefs(briefs),
+        markdown=task(task_run_name=f"make summary of {len(briefs)} articles")(cf.run)(
+            objective="markdown summary of all extracted article briefs",
+            result_type=Annotated[str, Field(description="markdown summary")],
+            context=dict(briefs=briefs),
+        ),
+        description="executive summary of all extracted article briefs",
     )
+    return briefs
 
 
 if __name__ == "__main__":
@@ -96,4 +94,5 @@ if __name__ == "__main__":
         )
     else:
         print(f"just running the code\n\n\n\n\n\n")
-        analyze_hn_articles(5)
+        briefs = analyze_hn_articles(5)  # type: ignore
+        TypeAdapter(list[HNArticleSummary]).validate_python(briefs)
