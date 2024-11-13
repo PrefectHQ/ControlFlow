@@ -41,4 +41,5 @@ if __name__ == "__main__":
             work_pool_name="docker-pool",
         )
     else:
+        print(f"just running the code\n\n\n\n\n\n")
         write_poems(["roses", "violets", "sugar", "spice"])
