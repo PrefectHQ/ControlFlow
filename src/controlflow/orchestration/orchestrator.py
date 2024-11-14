@@ -490,7 +490,7 @@ class Orchestrator(ControlFlowModel):
         if stream:
             return result
         else:
-            for _ in result:
+            async for _ in result:
                 pass
             return run_context
 
