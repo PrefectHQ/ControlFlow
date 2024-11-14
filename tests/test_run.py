@@ -228,7 +228,7 @@ class TestRunStreaming:
         )
 
     def test_stream_results(self, task):
-        result = list(task.run(stream=Stream.RESULTS))
+        result = list(task.run(stream=Stream.COMPLETION_TOOLS))
         assert all(
             r[0].event in ("agent-tool-call", "agent-tool-call-delta", "tool-result")
             for r in result

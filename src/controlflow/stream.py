@@ -11,6 +11,12 @@ from controlflow.events.events import (
     Event,
     ToolResult,
 )
+from controlflow.events.task_events import (
+    TaskFailure,
+    TaskSkipped,
+    TaskStart,
+    TaskSuccess,
+)
 
 
 class Stream(Flag):
@@ -25,8 +31,9 @@ class Stream(Flag):
     ALL = auto()  # All events
     CONTENT = auto()  # Agent content and deltas
     AGENT_TOOLS = auto()  # Non-completion tool events
-    RESULTS = auto()  # Completion tool events
-    TOOLS = AGENT_TOOLS | RESULTS  # All tool events
+    COMPLETION_TOOLS = auto()  # Completion tool events
+    TOOLS = AGENT_TOOLS | COMPLETION_TOOLS  # All tool events
+    TASK_EVENTS = auto()  # Task state change events
 
 
 def filter_events(
@@ -46,6 +53,7 @@ def filter_events(
         - Content events: (event, full_text, new_text)
         - Tool calls: (event, tool_state, tool_delta)
         - Tool results: (event, result_state, None)
+        - Task events: (event, task_state, None)
         - Other events: (event, None, None)
     """
 
@@ -72,8 +80,12 @@ def filter_events(
         # Tool events
         if isinstance(event, (AgentToolCall, AgentToolCallDelta, ToolResult)):
             if is_completion_tool_event(event):
-                return bool(stream_filter & Stream.RESULTS)
+                return bool(stream_filter & Stream.COMPLETION_TOOLS)
             return bool(stream_filter & Stream.AGENT_TOOLS)
+
+        # Task events
+        if isinstance(event, (TaskStart, TaskSuccess, TaskFailure, TaskSkipped)):
+            return bool(stream_filter & Stream.TASK_EVENTS)
 
         return False
 
@@ -102,6 +114,7 @@ def filter_events(
         # Tool result events
         elif isinstance(event, ToolResult):
             yield event, event.tool_result, None
+
         else:
             # Pass through any other events with no snapshot/delta
             yield event, None, None

@@ -154,7 +154,47 @@ Crafting worlds and shaping dreams.
 
 </CodeGroup>
 
+## Streaming
 
+<VersionBadge version="0.11" />
+
+In addition to running tasks to completion, ControlFlow supports streaming events during task execution. This allows you to process or display intermediate outputs like agent messages, tool calls, and results in real-time.
+
+To enable streaming, set `stream=True` when running tasks:
+
+```python
+import controlflow as cf
+
+# Stream all events
+for event, snapshot, delta in cf.run("Write a poem", stream=True, handlers=[]):
+    print(f"Event type: {event.event}")
+    
+    if event.event == "agent-content":
+        print(f"Agent said: {snapshot}")
+    elif event.event == "agent-tool-call":  
+        print(f"Tool called: {snapshot}")
+```
+
+You can also filter which events you want to receive using the `Stream` enum:
+
+```python 
+import controlflow as cf
+
+# Only stream content events
+for event, content, delta in cf.run(
+    "Write a poem",
+    stream=cf.Stream.CONTENT,
+    handlers=[], # remove the default print handler
+):
+    if delta:
+        # Print incremental content updates
+        print(delta, end="", flush=True) 
+    else:
+        # Print complete messages
+        print(content)
+```
+
+For more details on working with streaming events, including programmatic event handlers, see the [Streaming guide](/patterns/streaming).
 
 ## Multi-Agent Collaboration
 For tasks involving multiple agents, ControlFlow needs a way to manage their collaboration. What makes this more complicated than simply making an LLM call and moving on to the next agent is that it may take multiple LLM calls to complete a single agentic "turn" of work.

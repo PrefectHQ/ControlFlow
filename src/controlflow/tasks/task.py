@@ -575,18 +575,39 @@ class Task(ControlFlowModel):
             tui.update_task(self)
 
     def mark_running(self):
+        """Mark the task as running and emit a TaskStart event."""
         self.set_status(TaskStatus.RUNNING)
+        if orchestrator := ctx.get("orchestrator"):
+            from controlflow.events.task_events import TaskStart
+
+            orchestrator.handle_event(TaskStart(task=self))
 
     def mark_successful(self, result: T = None):
+        """Mark the task as successful and emit a TaskSuccess event."""
         self.result = self.validate_result(result)
         self.set_status(TaskStatus.SUCCESSFUL)
+        breakpoint()
+        if orchestrator := ctx.get("orchestrator"):
+            from controlflow.events.task_events import TaskSuccess
+
+            orchestrator.handle_event(TaskSuccess(task=self, result=result))
 
     def mark_failed(self, reason: Optional[str] = None):
+        """Mark the task as failed and emit a TaskFailure event."""
         self.result = reason
         self.set_status(TaskStatus.FAILED)
+        if orchestrator := ctx.get("orchestrator"):
+            from controlflow.events.task_events import TaskFailure
+
+            orchestrator.handle_event(TaskFailure(task=self, reason=reason))
 
     def mark_skipped(self):
+        """Mark the task as skipped and emit a TaskSkipped event."""
         self.set_status(TaskStatus.SKIPPED)
+        if orchestrator := ctx.get("orchestrator"):
+            from controlflow.events.task_events import TaskSkipped
+
+            orchestrator.handle_event(TaskSkipped(task=self))
 
     def get_success_tool(self) -> Tool:
         """
