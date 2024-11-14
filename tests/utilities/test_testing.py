@@ -20,7 +20,7 @@ def test_record_task_events(default_fake_llm):
         tool_calls=[
             {
                 "name": "mark_task_12345_successful",
-                "args": {"task_result": "Hello!"},
+                "args": {"result": "Hello!"},
                 "id": "call_ZEPdV8mCgeBe5UHjKzm6e3pe",
                 "type": "tool_call",
             }
@@ -39,7 +39,7 @@ def test_record_task_events(default_fake_llm):
     assert events[3].event == "tool-result"
     assert events[3].tool_result.tool_call == {
         "name": "mark_task_12345_successful",
-        "args": {"task_result": "Hello!"},
+        "args": {"result": "Hello!"},
         "id": "call_ZEPdV8mCgeBe5UHjKzm6e3pe",
         "type": "tool_call",
     }

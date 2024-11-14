@@ -191,7 +191,7 @@ class TestRunStreaming:
             tool_calls=[
                 {
                     "name": "mark_task_12345_successful",
-                    "args": {"task_result": "Hello!"},
+                    "args": {"result": "Hello!"},
                     "id": "call_ZEPdV8mCgeBe5UHjKzm6e3pe",
                     "type": "tool_call",
                 }
