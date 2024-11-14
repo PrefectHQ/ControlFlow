@@ -676,51 +676,6 @@ class Orchestrator(ControlFlowModel):
 
         run_context.agent_turns += 1
 
-    async def _run_async(
-        self,
-        run_context: RunContext,
-        model_kwargs: Optional[dict] = None,
-    ) -> AsyncIterator[Event]:
-        """Run the orchestrator asynchronously, yielding events as they occur."""
-        # Initialize the agent if not already set
-        if not self.agent:
-            self.agent = self.turn_strategy.get_next_agent(
-                None, self.get_available_agents()
-            )
-
-        # Signal the start of orchestration
-        yield OrchestratorStart(orchestrator=self, run_context=run_context)
-
-        try:
-            while True:
-                if run_context.should_end():
-                    break
-
-                yield AgentTurnStart(orchestrator=self, agent=self.agent)
-
-                # Run turn and yield its events
-                async for event in self._run_agent_turn_async(
-                    run_context=run_context,
-                    model_kwargs=model_kwargs,
-                ):
-                    yield event
-
-                yield AgentTurnEnd(orchestrator=self, agent=self.agent)
-
-                # Select the next agent for the following turn
-                if available_agents := self.get_available_agents():
-                    self.agent = self.turn_strategy.get_next_agent(
-                        self.agent, available_agents
-                    )
-
-        except Exception as exc:
-            # Yield error event if something goes wrong
-            yield OrchestratorError(orchestrator=self, error=exc)
-            raise
-        finally:
-            # Signal the end of orchestration
-            yield OrchestratorEnd(orchestrator=self, run_context=run_context)
-
 
 # Rebuild all models with forward references after Orchestrator is defined
 OrchestratorStart.model_rebuild()

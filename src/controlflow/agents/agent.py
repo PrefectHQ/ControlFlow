@@ -257,6 +257,7 @@ class Agent(ControlFlowModel, abc.ABC):
         *,
         turn_strategy: Optional["TurnStrategy"] = None,
         handlers: Optional[list[Union["Handler", "AsyncHandler"]]] = None,
+        stream: Union[bool, "Stream"] = False,
         **task_kwargs,
     ):
         return await controlflow.run_async(
@@ -264,6 +265,7 @@ class Agent(ControlFlowModel, abc.ABC):
             agents=[self],
             turn_strategy=turn_strategy,
             handlers=handlers,
+            stream=stream,
             **task_kwargs,
         )
 

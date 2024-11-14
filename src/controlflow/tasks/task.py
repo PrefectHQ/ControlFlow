@@ -446,12 +446,13 @@ class Task(ControlFlowModel):
         max_agent_turns: int = None,
         handlers: list[Union["Handler", "AsyncHandler"]] = None,
         raise_on_failure: bool = True,
+        stream: Union[bool, "Stream"] = False,
     ) -> T:
         """
         Run the task
         """
 
-        await controlflow.run_tasks_async(
+        result = await controlflow.run_tasks_async(
             tasks=[self],
             flow=flow,
             agent=agent,
@@ -460,9 +461,12 @@ class Task(ControlFlowModel):
             max_agent_turns=max_agent_turns,
             raise_on_failure=False,
             handlers=handlers,
+            stream=stream,
         )
 
-        if self.is_successful():
+        if stream:
+            return result
+        elif self.is_successful():
             return self.result
         elif raise_on_failure and self.is_failed():
             raise ValueError(f"{self.friendly_name()} failed: {self.result}")
