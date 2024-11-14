@@ -1,4 +1,5 @@
 import logging
+from collections import deque
 from contextlib import contextmanager
 from typing import AsyncIterator, Callable, Iterator, Optional, Set, TypeVar, Union
 
@@ -64,6 +65,7 @@ class Orchestrator(ControlFlowModel):
         None, validate_default=True, exclude=True
     )
     _processed_event_ids: Set[str] = PrivateAttr(default_factory=set)
+    _pending_events: deque[Event] = PrivateAttr(default_factory=deque)
 
     @field_validator("turn_strategy", mode="before")
     def _validate_turn_strategy(cls, v):
@@ -93,16 +95,15 @@ class Orchestrator(ControlFlowModel):
             ]
         return v or []
 
+    def add_event(self, event: Event) -> None:
+        """Add an event to be handled and yielded during the next run loop iteration"""
+        self._pending_events.append(event)
+
     def handle_event(self, event: Event) -> Event:
         """
         Handle an event by passing it to all handlers and persisting if necessary.
         Includes idempotency check to prevent double-processing events.
-
-        Args:
-            event (Event): The event to handle.
         """
-        from controlflow.events.events import AgentContentDelta
-
         # Skip if we've already processed this event
         if event.id in self._processed_event_ids:
             return event
@@ -261,29 +262,36 @@ class Orchestrator(ControlFlowModel):
             )
 
         # Signal the start of orchestration
-        yield self.handle_event(
-            OrchestratorStart(orchestrator=self, run_context=run_context)
-        )
+        start_event = OrchestratorStart(orchestrator=self, run_context=run_context)
+        self.handle_event(start_event)
+        yield start_event
 
         try:
             while True:
                 if run_context.should_end():
                     break
 
-                yield self.handle_event(
-                    AgentTurnStart(orchestrator=self, agent=self.agent)
-                )
+                turn_start = AgentTurnStart(orchestrator=self, agent=self.agent)
+                self.handle_event(turn_start)
+                yield turn_start
 
                 # Run turn and yield its events
                 for event in self._run_agent_turn(
                     run_context=run_context,
                     model_kwargs=model_kwargs,
                 ):
-                    yield self.handle_event(event)
+                    self.handle_event(event)
+                    yield event
 
-                yield self.handle_event(
-                    AgentTurnEnd(orchestrator=self, agent=self.agent)
-                )
+                # Handle any events added during the turn
+                while self._pending_events:
+                    event = self._pending_events.popleft()
+                    self.handle_event(event)
+                    yield event
+
+                turn_end = AgentTurnEnd(orchestrator=self, agent=self.agent)
+                self.handle_event(turn_end)
+                yield turn_end
 
                 # Select the next agent for the following turn
                 if available_agents := self.get_available_agents():
@@ -293,19 +301,21 @@ class Orchestrator(ControlFlowModel):
 
         except Exception as exc:
             # Yield error event if something goes wrong
-            yield self.handle_event(OrchestratorError(orchestrator=self, error=exc))
+            error_event = OrchestratorError(orchestrator=self, error=exc)
+            self.handle_event(error_event)
+            yield error_event
             raise
         finally:
             # Signal the end of orchestration
-            yield self.handle_event(
-                OrchestratorEnd(orchestrator=self, run_context=run_context)
-            )
+            end_event = OrchestratorEnd(orchestrator=self, run_context=run_context)
+            self.handle_event(end_event)
+            yield end_event
 
-    @contextmanager
-    def create_context(self):
-        """Create a context with this orchestrator."""
-        with ctx(orchestrator=self):
-            yield self
+            # Handle any final pending events
+            while self._pending_events:
+                event = self._pending_events.popleft()
+                self.handle_event(event)
+                yield event
 
     def run(
         self,
@@ -349,26 +359,17 @@ class Orchestrator(ControlFlowModel):
 
         run_context = RunContext(orchestrator=self, run_end_condition=run_until)
 
-        # If streaming, return a generator that maintains the context
+        result = self._run(
+            run_context=run_context,
+            model_kwargs=model_kwargs,
+        )
+
         if stream:
-
-            def event_generator():
-                with ctx(orchestrator=self):
-                    yield from self._run(
-                        run_context=run_context,
-                        model_kwargs=model_kwargs,
-                    )
-
-            return event_generator()
-
-        # If not streaming, consume events within the context
-        with ctx(orchestrator=self):
-            for _ in self._run(
-                run_context=run_context,
-                model_kwargs=model_kwargs,
-            ):
+            return result
+        else:
+            for _ in result:
                 pass
-        return run_context
+            return run_context
 
     @prefect_task(task_run_name="Run agent orchestrator")
     async def _run_async(
@@ -384,29 +385,36 @@ class Orchestrator(ControlFlowModel):
             )
 
         # Signal the start of orchestration
-        yield await self.handle_event_async(
-            OrchestratorStart(orchestrator=self, run_context=run_context)
-        )
+        start_event = OrchestratorStart(orchestrator=self, run_context=run_context)
+        await self.handle_event_async(start_event)
+        yield start_event
 
         try:
             while True:
                 if run_context.should_end():
                     break
 
-                yield await self.handle_event_async(
-                    AgentTurnStart(orchestrator=self, agent=self.agent)
-                )
+                turn_start = AgentTurnStart(orchestrator=self, agent=self.agent)
+                await self.handle_event_async(turn_start)
+                yield turn_start
 
                 # Run turn and yield its events
                 async for event in self._run_agent_turn_async(
                     run_context=run_context,
                     model_kwargs=model_kwargs,
                 ):
-                    yield await self.handle_event_async(event)
+                    await self.handle_event_async(event)
+                    yield event
 
-                yield await self.handle_event_async(
-                    AgentTurnEnd(orchestrator=self, agent=self.agent)
-                )
+                # Handle any events added during the turn
+                while self._pending_events:
+                    event = self._pending_events.popleft()
+                    await self.handle_event_async(event)
+                    yield event
+
+                turn_end = AgentTurnEnd(orchestrator=self, agent=self.agent)
+                await self.handle_event_async(turn_end)
+                yield turn_end
 
                 # Select the next agent for the following turn
                 if available_agents := self.get_available_agents():
@@ -416,15 +424,21 @@ class Orchestrator(ControlFlowModel):
 
         except Exception as exc:
             # Yield error event if something goes wrong
-            yield await self.handle_event_async(
-                OrchestratorError(orchestrator=self, error=exc)
-            )
+            error_event = OrchestratorError(orchestrator=self, error=exc)
+            await self.handle_event_async(error_event)
+            yield error_event
             raise
         finally:
             # Signal the end of orchestration
-            yield await self.handle_event_async(
-                OrchestratorEnd(orchestrator=self, run_context=run_context)
-            )
+            end_event = OrchestratorEnd(orchestrator=self, run_context=run_context)
+            await self.handle_event_async(end_event)
+            yield end_event
+
+            # Handle any final pending events
+            while self._pending_events:
+                event = self._pending_events.popleft()
+                await self.handle_event_async(event)
+                yield event
 
     async def run_async(
         self,
@@ -468,27 +482,17 @@ class Orchestrator(ControlFlowModel):
 
         run_context = RunContext(orchestrator=self, run_end_condition=run_until)
 
-        # If streaming, return an async generator that maintains the context
+        result = self._run_async(
+            run_context=run_context,
+            model_kwargs=model_kwargs,
+        )
+
         if stream:
-
-            async def event_generator():
-                with ctx(orchestrator=self):
-                    async for event in self._run_async(
-                        run_context=run_context,
-                        model_kwargs=model_kwargs,
-                    ):
-                        yield event
-
-            return event_generator()
-
-        # If not streaming, consume events within the context
-        with ctx(orchestrator=self):
-            async for _ in self._run_async(
-                run_context=run_context,
-                model_kwargs=model_kwargs,
-            ):
+            return result
+        else:
+            for _ in result:
                 pass
-        return run_context
+            return run_context
 
     def compile_prompt(self) -> str:
         """
@@ -657,12 +661,14 @@ class Orchestrator(ControlFlowModel):
             messages = self.compile_messages()
             tools = self.get_tools()
 
-            async for event in self.agent._run_model_async(
-                messages=messages,
-                tools=tools,
-                model_kwargs=model_kwargs,
-            ):
-                yield event
+            # Run model and yield events
+            with ctx(orchestrator=self):
+                async for event in self.agent._run_model_async(
+                    messages=messages,
+                    tools=tools,
+                    model_kwargs=model_kwargs,
+                ):
+                    yield event
 
             run_context.llm_calls += 1
             for task in assigned_tasks:

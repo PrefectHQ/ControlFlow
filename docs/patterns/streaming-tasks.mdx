@@ -54,7 +54,8 @@ The available stream filters are:
 - `Stream.TOOLS`: All tool events
 - `Stream.COMPLETION_TOOLS`: Completion tool events (like marking a task successful or failed)
 - `Stream.AGENT_TOOLS`: Tools used by agents for any purpose other than completing a task
-- `Stream.TASK_EVENTS`: Task state change events
+- `Stream.TASK_EVENTS`: Task lifecycle events (starting, completion, failure, etc)
+
 You can combine filters with the `|` operator:
 
 ```python
@@ -209,7 +210,15 @@ Tool events let you observe when agents use tools and get their results:
 ```
 
 ### Workflow Events
-These events mark key points in task execution:
+### Task Events
+Events that mark key points in a task's lifecycle:
+- `TaskStart`: A task has begun execution
+- `TaskSuccess`: A task completed successfully (includes the final result)
+- `TaskFailure`: A task failed (includes the error reason)
+- `TaskSkipped`: A task was skipped
+
+### Orchestration Events
+Events related to orchestrating the overall workflow:
 - `OrchestratorStart`/`End`: Workflow orchestration starting/ending
 - `AgentTurnStart`/`End`: An agent's turn starting/ending
 - `OrchestratorError`: An error occurred during orchestration
@@ -239,4 +248,4 @@ Note that AgentMessage is the "raw" output from the LLM and contains both unstru
 2. Handle just content with `on_agent_content` 
 3. Handle just tool calls with `on_agent_tool_call`
 
-For streaming cases, the delta events (e.g. AgentMessageDelta, AgentContentDelta) provide incremental updates as the LLM generates its response.
+For streaming cases, the delta events (e.g. AgentMessageDelta, AgentContentDelta) provide incremental updates as the LLM generates its response. Task events, in contrast, are complete events that mark important points in a task's lifecycle - you can use these to track progress and get results without managing the task object directly..
