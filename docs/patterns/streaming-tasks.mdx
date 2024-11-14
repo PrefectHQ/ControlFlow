@@ -38,12 +38,12 @@ for event, snapshot, delta in cf.run(
 You can focus on specific events using the `Stream` enum. Here, we return only content updates:
 
 ```python
-from controlflow import Stream
+import controlflow as cf
 
 # Only stream content updates
 for event, snapshot, delta in cf.run(
     "Write a poem",
-    stream=Stream.CONTENT
+    stream=cf.Stream.CONTENT
 ):
     print(delta if delta else snapshot)
 ```
@@ -119,11 +119,10 @@ Here's a complete example showing both approaches to display content in real-tim
 <CodeGroup>
 ```python Streaming
 import controlflow as cf
-from controlflow import Stream
 
 for event, snapshot, delta in cf.run(
     "Write a story about time travel",
-    stream=Stream.CONTENT
+    stream=cf.Stream.CONTENT
 ):
     # Print character by character
     if delta:
