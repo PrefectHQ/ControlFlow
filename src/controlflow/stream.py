@@ -18,34 +18,22 @@ class Stream(Flag):
     Filter flags for event streaming.
 
     Can be combined using bitwise operators:
-    stream_filter = StreamFilter.CONTENT | StreamFilter.AGENT_TOOLS
+    stream_filter = Stream.CONTENT | Stream.AGENT_TOOLS
     """
 
     NONE = 0
+    ALL = auto()  # All events
     CONTENT = auto()  # Agent content and deltas
     AGENT_TOOLS = auto()  # Non-completion tool events
     RESULTS = auto()  # Completion tool events
     TOOLS = AGENT_TOOLS | RESULTS  # All tool events
-    ALL = CONTENT | TOOLS  # Everything
-
-    @classmethod
-    def _filter_names(cls, filter: "Stream") -> list[str]:
-        """Convert StreamFilter to list of filter names for filter_events()"""
-        names = []
-        if filter & cls.CONTENT:
-            names.append("content")
-        if filter & cls.AGENT_TOOLS:
-            names.append("agent_tools")
-        if filter & cls.RESULTS:
-            names.append("results")
-        return names
 
 
 def filter_events(
-    events: Iterator[Event], filters: list[str]
+    events: Iterator[Event], stream_filter: Stream
 ) -> Iterator[tuple[Event, Any, Optional[Any]]]:
     """
-    Filter events based on a list of event types or shortcuts.
+    Filter events based on Stream flags.
     Returns tuples of (event, snapshot, delta) where snapshot and delta depend on the event type.
 
     Returns:
@@ -58,6 +46,7 @@ def filter_events(
         - Content events: (event, full_text, new_text)
         - Tool calls: (event, tool_state, tool_delta)
         - Tool results: (event, result_state, None)
+        - Other events: (event, None, None)
     """
 
     def is_completion_tool_event(event: Event) -> bool:
@@ -71,66 +60,25 @@ def filter_events(
 
         return tool and tool.metadata.get("is_completion_tool")
 
-    def is_agent_tool_event(event: Event) -> bool:
-        """Check if an event is related to a regular (non-completion) tool call."""
-        if isinstance(event, ToolResult):
-            tool = event.tool_result.tool
-        elif isinstance(event, (AgentToolCall, AgentToolCallDelta)):
-            tool = event.tool
-        else:
-            return False
+    def should_include_event(event: Event) -> bool:
+        # Pass all events if ALL is specified
+        if stream_filter == Stream.ALL:
+            return True
 
-        return tool and not tool.metadata.get("is_completion_tool")
+        # Content events
+        if isinstance(event, (AgentContent, AgentContentDelta)):
+            return bool(stream_filter & Stream.CONTENT)
 
-    # Expand shortcuts to event types and build filtering predicates
-    event_filters = []
-    for filter_name in filters:
-        if filter_name == "content":
-            event_filters.append(
-                lambda e: e.event in {"agent-content", "agent-content-delta"}
-            )
-        elif filter_name == "tools":
-            event_filters.append(
-                lambda e: e.event
-                in {
-                    "agent-tool-call",
-                    "agent-tool-call-delta",
-                    "tool-result",
-                }
-            )
-        elif filter_name == "agent_tools":
-            event_filters.append(
-                lambda e: (
-                    e.event
-                    in {
-                        "agent-tool-call",
-                        "agent-tool-call-delta",
-                        "tool-result",
-                    }
-                    and is_agent_tool_event(e)
-                )
-            )
-        elif filter_name == "results":
-            event_filters.append(
-                lambda e: (
-                    e.event
-                    in {
-                        "agent-tool-call",
-                        "agent-tool-call-delta",
-                        "tool-result",
-                    }
-                    and is_completion_tool_event(e)
-                )
-            )
-        else:
-            # Raw event type
-            event_filters.append(lambda e, t=filter_name: e.event == t)
+        # Tool events
+        if isinstance(event, (AgentToolCall, AgentToolCallDelta, ToolResult)):
+            if is_completion_tool_event(event):
+                return bool(stream_filter & Stream.RESULTS)
+            return bool(stream_filter & Stream.AGENT_TOOLS)
 
-    def passes_filters(event: Event) -> bool:
-        return any(f(event) for f in event_filters)
+        return False
 
     for event in events:
-        if not passes_filters(event):
+        if not should_include_event(event):
             continue
 
         # Message events
@@ -154,6 +102,6 @@ def filter_events(
         # Tool result events
         elif isinstance(event, ToolResult):
             yield event, event.tool_result, None
-
         else:
+            # Pass through any other events with no snapshot/delta
             yield event, None, None

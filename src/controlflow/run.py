@@ -41,8 +41,9 @@ def run_tasks(
         handlers: List of handlers to use for the tasks.
         model_kwargs: Keyword arguments to pass to the LLM.
         run_until: Condition to stop running tasks.
-        stream: If True, stream all events. Can also provide StreamFilter flags to filter specific events.
-               e.g. StreamFilter.CONTENT | StreamFilter.AGENT_TOOLS
+        stream: If True, stream all events (equivalent to Stream.ALL).
+               Can also provide Stream flags to filter specific events.
+               e.g. Stream.CONTENT | Stream.AGENT_TOOLS
 
     Returns:
         If not streaming: List of task results
@@ -70,7 +71,7 @@ def run_tasks(
         if stream:
             # Convert True to ALL filter, otherwise use provided filter
             stream_filter = Stream.ALL if stream is True else stream
-            return filter_events(result, Stream._filter_names(stream_filter))
+            return filter_events(result, stream_filter)
 
     if raise_on_failure and any(t.is_failed() for t in tasks):
         errors = [f"- {t.friendly_name()}: {t.result}" for t in tasks if t.is_failed()]

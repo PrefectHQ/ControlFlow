@@ -214,7 +214,7 @@ class AgentContentDelta(UnpersistedEvent):
 
 
 class AgentToolCall(Event):
-    event: Literal["tool-call"] = "tool-call"
+    event: Literal["agent-tool-call"] = "agent-tool-call"
     agent: Agent
     agent_message_id: Optional[str] = None
     tool_call: Union[ToolCall, InvalidToolCall]

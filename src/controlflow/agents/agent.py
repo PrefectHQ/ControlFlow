@@ -8,6 +8,7 @@ from typing import (
     Any,
     AsyncGenerator,
     Generator,
+    Iterator,
     Optional,
     Union,
 )
@@ -43,10 +44,11 @@ from controlflow.utilities.general import ControlFlowModel, hash_objects, unwrap
 from controlflow.utilities.prefect import create_markdown_artifact, prefect_task
 
 if TYPE_CHECKING:
+    from controlflow.events.events import Event
+    from controlflow.flows import Flow
     from controlflow.orchestration.handler import AsyncHandler, Handler
     from controlflow.orchestration.turn_strategies import TurnStrategy
-    from controlflow.tasks import Task
-    from controlflow.tools.tools import Tool
+    from controlflow.stream import Stream
 logger = logging.getLogger(__name__)
 
 
@@ -223,13 +225,29 @@ class Agent(ControlFlowModel, abc.ABC):
         *,
         turn_strategy: Optional["TurnStrategy"] = None,
         handlers: Optional[list["Handler"]] = None,
+        stream: Union[bool, "Stream"] = False,
         **task_kwargs,
-    ):
+    ) -> Union[Any, Iterator[tuple["Event", Any, Optional[Any]]]]:
+        """
+        Run a task with this agent.
+
+        Args:
+            objective: The objective to accomplish
+            turn_strategy: Optional turn strategy to use
+            handlers: Optional list of handlers
+            stream: If True, stream all events. Can also provide StreamFilter flags.
+            **task_kwargs: Additional kwargs passed to Task creation
+
+        Returns:
+            If not streaming: The task result
+            If streaming: Iterator of (event, snapshot, delta) tuples
+        """
         return controlflow.run(
             objective=objective,
             agents=[self],
             turn_strategy=turn_strategy,
             handlers=handlers,
+            stream=stream,
             **task_kwargs,
         )
 

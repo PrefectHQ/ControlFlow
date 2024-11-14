@@ -1,5 +1,7 @@
+import pytest
+
 import controlflow
-from controlflow import instructions
+from controlflow import Stream, instructions
 from controlflow.events.base import Event
 from controlflow.events.events import AgentMessage
 from controlflow.llm.messages import AIMessage
@@ -173,14 +175,10 @@ class TestRunUntilAsync:
 
 
 class TestRunStreaming:
-    def test_stream_all(self, default_fake_llm):
-        result = run("what's 2 + 2", stream=True, max_llm_calls=1)
-        r = list(result)
-        assert len(r) == 2
-        assert r[0][0].event == "agent-content-delta"
-        assert r[1][0].event == "agent-content"
+    @pytest.fixture
+    def task(self, default_fake_llm):
+        task = controlflow.Task("say hello", id="12345")
 
-    def test_stream_content(self, default_fake_llm):
         response = AIMessage(
             id="run-2af8bb73-661f-4ec3-92ff-d7d8e3074926",
             name="Marvin",
@@ -197,8 +195,41 @@ class TestRunStreaming:
         )
 
         default_fake_llm.set_responses(["Hello!", response])
-        result = run("say hello", stream=True, max_llm_calls=1)
+
+        return task
+
+    def test_stream_all(self, default_fake_llm):
+        result = run("what's 2 + 2", stream=True, max_llm_calls=1)
         r = list(result)
-        assert len(r) == 2
-        assert r[0][0].event == "agent-content-delta"
-        assert r[1][0].event == "agent-content"
+        assert len(r) > 5
+
+    def test_stream_task(self, task):
+        result = list(task.run(stream=True))
+        assert result[0][0].event == "orchestrator-start"
+        assert result[1][0].event == "agent-turn-start"
+        assert result[-1][0].event == "orchestrator-end"
+        assert any(r[0].event == "agent-message" for r in result)
+        assert any(r[0].event == "agent-message-delta" for r in result)
+        assert any(r[0].event == "agent-content" for r in result)
+        assert any(r[0].event == "agent-content-delta" for r in result)
+        assert any(r[0].event == "agent-tool-call" for r in result)
+
+    def test_stream_content(self, task):
+        result = list(task.run(stream=Stream.CONTENT))
+        assert all(
+            r[0].event in ("agent-content", "agent-content-delta") for r in result
+        )
+
+    def test_stream_tools(self, task):
+        result = list(task.run(stream=Stream.TOOLS))
+        assert all(
+            r[0].event in ("agent-tool-call", "agent-tool-call-delta", "tool-result")
+            for r in result
+        )
+
+    def test_stream_results(self, task):
+        result = list(task.run(stream=Stream.RESULTS))
+        assert all(
+            r[0].event in ("agent-tool-call", "agent-tool-call-delta", "tool-result")
+            for r in result
+        )

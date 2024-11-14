@@ -9,6 +9,7 @@ from typing import (
     Callable,
     Generator,
     GenericAlias,
+    Iterator,
     Literal,
     Optional,
     TypeVar,
@@ -49,24 +50,18 @@ from controlflow.utilities.general import (
     unwrap,
 )
 from controlflow.utilities.logging import get_logger
-from controlflow.utilities.prefect import prefect_task as prefect_task
 
 if TYPE_CHECKING:
+    from controlflow.events.events import Event
     from controlflow.flows import Flow
     from controlflow.orchestration.handler import AsyncHandler, Handler
     from controlflow.orchestration.turn_strategies import TurnStrategy
+    from controlflow.stream import Stream
 
 T = TypeVar("T")
 logger = get_logger(__name__)
 
-
 COMPLETION_TOOLS = Literal["SUCCEED", "FAIL"]
-
-
-def get_task_run_name():
-    context = TaskRunContext.get()
-    task = context.parameters["self"]
-    return f"Task.run() ({task.friendly_name()})"
 
 
 class Labels(RootModel):
@@ -392,7 +387,6 @@ class Task(ControlFlowModel):
         self.depends_on.add(task)
         task._downstreams.add(self)
 
-    @prefect_task(task_run_name=get_task_run_name)
     def run(
         self,
         agent: Optional[Agent] = None,
@@ -403,12 +397,27 @@ class Task(ControlFlowModel):
         handlers: list["Handler"] = None,
         raise_on_failure: bool = True,
         model_kwargs: Optional[dict] = None,
-    ) -> T:
+        stream: Union[bool, "Stream"] = False,
+    ) -> Union[T, Iterator[tuple["Event", Any, Optional[Any]]]]:
         """
         Run the task
-        """
 
-        controlflow.run_tasks(
+        Args:
+            agent: Optional agent to run the task
+            flow: Optional flow to run the task in
+            turn_strategy: Optional turn strategy to use
+            max_llm_calls: Maximum number of LLM calls to make
+            max_agent_turns: Maximum number of agent turns to make
+            handlers: Optional list of handlers
+            raise_on_failure: Whether to raise on task failure
+            model_kwargs: Optional kwargs to pass to the model
+            stream: If True, stream all events. Can also provide StreamFilter flags.
+
+        Returns:
+            If not streaming: The task result
+            If streaming: Iterator of (event, snapshot, delta) tuples
+        """
+        result = controlflow.run_tasks(
             tasks=[self],
             flow=flow,
             agent=agent,
@@ -418,14 +427,16 @@ class Task(ControlFlowModel):
             raise_on_failure=False,
             handlers=handlers,
             model_kwargs=model_kwargs,
+            stream=stream,
         )
 
-        if self.is_successful():
+        if stream:
+            return result
+        elif self.is_successful():
             return self.result
         elif raise_on_failure and self.is_failed():
             raise ValueError(f"{self.friendly_name()} failed: {self.result}")
 
-    @prefect_task(task_run_name=get_task_run_name)
     async def run_async(
         self,
         agent: Optional[Agent] = None,
