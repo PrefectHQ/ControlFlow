@@ -1,7 +1,7 @@
 ---
 title: Streaming
 description: Process agent responses, tool calls and results in real-time through streaming or handlers.
-icon: wave-square
+icon: bars-staggered
 ---
 
 import { VersionBadge } from '/snippets/version-badge.mdx'
@@ -35,7 +35,7 @@ for event, snapshot, delta in cf.run(
         print(delta, end="", flush=True)
 ```
 
-You can focus on specific events using the `Stream` enum:
+You can focus on specific events using the `Stream` enum. Here, we return only content updates:
 
 ```python
 from controlflow import Stream
@@ -62,6 +62,8 @@ You can combine filters with the `|` operator:
 # Stream content and tool events
 stream = Stream.CONTENT | Stream.TOOLS
 ```
+
+For more complex filtering, set stream=True and filter the events manually, or use a handler.
 
 ## Handlers
 <VersionBadge version="0.9.2" />
