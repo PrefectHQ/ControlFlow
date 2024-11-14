@@ -1,24 +1,6 @@
-# Example usage
-#
-# # Stream all events
-# for event in cf.stream.events("Write a story"):
-#     print(event)
-#
-# # Stream just messages
-# for event in cf.stream.events("Write a story", events='messages'):
-#     print(event.content)
-#
-# # Stream just the result
-# for delta, snapshot in cf.stream.result("Write a story"):
-#     print(f"New: {delta}")
-#
-# # Stream results from multiple tasks
-# for delta, snapshot in cf.stream.result_from_tasks([task1, task2]):
-#     print(f"New result: {delta}")
-#
-from typing import Any, AsyncIterator, Callable, Iterator, Literal, Optional, Union
+from enum import Flag, auto
+from typing import Any, AsyncIterator, Iterator, Optional, Union
 
-from controlflow.events.base import Event
 from controlflow.events.events import (
     AgentContent,
     AgentContentDelta,
@@ -26,184 +8,111 @@ from controlflow.events.events import (
     AgentMessageDelta,
     AgentToolCall,
     AgentToolCallDelta,
+    Event,
     ToolResult,
 )
-from controlflow.orchestration.handler import AsyncHandler, Handler
-from controlflow.orchestration.orchestrator import Orchestrator
-from controlflow.tasks.task import Task
-
-StreamEvents = Union[
-    list[str],
-    Literal["all", "messages", "content", "tools", "completion_tools", "agent_tools"],
-]
+from controlflow.events.task_events import (
+    TaskFailure,
+    TaskSkipped,
+    TaskStart,
+    TaskSuccess,
+)
 
 
-def event_filter(events: StreamEvents) -> Callable[[Event], bool]:
-    def _event_filter(event: Event) -> bool:
-        if events == "all":
-            return True
-        elif events == "messages":
-            return isinstance(event, (AgentMessage, AgentMessageDelta))
-        elif events == "content":
-            return isinstance(event, (AgentContent, AgentContentDelta))
-        elif events == "tools":
-            return isinstance(event, (AgentToolCall, AgentToolCallDelta, ToolResult))
-        elif events == "completion_tools":
-            if isinstance(event, (AgentToolCall, AgentToolCallDelta)):
-                return event.tool and event.tool.metadata.get("is_completion_tool")
-            elif isinstance(event, ToolResult):
-                return event.tool_result and event.tool_result.tool.metadata.get(
-                    "is_completion_tool"
-                )
-            return False
-        elif events == "agent_tools":
-            if isinstance(event, (AgentToolCall, AgentToolCallDelta)):
-                return event.tool and event.tool in event.agent.get_tools()
-            elif isinstance(event, ToolResult):
-                return (
-                    event.tool_result
-                    and event.tool_result.tool in event.agent.get_tools()
-                )
-            return False
-        else:
-            raise ValueError(f"Invalid event type: {events}")
-
-    return _event_filter
-
-
-# -------------------- BELOW HERE IS THE OLD STUFF --------------------
-
-
-def events(
-    objective: str,
-    *,
-    events: StreamEvents = "all",
-    filter_fn: Optional[Callable[[Event], bool]] = None,
-    **kwargs,
-) -> Iterator[Event]:
+class Stream(Flag):
     """
-    Stream events from a task execution.
+    Filter flags for event streaming.
 
-    Args:
-        objective: The task objective
-        events: Which events to stream. Can be list of event types or:
-               'all' - all events
-               'messages' - agent messages
-               'tools' - all tool calls/results
-               'completion_tools' - only completion tools
-        filter_fn: Optional additional filter function
-        **kwargs: Additional arguments passed to Task
-
-    Returns:
-        Iterator of Event objects
+    Can be combined using bitwise operators:
+    stream_filter = Stream.CONTENT | Stream.AGENT_TOOLS
     """
 
-    def get_event_filter():
-        if isinstance(events, list):
-            return lambda e: e.event in events
-        elif events == "messages":
-            return lambda e: isinstance(e, (AgentMessage, AgentMessageDelta))
-        elif events == "tools":
-            return lambda e: isinstance(e, (AgentToolCall, ToolResult))
-        elif events == "completion_tools":
-            return lambda e: (
-                isinstance(e, (AgentToolCall, ToolResult))
-                and e.tool_call["name"].startswith("mark_task_")
-            )
-        else:  # 'all'
-            return lambda e: True
-
-    event_filter = get_event_filter()
-
-    def event_handler(event: Event):
-        if event_filter(event) and (not filter_fn or filter_fn(event)):
-            yield event
-
-    task = Task(objective=objective)
-    task.run(handlers=[Handler(event_handler)], **kwargs)
+    NONE = 0
+    ALL = auto()  # All events
+    CONTENT = auto()  # Agent content and deltas
+    AGENT_TOOLS = auto()  # Non-completion tool events
+    COMPLETION_TOOLS = auto()  # Completion tool events
+    TOOLS = AGENT_TOOLS | COMPLETION_TOOLS  # All tool events
+    TASK_EVENTS = auto()  # Task state change events
 
 
-def result(
-    objective: str,
-    **kwargs,
-) -> Iterator[tuple[Any, Any]]:
-    """
-    Stream result from a task execution.
+def should_include_event(event: Event, stream_filter: Stream) -> bool:
+    """Determine if an event should be included based on the stream filter."""
+    # Pass all events if ALL is specified
+    if stream_filter == Stream.ALL:
+        return True
 
-    Args:
-        objective: The task objective
-        **kwargs: Additional arguments passed to Task
+    # Content events
+    if isinstance(event, (AgentContent, AgentContentDelta)):
+        return bool(stream_filter & Stream.CONTENT)
 
-    Returns:
-        Iterator of (delta, accumulated) result tuples
-    """
-    current_result = None
+    # Tool events
+    if isinstance(event, (AgentToolCall, AgentToolCallDelta, ToolResult)):
+        if is_completion_tool_event(event):
+            return bool(stream_filter & Stream.COMPLETION_TOOLS)
+        return bool(stream_filter & Stream.AGENT_TOOLS)
 
-    def result_handler(event: Event):
-        nonlocal current_result
-        if isinstance(event, ToolResult):
-            if event.tool_call["name"].startswith("mark_task_"):
-                result = event.tool_result.result  # Get actual result value
-                if result != current_result:  # Only yield if changed
-                    current_result = result
-                    yield (result, result)  # For now delta == full result
+    # Task events
+    if isinstance(event, (TaskStart, TaskSuccess, TaskFailure, TaskSkipped)):
+        return bool(stream_filter & Stream.TASK_EVENTS)
 
-    task = Task(objective=objective)
-    task.run(handlers=[Handler(result_handler)], **kwargs)
+    return False
 
 
-def events_from_tasks(
-    tasks: list[Task],
-    events: StreamEvents = "all",
-    filter_fn: Optional[Callable[[Event], bool]] = None,
-    **kwargs,
-) -> Iterator[Event]:
-    """Stream events from multiple task executions."""
+def is_completion_tool_event(event: Event) -> bool:
+    """Check if an event is related to a completion tool call."""
+    if isinstance(event, ToolResult):
+        tool = event.tool_result.tool
+    elif isinstance(event, (AgentToolCall, AgentToolCallDelta)):
+        tool = event.tool
+    else:
+        return False
 
-    def get_event_filter():
-        if isinstance(events, list):
-            return lambda e: e.event in events
-        elif events == "messages":
-            return lambda e: isinstance(e, (AgentMessage, AgentMessageDelta))
-        elif events == "tools":
-            return lambda e: isinstance(e, (AgentToolCall, ToolResult))
-        elif events == "completion_tools":
-            return lambda e: (
-                isinstance(e, (AgentToolCall, ToolResult))
-                and e.tool_call["name"].startswith("mark_task_")
-            )
-        else:  # 'all'
-            return lambda e: True
-
-    event_filter = get_event_filter()
-
-    def event_handler(event: Event):
-        if event_filter(event) and (not filter_fn or filter_fn(event)):
-            yield event
-
-    orchestrator = Orchestrator(
-        tasks=tasks, handlers=[Handler(event_handler)], **kwargs
-    )
-    orchestrator.run()
+    return tool and tool.metadata.get("is_completion_tool")
 
 
-def result_from_tasks(
-    tasks: list[Task],
-    **kwargs,
-) -> Iterator[tuple[Any, Any]]:
-    """Stream results from multiple task executions."""
-    current_results = {task.id: None for task in tasks}
+def process_event(event: Event) -> tuple[Event, Any, Optional[Any]]:
+    """Process a single event and return the appropriate tuple."""
+    # Message events
+    if isinstance(event, AgentMessage):
+        return event, event.message, None
+    elif isinstance(event, AgentMessageDelta):
+        return event, event.message_snapshot, event.message_delta
 
-    def result_handler(event: Event):
-        if isinstance(event, ToolResult):
-            if event.tool_call["name"].startswith("mark_task_"):
-                task_id = event.task.id
-                result = event.tool_result.result
-                if result != current_results[task_id]:
-                    current_results[task_id] = result
-                    yield (result, result)
+    # Content events
+    elif isinstance(event, AgentContent):
+        return event, event.content, None
+    elif isinstance(event, AgentContentDelta):
+        return event, event.content_snapshot, event.content_delta
 
-    orchestrator = Orchestrator(
-        tasks=tasks, handlers=[Handler(result_handler)], **kwargs
-    )
-    orchestrator.run()
+    # Tool call events
+    elif isinstance(event, AgentToolCall):
+        return event, event.tool_call, None
+    elif isinstance(event, AgentToolCallDelta):
+        return event, event.tool_call_snapshot, event.tool_call_delta
+
+    # Tool result events
+    elif isinstance(event, ToolResult):
+        return event, event.tool_result, None
+
+    else:
+        # Pass through any other events with no snapshot/delta
+        return event, None, None
+
+
+def filter_events_sync(
+    events: Iterator[Event], stream_filter: Stream
+) -> Iterator[tuple[Event, Any, Optional[Any]]]:
+    """Synchronously filter events based on Stream flags."""
+    for event in events:
+        if should_include_event(event, stream_filter):
+            yield process_event(event)
+
+
+async def filter_events_async(
+    events: AsyncIterator[Event], stream_filter: Stream
+) -> AsyncIterator[tuple[Event, Any, Optional[Any]]]:
+    """Asynchronously filter events based on Stream flags."""
+    async for event in events:
+        if should_include_event(event, stream_filter):
+            yield process_event(event)

@@ -112,9 +112,11 @@ class Flow(ControlFlowModel):
         return events
 
     def add_events(self, events: list[Event]):
-        for event in events:
+        persist_events = [e for e in events if e.persist]
+        for event in persist_events:
             event.thread_id = self.thread_id
-        self.history.add_events(thread_id=self.thread_id, events=events)
+        if persist_events:
+            self.history.add_events(thread_id=self.thread_id, events=persist_events)
 
     @contextmanager
     def create_context(self, **prefect_kwargs) -> Generator[Self, None, None]:

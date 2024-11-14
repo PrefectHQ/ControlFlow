@@ -16,7 +16,7 @@ from .memory import Memory
 from .instructions import instructions
 from .decorators import flow, task
 from .tools import tool
-from .run import run, run_async, run_tasks, run_tasks_async
+from .run import run, run_async, run_tasks, run_tasks_async, Stream
 from .plan import plan
 import controlflow.orchestration
 
