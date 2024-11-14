@@ -90,15 +90,17 @@ class AgentMessage(Event):
                 )
         return calls
 
-    def to_content(self) -> "AgentContent":
-        return AgentContent(
-            agent=self.agent,
-            content=self.message["content"],
-            agent_message_id=self.message.get("id"),
-        )
+    def to_content(self) -> Optional["AgentContent"]:
+        if self.message.get("content"):
+            return AgentContent(
+                agent=self.agent,
+                content=self.message["content"],
+                agent_message_id=self.message.get("id"),
+            )
 
     def all_related_events(self, tools: list[Tool]) -> list[Event]:
-        return [self, self.to_content()] + self.to_tool_calls(tools)
+        content = self.to_content()
+        return [self] + ([content] if content else []) + self.to_tool_calls(tools)
 
     def to_messages(self, context: "CompileContext") -> list[BaseMessage]:
         if self.agent.name == context.agent.name:
@@ -178,16 +180,22 @@ class AgentMessageDelta(UnpersistedEvent):
                     )
         return deltas
 
-    def to_content_delta(self) -> "AgentContentDelta":
-        return AgentContentDelta(
-            agent=self.agent,
-            content_delta=self.message_delta["content"],
-            content_snapshot=self.message_snapshot["content"],
-            agent_message_id=self.message_snapshot.get("id"),
-        )
+    def to_content_delta(self) -> Optional["AgentContentDelta"]:
+        if self.message_delta.get("content"):
+            return AgentContentDelta(
+                agent=self.agent,
+                content_delta=self.message_delta["content"],
+                content_snapshot=self.message_snapshot["content"],
+                agent_message_id=self.message_snapshot.get("id"),
+            )
 
     def all_related_events(self, tools: list[Tool]) -> list[Event]:
-        return [self, self.to_content_delta()] + self.to_tool_call_deltas(tools)
+        content_delta = self.to_content_delta()
+        return (
+            [self]
+            + ([content_delta] if content_delta else [])
+            + self.to_tool_call_deltas(tools)
+        )
 
 
 class AgentContent(UnpersistedEvent):
@@ -206,7 +214,7 @@ class AgentContentDelta(UnpersistedEvent):
 
 
 class AgentToolCall(Event):
-    event: Literal["tool-call"] = "tool-call"
+    event: Literal["agent-tool-call"] = "agent-tool-call"
     agent: Agent
     agent_message_id: Optional[str] = None
     tool_call: Union[ToolCall, InvalidToolCall]

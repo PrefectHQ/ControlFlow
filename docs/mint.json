@@ -55,6 +55,7 @@
                 "patterns/running-tasks",
                 "patterns/task-results",
                 "patterns/tools",
+                "patterns/streaming",
                 "patterns/interactivity",
                 "patterns/dependencies",
                 "patterns/memory",

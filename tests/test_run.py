@@ -1,10 +1,15 @@
-from controlflow import instructions
+import pytest
+
+import controlflow
+from controlflow import Stream, instructions
 from controlflow.events.base import Event
 from controlflow.events.events import AgentMessage
+from controlflow.llm.messages import AIMessage
 from controlflow.orchestration.conditions import AnyComplete, AnyFailed, MaxLLMCalls
 from controlflow.orchestration.handler import Handler
 from controlflow.run import run, run_async, run_tasks, run_tasks_async
 from controlflow.tasks.task import Task
+from tests.fixtures.controlflow import default_fake_llm
 
 
 class TestHandlers:
@@ -167,3 +172,117 @@ class TestRunUntilAsync:
         assert task1.is_failed()
         assert task2.is_incomplete()
         assert task3.is_failed()
+
+
+class TestRunStreaming:
+    # Helper function to collect async iterator results
+    async def collect_stream(self, ait):
+        return [x async for x in ait]
+
+    @pytest.fixture
+    def task(self, default_fake_llm):
+        task = controlflow.Task("say hello", id="12345")
+
+        response = AIMessage(
+            id="run-2af8bb73-661f-4ec3-92ff-d7d8e3074926",
+            name="Marvin",
+            role="ai",
+            content="",
+            tool_calls=[
+                {
+                    "name": "mark_task_12345_successful",
+                    "args": {"task_result": "Hello!"},
+                    "id": "call_ZEPdV8mCgeBe5UHjKzm6e3pe",
+                    "type": "tool_call",
+                }
+            ],
+        )
+
+        default_fake_llm.set_responses(["Hello!", response])
+
+        return task
+
+    def test_stream_all(self, default_fake_llm):
+        result = run("what's 2 + 2", stream=True, max_llm_calls=1)
+        r = list(result)
+        assert len(r) > 5
+
+    async def test_stream_all_async(self, default_fake_llm):
+        result = await run_async("what's 2 + 2", stream=True, max_llm_calls=1)
+        r = await self.collect_stream(result)
+        assert len(r) > 5
+
+    def test_stream_task(self, task):
+        result = list(task.run(stream=True))
+        assert result[0][0].event == "orchestrator-start"
+        assert result[1][0].event == "agent-turn-start"
+        assert result[-1][0].event == "orchestrator-end"
+        assert any(r[0].event == "agent-message" for r in result)
+        assert any(r[0].event == "agent-message-delta" for r in result)
+        assert any(r[0].event == "agent-content" for r in result)
+        assert any(r[0].event == "agent-content-delta" for r in result)
+        assert any(r[0].event == "agent-tool-call" for r in result)
+
+    async def test_stream_task_async(self, task):
+        result = await task.run_async(stream=True)
+        r = await self.collect_stream(result)
+        assert r[0][0].event == "orchestrator-start"
+        assert r[1][0].event == "agent-turn-start"
+        assert r[-1][0].event == "orchestrator-end"
+        assert any(x[0].event == "agent-message" for x in r)
+        assert any(x[0].event == "agent-message-delta" for x in r)
+        assert any(x[0].event == "agent-content" for x in r)
+        assert any(x[0].event == "agent-content-delta" for x in r)
+        assert any(x[0].event == "agent-tool-call" for x in r)
+
+    def test_stream_content(self, task):
+        result = list(task.run(stream=Stream.CONTENT))
+        assert all(
+            r[0].event in ("agent-content", "agent-content-delta") for r in result
+        )
+
+    async def test_stream_content_async(self, task):
+        result = await task.run_async(stream=Stream.CONTENT)
+        r = await self.collect_stream(result)
+        assert all(x[0].event in ("agent-content", "agent-content-delta") for x in r)
+
+    def test_stream_tools(self, task):
+        result = list(task.run(stream=Stream.TOOLS))
+        assert all(
+            r[0].event in ("agent-tool-call", "agent-tool-call-delta", "tool-result")
+            for r in result
+        )
+
+    async def test_stream_tools_async(self, task):
+        result = await task.run_async(stream=Stream.TOOLS)
+        r = await self.collect_stream(result)
+        assert all(
+            x[0].event in ("agent-tool-call", "agent-tool-call-delta", "tool-result")
+            for x in r
+        )
+
+    def test_stream_completion_tools(self, task):
+        result = list(task.run(stream=Stream.COMPLETION_TOOLS))
+        assert all(
+            r[0].event in ("agent-tool-call", "agent-tool-call-delta", "tool-result")
+            for r in result
+        )
+
+    async def test_stream_completion_tools_async(self, task):
+        result = await task.run_async(stream=Stream.COMPLETION_TOOLS)
+        r = await self.collect_stream(result)
+        assert all(
+            x[0].event in ("agent-tool-call", "agent-tool-call-delta", "tool-result")
+            for x in r
+        )
+
+    def test_stream_task_events(self, task):
+        result = list(task.run(stream=Stream.TASK_EVENTS))
+        assert result[-1][0].event == "task-success"
+        assert result[0][0].task is task
+
+    async def test_stream_task_events_async(self, task):
+        result = await task.run_async(stream=Stream.TASK_EVENTS)
+        r = await self.collect_stream(result)
+        assert r[-1][0].event == "task-success"
+        assert r[0][0].task is task
