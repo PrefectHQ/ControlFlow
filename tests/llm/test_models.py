@@ -2,6 +2,7 @@ import pytest
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
 
 from controlflow.llm.models import get_model
@@ -45,6 +46,10 @@ def test_get_groq_model(monkeypatch):
     assert isinstance(model, ChatGroq)
     assert model.model_name == "mixtral-8x7b-32768"
 
+def test_get_ollama_model(monkeypatch):
+    model = get_model("ollama/qwen2.5")
+    assert isinstance(model, ChatOllama)
+    assert model.model == "qwen2.5"
 
 def test_get_model_with_invalid_format():
     with pytest.raises(ValueError, match="The model `gpt-4o` is not valid."):
