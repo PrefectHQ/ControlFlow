@@ -1,0 +1,96 @@
+---
+title: OpenLIT
+description: Monitor Agents using OpenLIT and OpenTelemetry
+icon: magnifying-glass-chart
+---
+
+ControlFlow integrates with OpenLIT for enhanced monitoring, allowing developers to effectively manage AI applications with features like LLM experimentation, prompt security, and observability across the GenAI stack (LLMs, VectorDBs and GPUs).
+
+## Installation and Setup
+
+We start by installing `openlit` and `cotrolfow` SDKs. Use the following commands to install them:
+
+```bash
+pip install openlit controlflow
+```
+
+Next, set up your LLM provider. By default, ControlFlow uses OpenAI, so you’ll need to configure an OpenAI API key:
+
+```shell
+export OPENAI_API_KEY="your-api-key"
+```
+
+### Step 1: Deploy OpenLIT Stack
+
+1. Git Clone OpenLIT Repository
+
+   Open your command line or terminal and run:
+
+   ```shell
+   git clone git@github.com:openlit/openlit.git
+   ```
+
+2. Self-host using Docker
+  
+   Deploy and run OpenLIT with the following command:
+
+   ```shell
+   docker compose up -d
+   ```
+
+> For instructions on installing in Kubernetes using Helm, refer to the [Kubernetes Helm installation guide](https://docs.openlit.io/latest/installation#kubernetes).
+
+### Instrument ControlFlow agent with OpenLIT
+
+Once we have imported our required modules, let's set up our ControlFlow agent and OpenTelemetry automatic-instrumentation with OpenLIT.
+
+```python
+import controlflow as cf
+import openlit
+
+openlit.init()
+
+# Some sample data
+emails = [
+    "Hello, I need an update on the project status.",
+    "Subject: Exclusive offer just for you!",
+    "Urgent: Project deadline moved up by one week.",
+]
+
+# Create a specialized agent 
+classifier = cf.Agent(
+    name="Email Classifier",
+    model="openai/gpt-4o-mini",
+    instructions="You are an expert at quickly classifying emails.",
+)
+
+# Set up a ControlFlow task to classify emails
+classifications = cf.run(
+    'Classify the emails',
+    result_type=['important', 'spam'],
+    agents=[classifier],
+    context=dict(emails=emails),
+)
+
+print(classifications)
+```
+
+### Native OpenTelemetry Support
+
+> 💡 Info: If the `otlp_endpoint` or `OTEL_EXPORTER_OTLP_ENDPOINT` is not provided, the OpenLIT SDK will output traces directly to your console, which is recommended during the development phase.
+
+OpenLIT can send complete execution traces and metrics directly from your application to any OpenTelemetry endpoint like Grafana, DataDog and more. Configure the telemetry data destination as follows:
+
+| Purpose                                   | Parameter/Environment Variable                   | For Sending to OpenLIT         |
+|-------------------------------------------|--------------------------------------------------|--------------------------------|
+| Send data to an HTTP OTLP endpoint        | `otlp_endpoint` or `OTEL_EXPORTER_OTLP_ENDPOINT` | `"http://127.0.0.1:4318"`      |
+| Authenticate telemetry backends           | `otlp_headers` or `OTEL_EXPORTER_OTLP_HEADERS`   | Not required by default        |
+
+### Step 4: Visualize and Optimize!
+With the Observability data now being collected and sent to OpenLIT, the next step is to visualize and analyze this data to get insights into your AI application's performance, behavior, and identify areas of improvement.
+
+Just head over to OpenLIT at `127.0.0.1:3000` on your browser to start exploring. You can login using the default credentials
+  - **Email**: `user@openlit.io`
+  - **Password**: `openlituser`
+
+If you're sending metrics and traces to other observability tools, take a look at OpenLIT's [Connections Guide](https://docs.openlit.io/latest/connections/intro) to start using a pre-built dashboard they have created for these tools.
