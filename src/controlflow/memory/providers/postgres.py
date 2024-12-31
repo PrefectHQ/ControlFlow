@@ -9,13 +9,15 @@ from sqlalchemy_utils import database_exists, create_database
 from sqlalchemy.exc import ProgrammingError
 from pgvector.sqlalchemy import Vector
 from pydantic import Field
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy import select
 
 import controlflow
 from controlflow.memory.memory import MemoryProvider
 
 try:
-    # For embeddings, we can reuse the same LanceDB approach to retrieve an embedding function:
-    from lancedb.embeddings import get_registry
+    # For embeddings, we can use langchain_openai or any other library:
+    from langchain_openai import OpenAIEmbeddings
 except ImportError:
     raise ImportError(
         "To use an embedding function similar to LanceDB's default, "
@@ -35,7 +37,7 @@ class SQLMemoryTable(Base):
     id = Column(String, primary_key=True)
     text = Column(String)
     # Use pgvector for storing embeddings in a Postgres Vector column
-    vector = Column(Vector(dim=1536))  # Adjust dimension to match your embedding model
+    #vector = Column(Vector(dim=1536))  # Adjust dimension to match your embedding model
 
 
 class PostgresMemory(MemoryProvider):
@@ -57,14 +59,17 @@ class PostgresMemory(MemoryProvider):
             by the memory’s key attribute.
         """,
     )
+
+    embedding_dimension: int = Field(
+        default=1536,
+        description="Dimension of the embedding vectors. Match your model's output."
+    )
+
     embedding_fn: Callable = Field(
-        default_factory=lambda: get_registry()
-        .get("openai")
-        .create(name="text-embedding-ada-002"),
-        description=(
-            "The function used to generate vector embeddings for text. "
-            "Defaults to an OpenAI text-embedding-ada-002 model using LanceDB's registry."
+        default_factory=lambda: OpenAIEmbeddings(
+            model="text-embedding-ada-002",
         ),
+        description="A function that turns a string into a vector."
     )
 
 
@@ -74,6 +79,9 @@ class PostgresMemory(MemoryProvider):
 
     # This dict will map "table_name" -> "model class"
     _table_class_cache: Dict[str, Base] = {}
+
+
+
 
     def configure(self, memory_key: str) -> None:
         """
@@ -102,7 +110,11 @@ class PostgresMemory(MemoryProvider):
             memory_model = type(
                 f"SQLMemoryTable_{memory_key}",
                 (SQLMemoryTable,),
-                {"__tablename__": table_name},
+                {
+                    "__tablename__": table_name,
+                    "vector": Column(Vector(dim=self.embedding_dimension)),
+                },
+                
             )
 
             try:
@@ -119,6 +131,9 @@ class PostgresMemory(MemoryProvider):
                 "Session is not initialized. Make sure to call configure() first."
             )
         return self._SessionLocal()
+    
+    def _vector_param(self, embedding: list[float]) -> str:
+        return f"[{', '.join(str(x) for x in embedding)}]"
 
     def _get_table(self, memory_key: str) -> Base:
         """
@@ -136,7 +151,10 @@ class PostgresMemory(MemoryProvider):
         memory_model = type(
             f"SQLMemoryTable_{memory_key}",
             (SQLMemoryTable,),
-            {"__tablename__": table_name},
+            {
+                "__tablename__": table_name,
+                "vector": Column(Vector(dim=self.embedding_dimension)),
+            },
         )
         self._table_class_cache[table_name] = memory_model
         return memory_model
@@ -151,7 +169,7 @@ class PostgresMemory(MemoryProvider):
         model_cls = self._get_table(memory_key)
 
         # Generate an embedding for the content
-        embedding = self.embedding_fn(content)
+        embedding = self.embedding_fn.embed_query(content)
 
         with self._get_session() as session:
             record = model_cls(id=memory_id, text=content, vector=embedding)
@@ -177,22 +195,18 @@ class PostgresMemory(MemoryProvider):
         """
         model_cls = self._get_table(memory_key)
         # Generate embedding for the query
-        query_embedding = self.embedding_fn(query)
+        query_embedding = self.embedding_fn.embed_query(query)
+        embedding_col = model_cls.vector
 
-        # Postgres syntax to compute distance: vector <-> query_embedding
-        # We'll parameterize the embedding as a literal array.
+
         with self._get_session() as session:
-            # The raw SQL approach, because SQLAlchemy doesn’t have built-in syntax
-            # for `<->` directly yet. We can still pass parameters safely:
-            stmt = text(f"""
-                SELECT id, text
-                FROM {model_cls.__tablename__}
-                ORDER BY vector <-> :query_vec
-                LIMIT :limit
-            """)
+  
             results = session.execute(
-                stmt,
-                {"query_vec": query_embedding, "limit": n},
-            ).all()
+                        select(model_cls.id, model_cls.text)
+                        .order_by(embedding_col.l2_distance(query_embedding))
+                        .limit(n)
+                    ).all()
 
         return {row.id: row.text for row in results}
+
+

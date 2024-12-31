@@ -5,6 +5,8 @@ import controlflow as cf
 
 provider = PostgresMemory(
     database_url="postgresql://postgres:postgres@localhost:5432/your_database",
+    #embedding_dimension=1536,
+    # embedding_fn=OpenAIEmbeddings(), 
     table_name="vector_db",
 )
 # Create a memory module for user preferences
@@ -22,7 +24,7 @@ agent = cf.Agent(memories=[user_preferences])
 @cf.flow
 def remember_color():
     return cf.run(
-        "Ask the user for their favorite color and store it in memory",
+        "Ask the user for their favorite animal and store it in memory",
         agents=[agent],
         interactive=True,
     )
@@ -32,7 +34,7 @@ def remember_color():
 @cf.flow
 def recall_color():
     return cf.run(
-        "What is the user's favorite color?",
+        "What is the user's favorite animal?",
         agents=[agent],
     )
 
