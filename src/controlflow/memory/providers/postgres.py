@@ -1,5 +1,4 @@
 import uuid
-from pathlib import Path
 from typing import Callable, Dict, Optional
 
 import sqlalchemy
@@ -81,8 +80,6 @@ class PostgresMemory(MemoryProvider):
     _table_class_cache: Dict[str, Base] = {}
 
 
-
-
     def configure(self, memory_key: str) -> None:
         """
         Configure a SQLAlchemy session and ensure the table for this
@@ -132,8 +129,6 @@ class PostgresMemory(MemoryProvider):
             )
         return self._SessionLocal()
     
-    def _vector_param(self, embedding: list[float]) -> str:
-        return f"[{', '.join(str(x) for x in embedding)}]"
 
     def _get_table(self, memory_key: str) -> Base:
         """
