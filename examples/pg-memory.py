@@ -24,7 +24,7 @@ agent = cf.Agent(memories=[user_preferences])
 @cf.flow
 def remember_color():
     return cf.run(
-        "Ask the user for their favorite animal and store it in memory",
+        "Ask the user for their favorite color and store it in memory",
         agents=[agent],
         interactive=True,
     )
@@ -34,7 +34,7 @@ def remember_color():
 @cf.flow
 def recall_color():
     return cf.run(
-        "What is the user's favorite animal?",
+        "What is the user's favorite color?",
         agents=[agent],
     )
 
