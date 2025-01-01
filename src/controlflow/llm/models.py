@@ -60,6 +60,14 @@ def get_model(
                 "To use Groq as an LLM provider, please install the `langchain_groq` package."
             )
         cls = ChatGroq
+    elif provider == "ollama":
+        try:
+            from langchain_ollama import ChatOllama
+        except ImportError:
+            raise ImportError(
+                "To use Ollama as an LLM provider, please install the `langchain-ollama` package."
+            )
+        cls = ChatOllama
     else:
         raise ValueError(
             f"Could not load provider `{provider}` automatically. Please provide the LLM class manually."
