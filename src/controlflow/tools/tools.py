@@ -118,19 +118,27 @@ class Tool(ControlFlowModel):
     ):
         name = name or fn.__name__
         description = description or fn.__doc__ or ""
-
         signature = inspect.signature(fn)
-        try:
-            parameters = TypeAdapter(fn).json_schema()
-        except PydanticSchemaGenerationError:
-            raise ValueError(
-                f'Could not generate a schema for tool "{name}". '
-                "Tool functions must have type hints that are compatible with Pydantic."
-            )
+
+        # If parameters are provided in kwargs, use those instead of generating them
+        if "parameters" in kwargs:
+            parameters = kwargs.pop("parameters")  # Custom parameters are respected
+        else:
+            try:
+                parameters = TypeAdapter(fn).json_schema()
+            except PydanticSchemaGenerationError:
+                raise ValueError(
+                    f'Could not generate a schema for tool "{name}". '
+                    "Tool functions must have type hints that are compatible with Pydantic."
+                )
 
         # load parameter descriptions
         if include_param_descriptions:
             for param in signature.parameters.values():
+                # ensure we only try to add descriptions for parameters that exist in the schema
+                if param.name not in parameters.get("properties", {}):
+                    continue
+
                 # handle Annotated type hints
                 if typing.get_origin(param.annotation) is Annotated:
                     param_description = " ".join(
