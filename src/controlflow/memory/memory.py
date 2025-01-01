@@ -166,7 +166,6 @@ def get_memory_provider(provider: str) -> MemoryProvider:
 
         return lance_providers.LanceMemory()
 
-
     # --- Postgres ---
     elif provider.startswith("postgres"):
         try:

@@ -1,19 +1,18 @@
+import controlflow as cf
 from controlflow.memory.memory import Memory
 from controlflow.memory.providers.postgres import PostgresMemory
-import controlflow as cf
-
 
 provider = PostgresMemory(
     database_url="postgresql://postgres:postgres@localhost:5432/your_database",
-    #embedding_dimension=1536,
-    # embedding_fn=OpenAIEmbeddings(), 
+    # embedding_dimension=1536,
+    # embedding_fn=OpenAIEmbeddings(),
     table_name="vector_db",
 )
 # Create a memory module for user preferences
 user_preferences = cf.Memory(
-    key="user_preferences", 
+    key="user_preferences",
     instructions="Store and retrieve user preferences.",
-    provider=provider
+    provider=provider,
 )
 
 # Create an agent with access to the memory

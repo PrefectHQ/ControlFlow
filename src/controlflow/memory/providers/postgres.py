@@ -2,14 +2,13 @@ import uuid
 from typing import Callable, Dict, Optional
 
 import sqlalchemy
-from sqlalchemy import Column, String, select, text
-from sqlalchemy.orm import declarative_base, Session, sessionmaker
-from sqlalchemy_utils import database_exists, create_database
-from sqlalchemy.exc import ProgrammingError
 from pgvector.sqlalchemy import Vector
 from pydantic import Field
+from sqlalchemy import Column, String, select, text
 from sqlalchemy.dialects.postgresql import ARRAY
-from sqlalchemy import select
+from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy_utils import create_database, database_exists
 
 import controlflow
 from controlflow.memory.memory import MemoryProvider
@@ -26,17 +25,19 @@ except ImportError:
 # SQLAlchemy base class for declarative models
 Base = declarative_base()
 
+
 class SQLMemoryTable(Base):
     """
     A simple declarative model that represents a memory record.
-    
+
     We’ll dynamically set the __tablename__ at runtime.
     """
+
     __abstract__ = True
     id = Column(String, primary_key=True)
     text = Column(String)
     # Use pgvector for storing embeddings in a Postgres Vector column
-    #vector = Column(Vector(dim=1536))  # Adjust dimension to match your embedding model
+    # vector = Column(Vector(dim=1536))  # Adjust dimension to match your embedding model
 
 
 class PostgresMemory(MemoryProvider):
@@ -61,17 +62,15 @@ class PostgresMemory(MemoryProvider):
 
     embedding_dimension: int = Field(
         default=1536,
-        description="Dimension of the embedding vectors. Match your model's output."
+        description="Dimension of the embedding vectors. Match your model's output.",
     )
 
     embedding_fn: Callable = Field(
         default_factory=lambda: OpenAIEmbeddings(
             model="text-embedding-ada-002",
         ),
-        description="A function that turns a string into a vector."
+        description="A function that turns a string into a vector.",
     )
-
-
 
     # Internal: keep a cached Session maker
     _SessionLocal: Optional[sessionmaker] = None
@@ -79,14 +78,12 @@ class PostgresMemory(MemoryProvider):
     # This dict will map "table_name" -> "model class"
     _table_class_cache: Dict[str, Base] = {}
 
-
     def configure(self, memory_key: str) -> None:
         """
         Configure a SQLAlchemy session and ensure the table for this
         memory partition is created if it does not already exist.
         """
         engine = sqlalchemy.create_engine(self.database_url)
-
 
         # 2) If DB doesn't exist, create it!
         if not database_exists(engine.url):
@@ -111,7 +108,6 @@ class PostgresMemory(MemoryProvider):
                     "__tablename__": table_name,
                     "vector": Column(Vector(dim=self.embedding_dimension)),
                 },
-                
             )
 
             try:
@@ -121,14 +117,12 @@ class PostgresMemory(MemoryProvider):
             except ProgrammingError as e:
                 raise RuntimeError(f"Failed to create table {table_name}: {e}")
 
-
     def _get_session(self) -> Session:
         if not self._SessionLocal:
             raise RuntimeError(
                 "Session is not initialized. Make sure to call configure() first."
             )
         return self._SessionLocal()
-    
 
     def _get_table(self, memory_key: str) -> Base:
         """
@@ -193,15 +187,11 @@ class PostgresMemory(MemoryProvider):
         query_embedding = self.embedding_fn.embed_query(query)
         embedding_col = model_cls.vector
 
-
         with self._get_session() as session:
-  
             results = session.execute(
-                        select(model_cls.id, model_cls.text)
-                        .order_by(embedding_col.l2_distance(query_embedding))
-                        .limit(n)
-                    ).all()
+                select(model_cls.id, model_cls.text)
+                .order_by(embedding_col.l2_distance(query_embedding))
+                .limit(n)
+            ).all()
 
         return {row.id: row.text for row in results}
-
-
