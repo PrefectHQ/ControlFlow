@@ -7,11 +7,7 @@ from pydantic import Field
 import controlflow
 from controlflow.agents.agent import Agent
 from controlflow.llm.messages import ToolMessage
-from controlflow.tools.tools import (
-    Tool,
-    handle_tool_call,
-    tool,
-)
+from controlflow.tools.tools import Tool, handle_tool_call, tool
 
 
 @pytest.mark.parametrize("style", ["decorator", "class"])
@@ -169,6 +165,77 @@ class TestToolFunctions_DecoratorAndClass:
                 Tool.from_function(add)
             elif style == "decorator":
                 tool(add)
+
+    def test_custom_parameters(self, style):
+        """Test that custom parameters override generated ones."""
+
+        def add(a: int, b: float):
+            return a + b
+
+        custom_params = {
+            "type": "object",
+            "properties": {
+                "x": {"type": "number", "description": "Custom parameter"},
+                "y": {"type": "string"},
+            },
+            "required": ["x"],
+        }
+
+        if style == "class":
+            tool_obj = Tool.from_function(add, parameters=custom_params)
+        elif style == "decorator":
+            tool_obj = tool(add, parameters=custom_params)
+
+        assert tool_obj.parameters == custom_params
+        assert "a" not in tool_obj.parameters["properties"]
+        assert "b" not in tool_obj.parameters["properties"]
+        assert (
+            tool_obj.parameters["properties"]["x"]["description"] == "Custom parameter"
+        )
+
+    def test_custom_parameters_with_annotations(self, style):
+        """Test that annotations still work with custom parameters if param names match."""
+
+        def process(x: Annotated[float, "The x value"], y: str):
+            return x
+
+        custom_params = {
+            "type": "object",
+            "properties": {"x": {"type": "number"}, "y": {"type": "string"}},
+            "required": ["x"],
+        }
+
+        if style == "class":
+            tool_obj = Tool.from_function(process, parameters=custom_params)
+        elif style == "decorator":
+            tool_obj = tool(process, parameters=custom_params)
+
+        assert tool_obj.parameters["properties"]["x"]["description"] == "The x value"
+        assert "description" not in tool_obj.parameters["properties"]["y"]
+
+    def test_custom_parameters_ignore_descriptions(self, style):
+        """Test that include_param_descriptions=False works with custom parameters."""
+
+        def process(x: Annotated[float, "The x value"], y: str):
+            return x
+
+        custom_params = {
+            "type": "object",
+            "properties": {"x": {"type": "number"}, "y": {"type": "string"}},
+            "required": ["x"],
+        }
+
+        if style == "class":
+            tool_obj = Tool.from_function(
+                process, parameters=custom_params, include_param_descriptions=False
+            )
+        elif style == "decorator":
+            tool_obj = tool(
+                process, parameters=custom_params, include_param_descriptions=False
+            )
+
+        assert "description" not in tool_obj.parameters["properties"]["x"]
+        assert "description" not in tool_obj.parameters["properties"]["y"]
 
 
 class TestToolFunctions:

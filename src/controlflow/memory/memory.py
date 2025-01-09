@@ -166,4 +166,16 @@ def get_memory_provider(provider: str) -> MemoryProvider:
 
         return lance_providers.LanceMemory()
 
+    # --- Postgres ---
+    elif provider.startswith("postgres"):
+        try:
+            import sqlalchemy
+        except ImportError:
+            raise ImportError(
+                "To use Postgres as a memory provider, please install the `sqlalchemy` package."
+            )
+
+        import controlflow.memory.providers.postgres as postgres_providers
+
+        return postgres_providers.PostgresMemory()
     raise ValueError(f'Memory provider "{provider}" could not be loaded from a string.')
