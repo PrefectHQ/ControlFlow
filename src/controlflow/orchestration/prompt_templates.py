@@ -5,6 +5,7 @@ from pydantic import model_validator
 from controlflow.agents.agent import Agent
 from controlflow.flows import Flow
 from controlflow.memory.memory import Memory
+from controlflow.memory.async_memory import AsyncMemory
 from controlflow.tasks.task import Task
 from controlflow.tools.tools import Tool
 from controlflow.utilities.general import ControlFlowModel
@@ -97,7 +98,7 @@ class ToolTemplate(Template):
 
 class MemoryTemplate(Template):
     template_path: str = "memories.jinja"
-    memories: list[Memory]
+    memories: list[Memory] | list[AsyncMemory]
 
     def should_render(self) -> bool:
         return bool(self.memories)

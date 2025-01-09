@@ -32,6 +32,7 @@ from controlflow.llm.messages import AIMessage, BaseMessage
 from controlflow.llm.models import get_model as get_model_from_string
 from controlflow.llm.rules import LLMRules
 from controlflow.memory import Memory
+from controlflow.memory.async_memory import AsyncMemory
 from controlflow.tools.tools import (
     Tool,
     as_lc_tools,
@@ -82,7 +83,7 @@ class Agent(ControlFlowModel, abc.ABC):
         default=False,
         description="If True, the agent is given tools for interacting with a human user.",
     )
-    memories: list[Memory] = Field(
+    memories: list[Memory] | list[AsyncMemory] = Field(
         default=[],
         description="A list of memory modules for the agent to use.",
     )

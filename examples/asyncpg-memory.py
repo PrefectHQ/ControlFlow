@@ -1,15 +1,18 @@
 import controlflow as cf
-from controlflow.memory.memory import Memory
-from controlflow.memory.providers.postgres import PostgresMemory
+from controlflow.memory.async_memory import AsyncMemory
 
-provider = PostgresMemory(
-    database_url="postgresql://postgres:postgres@localhost:5432/database",
+from controlflow.memory.providers.postgres import AsyncPostgresMemory
+import asyncio
+
+
+provider = AsyncPostgresMemory(
+    database_url="postgresql+asyncpg://postgres:postgres@localhost:5432/database",
     # embedding_dimension=1536,
     # embedding_fn=OpenAIEmbeddings(),
-    table_name="vector_db",
+    table_name="vector_db_async",
 )
 # Create a memory module for user preferences
-user_preferences = cf.Memory(
+user_preferences = AsyncMemory(
     key="user_preferences",
     instructions="Store and retrieve user preferences.",
     provider=provider,
@@ -22,26 +25,29 @@ agent = cf.Agent(memories=[user_preferences])
 # Create a flow to ask for the user's favorite color
 @cf.flow
 def remember_color():
-    return cf.run(
-        "Ask the user for their favorite color and store it in memory",
+    return cf.run_async(
+        "Ask the user for their favorite animal and store it in memory",
         agents=[agent],
         interactive=True,
     )
 
 
+
 # Create a flow to recall the user's favorite color
 @cf.flow
 def recall_color():
-    return cf.run(
-        "What is the user's favorite color?",
+    return cf.run_async(
+        "What is the user's favorite animal?",
         agents=[agent],
     )
 
-
-if __name__ == "__main__":
+def main():
     print("First flow:")
     remember_color()
 
     print("\nSecond flow:")
     result = recall_color()
     print(result)
+
+if __name__ == "__main__":
+    asyncio.run(main())
