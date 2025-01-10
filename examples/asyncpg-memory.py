@@ -6,11 +6,12 @@ import asyncio
 
 
 provider = AsyncPostgresMemory(
-    database_url="postgresql+asyncpg://postgres:postgres@localhost:5432/database",
+    database_url="postgresql+psycopg://postgres:postgres@localhost:5432/database",
     # embedding_dimension=1536,
     # embedding_fn=OpenAIEmbeddings(),
     table_name="vector_db_async",
 )
+
 # Create a memory module for user preferences
 user_preferences = AsyncMemory(
     key="user_preferences",
@@ -24,8 +25,8 @@ agent = cf.Agent(memories=[user_preferences])
 
 # Create a flow to ask for the user's favorite color
 @cf.flow
-def remember_color():
-    return cf.run_async(
+async def remember_pet():
+    return await cf.run_async(
         "Ask the user for their favorite animal and store it in memory",
         agents=[agent],
         interactive=True,
@@ -35,19 +36,20 @@ def remember_color():
 
 # Create a flow to recall the user's favorite color
 @cf.flow
-def recall_color():
-    return cf.run_async(
+async def recall_pet():
+    return await cf.run_async(
         "What is the user's favorite animal?",
         agents=[agent],
     )
 
-def main():
+async def main():
     print("First flow:")
-    remember_color()
+    await remember_pet()
 
     print("\nSecond flow:")
-    result = recall_color()
+    result = await recall_pet()
     print(result)
+    return result
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -40,7 +40,7 @@ class Defaults(ControlFlowModel):
     model: Optional[Any]
     history: History
     agent: Agent
-    memory_provider: Optional[Union[MemoryProvider, str]] | Optional[AsyncMemoryProvider]
+    memory_provider: Optional[Union[MemoryProvider, str]] | Optional[Union[AsyncMemoryProvider, str]]
 
     # add more defaults here
     def __repr__(self) -> str:

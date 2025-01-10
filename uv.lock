@@ -755,7 +755,7 @@ wheels = [
 
 [[package]]
 name = "controlflow"
-version = "0.11.4.dev42+g59d6c90.d20250109"
+version = "0.11.4.dev43+g191789e.d20250109"
 source = { editable = "." }
 dependencies = [
     { name = "ipython" },
@@ -772,6 +772,7 @@ dependencies = [
     { name = "psycopg-binary" },
     { name = "psycopg-pool" },
     { name = "psycopg2-binary" },
+    { name = "pydantic-async-validation" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
     { name = "sqlalchemy" },
@@ -845,6 +846,7 @@ requires-dist = [
     { name = "psycopg-binary", specifier = ">=3.2.3" },
     { name = "psycopg-pool", specifier = ">=3.2.4" },
     { name = "psycopg2-binary", specifier = ">=2.9.10" },
+    { name = "pydantic-async-validation", specifier = ">=0.3.0" },
     { name = "pydantic-settings", specifier = ">=2.2.1" },
     { name = "pytest", marker = "extra == 'tests'", specifier = ">=7.0" },
     { name = "pytest-asyncio", marker = "extra == 'tests'", specifier = ">=0.18.2,!=0.22.0,<0.23.0" },
@@ -3676,6 +3678,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a9/b7/d9e3f12af310e1120c21603644a1cd86f59060e040ec5c3a80b8f05fae30/pydantic-2.9.2.tar.gz", hash = "sha256:d155cef71265d1e9807ed1c32b4c8deec042a44a50a4188b25ac67ecd81a9c0f", size = 769917 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/df/e4/ba44652d562cbf0bf320e0f3810206149c8a4e99cdbf66da82e97ab53a15/pydantic-2.9.2-py3-none-any.whl", hash = "sha256:f048cec7b26778210e28a0459867920654d48e5e62db0958433636cde4254f12", size = 434928 },
+]
+
+[[package]]
+name = "pydantic-async-validation"
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/31/66/4d91e1c120311e6d6d067124701f2e088675c4802932c12a3f38e514d4fd/pydantic_async_validation-0.3.0.tar.gz", hash = "sha256:e86fa9f1f4234421bd79deca045bab1370a5280cdc71534fd34b8b81e379587b", size = 11222 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d6/b2/1129da9ac1be55716e52db3b7951d8a1807e914bcad04c0fc58c139a5453/pydantic_async_validation-0.3.0-py3-none-any.whl", hash = "sha256:e03562dfec99ebc601dcf68b2f7d1f3f22d1cd5941765a6c5662c74d40310f46", size = 11301 },
 ]
 
 [[package]]

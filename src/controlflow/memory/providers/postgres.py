@@ -312,56 +312,55 @@ class AsyncPostgresMemory(AsyncMemoryProvider):
             return
         # 1) Create an async engine. Use the asyncpg dialect.
         #    The pool settings are configured in 'create_async_engine' with 'pool_size', etc.
-        self._engine = create_async_engine(
-            self.database_url,
-            pool_size=self.pool_size,
-            max_overflow=self.max_overflow,
-            pool_timeout=self.pool_timeout,
-            pool_recycle=self.pool_recycle,
-            pool_pre_ping=self.pool_pre_ping,
-        )
+        else:
+            self._engine = create_async_engine(
+                self.database_url,
+                pool_size=self.pool_size,
+                max_overflow=self.max_overflow,
+                pool_timeout=self.pool_timeout,
+                pool_recycle=self.pool_recycle,
+                pool_pre_ping=self.pool_pre_ping,
+            )
 
-        # 2) Create DB if missing (sync-only). We'll offload to a thread:
-        url_ = str(self._engine.url.set(drivername="postgresql+asyncpg"))  # e.g. postgresql://user:pass@host/db
-        exists = await anyio.to_thread.run_sync(database_exists, url_)
-        if not exists:
-            await anyio.to_thread.run_sync(create_database, url_)
+            exists = await anyio.to_thread.run_sync(database_exists, self.database_url)
+            if not exists:
+                await anyio.to_thread.run_sync(create_database, self.database_url)
 
-        # 3) Run migrations / create extension in an async context:
-        async with self._engine.begin() as conn:
-            # Create the pgvector extension if not exists
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-            # We'll create the table for the memory_key specifically
-            # (1) Build the dynamic table class
-            table_name = self.table_name.format(key=memory_key)
-            if table_name not in Base.metadata.tables:
-                memory_model = type(
-                    f"SQLMemoryTable_{memory_key}",
-                    (SQLMemoryTable,),
-                    {
-                        "__tablename__": table_name,
-                        "vector": Column(Vector(dim=self.embedding_dimension)),
-                    },
-                )
-                self._table_class_cache[table_name] = memory_model
+            # 3) Run migrations / create extension in an async context:
+            async with self._engine.begin() as conn:
+                # Create the pgvector extension if not exists
+                await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+                # We'll create the table for the memory_key specifically
+                # (1) Build the dynamic table class
+                table_name = self.table_name.format(key=memory_key)
+                if table_name not in Base.metadata.tables:
+                    memory_model = type(
+                        f"SQLMemoryTable_{memory_key}",
+                        (SQLMemoryTable,),
+                        {
+                            "__tablename__": table_name,
+                            "vector": Column(Vector(dim=self.embedding_dimension)),
+                        },
+                    )
+                    self._table_class_cache[table_name] = memory_model
 
-                # (2) Actually create it (async):
-                def _sync_create(metadata, connection):
-                    """Helper function to run table creation in sync context."""
-                    metadata.create_all(connection, tables=[memory_model.__table__])
+                    # (2) Actually create it (async):
+                    def _sync_create(connection):
+                        """Helper function to run table creation in sync context."""
+                        Base.metadata.create_all(connection, tables=[memory_model.__table__])
 
-                try:
-                    await conn.run_sync(_sync_create, Base.metadata)
-                except ProgrammingError as e:
-                    raise RuntimeError(f"Failed to create table '{table_name}': {e}")
+                    try:
+                        await conn.run_sync(_sync_create)
+                    except ProgrammingError as e:
+                        raise RuntimeError(f"Failed to create table '{table_name}': {e}")
 
-        # 4) Now that the DB and table are ready, create a session factory
-        self._SessionLocal = async_sessionmaker(
-            self._engine,
-            expire_on_commit=False,
-        )
+            # 4) Now that the DB and table are ready, create a session factory
+            self._SessionLocal = async_sessionmaker(
+                self._engine,
+                expire_on_commit=False,
+            )
 
-        self._configured = True
+            self._configured = True
 
 
     def _get_table(self, memory_key: str) -> Base:

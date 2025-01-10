@@ -18,7 +18,7 @@ def sanitize_memory_key(key: str) -> str:
 
 
 class AsyncMemoryProvider(ControlFlowModel, abc.ABC):
-    def configure(self, memory_key: str) -> None:
+    async def configure(self, memory_key: str) -> None:
         """Configure the provider for a specific memory."""
         pass
 
@@ -96,9 +96,9 @@ class AsyncMemory(ControlFlowModel):
             )
         return sanitized
 
-    @model_validator(mode="after")
-    def _configure_provider(self):
-        self.provider.configure(self.key)
+
+    async def _configure_provider(self):
+        await self.provider.configure(self.key)
         return self
 
     async def add(self, content: str) -> str:
