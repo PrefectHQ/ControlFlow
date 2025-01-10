@@ -172,7 +172,8 @@ def get_memory_provider(provider: str) -> MemoryProvider:
             import sqlalchemy
         except ImportError:
             raise ImportError(
-                "To use Postgres as a memory provider, please install the `sqlalchemy` package."
+                """To use Postgres as a memory provider, please install the `sqlalchemy, `psycopg-pool`,
+                    `psycopg-binary`, and `psycopg` `psycopg2-binary` packages."""
             )
 
         import controlflow.memory.providers.postgres as postgres_providers

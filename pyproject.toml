@@ -18,15 +18,6 @@ dependencies = [
     "tiktoken>=0.7.0",
     "typer>=0.10",
     "ipython>=8.18.1",
-    "sqlalchemy>=2.0.36",
-    "pgvector>=0.3.6",
-    "lancedb>=0.17.0",
-    "python-dotenv>=1.0.1",
-    "sqlalchemy-utils>=0.41.2",
-    "psycopg-pool>=3.2.4",
-    "psycopg-binary>=3.2.3",
-    "psycopg>=3.2.3",
-    "psycopg2-binary>=2.9.10",
 ]
 readme = "README.md"
 requires-python = ">= 3.9"

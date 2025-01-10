@@ -141,7 +141,8 @@ def get_memory_provider(provider: str) -> AsyncMemoryProvider:
             import sqlalchemy
         except ImportError:
             raise ImportError(
-                "To use Postgres as a memory provider, please install the `sqlalchemy` package."
+                """To use async Postgres as a memory provider, please install the `sqlalchemy, `psycopg-pool`,
+                    `psycopg-binary`, and `psycopg` packages."""
             )
 
         import controlflow.memory.providers.postgres as postgres_providers
