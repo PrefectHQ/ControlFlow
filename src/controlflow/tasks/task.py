@@ -37,8 +37,8 @@ from typing_extensions import Self
 import controlflow
 from controlflow.agents import Agent
 from controlflow.instructions import get_instructions
-from controlflow.memory.memory import Memory
 from controlflow.memory.async_memory import AsyncMemory
+from controlflow.memory.memory import Memory
 from controlflow.tools import Tool, tool
 from controlflow.tools.input import cli_input
 from controlflow.tools.tools import as_tools

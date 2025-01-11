@@ -4,8 +4,8 @@ from pydantic import model_validator
 
 from controlflow.agents.agent import Agent
 from controlflow.flows import Flow
-from controlflow.memory.memory import Memory
 from controlflow.memory.async_memory import AsyncMemory
+from controlflow.memory.memory import Memory
 from controlflow.tasks.task import Task
 from controlflow.tools.tools import Tool
 from controlflow.utilities.general import ControlFlowModel

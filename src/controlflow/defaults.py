@@ -6,8 +6,8 @@ import controlflow
 import controlflow.utilities
 import controlflow.utilities.logging
 from controlflow.llm.models import BaseChatModel
-from controlflow.memory.memory import MemoryProvider, get_memory_provider
 from controlflow.memory.async_memory import AsyncMemoryProvider, get_memory_provider
+from controlflow.memory.memory import MemoryProvider, get_memory_provider
 from controlflow.utilities.general import ControlFlowModel
 
 from .agents import Agent
@@ -40,7 +40,9 @@ class Defaults(ControlFlowModel):
     model: Optional[Any]
     history: History
     agent: Agent
-    memory_provider: Optional[Union[MemoryProvider, str]] | Optional[Union[AsyncMemoryProvider, str]]
+    memory_provider: (
+        Optional[Union[MemoryProvider, str]] | Optional[Union[AsyncMemoryProvider, str]]
+    )
 
     # add more defaults here
     def __repr__(self) -> str:

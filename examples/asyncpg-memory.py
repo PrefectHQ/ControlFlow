@@ -1,9 +1,8 @@
-import controlflow as cf
-from controlflow.memory.async_memory import AsyncMemory
-
-from controlflow.memory.providers.postgres import AsyncPostgresMemory
 import asyncio
 
+import controlflow as cf
+from controlflow.memory.async_memory import AsyncMemory
+from controlflow.memory.providers.postgres import AsyncPostgresMemory
 
 provider = AsyncPostgresMemory(
     database_url="postgresql+psycopg://postgres:postgres@localhost:5432/database",
@@ -33,7 +32,6 @@ async def remember_pet():
     )
 
 
-
 # Create a flow to recall the user's favorite color
 @cf.flow
 async def recall_pet():
@@ -41,6 +39,7 @@ async def recall_pet():
         "What is the user's favorite animal?",
         agents=[agent],
     )
+
 
 async def main():
     print("First flow:")
@@ -50,6 +49,7 @@ async def main():
     result = await recall_pet()
     print(result)
     return result
+
 
 if __name__ == "__main__":
     asyncio.run(main())

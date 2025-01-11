@@ -96,7 +96,6 @@ class AsyncMemory(ControlFlowModel):
             )
         return sanitized
 
-
     async def _configure_provider(self):
         await self.provider.configure(self.key)
         return self
@@ -132,7 +131,6 @@ class AsyncMemory(ControlFlowModel):
 
 def get_memory_provider(provider: str) -> AsyncMemoryProvider:
     logger.debug(f"Loading memory provider: {provider}")
-
 
     # --- async postgres ---
 

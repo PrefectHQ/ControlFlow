@@ -1,27 +1,27 @@
 import uuid
 from typing import Callable, Dict, Optional
 
+# async pg
+import anyio
 import sqlalchemy
 from pgvector.sqlalchemy import Vector
 from pydantic import Field
 from sqlalchemy import Column, String, select, text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.exc import ProgrammingError
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
-from sqlalchemy_utils import create_database, database_exists
-
-#async pg
-import anyio
 from sqlalchemy.ext.asyncio import (
-    create_async_engine,
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
+    create_async_engine,
 )
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy_utils import create_database, database_exists
 
 import controlflow
-from controlflow.memory.memory import MemoryProvider
 from controlflow.memory.async_memory import AsyncMemoryProvider
+from controlflow.memory.memory import MemoryProvider
+
 try:
     # For embeddings, we can use langchain_openai or any other library:
     from langchain_openai import OpenAIEmbeddings
@@ -125,7 +125,7 @@ class PostgresMemory(MemoryProvider):
             pool_timeout=self.pool_timeout,
             pool_recycle=self.pool_recycle,
             pool_pre_ping=self.pool_pre_ping,
-            )
+        )
 
         # 2) If DB doesn't exist, create it!
         if not database_exists(engine.url):
@@ -239,7 +239,6 @@ class PostgresMemory(MemoryProvider):
         return {row.id: row.text for row in results}
 
 
-
 class AsyncPostgresMemory(AsyncMemoryProvider):
     """
     An async MemoryProvider storing text + embeddings in PostgreSQL
@@ -249,7 +248,7 @@ class AsyncPostgresMemory(AsyncMemoryProvider):
     database_url: str = Field(
         default="postgresql+asyncpg://user:password@localhost:5432/your_database",
         description="Async Postgres URL with the asyncpg driver, e.g. "
-                    "'postgresql+asyncpg://user:pass@host:5432/dbname'."
+        "'postgresql+asyncpg://user:pass@host:5432/dbname'.",
     )
 
     table_name: str = Field(
@@ -261,34 +260,30 @@ class AsyncPostgresMemory(AsyncMemoryProvider):
 
     embedding_dimension: int = Field(
         default=1536,
-        description="Dimension of the embedding vectors. Must match your model output size."
+        description="Dimension of the embedding vectors. Must match your model output size.",
     )
 
     embedding_fn: Callable = Field(
         default_factory=lambda: OpenAIEmbeddings(model="text-embedding-ada-002"),
-        description="Function that turns a string into a numeric vector."
+        description="Function that turns a string into a numeric vector.",
     )
 
     # -- Pool / Engine settings (SQLAlchemy will do the pooling)
     pool_size: int = Field(
-        5,
-        description="Number of permanent connections in the async pool."
+        5, description="Number of permanent connections in the async pool."
     )
     max_overflow: int = Field(
-        10,
-        description="Number of 'overflow' connections if the pool is full."
+        10, description="Number of 'overflow' connections if the pool is full."
     )
     pool_timeout: int = Field(
-        30,
-        description="Seconds to wait for a connection before raising an error."
+        30, description="Seconds to wait for a connection before raising an error."
     )
     pool_recycle: int = Field(
         1800,
-        description="Recycle connections after N seconds to avoid stale connections."
+        description="Recycle connections after N seconds to avoid stale connections.",
     )
     pool_pre_ping: bool = Field(
-        True,
-        description="Check connection health before using from the pool."
+        True, description="Check connection health before using from the pool."
     )
 
     # We'll store an async engine + session factory:
@@ -299,7 +294,7 @@ class AsyncPostgresMemory(AsyncMemoryProvider):
     _table_class_cache: Dict[str, Base] = {}
 
     _configured: bool = False
-    
+
     async def configure(self, memory_key: str) -> None:
         """
         1) Create an async engine.
@@ -347,12 +342,16 @@ class AsyncPostgresMemory(AsyncMemoryProvider):
                     # (2) Actually create it (async):
                     def _sync_create(connection):
                         """Helper function to run table creation in sync context."""
-                        Base.metadata.create_all(connection, tables=[memory_model.__table__])
+                        Base.metadata.create_all(
+                            connection, tables=[memory_model.__table__]
+                        )
 
                     try:
                         await conn.run_sync(_sync_create)
                     except ProgrammingError as e:
-                        raise RuntimeError(f"Failed to create table '{table_name}': {e}")
+                        raise RuntimeError(
+                            f"Failed to create table '{table_name}': {e}"
+                        )
 
             # 4) Now that the DB and table are ready, create a session factory
             self._SessionLocal = async_sessionmaker(
@@ -361,7 +360,6 @@ class AsyncPostgresMemory(AsyncMemoryProvider):
             )
 
             self._configured = True
-
 
     def _get_table(self, memory_key: str) -> Base:
         """
