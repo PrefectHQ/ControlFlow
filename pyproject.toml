@@ -12,8 +12,7 @@ dependencies = [
     "langchain_openai>=0.2",
     "langchain-anthropic>=0.2",
     "markdownify>=0.12.1",
-    "openai<1.47",
-    # 1.47.0 introduced a bug with attempting to reuse an async client that doesnt have an obvious solution
+    "openai>=1.55.3",
     "pydantic-settings>=2.2.1",
     "textual>=0.61.1",
     "tiktoken>=0.7.0",
@@ -52,6 +51,7 @@ tests = [
     "langchain_community",
     "langchain_google_genai",
     "langchain_groq",
+    "langchain-ollama',
     "pytest-asyncio>=0.18.2,!=0.22.0,<0.23.0",
     "pytest-env>=0.8,<2.0",
     "pytest-rerunfailures>=10,<14",

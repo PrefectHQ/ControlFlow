@@ -21,6 +21,7 @@ from controlflow.flows import Flow
 from controlflow.instructions import get_instructions
 from controlflow.llm.messages import BaseMessage
 from controlflow.memory import Memory
+from controlflow.memory.async_memory import AsyncMemory
 from controlflow.orchestration.conditions import (
     AllComplete,
     FnCondition,
@@ -187,7 +188,7 @@ class Orchestrator(ControlFlowModel):
         tools = as_tools(tools)
         return tools
 
-    def get_memories(self) -> list[Memory]:
+    def get_memories(self) -> list[Memory] | list[AsyncMemory]:
         memories = set()
 
         memories.update(self.agent.memories)

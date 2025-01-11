@@ -13,6 +13,7 @@ from .flows import Flow
 
 # functions, utilites, and decorators
 from .memory import Memory
+from .memory.async_memory import AsyncMemory
 from .instructions import instructions
 from .decorators import flow, task
 from .tools import tool

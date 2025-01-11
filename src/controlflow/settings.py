@@ -12,7 +12,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from controlflow.utilities.general import unwrap
 
-CONTROLFLOW_ENV_FILE = os.getenv("CONTROLFLOW_ENV_FILE", "~/.controlflow/.env")
+CONTROLFLOW_ENV_FILE = os.path.expanduser(
+    os.path.expandvars(os.getenv("CONTROLFLOW_ENV_FILE", "~/.controlflow/.env"))
+)
 
 
 class ControlFlowSettings(BaseSettings):
