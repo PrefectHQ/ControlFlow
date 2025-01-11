@@ -3,7 +3,7 @@ from controlflow.memory.memory import Memory
 from controlflow.memory.providers.postgres import PostgresMemory
 
 provider = PostgresMemory(
-    database_url="postgresql://postgres:postgres@localhost:5432/your_database",
+    database_url="postgresql://postgres:postgres@localhost:5432/database",
     # embedding_dimension=1536,
     # embedding_fn=OpenAIEmbeddings(),
     table_name="vector_db",
