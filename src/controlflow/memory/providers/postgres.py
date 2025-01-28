@@ -74,7 +74,7 @@ class PostgresMemory(MemoryProvider):
         description="Dimension of the embedding vectors. Match your model's output.",
     )
 
-    embedding_fn: Callable = Field(
+    embedding_fn: OpenAIEmbeddings = Field(
         default_factory=lambda: OpenAIEmbeddings(
             model="text-embedding-ada-002",
         ),
