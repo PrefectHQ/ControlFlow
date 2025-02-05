@@ -1,5 +1,5 @@
 [project]
-name = "iocontrolflow"
+name = "controlflow"
 dynamic = ["version"]
 description = "A framework for building agentic LLM workflows"
 authors = [
