@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import model_validator
 
@@ -98,7 +98,7 @@ class ToolTemplate(Template):
 
 class MemoryTemplate(Template):
     template_path: str = "memories.jinja"
-    memories: list[Memory] | list[AsyncMemory]
+    memories: list[Union[Memory, AsyncMemory]]
 
     def should_render(self) -> bool:
         return bool(self.memories)
