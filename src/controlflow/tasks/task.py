@@ -75,7 +75,7 @@ class Labels(RootModel):
         return self.root[item]
 
     def __repr__(self) -> str:
-        return f'Labels: {", ".join(self.root)}'
+        return f"Labels: {', '.join(self.root)}"
 
 
 class TaskStatus(Enum):
@@ -162,7 +162,7 @@ class Task(ControlFlowModel):
         description="Agents that are allowed to mark this task as complete. If None, all agents are allowed.",
     )
     interactive: bool = False
-    memories: list[Memory] | list[AsyncMemory] = Field(
+    memories: list[Union[Memory, AsyncMemory]] = Field(
         default=[],
         description="A list of memory modules for the task to use.",
     )
