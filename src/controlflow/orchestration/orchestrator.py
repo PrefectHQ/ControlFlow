@@ -188,7 +188,7 @@ class Orchestrator(ControlFlowModel):
         tools = as_tools(tools)
         return tools
 
-    def get_memories(self) -> list[Memory] | list[AsyncMemory]:
+    def get_memories(self) -> list[Union[Memory, AsyncMemory]]:
         memories = set()
 
         memories.update(self.agent.memories)
@@ -525,7 +525,7 @@ class Orchestrator(ControlFlowModel):
         ]
 
         prompt = "\n\n".join([p for p in prompts if p])
-        logger.debug(f"{'='*10}\nCompiled prompt: {prompt}\n{'='*10}")
+        logger.debug(f"{'=' * 10}\nCompiled prompt: {prompt}\n{'=' * 10}")
         return prompt
 
     def compile_messages(self) -> list[BaseMessage]:

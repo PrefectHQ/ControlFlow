@@ -83,7 +83,7 @@ class Agent(ControlFlowModel, abc.ABC):
         default=False,
         description="If True, the agent is given tools for interacting with a human user.",
     )
-    memories: list[Memory] | list[AsyncMemory] = Field(
+    memories: list[Union[Memory, AsyncMemory]] = Field(
         default=[],
         description="A list of memory modules for the agent to use.",
     )
@@ -345,7 +345,7 @@ class Agent(ControlFlowModel, abc.ABC):
 
         create_markdown_artifact(
             markdown=f"""
-{response.content or '(No content)'}
+{response.content or "(No content)"}
 
 #### Payload
 ```json
@@ -409,7 +409,7 @@ class Agent(ControlFlowModel, abc.ABC):
 
         create_markdown_artifact(
             markdown=f"""
-{response.content or '(No content)'}
+{response.content or "(No content)"}
 
 #### Payload
 ```json
