@@ -1,9 +1,12 @@
 import asyncio
 import functools
 import inspect
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, TypeVar, Union, cast
 
+from prefect import Flow as PrefectFlow
+from prefect import Task as PrefectTask
 from prefect.utilities.asyncutils import run_coro_as_sync
+from typing_extensions import ParamSpec
 
 import controlflow
 from controlflow.agents import Agent
@@ -14,11 +17,14 @@ from controlflow.utilities.prefect import prefect_flow, prefect_task
 
 # from controlflow.utilities.marvin import patch_marvin
 
+P = ParamSpec("P")
+R = TypeVar("R")
+
 logger = get_logger(__name__)
 
 
 def flow(
-    fn: Optional[Callable[..., Any]] = None,
+    fn: Optional[Callable[P, R]] = None,
     *,
     thread: Optional[str] = None,
     instructions: Optional[str] = None,
@@ -29,8 +35,8 @@ def flow(
     timeout_seconds: Optional[Union[float, int]] = None,
     prefect_kwargs: Optional[dict[str, Any]] = None,
     context_kwargs: Optional[list[str]] = None,
-    **kwargs: Optional[dict[str, Any]],
-):
+    **kwargs: Any,
+) -> Callable[[Callable[P, R]], PrefectFlow[P, R]]:
     """
     A decorator that wraps a function as a ControlFlow flow.
 
@@ -54,7 +60,7 @@ def flow(
         callable: The wrapped function or a new flow decorator if `fn` is not provided.
     """
     if fn is None:
-        return functools.partial(
+        return functools.partial(  # type: ignore
             flow,
             thread=thread,
             instructions=instructions,
@@ -70,13 +76,15 @@ def flow(
     sig = inspect.signature(fn)
 
     def create_flow_context(bound_args):
-        flow_kwargs = kwargs.copy()
+        flow_kwargs: dict[str, Any] = kwargs.copy()
         if thread is not None:
-            flow_kwargs.setdefault("thread_id", thread)
+            flow_kwargs["thread_id"] = thread
         if tools is not None:
-            flow_kwargs.setdefault("tools", tools)
+            flow_kwargs["tools"] = tools
         if default_agent is not None:
-            flow_kwargs.setdefault("default_agent", default_agent)
+            flow_kwargs["default_agent"] = default_agent
+
+        flow_kwargs.update(kwargs)
 
         context = {}
         if context_kwargs:
@@ -92,7 +100,7 @@ def flow(
     if asyncio.iscoroutinefunction(fn):
 
         @functools.wraps(fn)
-        async def wrapper(*wrapper_args, **wrapper_kwargs):
+        async def wrapper(*wrapper_args, **wrapper_kwargs):  # type: ignore
             bound = sig.bind(*wrapper_args, **wrapper_kwargs)
             bound.apply_defaults()
             with (
@@ -112,17 +120,19 @@ def flow(
             ):
                 return fn(*wrapper_args, **wrapper_kwargs)
 
-    wrapper = prefect_flow(
-        timeout_seconds=timeout_seconds,
-        retries=retries,
-        retry_delay_seconds=retry_delay_seconds,
-        **(prefect_kwargs or {}),
-    )(wrapper)
-    return wrapper
+    return cast(
+        Callable[[Callable[P, R]], PrefectFlow[P, R]],
+        prefect_flow(
+            timeout_seconds=timeout_seconds,
+            retries=retries,
+            retry_delay_seconds=retry_delay_seconds,
+            **(prefect_kwargs or {}),
+        )(wrapper),
+    )
 
 
 def task(
-    fn: Optional[Callable[..., Any]] = None,
+    fn: Optional[Callable[P, R]] = None,
     *,
     objective: Optional[str] = None,
     instructions: Optional[str] = None,
@@ -133,8 +143,8 @@ def task(
     retries: Optional[int] = None,
     retry_delay_seconds: Optional[Union[float, int]] = None,
     timeout_seconds: Optional[Union[float, int]] = None,
-    **task_kwargs: Optional[dict[str, Any]],
-):
+    **task_kwargs: Any,
+) -> Callable[[Callable[P, R]], PrefectTask[P, R]]:
     """
     A decorator that turns a Python function into a Task. The Task objective is
     set to the function name, and the instructions are set to the function
@@ -157,78 +167,68 @@ def task(
         callable: The wrapped function or a new task decorator if `fn` is not provided.
     """
 
-    if fn is None:
-        return functools.partial(
-            task,
-            objective=objective,
-            instructions=instructions,
-            name=name,
-            agents=agents,
-            tools=tools,
-            interactive=interactive,
+    def decorator(func: Callable[P, R]) -> PrefectTask[P, R]:
+        sig = inspect.signature(func)
+
+        if name is None:
+            task_name = func.__name__
+        else:
+            task_name = name
+
+        if objective is None:
+            task_objective = func.__doc__ or ""
+        else:
+            task_objective = objective
+
+        result_type = func.__annotations__.get("return")
+
+        def _get_task(*args, **kwargs) -> Task:
+            bound = sig.bind(*args, **kwargs)
+            bound.apply_defaults()
+            context = bound.arguments.copy()
+
+            maybe_coro = func(*args, **kwargs)
+            if asyncio.iscoroutine(maybe_coro):
+                result = run_coro_as_sync(maybe_coro)
+            else:
+                result = maybe_coro
+            if result is not None:
+                context["Additional context"] = result
+
+            return Task(
+                objective=task_objective,
+                instructions=instructions,
+                name=task_name,
+                agents=agents,
+                context=context,
+                result_type=result_type,
+                interactive=interactive or False,
+                tools=tools or [],
+                **task_kwargs,
+            )
+
+        if asyncio.iscoroutinefunction(func):
+
+            @functools.wraps(func)
+            async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:  # type: ignore
+                task = _get_task(*args, **kwargs)
+                return await task.run_async()  # type: ignore
+        else:
+
+            @functools.wraps(func)
+            def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+                task = _get_task(*args, **kwargs)
+                return task.run()  # type: ignore
+
+        prefect_wrapper = prefect_task(
+            timeout_seconds=timeout_seconds,
             retries=retries,
             retry_delay_seconds=retry_delay_seconds,
-            timeout_seconds=timeout_seconds,
-            **task_kwargs,
-        )
+        )(wrapper)
 
-    sig = inspect.signature(fn)
+        setattr(prefect_wrapper, "as_task", _get_task)
+        return cast(PrefectTask[P, R], prefect_wrapper)
 
-    if name is None:
-        name = fn.__name__
-
-    if objective is None:
-        objective = fn.__doc__ or ""
-
-    result_type = fn.__annotations__.get("return")
-
-    def _get_task(*args, **kwargs) -> Task:
-        # first process callargs
-        bound = sig.bind(*args, **kwargs)
-        bound.apply_defaults()
-        context = bound.arguments.copy()
-
-        # call the function to see if it produces an updated objective
-        maybe_coro = fn(*args, **kwargs)
-        if asyncio.iscoroutine(maybe_coro):
-            result = run_coro_as_sync(maybe_coro)
-        else:
-            result = maybe_coro
-        if result is not None:
-            context["Additional context"] = result
-
-        return Task(
-            objective=objective,
-            instructions=instructions,
-            name=name,
-            agents=agents,
-            context=context,
-            result_type=result_type,
-            interactive=interactive or False,
-            tools=tools or [],
-            **task_kwargs,
-        )
-
-    if asyncio.iscoroutinefunction(fn):
-
-        @functools.wraps(fn)
-        async def wrapper(*args, **kwargs):
-            task = _get_task(*args, **kwargs)
-            return await task.run_async()
-    else:
-
-        @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
-            task = _get_task(*args, **kwargs)
-            return task.run()
-
-    wrapper = prefect_task(
-        timeout_seconds=timeout_seconds,
-        retries=retries,
-        retry_delay_seconds=retry_delay_seconds,
-    )(wrapper)
-
-    # store the `as_task` method for loading the task object
-    wrapper.as_task = _get_task
-
-    return wrapper
+    if fn is None:
+        return decorator
+    return decorator(fn)  # type: ignore
