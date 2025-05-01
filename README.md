@@ -1,3 +1,7 @@
+> [!WARNING]
+> `controlflow` has been superseded by [`marvin`](https://github.com/PrefectHQ/marvin). If you think something is missing from `marvin`, please [open an issue](https://github.com/PrefectHQ/marvin/issues).
+
+
 ![ControlFlow Banner](https://github.com/PrefectHQ/ControlFlow/blob/main/docs/assets/brand/controlflow_banner.png)
 
 # ControlFlow
