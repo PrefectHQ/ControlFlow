@@ -17,28 +17,28 @@ def sanitize_memory_key(key: str) -> str:
     return re.sub(r"[^a-zA-Z0-9_]", "", key)
 
 
-class MemoryProvider(ControlFlowModel, abc.ABC):
-    def configure(self, memory_key: str) -> None:
+class AsyncMemoryProvider(ControlFlowModel, abc.ABC):
+    async def configure(self, memory_key: str) -> None:
         """Configure the provider for a specific memory."""
         pass
 
     @abc.abstractmethod
-    def add(self, memory_key: str, content: str) -> str:
+    async def add(self, memory_key: str, content: str) -> str:
         """Create a new memory and return its ID."""
         pass
 
     @abc.abstractmethod
-    def delete(self, memory_key: str, memory_id: str) -> None:
+    async def delete(self, memory_key: str, memory_id: str) -> None:
         """Delete a memory by its ID."""
         pass
 
     @abc.abstractmethod
-    def search(self, memory_key: str, query: str, n: int = 20) -> Dict[str, str]:
+    async def search(self, memory_key: str, query: str, n: int = 20) -> Dict[str, str]:
         """Search for n memories using a string query."""
         pass
 
 
-class Memory(ControlFlowModel):
+class AsyncMemory(ControlFlowModel):
     """
     A memory module is a partitioned collection of memories that are stored in a
     vector database, configured by a MemoryProvider.
@@ -48,7 +48,7 @@ class Memory(ControlFlowModel):
     instructions: str = Field(
         description="Explain what this memory is for and how it should be used."
     )
-    provider: MemoryProvider = Field(
+    provider: AsyncMemoryProvider = Field(
         default_factory=lambda: controlflow.defaults.memory_provider,
         validate_default=True,
     )
@@ -59,8 +59,8 @@ class Memory(ControlFlowModel):
     @field_validator("provider", mode="before")
     @classmethod
     def validate_provider(
-        cls, v: Optional[Union[MemoryProvider, str]]
-    ) -> MemoryProvider:
+        cls, v: Optional[Union[AsyncMemoryProvider, str]]
+    ) -> AsyncMemoryProvider:
         if isinstance(v, str):
             return get_memory_provider(v)
         if v is None:
@@ -96,19 +96,18 @@ class Memory(ControlFlowModel):
             )
         return sanitized
 
-    @model_validator(mode="after")
-    def _configure_provider(self):
-        self.provider.configure(self.key)
+    async def _configure_provider(self):
+        await self.provider.configure(self.key)
         return self
 
-    def add(self, content: str) -> str:
-        return self.provider.add(self.key, content)
+    async def add(self, content: str) -> str:
+        return await self.provider.add(self.key, content)
 
-    def delete(self, memory_id: str) -> None:
-        self.provider.delete(self.key, memory_id)
+    async def delete(self, memory_id: str) -> None:
+        await self.provider.delete(self.key, memory_id)
 
-    def search(self, query: str, n: int = 20) -> Dict[str, str]:
-        return self.provider.search(self.key, query, n)
+    async def search(self, query: str, n: int = 20) -> Dict[str, str]:
+        return await self.provider.search(self.key, query, n)
 
     def get_tools(self) -> List[Tool]:
         return [
@@ -130,54 +129,21 @@ class Memory(ControlFlowModel):
         ]
 
 
-def get_memory_provider(provider: str) -> MemoryProvider:
+def get_memory_provider(provider: str) -> AsyncMemoryProvider:
     logger.debug(f"Loading memory provider: {provider}")
 
-    # --- CHROMA ---
+    # --- async postgres ---
 
-    if provider.startswith("chroma"):
-        try:
-            import chromadb
-        except ImportError:
-            raise ImportError(
-                "To use Chroma as a memory provider, please install the `chromadb` package."
-            )
-
-        import controlflow.memory.providers.chroma as chroma_providers
-
-        if provider == "chroma-ephemeral":
-            return chroma_providers.ChromaEphemeralMemory()
-        elif provider == "chroma-db":
-            return chroma_providers.ChromaPersistentMemory()
-        elif provider == "chroma-cloud":
-            return chroma_providers.ChromaCloudMemory()
-
-    # --- LanceDB ---
-
-    elif provider.startswith("lancedb"):
-        try:
-            import lancedb
-        except ImportError:
-            raise ImportError(
-                "To use LanceDB as a memory provider, please install the `lancedb` package."
-            )
-
-        import controlflow.memory.providers.lance as lance_providers
-
-        return lance_providers.LanceMemory()
-
-    # --- Postgres ---
-    elif provider.startswith("postgres"):
+    if provider.startswith("async-postgres"):
         try:
             import sqlalchemy
         except ImportError:
             raise ImportError(
-                """To use Postgres as a memory provider, please install the `sqlalchemy, `psycopg-pool`,
-                    `psycopg-binary`, and `psycopg` `psycopg2-binary` packages."""
+                """To use async Postgres as a memory provider, please install the `sqlalchemy, `psycopg-pool`,
+                    `psycopg-binary`, and `psycopg` packages."""
             )
 
         import controlflow.memory.providers.postgres as postgres_providers
 
-        return postgres_providers.PostgresMemory()
-
+        return postgres_providers.AsyncPostgresMemory()
     raise ValueError(f'Memory provider "{provider}" could not be loaded from a string.')

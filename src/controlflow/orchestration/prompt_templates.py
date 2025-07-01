@@ -1,9 +1,10 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import model_validator
 
 from controlflow.agents.agent import Agent
 from controlflow.flows import Flow
+from controlflow.memory.async_memory import AsyncMemory
 from controlflow.memory.memory import Memory
 from controlflow.tasks.task import Task
 from controlflow.tools.tools import Tool
@@ -97,7 +98,7 @@ class ToolTemplate(Template):
 
 class MemoryTemplate(Template):
     template_path: str = "memories.jinja"
-    memories: list[Memory]
+    memories: list[Union[Memory, AsyncMemory]]
 
     def should_render(self) -> bool:
         return bool(self.memories)

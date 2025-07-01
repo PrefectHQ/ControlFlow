@@ -37,6 +37,7 @@ from typing_extensions import Self
 import controlflow
 from controlflow.agents import Agent
 from controlflow.instructions import get_instructions
+from controlflow.memory.async_memory import AsyncMemory
 from controlflow.memory.memory import Memory
 from controlflow.tools import Tool, tool
 from controlflow.tools.input import cli_input
@@ -74,7 +75,7 @@ class Labels(RootModel):
         return self.root[item]
 
     def __repr__(self) -> str:
-        return f'Labels: {", ".join(self.root)}'
+        return f"Labels: {', '.join(self.root)}"
 
 
 class TaskStatus(Enum):
@@ -161,7 +162,7 @@ class Task(ControlFlowModel):
         description="Agents that are allowed to mark this task as complete. If None, all agents are allowed.",
     )
     interactive: bool = False
-    memories: list[Memory] = Field(
+    memories: list[Union[Memory, AsyncMemory]] = Field(
         default=[],
         description="A list of memory modules for the task to use.",
     )

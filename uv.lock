@@ -716,7 +716,7 @@ name = "click"
 version = "8.1.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/96/d3/f04c7bfcf5c1862a2a5b845c6b2b360488cf47af55dfa79c98f6a6bf98b5/click-8.1.7.tar.gz", hash = "sha256:ca9853ad459e787e2192211578cc907e7594e294c7ccc834310722b41b9ca6de", size = 336121 }
 wheels = [
@@ -755,7 +755,7 @@ wheels = [
 
 [[package]]
 name = "controlflow"
-version = "0.11.1.dev1+g60674fa.d20241016"
+version = "0.12.1.dev5+g06a55b3.d20250205"
 source = { editable = "." }
 dependencies = [
     { name = "ipython" },
@@ -781,6 +781,7 @@ dev = [
     { name = "langchain-community" },
     { name = "langchain-google-genai" },
     { name = "langchain-groq" },
+    { name = "langchain-ollama" },
     { name = "mypy" },
     { name = "pdbpp" },
     { name = "pre-commit" },
@@ -801,6 +802,7 @@ tests = [
     { name = "langchain-community" },
     { name = "langchain-google-genai" },
     { name = "langchain-groq" },
+    { name = "langchain-ollama" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-env" },
@@ -815,7 +817,7 @@ requires-dist = [
     { name = "chromadb", marker = "extra == 'tests'" },
     { name = "controlflow", extras = ["tests"], marker = "extra == 'dev'" },
     { name = "duckduckgo-search", marker = "extra == 'tests'" },
-    { name = "ipython" },
+    { name = "ipython", specifier = ">=8.18.1" },
     { name = "ipython", marker = "extra == 'dev'" },
     { name = "jinja2", specifier = ">=3.1.4" },
     { name = "langchain-anthropic", specifier = ">=0.2" },
@@ -823,10 +825,11 @@ requires-dist = [
     { name = "langchain-core", specifier = ">=0.3" },
     { name = "langchain-google-genai", marker = "extra == 'tests'" },
     { name = "langchain-groq", marker = "extra == 'tests'" },
+    { name = "langchain-ollama", marker = "extra == 'tests'" },
     { name = "langchain-openai", specifier = ">=0.2" },
     { name = "markdownify", specifier = ">=0.12.1" },
     { name = "mypy", marker = "extra == 'dev'" },
-    { name = "openai", specifier = "<1.47" },
+    { name = "openai", specifier = ">=1.55.3" },
     { name = "pdbpp", marker = "extra == 'dev'" },
     { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "prefect", specifier = ">=3.0" },
@@ -1048,7 +1051,7 @@ name = "fancycompleter"
 version = "0.9.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyreadline", marker = "platform_system == 'Windows'" },
+    { name = "pyreadline", marker = "sys_platform == 'win32'" },
     { name = "pyrepl" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a9/95/649d135442d8ecf8af5c7e235550c628056423c96c4bc6787348bdae9248/fancycompleter-0.9.1.tar.gz", hash = "sha256:09e0feb8ae242abdfd7ef2ba55069a46f011814a80fe5476be48f51b00247272", size = 10866 }
@@ -1649,10 +1652,9 @@ version = "8.5.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version < '3.11'",
-    "python_full_version == '3.11.*'",
 ]
 dependencies = [
-    { name = "zipp", marker = "python_full_version < '3.12'" },
+    { name = "zipp", marker = "python_full_version < '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/cd/12/33e59336dca5be0c398a7482335911a33aa0e20776128f038019f1a95f1b/importlib_metadata-8.5.0.tar.gz", hash = "sha256:71522656f0abace1d072b9e5481a48f07c138e00f079c38c8f883823f9c26bd7", size = 55304 }
 wheels = [
@@ -1938,7 +1940,7 @@ wheels = [
 
 [[package]]
 name = "langchain-core"
-version = "0.3.10"
+version = "0.3.33"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jsonpatch" },
@@ -1949,9 +1951,9 @@ dependencies = [
     { name = "tenacity" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/81/26/cd7d4f26e74c0214ed7f6f0922e311cc522577733c8c67ce3aa2bf2d9762/langchain_core-0.3.10.tar.gz", hash = "sha256:63b9a3d03b52dba29cc248b752c574cdcb5fb04bd0fc5c76097fcbb7aaba5221", size = 323602 }
+sdist = { url = "https://files.pythonhosted.org/packages/57/b3/426268e07273c395affc6dd02cdf89803888121cfc59ce60922f363aeff8/langchain_core-0.3.33.tar.gz", hash = "sha256:b5dd93a4e7f8198d2fc6048723b0bfecf7aaf128b0d268cbac19c34c1579b953", size = 331492 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6f/bb/47b0b961a0b58a36e494a3f4d853b76afa12fb7cc2f0700f100681b2a824/langchain_core-0.3.10-py3-none-any.whl", hash = "sha256:146be6bf2d3dc0d6f4feb46ef082182cf57b056e8163d45278529cd7b7343d2f", size = 404352 },
+    { url = "https://files.pythonhosted.org/packages/98/78/463bc92174555cc04b3e234faa169bb8b58f36fff77892d7b8ae2b4f58e4/langchain_core-0.3.33-py3-none-any.whl", hash = "sha256:269706408a2223f863ff1f9616f31903a5712403199d828b50aadbc4c28b553a", size = 412656 },
 ]
 
 [[package]]
@@ -1979,6 +1981,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f4/ac/cd1f8297fd19856e2209773e98a4191d8e1f633a1c3f6af50b431536f0c5/langchain_groq-0.2.0.tar.gz", hash = "sha256:36932bbdfe19176130acb660a0c7ba8db55f5fdee6b0ee69b53794d5308542ae", size = 14911 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/dd/85/425765bc9895f992059a5b893dd6843d795b62b68a78c738a990767c7c87/langchain_groq-0.2.0-py3-none-any.whl", hash = "sha256:23a891f87b6399b988c128cd6656781850a6bd34c91de5e283e713d8fce18d9e", size = 14434 },
+]
+
+[[package]]
+name = "langchain-ollama"
+version = "0.2.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "langchain-core" },
+    { name = "ollama" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/47/76/dfcf5f09ba2f7651161110ba5ddb621e92634f9fb34e4ad919ae0428205a/langchain_ollama-0.2.3.tar.gz", hash = "sha256:d13fe8735176b652ca6e6656d7902c1265e8c0601097569f7c95433f3d034b38", size = 17231 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/85/72/f7301340a544fea1c139c64590044f0beb5bfba889b8f6e50766b933e660/langchain_ollama-0.2.3-py3-none-any.whl", hash = "sha256:c47700ca68b013358b1e954493ecafb3bd10fa2cda71a9f15ba7897587a9aab2", size = 19543 },
 ]
 
 [[package]]
@@ -2571,6 +2586,19 @@ wheels = [
 ]
 
 [[package]]
+name = "ollama"
+version = "0.4.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b0/6d/dc77539c735bbed5d0c873fb029fb86aa9f0163df169b34152914331c369/ollama-0.4.7.tar.gz", hash = "sha256:891dcbe54f55397d82d289c459de0ea897e103b86a3f1fad0fdb1895922a75ff", size = 12843 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/31/83/c3ffac86906c10184c88c2e916460806b072a2cfe34cdcaf3a0c0e836d39/ollama-0.4.7-py3-none-any.whl", hash = "sha256:85505663cca67a83707be5fb3aeff0ea72e67846cea5985529d8eca4366564a1", size = 13210 },
+]
+
+[[package]]
 name = "onnxruntime"
 version = "1.19.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2607,7 +2635,7 @@ wheels = [
 
 [[package]]
 name = "openai"
-version = "1.46.1"
+version = "1.58.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -2619,9 +2647,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fc/6b/470673304605c4aa4ee899dbab6ea12f6a0844e3ee7970ce7ecae0c89aea/openai-1.46.1.tar.gz", hash = "sha256:e5cf7f268bf516de23686d496c9dae7f0dcdcd0e87af4d288deeab8329fcbbaf", size = 297547 }
+sdist = { url = "https://files.pythonhosted.org/packages/27/3c/b1ecce430ed56fa3ac1b0676966d3250aab9c70a408232b71e419ea62148/openai-1.58.1.tar.gz", hash = "sha256:f5a035fd01e141fc743f4b0e02c41ca49be8fab0866d3b67f5f29b4f4d3c0973", size = 343411 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/da/14/aabc614d8c446cb32043ed397dd8536a8f4c43a92c6609c05a958be9b960/openai-1.46.1-py3-none-any.whl", hash = "sha256:7517f07117cf66012bbc55c49fd6b983eaac0f3d2a09c90cba1140d4455e4290", size = 375150 },
+    { url = "https://files.pythonhosted.org/packages/8e/5a/d22cd07f1a99b9e8b3c92ee0c1959188db4318828a3d88c9daac120bdd69/openai-1.58.1-py3-none-any.whl", hash = "sha256:e2910b1170a6b7f88ef491ac3a42c387f08bd3db533411f7ee391d166571d63c", size = 454279 },
 ]
 
 [[package]]
@@ -3130,7 +3158,6 @@ dependencies = [
     { name = "httpcore" },
     { name = "httpx", extra = ["http2"] },
     { name = "humanize" },
-    { name = "importlib-metadata", version = "8.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_version < '0'" },
     { name = "importlib-metadata", version = "8.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "jinja2" },
     { name = "jinja2-humanize-extension" },
@@ -4572,7 +4599,7 @@ name = "tqdm"
 version = "4.66.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/58/83/6ba9844a41128c62e810fddddd72473201f3eacde02046066142a2d96cc5/tqdm-4.66.5.tar.gz", hash = "sha256:e1020aef2e5096702d8a025ac7d16b1577279c9d63f8375b63083e9a5f0fcbad", size = 169504 }
 wheels = [
@@ -4639,7 +4666,7 @@ name = "tzlocal"
 version = "5.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "tzdata", marker = "platform_system == 'Windows'" },
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/04/d3/c19d65ae67636fe63953b20c2e4a8ced4497ea232c43ff8d01db16de8dc0/tzlocal-5.2.tar.gz", hash = "sha256:8d399205578f1a9342816409cc1e46a93ebd5755e39ea2d85334bea911bf0e6e", size = 30201 }
 wheels = [

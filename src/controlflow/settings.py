@@ -109,7 +109,9 @@ class Settings(ControlFlowSettings):
         default="openai/gpt-4o",
         description="The default LLM model for agents.",
     )
-    llm_temperature: float = Field(0.7, description="The temperature for LLM sampling.")
+    llm_temperature: Union[float, None] = Field(
+        None, description="The temperature for LLM sampling."
+    )
     max_input_tokens: int = Field(
         100_000, description="The maximum number of tokens to send to an LLM."
     )
