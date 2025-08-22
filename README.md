@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> Please note: next-generation ControlFlow engine was merged into the [Marvin](https://github.com/prefecthq/marvin) agentic framework, and this repo has been archived.
+
 ![ControlFlow Banner](https://github.com/PrefectHQ/ControlFlow/blob/main/docs/assets/brand/controlflow_banner.png)
 
 # ControlFlow
